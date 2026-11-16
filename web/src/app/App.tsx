@@ -4,6 +4,8 @@ import { SettingsPage } from "../features/account/SettingsPage";
 import { AuthGuard } from "../features/auth/AuthGuard";
 import { SignInForm } from "../features/auth/SignInForm";
 import { VerifyPage } from "../features/auth/VerifyPage";
+import { CompaniesPage } from "../features/companies/CompaniesPage";
+import { CompanyPage } from "../features/companies/CompanyPage";
 import { NotesPage } from "../features/notes/NotesPage";
 import { BrowserNotice } from "./BrowserNotice";
 import { currentEnv, isSupported } from "./browserSupport";
@@ -28,10 +30,8 @@ export function App() {
         <Route element={<Layout />}>
           <Route path="/" element={<Placeholder name="Dashboard" />} />
           <Route path="/notes" element={<NotesPage />} />
-          <Route
-            path="/companies/*"
-            element={<Placeholder name="Companies" />}
-          />
+          <Route path="/companies" element={<CompaniesPage />} />
+          <Route path="/companies/:id" element={<CompanyPage />} />
           <Route
             path="/session/new"
             element={<Placeholder name="Session setup" />}

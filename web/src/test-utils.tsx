@@ -40,12 +40,7 @@ export function renderApp(ui: ReactElement, route = "/") {
   });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter
-        initialEntries={[route]}
-        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
-      >
-        {ui}
-      </MemoryRouter>
+      <MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>
     </QueryClientProvider>,
   );
 }

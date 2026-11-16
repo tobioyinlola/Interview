@@ -4,543 +4,1146 @@
  */
 
 export interface paths {
-  "/api/account": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Account
+         * @description Delete the user and everything they own at once. Backups age out within 30 days.
+         */
+        delete: operations["delete_account_api_account_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    /**
-     * Delete Account
-     * @description Delete the user and everything they own at once. Backups age out within 30 days.
-     */
-    delete: operations["delete_account_api_account_delete"];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/auth/logout": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Logout */
+        post: operations["logout_api_auth_logout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Logout */
-    post: operations["logout_api_auth_logout_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/auth/request-link": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/auth/request-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request Link
+         * @description Email a single-use sign-in link. The answer is the same for every address, so it cannot be
+         *     used to discover which emails have accounts.
+         */
+        post: operations["request_link_api_auth_request_link_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Request Link
-     * @description Email a single-use sign-in link. The answer is the same for every address, so it cannot be
-     *     used to discover which emails have accounts.
-     */
-    post: operations["request_link_api_auth_request_link_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/auth/verify": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/auth/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verify
+         * @description Exchange the emailed token for a session cookie. POST (not GET) so a mail scanner that
+         *     prefetches the link cannot burn the token.
+         */
+        post: operations["verify_api_auth_verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Verify
-     * @description Exchange the emailed token for a session cookie. POST (not GET) so a mail scanner that
-     *     prefetches the link cannot burn the token.
-     */
-    post: operations["verify_api_auth_verify_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/me": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/companies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Companies */
+        get: operations["list_companies_api_companies_get"];
+        put?: never;
+        /**
+         * Create Company
+         * @description Save a company and start its research job.
+         */
+        post: operations["create_company_api_companies_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Me */
-    get: operations["me_api_me_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/notes": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/companies/{company_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Company */
+        get: operations["get_company_api_companies__company_id__get"];
+        /**
+         * Update Company
+         * @description Edit company details. This does not start research by itself (it costs money); the page
+         *     offers "Research again" so the user decides.
+         */
+        put: operations["update_company_api_companies__company_id__put"];
+        post?: never;
+        /** Delete Company */
+        delete: operations["delete_company_api_companies__company_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Get Notes */
-    get: operations["get_notes_api_notes_get"];
-    /** Put Notes */
-    put: operations["put_notes_api_notes_put"];
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/sessions": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/companies/{company_id}/research": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rerun Research
+         * @description Re-run research (bypasses the page cache). One job per company at a time: if one is
+         *     already running, its id is returned and nothing new starts.
+         */
+        post: operations["rerun_research_api_companies__company_id__research_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Create Session
-     * @description Start a practice session. Refused unless the user confirmed the partner knows the assistant
-     *     is on. The confirmation time is stored with the session.
-     */
-    post: operations["create_session_api_sessions_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/healthz": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/companies/{company_id}/research/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Research Status */
+        get: operations["research_status_api_companies__company_id__research_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Healthz
-     * @description Liveness: the process is up.
-     */
-    get: operations["healthz_healthz_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/readyz": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/companies/{company_id}/sources/paste": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Paste Source
+         * @description Add text the app could not read itself. It is labelled "Pasted by you" in the brief.
+         */
+        post: operations["paste_source_api_companies__company_id__sources_paste_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Readyz
-     * @description Readiness: database reachable and provider key present.
-     */
-    get: operations["readyz_readyz_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
+    "/api/companies/{company_id}/sources/{source_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove Source */
+        delete: operations["remove_source_api_companies__company_id__sources__source_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Me */
+        get: operations["me_api_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Notes */
+        get: operations["get_notes_api_notes_get"];
+        /** Put Notes */
+        put: operations["put_notes_api_notes_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Session
+         * @description Start a practice session. Refused unless the user confirmed the partner knows the assistant
+         *     is on. The confirmation time is stored with the session.
+         */
+        post: operations["create_session_api_sessions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/healthz": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Healthz
+         * @description Liveness: the process is up.
+         */
+        get: operations["healthz_healthz_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/readyz": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Readyz
+         * @description Readiness: database reachable and provider key present.
+         */
+        get: operations["readyz_readyz_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    /** HTTPValidationError */
-    HTTPValidationError: {
-      /** Detail */
-      detail?: components["schemas"]["ValidationError"][];
+    schemas: {
+        /** BriefContent */
+        BriefContent: {
+            /** Assumed Company */
+            assumed_company?: string | null;
+            /**
+             * Dropped Facts
+             * @default 0
+             */
+            dropped_facts: number;
+            /**
+             * No Website
+             * @default false
+             */
+            no_website: boolean;
+            /** Sections */
+            sections: components["schemas"]["BriefSection"][];
+            /**
+             * Web Search Done
+             * @default true
+             */
+            web_search_done: boolean;
+        };
+        /** BriefFact */
+        BriefFact: {
+            /** Date */
+            date?: string | null;
+            /**
+             * Edited By User
+             * @default false
+             */
+            edited_by_user: boolean;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Label */
+            label?: ("from_you" | "pasted_by_you" | "suggestion") | null;
+            /**
+             * Pinned
+             * @default false
+             */
+            pinned: boolean;
+            /** Source Ids */
+            source_ids: string[];
+            /** Text */
+            text: string;
+        };
+        /** BriefSection */
+        BriefSection: {
+            /** Facts */
+            facts: components["schemas"]["BriefFact"][];
+            /** Key */
+            key: string;
+            /** Not Found */
+            not_found: boolean;
+            /** Title */
+            title: string;
+        };
+        /** CompanyCreatedOut */
+        CompanyCreatedOut: {
+            company: components["schemas"]["CompanyOut"];
+            /**
+             * Job Id
+             * Format: uuid
+             */
+            job_id: string;
+        };
+        /** CompanyDetailOut */
+        CompanyDetailOut: {
+            brief: components["schemas"]["BriefContent"] | null;
+            /** Brief Created At */
+            brief_created_at: string | null;
+            /** Brief Version */
+            brief_version: number | null;
+            company: components["schemas"]["CompanyOut"];
+            job: components["schemas"]["JobOut"] | null;
+            /** Sources */
+            sources: components["schemas"]["SourceOut"][];
+        };
+        /** CompanyIn */
+        CompanyIn: {
+            /** Extra Links */
+            extra_links?: string[];
+            /** Job Posting Url */
+            job_posting_url?: string | null;
+            /**
+             * Known Text
+             * @default
+             */
+            known_text: string;
+            /** Name */
+            name: string;
+            /**
+             * Role
+             * @default
+             */
+            role: string;
+            /** Website Url */
+            website_url?: string | null;
+        };
+        /** CompanyOut */
+        CompanyOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Extra Links */
+            extra_links: string[];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Job Posting Url */
+            job_posting_url: string | null;
+            /** Known Text */
+            known_text: string;
+            /** Last Researched At */
+            last_researched_at: string | null;
+            /** Name */
+            name: string;
+            /** Role */
+            role: string;
+            /** Website Url */
+            website_url: string | null;
+        };
+        /** CompanySummary */
+        CompanySummary: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Job Status */
+            job_status: string | null;
+            /** Last Researched At */
+            last_researched_at: string | null;
+            /** Name */
+            name: string;
+        };
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
+        };
+        /** JobOut */
+        JobOut: {
+            /** Error */
+            error: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Status */
+            status: string;
+            /** Step Detail */
+            step_detail: string;
+        };
+        /** MeOut */
+        MeOut: {
+            /** Email */
+            email: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+        };
+        /** NotesIn */
+        NotesIn: {
+            /**
+             * Content
+             * @default
+             */
+            content: string;
+            /**
+             * Role
+             * @default
+             */
+            role: string;
+        };
+        /** NotesOut */
+        NotesOut: {
+            /** Content */
+            content: string;
+            /** Role */
+            role: string;
+            /** Updated At */
+            updated_at: string | null;
+        };
+        /** PasteIn */
+        PasteIn: {
+            /** Text */
+            text: string;
+            /**
+             * Title
+             * @default Pasted text
+             */
+            title: string;
+        };
+        /** RequestLinkIn */
+        RequestLinkIn: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+        };
+        /** ResearchStartedOut */
+        ResearchStartedOut: {
+            /**
+             * Job Id
+             * Format: uuid
+             */
+            job_id: string;
+        };
+        /** SessionCreateIn */
+        SessionCreateIn: {
+            /** Company Id */
+            company_id?: string | null;
+            /**
+             * Consent
+             * @default false
+             */
+            consent: boolean;
+            /** Role */
+            role?: string | null;
+        };
+        /** SessionCreateOut */
+        SessionCreateOut: {
+            /**
+             * Consent Confirmed At
+             * Format: date-time
+             */
+            consent_confirmed_at: string;
+            /**
+             * Session Id
+             * Format: uuid
+             */
+            session_id: string;
+            /** Status */
+            status: string;
+        };
+        /** SourceOut */
+        SourceOut: {
+            /** Fetched At */
+            fetched_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Published At */
+            published_at: string | null;
+            /** Reason */
+            reason: string;
+            /** Status */
+            status: string;
+            /** Title */
+            title: string;
+            /** Url */
+            url: string | null;
+        };
+        /** StatusOut */
+        StatusOut: {
+            /** Status */
+            status: string;
+        };
+        /** ValidationError */
+        ValidationError: {
+            /** Context */
+            ctx?: Record<string, never>;
+            /** Input */
+            input?: unknown;
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+        };
+        /** VerifyIn */
+        VerifyIn: {
+            /** Token */
+            token: string;
+        };
     };
-    /** MeOut */
-    MeOut: {
-      /** Email */
-      email: string;
-      /**
-       * Id
-       * Format: uuid
-       */
-      id: string;
-    };
-    /** NotesIn */
-    NotesIn: {
-      /**
-       * Content
-       * @default
-       */
-      content: string;
-      /**
-       * Role
-       * @default
-       */
-      role: string;
-    };
-    /** NotesOut */
-    NotesOut: {
-      /** Content */
-      content: string;
-      /** Role */
-      role: string;
-      /** Updated At */
-      updated_at: string | null;
-    };
-    /** RequestLinkIn */
-    RequestLinkIn: {
-      /**
-       * Email
-       * Format: email
-       */
-      email: string;
-    };
-    /** SessionCreateIn */
-    SessionCreateIn: {
-      /** Company Id */
-      company_id?: string | null;
-      /**
-       * Consent
-       * @default false
-       */
-      consent: boolean;
-      /** Role */
-      role?: string | null;
-    };
-    /** SessionCreateOut */
-    SessionCreateOut: {
-      /**
-       * Consent Confirmed At
-       * Format: date-time
-       */
-      consent_confirmed_at: string;
-      /**
-       * Session Id
-       * Format: uuid
-       */
-      session_id: string;
-      /** Status */
-      status: string;
-    };
-    /** StatusOut */
-    StatusOut: {
-      /** Status */
-      status: string;
-    };
-    /** ValidationError */
-    ValidationError: {
-      /** Context */
-      ctx?: Record<string, never>;
-      /** Input */
-      input?: unknown;
-      /** Location */
-      loc: (string | number)[];
-      /** Message */
-      msg: string;
-      /** Error Type */
-      type: string;
-    };
-    /** VerifyIn */
-    VerifyIn: {
-      /** Token */
-      token: string;
-    };
-  };
-  responses: never;
-  parameters: never;
-  requestBodies: never;
-  headers: never;
-  pathItems: never;
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-  delete_account_api_account_delete: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    delete_account_api_account_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusOut"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      202: {
-        headers: {
-          [name: string]: unknown;
+    logout_api_auth_logout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["StatusOut"];
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusOut"];
+                };
+            };
         };
-      };
     };
-  };
-  logout_api_auth_logout_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    request_link_api_auth_request_link_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestLinkIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    verify_api_auth_verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["StatusOut"];
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyIn"];
+            };
         };
-      };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
     };
-  };
-  request_link_api_auth_request_link_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    list_companies_api_companies_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanySummary"][];
+                };
+            };
+        };
     };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["RequestLinkIn"];
-      };
+    create_company_api_companies_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "idempotency-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompanyIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyCreatedOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
     };
-    responses: {
-      /** @description Successful Response */
-      202: {
-        headers: {
-          [name: string]: unknown;
+    get_company_api_companies__company_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                company_id: string;
+            };
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["StatusOut"];
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
     };
-  };
-  verify_api_auth_verify_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    update_company_api_companies__company_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                company_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompanyIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
     };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["VerifyIn"];
-      };
+    delete_company_api_companies__company_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                company_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
     };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    rerun_research_api_companies__company_id__research_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                company_id: string;
+            };
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["MeOut"];
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchStartedOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
     };
-  };
-  me_api_me_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    research_status_api_companies__company_id__research_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                company_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    paste_source_api_companies__company_id__sources_paste_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                company_id: string;
+            };
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["MeOut"];
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasteIn"];
+            };
         };
-      };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
     };
-  };
-  get_notes_api_notes_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    remove_source_api_companies__company_id__sources__source_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                company_id: string;
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    me_api_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["NotesOut"];
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeOut"];
+                };
+            };
         };
-      };
     };
-  };
-  put_notes_api_notes_put: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    get_notes_api_notes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotesOut"];
+                };
+            };
+        };
     };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["NotesIn"];
-      };
+    put_notes_api_notes_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotesIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
     };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    create_session_api_sessions_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "idempotency-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["NotesOut"];
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionCreateIn"];
+            };
         };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionCreateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
     };
-  };
-  create_session_api_sessions_post: {
-    parameters: {
-      query?: never;
-      header?: {
-        "idempotency-key"?: string | null;
-      };
-      path?: never;
-      cookie?: never;
+    healthz_healthz_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+        };
     };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["SessionCreateIn"];
-      };
+    readyz_readyz_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
     };
-    responses: {
-      /** @description Successful Response */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["SessionCreateOut"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  healthz_healthz_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": {
-            [key: string]: string;
-          };
-        };
-      };
-    };
-  };
-  readyz_readyz_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": unknown;
-        };
-      };
-    };
-  };
 }

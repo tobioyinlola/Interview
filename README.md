@@ -38,8 +38,23 @@ emailing it. Other environments need an email provider wired in `app/adapters/em
 Tests need Postgres: `TEST_DATABASE_URL` (default `postgresql+asyncpg://postgres:postgres@localhost:5432/meetpractice_test`).
 Create the database once with `createdb meetpractice_test`.
 
+## Company research
+Add a company (name, website, job posting link, up to 3 extra links, role, "what I already know"). A
+background job reads the links, searches the web and writes a brief where **every fact cites a source**.
+Facts with no valid source are dropped and empty sections say "Not found". Pages that can't be read
+(blocked, sign-in, too large, timed out) are reported per link, and the user can paste the text instead.
+
+- Fetching is SSRF-safe (`api/app/services/url_guard.py`, `fetcher.py`): public http(s) on ports 80/443
+  only, every resolved address must be public, connections go to the checked IP with TLS verified against
+  the real host name, every redirect is re-validated, 10 s / 2 MB limits, robots.txt, 1 request/s per host.
+- Page text is passed to the model as quoted data; the output is schema-validated and cited against the
+  sources the job actually collected.
+- Needs `OPENAI_API_KEY` to research. Without it a job fails with a clear message.
+
 ## Status
 - M0 scaffolding: done.
-- M1 foundation: done — 11-table schema and migration, email-link auth with cookie sessions and CSRF header,
-  notes with autosave, consent-enforced session creation (with idempotency), account deletion, settings page.
-- Next: M2 company research.
+- M1 foundation: done — schema and migrations, email-link auth, notes autosave, consent-gated sessions,
+  account deletion.
+- M2 company research: done in code and tested with fakes and a real browser; **the OpenAI adapters have
+  not been run against the live API yet** (needs a valid key), which is part of the M2 gate.
+- Next: M3 live Meet session.

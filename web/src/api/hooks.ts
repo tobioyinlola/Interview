@@ -1,7 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ApiError, apiFetch } from "./client";
-import type { Me, Notes, NotesInput } from "./types";
+import { POLL_MS, isActive } from "./polling";
+import type {
+  Company,
+  CompanyCreated,
+  CompanyDetail,
+  CompanyInput,
+  CompanySummary,
+  Me,
+  Notes,
+  NotesInput,
+  Source,
+} from "./types";
 
 const json = (body: unknown) => JSON.stringify(body);
 
@@ -76,5 +87,105 @@ export function useDeleteAccount() {
       qc.clear();
       qc.setQueryData(["me"], null);
     },
+  });
+}
+
+// ----------------------------------------------------------------- companies
+
+export function useCompanies() {
+  return useQuery<CompanySummary[]>({
+    queryKey: ["companies"],
+    queryFn: () => apiFetch<CompanySummary[]>("/api/companies"),
+    // keep the list's status chips fresh while anything is still researching
+    refetchInterval: (q) =>
+      q.state.data?.some((c) => isActive(c.job_status)) ? POLL_MS : false,
+  });
+}
+
+/** One company with its brief, sources and latest job. Polls while research is running, so the
+ *  page updates without a reload and survives leaving and coming back. */
+export function useCompany(id: string) {
+  return useQuery<CompanyDetail>({
+    queryKey: ["company", id],
+    queryFn: () => apiFetch<CompanyDetail>(`/api/companies/${id}`),
+    refetchInterval: (q) =>
+      isActive(q.state.data?.job?.status) ? POLL_MS : false,
+  });
+}
+
+export function useCreateCompany() {
+  const qc = useQueryClient();
+  return useMutation({
+    // One key per attempt: a double click or retry cannot start two research jobs.
+    mutationFn: ({ input, key }: { input: CompanyInput; key: string }) =>
+      apiFetch<CompanyCreated>("/api/companies", {
+        method: "POST",
+        body: json(input),
+        headers: { "idempotency-key": key },
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["companies"] }),
+  });
+}
+
+export function useUpdateCompany(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CompanyInput) =>
+      apiFetch<Company>(`/api/companies/${id}`, {
+        method: "PUT",
+        body: json(input),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["company", id] });
+      void qc.invalidateQueries({ queryKey: ["companies"] });
+    },
+  });
+}
+
+export function useDeleteCompany(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<{ status: string }>(`/api/companies/${id}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => {
+      qc.removeQueries({ queryKey: ["company", id] });
+      void qc.invalidateQueries({ queryKey: ["companies"] });
+    },
+  });
+}
+
+export function useRerunResearch(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<{ job_id: string }>(`/api/companies/${id}/research`, {
+        method: "POST",
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["company", id] }),
+  });
+}
+
+export function usePasteSource(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { title: string; text: string }) =>
+      apiFetch<Source>(`/api/companies/${id}/sources/paste`, {
+        method: "POST",
+        body: json(input),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["company", id] }),
+  });
+}
+
+export function useRemoveSource(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (sourceId: string) =>
+      apiFetch<{ status: string }>(`/api/companies/${id}/sources/${sourceId}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["company", id] }),
   });
 }

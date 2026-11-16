@@ -53,6 +53,7 @@ jobs:
         run: |
           npm run gen:api
           git diff --exit-code src/api/schema.d.ts
+      - run: npm run format:check
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
