@@ -158,4 +158,8 @@ class ScriptedAnswerLlm:
         yield LlmDelta(done=True, input_tokens=len(user) // 4, output_tokens=len(text) // 4)
 
     async def generate_json(self, *, system: str, user: str, schema: dict[str, object]) -> str:
-        return "{}"
+        return (
+            '{"structure": 72, "specificity": 65, "impact": 58, "relevance": 80, "pace": 70, '
+            '"fixes": ["Open with the result, then explain how you got there.", '
+            '"Add one number that shows the impact."]}'
+        )

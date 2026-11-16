@@ -87,6 +87,27 @@ class SuggestionOut(BaseModel):
     created_at: datetime
 
 
+class ScoreOut(BaseModel):
+    id: uuid.UUID
+    utterance_id: uuid.UUID
+    question_text: str
+    answer_text: str
+    structure: int
+    specificity: int
+    impact: int
+    relevance: int
+    pace: int
+    overall: int
+    fixes: list[str]
+
+
+class GapOut(BaseModel):
+    kind: str  # experience | company
+    type: str
+    questions: list[str]
+    hint: str
+
+
 class SessionDetailOut(BaseModel):
     id: uuid.UUID
     status: str
@@ -97,6 +118,41 @@ class SessionDetailOut(BaseModel):
     consent_confirmed_at: datetime
     utterances: list[UtteranceOut]
     suggestions: list[SuggestionOut]
+    scoring_status: str  # none | running | ready | failed
+    scoring_error: str | None
+    scores: list[ScoreOut]
+    gaps: list[GapOut]
+
+
+class SessionSummary(BaseModel):
+    id: uuid.UUID
+    started_at: datetime
+    ended_at: datetime | None
+    duration_seconds: int | None
+    status: str
+    company_id: uuid.UUID | None
+    company_name: str | None
+    question_count: int
+
+
+class SessionListOut(BaseModel):
+    items: list[SessionSummary]
+    next_cursor: str | None
+
+
+class FeedbackIn(BaseModel):
+    value: str = Field(pattern="^(up|down)$")
+
+
+class ScoreStartedOut(BaseModel):
+    status: str
+
+
+class SegmentOut(BaseModel):
+    id: uuid.UUID | None
+    seq: int | None
+    text: str
+    ended_at: datetime | None
 
 
 class SuggestIn(BaseModel):
@@ -208,3 +264,22 @@ class PasteIn(BaseModel):
         if not v:
             raise ValueError("text is required")
         return v
+
+
+class BriefFactEdit(BaseModel):
+    """One change to the brief. No id adds a fact; an id updates, pins or removes (delete) it."""
+
+    id: uuid.UUID | None = None
+    section_key: str = Field(min_length=1, max_length=40)
+    text: str = Field(default="", max_length=500)
+    pinned: bool = False
+    delete: bool = False
+
+
+class BriefEditIn(BaseModel):
+    facts: list[BriefFactEdit] = Field(min_length=1, max_length=100)
+
+
+class BriefEditOut(BaseModel):
+    brief: BriefContent
+    brief_version: int

@@ -22,6 +22,7 @@ from app.models import (
     Note,
     PracticeSession,
     ResearchJob,
+    Score,
     Suggestion,
     Usage,
     User,
@@ -211,6 +212,34 @@ class CompaniesRepo:
         )
         return (await self.db.execute(stmt)).scalar_one_or_none()
 
+    async def save_brief_content(
+        self, company_id: uuid.UUID, content: dict[str, Any]
+    ) -> CompanyBrief | None:
+        """Store an edited brief. In place if no session used it; as a NEW version if one did, so a
+        past session keeps the exact brief it was given."""
+        row = await self.current_brief(company_id)
+        if row is None:
+            return None
+        used = (
+            await self.db.execute(
+                select(func.count())
+                .select_from(PracticeSession)
+                .where(PracticeSession.brief_id == row.id)
+            )
+        ).scalar_one()
+        if not used:
+            row.content = content
+            await self.db.commit()
+            return row
+        row.is_current = False
+        await self.db.flush()
+        new = CompanyBrief(
+            company_id=company_id, version=row.version + 1, content=content, is_current=True
+        )
+        self.db.add(new)
+        await self.db.commit()
+        return new
+
     async def latest_job(self, company_id: uuid.UUID) -> ResearchJob | None:
         stmt = (
             select(ResearchJob)
@@ -262,6 +291,8 @@ class CompaniesRepo:
         return src
 
     async def remove_source(self, company_id: uuid.UUID, source_id: uuid.UUID) -> bool:
+        """Hide a source and drop it from the current brief (researched facts that cited only it
+        go; the user's own facts stay)."""
         if await self.get(company_id) is None:
             return False
         res = await self.db.execute(
@@ -269,8 +300,17 @@ class CompaniesRepo:
             .where(CompanySource.id == source_id, CompanySource.company_id == company_id)
             .values(removed_by_user=True)
         )
+        found = (res.rowcount or 0) > 0  # type: ignore[attr-defined]
         await self.db.commit()
-        return (res.rowcount or 0) > 0  # type: ignore[attr-defined]
+        if found:
+            brief = await self.current_brief(company_id)
+            if brief is not None:
+                from app.schemas.brief import BriefContent
+                from app.services.brief_edit import remove_source as drop
+
+                content = drop(BriefContent.model_validate(brief.content), source_id)
+                await self.save_brief_content(company_id, content.model_dump(mode="json"))
+        return found
 
 
 class UsageRepo:
@@ -485,6 +525,74 @@ class LiveRepo:
         else:
             stmt = stmt.where(Suggestion.question_text == question)
         return (await self.db.execute(stmt.limit(1))).scalar_one_or_none()
+
+    async def set_feedback(self, suggestion_id: uuid.UUID, value: str) -> bool:
+        """Thumbs up or down on an outline, only on the owner's own sessions."""
+        owned = select(PracticeSession.id).where(PracticeSession.user_id == self.user_id)
+        res = await self.db.execute(
+            update(Suggestion)
+            .where(Suggestion.id == suggestion_id, Suggestion.session_id.in_(owned))
+            .values(feedback=value)
+        )
+        await self.db.commit()
+        return (res.rowcount or 0) > 0  # type: ignore[attr-defined]
+
+    async def scores(self, session_id: uuid.UUID) -> list[Score]:
+        if await SessionsRepo(self.db, self.user_id).get(session_id) is None:
+            return []
+        stmt = select(Score).where(Score.session_id == session_id).order_by(Score.id)
+        rows = list((await self.db.execute(stmt)).scalars().all())
+        # present in the order the answers were given
+        order = {u.id: u.seq for u in await self.utterances(session_id)}
+        return sorted(rows, key=lambda r: order.get(r.utterance_id, 0))
+
+    async def begin_scoring(self, session_id: uuid.UUID) -> str:
+        """Mark scoring as running unless it already is. Returns the status that applies."""
+        res = await self.db.execute(
+            update(PracticeSession)
+            .where(
+                PracticeSession.id == session_id,
+                PracticeSession.user_id == self.user_id,
+                PracticeSession.scoring_status != "running",
+            )
+            .values(scoring_status="running", scoring_error=None)
+        )
+        await self.db.commit()
+        return "started" if (res.rowcount or 0) > 0 else "running"  # type: ignore[attr-defined]
+
+    async def delete_session(self, session_id: uuid.UUID) -> bool:
+        res = await self.db.execute(
+            delete(PracticeSession).where(
+                PracticeSession.id == session_id, PracticeSession.user_id == self.user_id
+            )
+        )
+        await self.db.commit()
+        return (res.rowcount or 0) > 0  # type: ignore[attr-defined]
+
+    async def list_sessions(
+        self, *, limit: int, cursor: tuple[datetime, uuid.UUID] | None
+    ) -> list[tuple[PracticeSession, str | None, int]]:
+        """Newest first, one page. Rows are (session, company name, number of outlines)."""
+        count = (
+            select(func.count(Suggestion.id))
+            .where(Suggestion.session_id == PracticeSession.id)
+            .correlate(PracticeSession)
+            .scalar_subquery()
+        )
+        stmt = (
+            select(PracticeSession, Company.name, count)
+            .outerjoin(Company, Company.id == PracticeSession.company_id)
+            .where(PracticeSession.user_id == self.user_id)
+            .order_by(PracticeSession.started_at.desc(), PracticeSession.id.desc())
+            .limit(limit)
+        )
+        if cursor is not None:
+            t, i = cursor
+            stmt = stmt.where(
+                (PracticeSession.started_at < t)
+                | ((PracticeSession.started_at == t) & (PracticeSession.id < i))
+            )
+        return [(r[0], r[1], int(r[2])) for r in (await self.db.execute(stmt)).all()]
 
     async def end_session(
         self, session_id: uuid.UUID, status: str = "ended"

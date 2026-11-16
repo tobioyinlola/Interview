@@ -52,7 +52,8 @@ def render_brief(
         if section.key in ("likely_questions", "questions_to_ask"):
             continue
         for fact in section.facts:
-            name = next((titles[s] for s in fact.source_ids if s in titles), "source")
+            fallback = "From you" if (fact.label == "from_you" or fact.edited_by_user) else "source"
+            name = next((titles[s] for s in fact.source_ids if s in titles), fallback)
             when = f" ({fact.date})" if fact.date else ""
             lines.append((fact.pinned, f"- {section.title}: {fact.text}{when} [brief: {name}]"))
     lines.sort(key=lambda x: not x[0])  # stable: pinned first

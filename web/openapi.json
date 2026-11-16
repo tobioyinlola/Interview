@@ -66,6 +66,41 @@
         "title": "BriefContent",
         "type": "object"
       },
+      "BriefEditIn": {
+        "properties": {
+          "facts": {
+            "items": {
+              "$ref": "#/components/schemas/BriefFactEdit"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Facts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "facts"
+        ],
+        "title": "BriefEditIn",
+        "type": "object"
+      },
+      "BriefEditOut": {
+        "properties": {
+          "brief": {
+            "$ref": "#/components/schemas/BriefContent"
+          },
+          "brief_version": {
+            "title": "Brief Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "brief",
+          "brief_version"
+        ],
+        "title": "BriefEditOut",
+        "type": "object"
+      },
       "BriefFact": {
         "properties": {
           "date": {
@@ -129,6 +164,50 @@
           "source_ids"
         ],
         "title": "BriefFact",
+        "type": "object"
+      },
+      "BriefFactEdit": {
+        "description": "One change to the brief. No id adds a fact; an id updates, pins or removes (delete) it.",
+        "properties": {
+          "delete": {
+            "default": false,
+            "title": "Delete",
+            "type": "boolean"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "pinned": {
+            "default": false,
+            "title": "Pinned",
+            "type": "boolean"
+          },
+          "section_key": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Section Key",
+            "type": "string"
+          },
+          "text": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "section_key"
+        ],
+        "title": "BriefFactEdit",
         "type": "object"
       },
       "BriefSection": {
@@ -430,6 +509,51 @@
         "title": "CompanySummary",
         "type": "object"
       },
+      "FeedbackIn": {
+        "properties": {
+          "value": {
+            "pattern": "^(up|down)$",
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "title": "FeedbackIn",
+        "type": "object"
+      },
+      "GapOut": {
+        "properties": {
+          "hint": {
+            "title": "Hint",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "questions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Questions",
+            "type": "array"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "type",
+          "questions",
+          "hint"
+        ],
+        "title": "GapOut",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -615,6 +739,138 @@
         "title": "ResearchStartedOut",
         "type": "object"
       },
+      "ScoreOut": {
+        "properties": {
+          "answer_text": {
+            "title": "Answer Text",
+            "type": "string"
+          },
+          "fixes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Fixes",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "impact": {
+            "title": "Impact",
+            "type": "integer"
+          },
+          "overall": {
+            "title": "Overall",
+            "type": "integer"
+          },
+          "pace": {
+            "title": "Pace",
+            "type": "integer"
+          },
+          "question_text": {
+            "title": "Question Text",
+            "type": "string"
+          },
+          "relevance": {
+            "title": "Relevance",
+            "type": "integer"
+          },
+          "specificity": {
+            "title": "Specificity",
+            "type": "integer"
+          },
+          "structure": {
+            "title": "Structure",
+            "type": "integer"
+          },
+          "utterance_id": {
+            "format": "uuid",
+            "title": "Utterance Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "utterance_id",
+          "question_text",
+          "answer_text",
+          "structure",
+          "specificity",
+          "impact",
+          "relevance",
+          "pace",
+          "overall",
+          "fixes"
+        ],
+        "title": "ScoreOut",
+        "type": "object"
+      },
+      "ScoreStartedOut": {
+        "properties": {
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "ScoreStartedOut",
+        "type": "object"
+      },
+      "SegmentOut": {
+        "properties": {
+          "ended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "seq": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seq"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "seq",
+          "text",
+          "ended_at"
+        ],
+        "title": "SegmentOut",
+        "type": "object"
+      },
       "SessionCreateIn": {
         "properties": {
           "company_id": {
@@ -722,6 +978,13 @@
             ],
             "title": "Ended At"
           },
+          "gaps": {
+            "items": {
+              "$ref": "#/components/schemas/GapOut"
+            },
+            "title": "Gaps",
+            "type": "array"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -729,6 +992,28 @@
           },
           "role": {
             "title": "Role",
+            "type": "string"
+          },
+          "scores": {
+            "items": {
+              "$ref": "#/components/schemas/ScoreOut"
+            },
+            "title": "Scores",
+            "type": "array"
+          },
+          "scoring_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scoring Error"
+          },
+          "scoring_status": {
+            "title": "Scoring Status",
             "type": "string"
           },
           "started_at": {
@@ -764,7 +1049,11 @@
           "ended_at",
           "consent_confirmed_at",
           "utterances",
-          "suggestions"
+          "suggestions",
+          "scoring_status",
+          "scoring_error",
+          "scores",
+          "gaps"
         ],
         "title": "SessionDetailOut",
         "type": "object"
@@ -790,6 +1079,114 @@
           "suggestions"
         ],
         "title": "SessionEndOut",
+        "type": "object"
+      },
+      "SessionListOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SessionSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "SessionListOut",
+        "type": "object"
+      },
+      "SessionSummary": {
+        "properties": {
+          "company_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Id"
+          },
+          "company_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Name"
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "question_count": {
+            "title": "Question Count",
+            "type": "integer"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "started_at",
+          "ended_at",
+          "duration_seconds",
+          "status",
+          "company_id",
+          "company_name",
+          "question_count"
+        ],
+        "title": "SessionSummary",
         "type": "object"
       },
       "SourceOut": {
@@ -1462,6 +1859,60 @@
         ]
       }
     },
+    "/api/companies/{company_id}/brief": {
+      "put": {
+        "description": "Edit fact text, pin facts, add the user's own facts or delete facts. Only the changed facts\nare sent. Edits and pins survive a refresh.",
+        "operationId": "edit_brief_api_companies__company_id__brief_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BriefEditIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BriefEditOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Edit Brief",
+        "tags": [
+          "companies"
+        ]
+      }
+    },
     "/api/companies/{company_id}/research": {
       "post": {
         "description": "Re-run research (bypasses the page cache). One job per company at a time: if one is\nalready running, its id is returned and nothing new starts.",
@@ -1738,6 +2189,66 @@
       }
     },
     "/api/sessions": {
+      "get": {
+        "description": "Past sessions, newest first, with cursor pagination.",
+        "operationId": "list_sessions_api_sessions_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Sessions",
+        "tags": [
+          "sessions"
+        ]
+      },
       "post": {
         "description": "Start a practice session. Refused unless the user confirmed the partner knows the assistant\nis on. The confirmation time is stored with the session.",
         "operationId": "create_session_api_sessions_post",
@@ -1799,6 +2310,52 @@
       }
     },
     "/api/sessions/{session_id}": {
+      "delete": {
+        "description": "Delete one session with its transcript, outlines and scores. It leaves the app at once.",
+        "operationId": "delete_session_api_sessions__session_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Delete Session Api Sessions  Session Id  Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Session",
+        "tags": [
+          "sessions"
+        ]
+      },
       "get": {
         "operationId": "get_session_api_sessions__session_id__get",
         "parameters": [
@@ -1928,6 +2485,117 @@
         ]
       }
     },
+    "/api/sessions/{session_id}/score": {
+      "post": {
+        "description": "Score the user's answers after the session. Poll GET /sessions/{id} for the result.",
+        "operationId": "score_session_api_sessions__session_id__score_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScoreStartedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Score Session",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/api/sessions/{session_id}/segment": {
+      "post": {
+        "description": "When live streaming keeps failing, the browser cuts speech into segments and sends each\none here. Audio is transcribed and discarded; only the text is saved, as with a caption.",
+        "operationId": "transcribe_segment_api_sessions__session_id__segment_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "speaker",
+            "required": false,
+            "schema": {
+              "default": "partner",
+              "pattern": "^(partner|you)$",
+              "title": "Speaker",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sample_rate",
+            "required": false,
+            "schema": {
+              "default": 24000,
+              "maximum": 48000,
+              "minimum": 8000,
+              "title": "Sample Rate",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SegmentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Transcribe Segment",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
     "/api/sessions/{session_id}/suggest": {
       "post": {
         "description": "Stream an answer outline as server-sent events: delta, skip, done or error. If the client\ndisconnects, the stream (and the model call under it) is cancelled.",
@@ -2019,6 +2687,64 @@
           }
         },
         "summary": "Transcript",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/api/suggestions/{suggestion_id}/feedback": {
+      "post": {
+        "description": "Thumbs up or down on an outline, stored with the session.",
+        "operationId": "suggestion_feedback_api_suggestions__suggestion_id__feedback_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "suggestion_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Suggestion Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Suggestion Feedback Api Suggestions  Suggestion Id  Feedback Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Suggestion Feedback",
         "tags": [
           "sessions"
         ]

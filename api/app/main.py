@@ -12,7 +12,8 @@ from app.logging_config import configure_logging
 from app.middleware import CsrfMiddleware, RequestContextMiddleware
 from app.routers import account, audio_ws, auth, companies, health, notes, sessions
 from app.services.live import LiveHub
-from app.services.providers import build_runner
+from app.services.providers import build_answer_llm, build_runner
+from app.workers.scoring_worker import ScoringRunner
 
 
 @asynccontextmanager
@@ -24,13 +25,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     runner = build_runner(settings, get_sessionmaker())
     app.state.research_runner = runner
     app.state.live_hub = hub = LiveHub()
+    scorer = ScoringRunner(build_answer_llm(settings), settings, get_sessionmaker())
+    app.state.scoring_runner = scorer
+    await scorer.fail_interrupted()
     await runner.recover_stale()  # requeue jobs a restart interrupted
     yield
     await (
         hub.shutdown()
     )  # open audio sockets close with 1012 so clients reconnect to the new replica
     try:  # give running jobs a moment; anything unfinished is recovered on the next boot
-        await asyncio.wait_for(runner.wait_idle(), timeout=25)
+        await asyncio.wait_for(asyncio.gather(runner.wait_idle(), scorer.wait_idle()), timeout=25)
     except TimeoutError:
         pass
     await dispose_engine()

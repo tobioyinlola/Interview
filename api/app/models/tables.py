@@ -221,6 +221,9 @@ class PracticeSession(Base):
     role: Mapped[str] = mapped_column(String(200), default="")
     notes_snapshot: Mapped[str] = mapped_column(Text, default="")
     status: Mapped[str] = mapped_column(String(10), default="active")  # active | ended | errored
+    # Answer scoring job: none | running | ready | failed
+    scoring_status: Mapped[str] = mapped_column(String(10), default="none", server_default="none")
+    scoring_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class Utterance(Base):
@@ -269,3 +272,5 @@ class Score(Base):
     pace: Mapped[int] = mapped_column(Integer)
     overall: Mapped[int] = mapped_column(Integer)
     fixes: Mapped[list[Any]] = mapped_column(JSONB, default=list)
+    question_text: Mapped[str] = mapped_column(Text, default="", server_default="")
+    answer_text: Mapped[str] = mapped_column(Text, default="", server_default="")

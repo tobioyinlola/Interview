@@ -25,7 +25,8 @@ from app.adapters.interfaces import (
 from app.config import Settings
 from app.models import Company, CompanyBrief, CompanySource, ResearchJob
 from app.prompts import load_prompt
-from app.schemas.brief import LlmBrief, SourceRef, build_brief, fact_count
+from app.schemas.brief import BriefContent, LlmBrief, SourceRef, build_brief, fact_count
+from app.services.brief_edit import carry_over, protected_source_ids
 from app.services.fetcher import Fetcher
 from app.services.url_guard import UrlRejected, normalize_url, validate_url_syntax
 
@@ -209,7 +210,16 @@ class ResearchRunner:
                 await db.commit()
                 return
 
-            # ---- 4. save ---------------------------------------------------------------
+            # ---- 4. save (keeping what the user pinned, edited or added) ---------------
+            previous_row = (
+                await db.execute(
+                    select(CompanyBrief).where(
+                        CompanyBrief.company_id == company.id, CompanyBrief.is_current.is_(True)
+                    )
+                )
+            ).scalar_one_or_none()
+            if previous_row is not None:
+                content = carry_over(BriefContent.model_validate(previous_row.content), content)
             version = (
                 await db.execute(
                     select(func.coalesce(func.max(CompanyBrief.version), 0)).where(
@@ -366,14 +376,25 @@ class ResearchRunner:
             return False
 
         if found:
-            await db.execute(
-                delete(CompanySource).where(
-                    CompanySource.company_id == company.id,
-                    CompanySource.kind == "search_result",
-                    CompanySource.removed_by_user.is_(False),
-                    CompanySource.url.not_in(list(found)),
+            current = (
+                await db.execute(
+                    select(CompanyBrief).where(
+                        CompanyBrief.company_id == company.id, CompanyBrief.is_current.is_(True)
+                    )
                 )
+            ).scalar_one_or_none()
+            protected = protected_source_ids(
+                BriefContent.model_validate(current.content) if current else None
             )
+            stale = [
+                CompanySource.company_id == company.id,
+                CompanySource.kind == "search_result",
+                CompanySource.removed_by_user.is_(False),
+                CompanySource.url.not_in(list(found)),
+            ]
+            if protected:  # sources cited by facts the user pinned or edited stay
+                stale.append(CompanySource.id.not_in(list(protected)))
+            await db.execute(delete(CompanySource).where(*stale))
             for url, (title, snippet) in found.items():
                 existing = await self._source_for_url(db, company.id, url)
                 if existing is not None:

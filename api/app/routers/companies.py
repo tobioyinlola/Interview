@@ -12,6 +12,8 @@ from app.errors import ApiError
 from app.models import Company, ResearchJob, User
 from app.repositories import CompaniesRepo, IdempotencyRepo, UsageRepo
 from app.schemas.api import (
+    BriefEditIn,
+    BriefEditOut,
     CompanyCreatedOut,
     CompanyDetailOut,
     CompanyIn,
@@ -24,6 +26,7 @@ from app.schemas.api import (
     StatusOut,
 )
 from app.schemas.brief import BriefContent
+from app.services.brief_edit import EditError, FactEdit, apply_edits
 from app.services.url_guard import Resolver, UrlRejected, validate_public_url
 from app.workers.research_worker import ResearchRunner
 
@@ -263,3 +266,39 @@ async def remove_source(
     if not await CompaniesRepo(db, user.id).remove_source(company_id, source_id):
         raise ApiError(404, "source_not_found", "Source not found.")
     return StatusOut(status="ok")
+
+
+@router.put("/companies/{company_id}/brief")
+async def edit_brief(
+    company_id: uuid.UUID,
+    body: BriefEditIn,
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> BriefEditOut:
+    """Edit fact text, pin facts, add the user's own facts or delete facts. Only the changed facts
+    are sent. Edits and pins survive a refresh."""
+    await _owned(db, user, company_id)
+    repo = CompaniesRepo(db, user.id)
+    row = await repo.current_brief(company_id)
+    if row is None:
+        raise ApiError(404, "no_brief", "There is no brief to edit yet.")
+    content = BriefContent.model_validate(row.content)
+    try:
+        apply_edits(
+            content,
+            [
+                FactEdit(
+                    section_key=e.section_key,
+                    text=e.text,
+                    id=e.id,
+                    pinned=e.pinned,
+                    delete=e.delete,
+                )
+                for e in body.facts
+            ],
+        )
+    except EditError as exc:
+        raise ApiError(422, exc.code, exc.message) from None
+    saved = await repo.save_brief_content(company_id, content.model_dump(mode="json"))
+    assert saved is not None
+    return BriefEditOut(brief=content, brief_version=saved.version)

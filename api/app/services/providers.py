@@ -64,6 +64,7 @@ def build_stt(settings: Settings) -> SttProvider:
         model=settings.openai_stt_model,
         url=settings.openai_realtime_url,
         protocol=settings.openai_realtime_protocol,
+        fallback_model=settings.openai_stt_fallback_model,
     )
 
 

@@ -18,6 +18,7 @@ from app.services.providers import build_answer_llm, build_runner, build_stt
 from app.services.suggest import SuggestionService
 from app.services.url_guard import Resolver, system_resolver
 from app.workers.research_worker import ResearchRunner
+from app.workers.scoring_worker import ScoringRunner
 
 
 async def current_user(
@@ -86,3 +87,14 @@ def get_suggester(
         svc = SuggestionService(build_answer_llm(settings), settings, get_sessionmaker())
         request.app.state.suggester = svc
     return svc
+
+
+def get_scorer(
+    request: Request,
+    settings: Settings = Depends(get_settings),  # noqa: B008
+) -> ScoringRunner:
+    runner: ScoringRunner | None = getattr(request.app.state, "scoring_runner", None)
+    if runner is None:
+        runner = ScoringRunner(build_answer_llm(settings), settings, get_sessionmaker())
+        request.app.state.scoring_runner = runner
+    return runner

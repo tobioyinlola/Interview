@@ -10,11 +10,14 @@ Everything else about the relay is independent of these details."""
 import asyncio
 import base64
 import contextlib
+import io
 import json
 import logging
+import wave
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
 
+import httpx
 import websockets
 
 from app.adapters.interfaces import ProviderError, ProviderNotConfigured, SttEvent, SttStream
@@ -137,12 +140,18 @@ class OpenAIRealtimeStt:
         url: str,
         protocol: str = "beta",
         connect: Connect | None = None,
+        fallback_model: str = "gpt-4o-mini-transcribe",
+        http: httpx.AsyncClient | None = None,
+        api_base: str = "https://api.openai.com",
     ) -> None:
         self.api_key = api_key
         self.model = model
         self.url = url
         self.protocol = protocol
         self._connect = connect or websockets.connect
+        self.fallback_model = fallback_model
+        self._http = http
+        self._api_base = api_base
 
     async def open_stream(self, *, sample_rate: int = 24000) -> SttStream:
         if not self.api_key:
@@ -162,7 +171,43 @@ class OpenAIRealtimeStt:
             raise ProviderError("Couldn't reach the transcription service.") from None
 
     async def transcribe_segment(self, pcm16: bytes, *, sample_rate: int = 24000) -> str:
-        raise NotImplementedError("Per-utterance fallback transcription arrives in M4 (FR-20).")
+        """Per-utterance fallback (FR-20): transcribe one finished speech segment as a file.
+        UNVERIFIED against the live service, like the streaming path."""
+        if not self.api_key:
+            raise ProviderNotConfigured("The OpenAI key is not configured on the server.")
+        buf = io.BytesIO()
+        with wave.open(buf, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(sample_rate)
+            w.writeframes(pcm16)
+        client = self._http or httpx.AsyncClient(timeout=20)
+        try:
+            resp = await client.post(
+                f"{self._api_base}/v1/audio/transcriptions",
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                data={"model": self.fallback_model, "language": "en", "response_format": "json"},
+                files={"file": ("segment.wav", buf.getvalue(), "audio/wav")},
+            )
+        except httpx.HTTPError as exc:
+            log.warning(
+                "segment transcription failed", extra={"fields": {"error": type(exc).__name__}}
+            )
+            raise ProviderError("Couldn't reach the transcription service.") from None
+        finally:
+            if self._http is None:
+                await client.aclose()
+        if resp.status_code >= 400:
+            log.warning(
+                "segment transcription refused", extra={"fields": {"status": resp.status_code}}
+            )
+            raise ProviderError("The transcription service couldn't transcribe that.")
+        try:
+            return str(resp.json().get("text", "")).strip()
+        except ValueError:
+            raise ProviderError(
+                "The transcription service returned an unreadable answer."
+            ) from None
 
 
 class UnconfiguredStt:

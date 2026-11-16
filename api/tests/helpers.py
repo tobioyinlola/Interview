@@ -101,6 +101,9 @@ class ControlledStt:
         self.fail_opens = 0  # fail this many open attempts first
         self.error: Exception | None = None
         self.stall = False
+        self.segment_text = "a fallback caption"
+        self.segment_error: Exception | None = None
+        self.segments: list[tuple[int, int]] = []  # (bytes, sample_rate) received
 
     async def open_stream(self, *, sample_rate: int = 24000) -> ControlledStream:
         if self.error is not None:
@@ -113,7 +116,10 @@ class ControlledStt:
         return stream
 
     async def transcribe_segment(self, pcm16: bytes, *, sample_rate: int = 24000) -> str:
-        return ""
+        self.segments.append((len(pcm16), sample_rate))
+        if self.segment_error is not None:
+            raise self.segment_error
+        return self.segment_text
 
     async def stream(self, n: int = 0, timeout: float = 3.0) -> ControlledStream:
         """Wait until the n-th upstream stream has been opened."""
