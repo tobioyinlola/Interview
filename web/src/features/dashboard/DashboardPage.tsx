@@ -197,9 +197,9 @@ export function DashboardPage() {
   return (
     <main className="mx-auto max-w-6xl p-4 sm:p-6 lg:p-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <h1 className="sr-only">Dashboard</h1>
-          <p className="text-3xl font-semibold tracking-tight sm:text-4xl">
+          <p className="break-words text-3xl font-semibold tracking-tight sm:text-4xl">
             {greeting()}
             {firstName(me?.email) ? `, ${firstName(me?.email)}` : ""}
           </p>

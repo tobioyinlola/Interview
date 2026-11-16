@@ -15,11 +15,15 @@
   .list-card {
     @apply divide-y divide-line overflow-hidden rounded-2xl bg-surface shadow-card;
   }
+  /* Fields are 48px tall with 16px text: big enough for a thumb, and iPhones do not zoom in on focus. */
   .input {
-    @apply rounded-xl border border-line-strong bg-surface px-3 py-2 text-ink placeholder:text-muted/70 focus:border-accent;
+    @apply min-h-[48px] rounded-xl border border-line-strong bg-surface px-3.5 py-2.5 text-base text-ink placeholder:text-muted/70 focus:border-accent;
   }
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-lg {
+    @apply min-h-[48px] text-base;
   }
   .btn-primary {
     @apply btn bg-accent text-surface hover:bg-accent-dark;
@@ -35,6 +39,19 @@
   }
   .btn-sm {
     @apply !px-3 !py-1.5 !text-xs;
+  }
+  /* Small controls stay compact for a mouse but get a full-size tap area on touch screens. */
+  @media (pointer: coarse) {
+    .btn-sm,
+    .tap {
+      min-height: 44px;
+      min-width: 44px;
+    }
+    .tap {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
   }
   .notice-error {
     @apply rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800;

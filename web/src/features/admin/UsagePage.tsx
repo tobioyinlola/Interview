@@ -26,7 +26,7 @@ export function UsagePage() {
           <select
             value={days}
             onChange={(e) => setDays(Number(e.target.value))}
-            className="input !py-1"
+            className="input"
           >
             {[7, 30, 90].map((n) => (
               <option key={n} value={n}>

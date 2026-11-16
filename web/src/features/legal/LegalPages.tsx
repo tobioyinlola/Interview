@@ -17,7 +17,7 @@ function Shell({
           to the public.
         </p>
         <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
-        <div className="card space-y-3 p-6 text-ink/90 sm:p-8 [&_h2]:pt-3 [&_h2]:text-ink">
+        <div className="space-y-3 leading-relaxed text-ink/90 [&_h2]:pt-4 [&_h2]:text-ink">
           {children}
         </div>
         <p className="text-sm">

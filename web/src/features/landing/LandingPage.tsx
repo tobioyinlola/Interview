@@ -100,7 +100,7 @@ export function LandingPage() {
           className="mx-auto flex max-w-5xl items-center justify-between py-3"
         >
           <Link to="/" aria-label="InterviewMeet home">
-            <Wordmark />
+            <Wordmark collapseOnTiny />
           </Link>
           <div className="hidden items-center gap-7 text-sm text-muted md:flex">
             <a href="#features" className="hover:text-ink">

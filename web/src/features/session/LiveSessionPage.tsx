@@ -90,8 +90,9 @@ function CapturePanel({
       )}
       {status !== "ended" && (
         <div className="space-y-1">
-          <label className="flex items-center gap-2 text-sm">
+          <label className="flex min-h-[44px] items-center gap-3 text-sm">
             <input
+              className="h-5 w-5 accent-accent"
               type="checkbox"
               checked={mic === "on" || mic === "starting"}
               disabled={status !== "listening" && status !== "reconnecting"}
@@ -254,8 +255,9 @@ function OutlineView({
         </p>
       )}
       <div className="flex items-center gap-3">
-        <label className="flex items-center gap-1 text-sm">
+        <label className="flex min-h-[44px] items-center gap-3 text-sm">
           <input
+            className="h-5 w-5 accent-accent"
             type="checkbox"
             checked={blur}
             onChange={(e) => setBlur(e.target.checked)}

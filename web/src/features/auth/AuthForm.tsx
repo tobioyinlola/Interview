@@ -10,7 +10,7 @@ import {
   useSignUp,
 } from "../../api/hooks";
 import { PasswordField } from "../../ui/PasswordField";
-import { PublicShell } from "../../ui/PublicShell";
+import { AuthLayout } from "../../ui/AuthLayout";
 
 export const MIN_PASSWORD = 10;
 
@@ -94,209 +94,212 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     window.location.assign(`${API_BASE_URL}/api/auth/google/start`);
 
   return (
-    <PublicShell>
-      <main className="mx-auto max-w-md px-4 py-10 sm:py-14">
-        <div className="card p-6 sm:p-8">
-          <h1 className="text-3xl font-semibold tracking-tight">
-            {signup ? "Create your account" : "Sign in"}
-          </h1>
-          <p className="mt-2 text-sm text-muted">
-            {signup
-              ? "Practise interviews on Google Meet with a partner who knows the assistant is on."
-              : "Welcome back. InterviewMeet is for practice with a partner who knows the assistant is on."}
+    <AuthLayout>
+      <div>
+        <h1 className="text-[1.75rem] font-semibold leading-tight tracking-tight sm:text-3xl">
+          {signup ? "Create your account" : "Sign in"}
+        </h1>
+        <p className="mt-2 text-sm text-muted">
+          {signup
+            ? "Practise interviews on Google Meet with a partner who knows the assistant is on."
+            : "Welcome back. InterviewMeet is for practice with a partner who knows the assistant is on."}
+        </p>
+
+        {urlError && (
+          <p role="alert" className="notice-error mt-4">
+            {urlError}
           </p>
+        )}
 
-          {urlError && (
-            <p role="alert" className="notice-error mt-4">
-              {urlError}
-            </p>
-          )}
-
-          {sent ? (
-            <p
-              role="status"
-              className="mt-6 rounded-xl bg-accent-soft p-4 text-accent-dark"
-            >
-              Check your email for a{" "}
-              {signup
-                ? "link to confirm your address and finish creating your account"
-                : "sign-in link"}
-              . It works once and expires in 15 minutes.
-            </p>
-          ) : (
-            <>
-              <form onSubmit={submit} className="mt-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium" htmlFor="email">
-                    Email address
-                  </label>
-                  <input
-                    id="email"
-                    ref={emailRef}
-                    type="email"
-                    required
-                    autoComplete="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="input mt-1 w-full"
-                  />
-                </div>
-
-                <PasswordField
-                  label="Password"
-                  value={password}
-                  onChange={setPassword}
-                  autoComplete={signup ? "new-password" : "current-password"}
-                  describedBy={signup ? hintId : undefined}
+        {sent ? (
+          <p
+            role="status"
+            className="mt-6 rounded-xl bg-accent-soft p-4 text-accent-dark"
+          >
+            Check your email for a{" "}
+            {signup
+              ? "link to confirm your address and finish creating your account"
+              : "sign-in link"}
+            . It works once and expires in 15 minutes.
+          </p>
+        ) : (
+          <>
+            <form onSubmit={submit} className="mt-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium" htmlFor="email">
+                  Email address
+                </label>
+                <input
+                  id="email"
+                  ref={emailRef}
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="input mt-1 w-full"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  inputMode="email"
+                  enterKeyHint="next"
                 />
-                {signup && (
-                  <>
-                    <p
-                      id={hintId}
-                      className={`-mt-2 text-xs ${longEnough ? "text-green-700" : "text-muted"}`}
-                    >
-                      {longEnough ? "✓ " : ""}At least {MIN_PASSWORD}{" "}
-                      characters. A few words together works well.
-                    </p>
-                    <PasswordField
-                      label="Confirm password"
-                      value={confirm}
-                      onChange={setConfirm}
-                      autoComplete="new-password"
-                      describedBy={matchId}
-                      invalid={mismatch}
-                    />
-                    <p
-                      id={matchId}
-                      aria-live="polite"
-                      className="-mt-2 min-h-4 text-xs text-red-700"
-                    >
-                      {mismatch ? "The passwords don't match." : ""}
-                    </p>
+              </div>
 
-                    <label className="flex items-start gap-3 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={agreed}
-                        onChange={(e) => setAgreed(e.target.checked)}
-                        className="mt-0.5 h-4 w-4 accent-accent"
-                      />
-                      <span>
-                        I agree to the{" "}
-                        <Link to="/terms" className="underline">
-                          Terms and Conditions
-                        </Link>{" "}
-                        and the{" "}
-                        <Link to="/privacy" className="underline">
-                          Privacy Notice
-                        </Link>
-                        , and I will only practise with a partner who knows the
-                        assistant is on.
-                      </span>
-                    </label>
-                  </>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={
-                    signup ? !canCreate || create.isPending : login.isPending
-                  }
-                  className="btn-primary w-full"
-                >
-                  {signup
-                    ? create.isPending
-                      ? "Creating…"
-                      : "Create account"
-                    : login.isPending
-                      ? "Signing in…"
-                      : "Sign in"}
-                </button>
-                {failure && (
-                  <p role="alert" className="text-sm text-red-700">
-                    {failure.message}
-                  </p>
-                )}
-              </form>
-
-              {!signup && (
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
-                  <Link
-                    to="/forgot-password"
-                    className="text-accent-dark underline"
-                  >
-                    Forgot password?
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={emailLink}
-                    disabled={link.isPending}
-                    className="text-accent-dark underline disabled:opacity-50"
-                  >
-                    Email me a sign-in link
-                  </button>
-                </div>
-              )}
-
-              {providers.data?.google && (
+              <PasswordField
+                label="Password"
+                value={password}
+                onChange={setPassword}
+                autoComplete={signup ? "new-password" : "current-password"}
+                describedBy={signup ? hintId : undefined}
+              />
+              {signup && (
                 <>
-                  <Divider />
-                  <button
-                    type="button"
-                    onClick={google}
-                    disabled={signup && !agreed}
-                    className="btn-secondary w-full"
+                  <p
+                    id={hintId}
+                    className={`-mt-2 text-xs ${longEnough ? "text-green-700" : "text-muted"}`}
                   >
-                    <GoogleMark /> Continue with Google
-                  </button>
-                  {signup && !agreed && (
-                    <p className="mt-2 text-center text-xs text-muted">
-                      Accept the terms above to continue with Google.
-                    </p>
-                  )}
+                    {longEnough ? "✓ " : ""}At least {MIN_PASSWORD} characters.
+                    A few words together works well.
+                  </p>
+                  <PasswordField
+                    label="Confirm password"
+                    value={confirm}
+                    onChange={setConfirm}
+                    autoComplete="new-password"
+                    describedBy={matchId}
+                    invalid={mismatch}
+                  />
+                  <p
+                    id={matchId}
+                    aria-live="polite"
+                    className="-mb-1 -mt-3 min-h-4 text-xs text-red-700"
+                  >
+                    {mismatch ? "The passwords don't match." : ""}
+                  </p>
+
+                  <label className="flex items-start gap-3 py-1 text-sm leading-relaxed">
+                    <input
+                      type="checkbox"
+                      checked={agreed}
+                      onChange={(e) => setAgreed(e.target.checked)}
+                      className="mt-0.5 h-6 w-6 shrink-0 accent-accent"
+                    />
+                    <span>
+                      I agree to the{" "}
+                      <Link to="/terms" className="underline">
+                        Terms and Conditions
+                      </Link>{" "}
+                      and the{" "}
+                      <Link to="/privacy" className="underline">
+                        Privacy Notice
+                      </Link>
+                      , and I will only practise with a partner who knows the
+                      assistant is on.
+                    </span>
+                  </label>
                 </>
               )}
-            </>
-          )}
 
-          <p className="mt-6 text-center text-sm text-muted">
-            {signup ? (
-              <>
-                Already have an account?{" "}
+              <button
+                type="submit"
+                disabled={
+                  signup ? !canCreate || create.isPending : login.isPending
+                }
+                className="btn-primary btn-lg w-full"
+              >
+                {signup
+                  ? create.isPending
+                    ? "Creating…"
+                    : "Create account"
+                  : login.isPending
+                    ? "Signing in…"
+                    : "Sign in"}
+              </button>
+              {failure && (
+                <p role="alert" className="text-sm text-red-700">
+                  {failure.message}
+                </p>
+              )}
+            </form>
+
+            {!signup && (
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
                 <Link
-                  to="/login"
-                  className="font-medium text-accent-dark underline"
+                  to="/forgot-password"
+                  className="inline-flex min-h-[44px] items-center text-accent-dark underline"
                 >
-                  Sign in
+                  Forgot password?
                 </Link>
-              </>
-            ) : (
+                <button
+                  type="button"
+                  onClick={emailLink}
+                  disabled={link.isPending}
+                  className="inline-flex min-h-[44px] items-center text-accent-dark underline disabled:opacity-50"
+                >
+                  Email me a sign-in link
+                </button>
+              </div>
+            )}
+
+            {providers.data?.google && (
               <>
-                New to InterviewMeet?{" "}
-                <Link
-                  to="/signup"
-                  className="font-medium text-accent-dark underline"
+                <Divider />
+                <button
+                  type="button"
+                  onClick={google}
+                  disabled={signup && !agreed}
+                  className="btn-secondary btn-lg w-full"
                 >
-                  Create an account
-                </Link>
+                  <GoogleMark /> Continue with Google
+                </button>
+                {signup && !agreed && (
+                  <p className="mt-2 text-center text-xs text-muted">
+                    Accept the terms above to continue with Google.
+                  </p>
+                )}
               </>
             )}
-          </p>
-          {!signup && (
-            <p className="mt-4 text-center text-xs text-muted">
-              By signing in you agree to the{" "}
-              <Link to="/terms" className="underline">
-                terms
-              </Link>{" "}
-              and accept the{" "}
-              <Link to="/privacy" className="underline">
-                privacy notice
+          </>
+        )}
+
+        <p className="mt-6 text-center text-sm text-muted">
+          {signup ? (
+            <>
+              Already have an account?{" "}
+              <Link
+                to="/login"
+                className="font-medium text-accent-dark underline"
+              >
+                Sign in
               </Link>
-              . Practice only, with a partner who knows the assistant is on.
-            </p>
+            </>
+          ) : (
+            <>
+              New to InterviewMeet?{" "}
+              <Link
+                to="/signup"
+                className="font-medium text-accent-dark underline"
+              >
+                Create an account
+              </Link>
+            </>
           )}
-        </div>
-      </main>
-    </PublicShell>
+        </p>
+        {!signup && (
+          <p className="mt-4 text-center text-xs text-muted">
+            By signing in you agree to the{" "}
+            <Link to="/terms" className="underline">
+              terms
+            </Link>{" "}
+            and accept the{" "}
+            <Link to="/privacy" className="underline">
+              privacy notice
+            </Link>
+            . Practice only, with a partner who knows the assistant is on.
+          </p>
+        )}
+      </div>
+    </AuthLayout>
   );
 }

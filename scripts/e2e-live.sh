@@ -31,4 +31,5 @@ for _ in $(seq 1 40); do curl -sf localhost:8765/healthz >/dev/null && curl -sf 
 NODE_PATH="$(npm root -g)" node "$ROOT/web/e2e/live-session.cjs"
 NODE_PATH="$(npm root -g)" node "$ROOT/web/e2e/google-signin.cjs"
 NODE_PATH="$(npm root -g)" node "$ROOT/web/e2e/password-auth.cjs"
+NODE_PATH="$(npm root -g)" node "$ROOT/web/e2e/responsive.cjs"
 echo "screenshots and logs in $OUT"

@@ -100,7 +100,7 @@ export function Layout() {
           aria-expanded={open}
           aria-controls="sidebar"
           onClick={() => setOpen((v) => !v)}
-          className="rounded-lg p-2 hover:bg-surface/10"
+          className="flex h-11 w-11 items-center justify-center rounded-lg hover:bg-surface/10"
         >
           {open ? <CloseIcon /> : <MenuIcon />}
         </button>

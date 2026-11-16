@@ -112,12 +112,12 @@ export function SessionSetupPage() {
         <h2 id="consent-h" className="text-lg font-semibold">
           Consent
         </h2>
-        <label className="flex items-start gap-2 text-sm">
+        <label className="flex items-start gap-3 py-1 text-sm leading-relaxed">
           <input
             type="checkbox"
             checked={consent}
             onChange={(e) => setConsent(e.target.checked)}
-            className="mt-1"
+            className="mt-0.5 h-6 w-6 shrink-0 accent-accent"
           />
           <span>
             I confirm my practice partner knows this assistant is listening to

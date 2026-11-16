@@ -4,7 +4,7 @@ import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { ApiError } from "../../api/client";
 import { useResetPassword } from "../../api/hooks";
 import { PasswordField } from "../../ui/PasswordField";
-import { PublicShell } from "../../ui/PublicShell";
+import { AuthLayout } from "../../ui/AuthLayout";
 import { MIN_PASSWORD } from "./AuthForm";
 
 export function ResetPasswordPage() {
@@ -26,74 +26,72 @@ export function ResetPasswordPage() {
   };
 
   return (
-    <PublicShell>
-      <main className="mx-auto max-w-md px-4 py-10 sm:py-14">
-        <div className="card p-6 sm:p-8">
-          {dead ? (
-            <>
-              <h1 className="text-3xl font-semibold tracking-tight">
-                That link didn&apos;t work
-              </h1>
-              <p className="mt-2 text-muted">
-                It may have expired or already been used.
+    <AuthLayout>
+      <div>
+        {dead ? (
+          <>
+            <h1 className="text-[1.75rem] font-semibold leading-tight tracking-tight sm:text-3xl">
+              That link didn&apos;t work
+            </h1>
+            <p className="mt-2 text-muted">
+              It may have expired or already been used.
+            </p>
+            <Link to="/forgot-password" className="btn-primary btn-lg mt-4">
+              Request a new reset link
+            </Link>
+          </>
+        ) : (
+          <>
+            <h1 className="text-[1.75rem] font-semibold leading-tight tracking-tight sm:text-3xl">
+              Choose a new password
+            </h1>
+            <p className="mt-2 text-sm text-muted">
+              You&apos;ll be signed in, and signed out everywhere else.
+            </p>
+            <form onSubmit={submit} className="mt-6 space-y-4">
+              <PasswordField
+                label="New password"
+                value={password}
+                onChange={setPassword}
+                autoComplete="new-password"
+              />
+              <p
+                className={`-mt-2 text-xs ${password.length >= MIN_PASSWORD ? "text-green-700" : "text-muted"}`}
+              >
+                {password.length >= MIN_PASSWORD ? "✓ " : ""}At least{" "}
+                {MIN_PASSWORD} characters.
               </p>
-              <Link to="/forgot-password" className="btn-primary mt-4">
-                Request a new reset link
-              </Link>
-            </>
-          ) : (
-            <>
-              <h1 className="text-3xl font-semibold tracking-tight">
-                Choose a new password
-              </h1>
-              <p className="mt-2 text-sm text-muted">
-                You&apos;ll be signed in, and signed out everywhere else.
+              <PasswordField
+                label="Confirm new password"
+                value={confirm}
+                onChange={setConfirm}
+                autoComplete="new-password"
+                describedBy={matchId}
+                invalid={mismatch}
+              />
+              <p
+                id={matchId}
+                aria-live="polite"
+                className="-mb-1 -mt-3 min-h-4 text-xs text-red-700"
+              >
+                {mismatch ? "The passwords don't match." : ""}
               </p>
-              <form onSubmit={submit} className="mt-6 space-y-4">
-                <PasswordField
-                  label="New password"
-                  value={password}
-                  onChange={setPassword}
-                  autoComplete="new-password"
-                />
-                <p
-                  className={`-mt-2 text-xs ${password.length >= MIN_PASSWORD ? "text-green-700" : "text-muted"}`}
-                >
-                  {password.length >= MIN_PASSWORD ? "✓ " : ""}At least{" "}
-                  {MIN_PASSWORD} characters.
+              <button
+                type="submit"
+                disabled={!ok || reset.isPending}
+                className="btn-primary btn-lg w-full"
+              >
+                {reset.isPending ? "Saving…" : "Save new password"}
+              </button>
+              {reset.isError && (
+                <p role="alert" className="text-sm text-red-700">
+                  {reset.error.message}
                 </p>
-                <PasswordField
-                  label="Confirm new password"
-                  value={confirm}
-                  onChange={setConfirm}
-                  autoComplete="new-password"
-                  describedBy={matchId}
-                  invalid={mismatch}
-                />
-                <p
-                  id={matchId}
-                  aria-live="polite"
-                  className="-mt-2 min-h-4 text-xs text-red-700"
-                >
-                  {mismatch ? "The passwords don't match." : ""}
-                </p>
-                <button
-                  type="submit"
-                  disabled={!ok || reset.isPending}
-                  className="btn-primary w-full"
-                >
-                  {reset.isPending ? "Saving…" : "Save new password"}
-                </button>
-                {reset.isError && (
-                  <p role="alert" className="text-sm text-red-700">
-                    {reset.error.message}
-                  </p>
-                )}
-              </form>
-            </>
-          )}
-        </div>
-      </main>
-    </PublicShell>
+              )}
+            </form>
+          </>
+        )}
+      </div>
+    </AuthLayout>
   );
 }

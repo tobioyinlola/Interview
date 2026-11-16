@@ -86,7 +86,7 @@ function PinToggle({
       aria-pressed={pinned}
       disabled={disabled}
       onClick={onToggle}
-      className={`rounded-lg border border-line px-1.5 text-xs hover:border-accent ${pinned ? "bg-yellow-100" : ""}`}
+      className={`tap rounded-lg border border-line px-1.5 text-xs hover:border-accent ${pinned ? "bg-yellow-100" : ""}`}
     >
       {pinned ? "Unpin" : "Pin"}
     </button>
@@ -130,7 +130,7 @@ function Fact({
             maxLength={500}
             rows={3}
             onChange={(e) => setDraft(e.target.value)}
-            className="input w-full !py-1 !text-sm"
+            className="input w-full"
           />
           <span className="flex gap-2">
             <button
@@ -193,7 +193,7 @@ function Fact({
               />
               <button
                 type="button"
-                className="rounded-lg border border-line px-1.5 text-xs hover:border-accent"
+                className="tap rounded-lg border border-line px-1.5 text-xs hover:border-accent"
                 aria-label={`Edit fact: ${fact.text.slice(0, 40)}`}
                 onClick={() => setEditingText(true)}
               >
@@ -201,7 +201,7 @@ function Fact({
               </button>
               <button
                 type="button"
-                className="rounded-lg border border-line px-1.5 text-xs text-red-700 hover:border-red-300 disabled:opacity-50"
+                className="tap rounded-lg border border-line px-1.5 text-xs text-red-700 hover:border-red-300 disabled:opacity-50"
                 aria-label={`Delete fact: ${fact.text.slice(0, 40)}`}
                 disabled={editing.pending}
                 onClick={() => change({ delete: true })}
@@ -258,7 +258,7 @@ function AddFact({
         maxLength={500}
         onChange={(e) => setText(e.target.value)}
         placeholder="Something you know. It is labelled From you."
-        className="input w-full !py-1 !text-sm"
+        className="input w-full"
       />
       <button
         type="submit"

@@ -59,7 +59,7 @@ export function NotesPage() {
           maxLength={NOTES_MAX}
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          className="input mt-1 w-full font-mono text-sm"
+          className="input mt-1 w-full font-mono"
         />
         <div className="mt-1 flex justify-between">
           <SaveIndicator status={status} onRetry={() => void retry()} />

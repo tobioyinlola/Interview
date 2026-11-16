@@ -16,11 +16,20 @@ export function LogoMark({ className = "h-7 w-7" }: { className?: string }) {
   );
 }
 
-export function Wordmark({ className = "" }: { className?: string }) {
+export function Wordmark({
+  className = "",
+  collapseOnTiny = false,
+}: {
+  className?: string;
+  /** On screens under 360px wide, show only the mark (the name stays for screen readers). */
+  collapseOnTiny?: boolean;
+}) {
   return (
     <span className={`inline-flex items-center gap-2 ${className}`}>
       <LogoMark />
-      <span className="text-lg font-semibold tracking-tight">
+      <span
+        className={`text-lg font-semibold tracking-tight ${collapseOnTiny ? "max-[359px]:sr-only" : ""}`}
+      >
         InterviewMeet
       </span>
     </span>

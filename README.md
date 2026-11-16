@@ -117,6 +117,13 @@ The signed-in app uses a dark sidebar (Menu, Account, Support) with a greeting h
 a practice chart and a recent-sessions column. Every number comes from the user's own sessions; with fewer than
 two sessions the chart says so instead of drawing a trend. On phones the sidebar becomes a menu drawer.
 
+## Mobile
+The form pages (sign up, log in, forgot and reset password, link check, terms, privacy) sit straight on the page
+with no box around the form. Every control is at least 44 px tall (fields 48 px), form text is 16 px so iPhones do
+not zoom on focus, the terms checkbox has a large tap area, and the layout respects the notch and home bar.
+`web/e2e/responsive.cjs` checks 98 page and screen-size combinations (280 px up to tablet, plus landscape) for
+sideways scrolling and undersized controls, and runs with the other browser tests in `scripts/e2e-live.sh`.
+
 ## Release hardening
 - **Security:** startup refuses unsafe staging/production configuration; security headers on every response;
   body-size limits, per-client rate limits (stricter for sign-in); a 3 s database statement timeout;
