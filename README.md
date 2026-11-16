@@ -6,8 +6,8 @@ company brief. **For practice with a partner who knows the assistant is on.** Th
 the assistant or evade screen-share or proctoring, and none will be added.
 
 ## Layout
-- `api/` FastAPI (async), SQLAlchemy 2, Alembic, Pydantic v2. Provider interfaces + fakes in `app/adapters/`.
-- `web/` React, TypeScript, Vite, TanStack Query, Zustand, Tailwind. API types are generated from the OpenAPI schema.
+- `backend/` (the API) FastAPI (async), SQLAlchemy 2, Alembic, Pydantic v2. Provider interfaces + fakes in `app/adapters/`.
+- `frontend/` (the web app) React, TypeScript, Vite, TanStack Query, Zustand, Tailwind. API types are generated from the OpenAPI schema.
 
 ## Local development
 ```bash
@@ -16,19 +16,19 @@ docker compose up          # API :8000, web :5173, Postgres :5432
 ```
 Without Docker:
 ```bash
-cd api && python -m venv .venv && . .venv/bin/activate && pip install -e ".[dev]"
+cd backend && python -m venv .venv && . .venv/bin/activate && pip install -e ".[dev]"
 uvicorn app.main:app --reload
-cd web && npm ci && npm run dev
+cd frontend && npm ci && npm run dev
 ```
 
 ## Checks (also run in CI)
 ```bash
-cd api && ruff check . && ruff format --check . && mypy app evals loadtest && pytest
-cd web && npm run lint && npm run typecheck && npm test && npm run build
+cd backend && ruff check . && ruff format --check . && mypy app evals loadtest && pytest
+cd frontend && npm run lint && npm run typecheck && npm test && npm run build
 ```
 After changing API routes or schemas, regenerate the contract:
 ```bash
-cd api && python scripts/export_openapi.py ../web/openapi.json && cd ../web && npm run gen:api
+cd backend && python scripts/export_openapi.py ../frontend/openapi.json && cd ../frontend && npm run gen:api
 ```
 
 ## Sign-in (local)
@@ -46,7 +46,7 @@ background job reads the links, searches the web and writes a brief where **ever
 Facts with no valid source are dropped and empty sections say "Not found". Pages that can't be read
 (blocked, sign-in, too large, timed out) are reported per link, and the user can paste the text instead.
 
-- Fetching is SSRF-safe (`api/app/services/url_guard.py`, `fetcher.py`): public http(s) on ports 80/443
+- Fetching is SSRF-safe (`backend/app/services/url_guard.py`, `fetcher.py`): public http(s) on ports 80/443
   only, every resolved address must be public, connections go to the checked IP with TLS verified against
   the real host name, every redirect is re-validated, 10 s / 2 MB limits, robots.txt, 1 request/s per host.
 - Page text is passed to the model as quoted data; the output is schema-validated and cited against the
@@ -72,12 +72,12 @@ share tab audio*). The app transcribes the partner and streams an answer outline
 ### Try it without OpenAI
 `USE_FAKE_PROVIDERS=true` runs the whole live path with scripted transcription and answers (refused when
 `ENVIRONMENT=production`). `scripts/e2e-live.sh` uses it to drive the real app in Chromium (see
-`web/e2e/README.md`).
+`frontend/e2e/README.md`).
 
 ### Evaluations (need a valid key)
 ```bash
-cd api && python -m evals.run detection   # 100 labelled utterances, pass at 90%
-cd api && python -m evals.run grounding   # 30 questions x 3 note sets x with/without brief, pass at 95%
+cd backend && python -m evals.run detection   # 100 labelled utterances, pass at 90%
+cd backend && python -m evals.run grounding   # 30 questions x 3 note sets x with/without brief, pass at 95%
 ```
 Re-run whenever a prompt or model changes. `--model` picks the live answer model.
 
@@ -101,7 +101,7 @@ Re-run whenever a prompt or model changes. `--model` picks the live answer model
 - M2 company research, M3 live session, M4 beta features: done in code and tests, and the live path is
   verified in a real browser with scripted providers (`scripts/e2e-live.sh`).
 - **Not yet verified against OpenAI:** the research adapters, the realtime transcription protocol
-  (`api/app/adapters/openai_realtime.py`), the fallback transcription call, answer scoring quality, real
+  (`backend/app/adapters/openai_realtime.py`), the fallback transcription call, answer scoring quality, real
   latency, and the evaluation scores. These need a valid key and a real Meet call.
 - Not done: release hardening (observability, load test, staging, runbooks, legal review of the consent
   wording), the Railway deploy, and a sign-in email provider.
@@ -109,7 +109,7 @@ Re-run whenever a prompt or model changes. `--model` picks the live answer model
 ## Landing page and brand
 `/` shows a public landing page to signed-out visitors (signed-in users go to `/dashboard`). It works in any
 browser; the app itself needs desktop Chromium. Brand: Inter (self-hosted via `@fontsource-variable/inter`,
-so the strict CSP holds) and four colours defined in `web/tailwind.config.js`: `#F7F4FF` canvas, `#FFFFFF`
+so the strict CSP holds) and four colours defined in `frontend/tailwind.config.js`: `#F7F4FF` canvas, `#FFFFFF`
 surface, `#1C1B2E` ink, `#7B47F3` accent. The page states only what the product does: no invented
 statistics, ratings, logos or testimonials, and every illustration is labelled "Example".
 
@@ -121,13 +121,13 @@ two sessions the chart says so instead of drawing a trend. On phones the sidebar
 The form pages (sign up, log in, forgot and reset password, link check, terms, privacy) sit straight on the page
 with no box around the form. Every control is at least 44 px tall (fields 48 px), form text is 16 px so iPhones do
 not zoom on focus, the terms checkbox has a large tap area, and the layout respects the notch and home bar.
-`web/e2e/responsive.cjs` checks 98 page and screen-size combinations (280 px up to tablet, plus landscape) for
+`frontend/e2e/responsive.cjs` checks 98 page and screen-size combinations (280 px up to tablet, plus landscape) for
 sideways scrolling and undersized controls, and runs with the other browser tests in `scripts/e2e-live.sh`.
 
 ## Release hardening
 - **Security:** startup refuses unsafe staging/production configuration; security headers on every response;
   body-size limits, per-client rate limits (stricter for sign-in); a 3 s database statement timeout;
-  strict Content-Security-Policy for the web app (`web/nginx.conf.template`), verified in Chromium against the
+  strict Content-Security-Policy for the web app (`frontend/nginx.conf.template`), verified in Chromium against the
   production build (`E2E_PROD=1 scripts/e2e-live.sh`).
 - **Observability:** Prometheus `/metrics` (route templates only, never content), alert rules in
   `ops/alerts.yml` with a runbook each (`docs/runbooks/`), optional scrubbed Sentry, admin-only cost view at `/admin/usage`.

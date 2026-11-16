@@ -1,5 +1,5 @@
 # Prometheus alert rules for the Meet Practice API. Thresholds come from the design document
-# (section 14). A test (api/tests/test_observability.py) fails if a rule uses a metric the API does
+# (section 14). A test (backend/tests/test_observability.py) fails if a rule uses a metric the API does
 # not export. Values marked PROVISIONAL must be replaced with numbers from the load test and the
 # real budget before the beta opens.
 groups:

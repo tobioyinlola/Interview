@@ -1,4 +1,4 @@
-// Serves web/dist the way the production nginx does: same security headers, with the
+// Serves frontend/dist the way the production nginx does: same security headers, with the
 // Content-Security-Policy read from nginx.conf.template so there is one source of truth.
 // Usage: API_ORIGIN=http://localhost:8765 API_WS_ORIGIN=ws://localhost:8765 node serve-prod.cjs 5173
 const http = require('http')

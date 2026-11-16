@@ -15,7 +15,7 @@ protected, and how a release goes out or back.
 
 ## Alerts and what to do
 
-Rules live in `ops/alerts.yml`. A test (`api/tests/test_observability.py`) fails the build if a rule
+Rules live in `ops/alerts.yml`. A test (`backend/tests/test_observability.py`) fails the build if a rule
 uses a metric the API does not export or points at a runbook that does not exist. `page` means act
 now, `ticket` means act within the working day.
 

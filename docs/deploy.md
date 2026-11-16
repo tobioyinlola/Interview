@@ -10,7 +10,7 @@ Add the Postgres plugin. Note its `DATABASE_URL`. The API needs the async form,
 `postgresql+asyncpg://...`; Railway gives `postgresql://...`, so set the variable on the api service
 with the scheme changed.
 
-## 2. API service (root directory `api/`, uses `api/Dockerfile`)
+## 2. API service (root directory `backend/`, uses `backend/Dockerfile`)
 
 Variables:
 
@@ -85,7 +85,7 @@ Resend (DNS records), create an API key, then set `RESEND_API_KEY` and `EMAIL_FR
 production the API refuses to boot without both. A delivery failure is logged without the address or
 link, and the sign-in endpoint still answers the same for every address.
 
-## 3. Web service (root directory `web/`, uses `web/Dockerfile`)
+## 3. Web service (root directory `frontend/`, uses `frontend/Dockerfile`)
 
 Build argument: `VITE_API_BASE_URL` = the API's public `https://` origin.
 
