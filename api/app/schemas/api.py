@@ -16,6 +16,21 @@ class StatusOut(BaseModel):
     status: str
 
 
+class SignUpIn(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=1, max_length=256)  # the real rules are checked server-side
+
+
+class LoginIn(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=1, max_length=256)
+
+
+class ResetIn(BaseModel):
+    token: str = Field(min_length=10, max_length=200)
+    password: str = Field(min_length=1, max_length=256)
+
+
 class ProvidersOut(BaseModel):
     google: bool
 

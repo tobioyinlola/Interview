@@ -64,6 +64,47 @@ export function useRequestLink() {
   });
 }
 
+export function useSignUp() {
+  return useMutation({
+    mutationFn: (v: { email: string; password: string }) =>
+      apiFetch<{ status: string }>("/api/auth/signup", {
+        method: "POST",
+        body: json(v),
+      }),
+  });
+}
+
+export function useLogin() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { email: string; password: string }) =>
+      apiFetch<Me>("/api/auth/login", { method: "POST", body: json(v) }),
+    onSuccess: (me) => qc.setQueryData(["me"], me),
+  });
+}
+
+export function useRequestReset() {
+  return useMutation({
+    mutationFn: (email: string) =>
+      apiFetch<{ status: string }>("/api/auth/request-reset", {
+        method: "POST",
+        body: json({ email }),
+      }),
+  });
+}
+
+export function useResetPassword() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { token: string; password: string }) =>
+      apiFetch<Me>("/api/auth/reset-password", {
+        method: "POST",
+        body: json(v),
+      }),
+    onSuccess: (me) => qc.setQueryData(["me"], me),
+  });
+}
+
 export function useVerifyLink() {
   const qc = useQueryClient();
   return useMutation({

@@ -1,13 +1,22 @@
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useId, useRef, useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
 
 import { API_BASE_URL } from "../../api/client";
-import { useMe, useProviders, useRequestLink } from "../../api/hooks";
+import {
+  useLogin,
+  useMe,
+  useProviders,
+  useRequestLink,
+  useSignUp,
+} from "../../api/hooks";
+import { PasswordField } from "../../ui/PasswordField";
 import { PublicShell } from "../../ui/PublicShell";
+
+export const MIN_PASSWORD = 10;
 
 const GOOGLE_ERRORS: Record<string, string> = {
   google_failed:
-    "Google sign-in didn't work. Please try again, or use an email link instead.",
+    "Google sign-in didn't work. Please try again, or use your email instead.",
   google_cancelled: "Google sign-in was cancelled.",
   google_unavailable: "Google sign-in isn't available right now.",
 };
@@ -35,30 +44,58 @@ function GoogleMark() {
   );
 }
 
-/** One form for both pages. Email-link sign-in creates the account on first use, so sign-up differs
- *  only in wording and in requiring the terms to be accepted before either method. */
+function Divider() {
+  return (
+    <div className="my-5 flex items-center gap-3 text-xs text-muted">
+      <span className="h-px flex-1 bg-line" /> or
+      <span className="h-px flex-1 bg-line" />
+    </div>
+  );
+}
+
+/** Log in and sign up on one form component. Signing up needs an email, a password typed twice, and
+ *  the terms accepted; the account only exists once the emailed link is opened. */
 export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const signup = mode === "signup";
   const { data: me } = useMe();
   const providers = useProviders();
   const [params] = useSearchParams();
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [agreed, setAgreed] = useState(false);
-  const request = useRequestLink();
+  const emailRef = useRef<HTMLInputElement>(null);
+  const hintId = useId();
+  const matchId = useId();
+  const create = useSignUp();
+  const login = useLogin();
+  const link = useRequestLink();
   if (me) return <Navigate to="/" replace />;
 
   const urlError = GOOGLE_ERRORS[params.get("error") ?? ""];
-  const blocked = signup && !agreed;
+  const longEnough = password.length >= MIN_PASSWORD;
+  const mismatch = confirm.length > 0 && confirm !== password;
+  const canCreate = longEnough && confirm === password && agreed;
+  const sent = create.isSuccess || link.isSuccess;
+  const failure = (signup ? create.error : login.error) ?? link.error;
+
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (!blocked) request.mutate(email.trim());
+    if (signup) {
+      if (canCreate) create.mutate({ email: email.trim(), password });
+    } else {
+      login.mutate({ email: email.trim(), password });
+    }
+  };
+  const emailLink = () => {
+    if (emailRef.current?.reportValidity()) link.mutate(email.trim());
   };
   const google = () =>
     window.location.assign(`${API_BASE_URL}/api/auth/google/start`);
 
   return (
     <PublicShell>
-      <main className="mx-auto max-w-md px-4 py-12 sm:py-16">
+      <main className="mx-auto max-w-md px-4 py-10 sm:py-14">
         <div className="card p-6 sm:p-8">
           <h1 className="text-3xl font-semibold tracking-tight">
             {signup ? "Create your account" : "Sign in"}
@@ -75,90 +112,150 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
             </p>
           )}
 
-          {request.isSuccess ? (
+          {sent ? (
             <p
               role="status"
               className="mt-6 rounded-xl bg-accent-soft p-4 text-accent-dark"
             >
               Check your email for a{" "}
-              {signup ? "link to finish creating your account" : "sign-in link"}
+              {signup
+                ? "link to confirm your address and finish creating your account"
+                : "sign-in link"}
               . It works once and expires in 15 minutes.
             </p>
           ) : (
             <>
-              {signup && (
-                <label className="mt-6 flex items-start gap-3 text-sm">
+              <form onSubmit={submit} className="mt-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium" htmlFor="email">
+                    Email address
+                  </label>
                   <input
-                    type="checkbox"
-                    checked={agreed}
-                    onChange={(e) => setAgreed(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 accent-accent"
+                    id="email"
+                    ref={emailRef}
+                    type="email"
+                    required
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="input mt-1 w-full"
                   />
-                  <span>
-                    I agree to the{" "}
-                    <Link to="/terms" className="underline">
-                      terms
-                    </Link>{" "}
-                    and accept the{" "}
-                    <Link to="/privacy" className="underline">
-                      privacy notice
-                    </Link>
-                    , and I will only practise with a partner who knows the
-                    assistant is on.
-                  </span>
-                </label>
+                </div>
+
+                <PasswordField
+                  label="Password"
+                  value={password}
+                  onChange={setPassword}
+                  autoComplete={signup ? "new-password" : "current-password"}
+                  describedBy={signup ? hintId : undefined}
+                />
+                {signup && (
+                  <>
+                    <p
+                      id={hintId}
+                      className={`-mt-2 text-xs ${longEnough ? "text-green-700" : "text-muted"}`}
+                    >
+                      {longEnough ? "✓ " : ""}At least {MIN_PASSWORD}{" "}
+                      characters. A few words together works well.
+                    </p>
+                    <PasswordField
+                      label="Confirm password"
+                      value={confirm}
+                      onChange={setConfirm}
+                      autoComplete="new-password"
+                      describedBy={matchId}
+                      invalid={mismatch}
+                    />
+                    <p
+                      id={matchId}
+                      aria-live="polite"
+                      className="-mt-2 min-h-4 text-xs text-red-700"
+                    >
+                      {mismatch ? "The passwords don't match." : ""}
+                    </p>
+
+                    <label className="flex items-start gap-3 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={agreed}
+                        onChange={(e) => setAgreed(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 accent-accent"
+                      />
+                      <span>
+                        I agree to the{" "}
+                        <Link to="/terms" className="underline">
+                          Terms and Conditions
+                        </Link>{" "}
+                        and the{" "}
+                        <Link to="/privacy" className="underline">
+                          Privacy Notice
+                        </Link>
+                        , and I will only practise with a partner who knows the
+                        assistant is on.
+                      </span>
+                    </label>
+                  </>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={
+                    signup ? !canCreate || create.isPending : login.isPending
+                  }
+                  className="btn-primary w-full"
+                >
+                  {signup
+                    ? create.isPending
+                      ? "Creating…"
+                      : "Create account"
+                    : login.isPending
+                      ? "Signing in…"
+                      : "Sign in"}
+                </button>
+                {failure && (
+                  <p role="alert" className="text-sm text-red-700">
+                    {failure.message}
+                  </p>
+                )}
+              </form>
+
+              {!signup && (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <Link
+                    to="/forgot-password"
+                    className="text-accent-dark underline"
+                  >
+                    Forgot password?
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={emailLink}
+                    disabled={link.isPending}
+                    className="text-accent-dark underline disabled:opacity-50"
+                  >
+                    Email me a sign-in link
+                  </button>
+                </div>
               )}
 
               {providers.data?.google && (
                 <>
+                  <Divider />
                   <button
                     type="button"
                     onClick={google}
-                    disabled={blocked}
-                    className="btn-secondary mt-5 w-full"
+                    disabled={signup && !agreed}
+                    className="btn-secondary w-full"
                   >
                     <GoogleMark /> Continue with Google
                   </button>
-                  <div className="my-5 flex items-center gap-3 text-xs text-muted">
-                    <span className="h-px flex-1 bg-line" /> or
-                    <span className="h-px flex-1 bg-line" />
-                  </div>
+                  {signup && !agreed && (
+                    <p className="mt-2 text-center text-xs text-muted">
+                      Accept the terms above to continue with Google.
+                    </p>
+                  )}
                 </>
               )}
-
-              <form
-                onSubmit={submit}
-                className={`space-y-3 ${providers.data?.google || signup ? "" : "mt-6"}`}
-              >
-                <label className="block text-sm font-medium" htmlFor="email">
-                  Email address
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  required
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="input w-full"
-                />
-                <button
-                  type="submit"
-                  disabled={request.isPending || blocked}
-                  className="btn-primary w-full"
-                >
-                  {request.isPending
-                    ? "Sending…"
-                    : signup
-                      ? "Create account with email"
-                      : "Email me a sign-in link"}
-                </button>
-                {request.isError && (
-                  <p role="alert" className="text-sm text-red-700">
-                    {request.error.message}
-                  </p>
-                )}
-              </form>
             </>
           )}
 

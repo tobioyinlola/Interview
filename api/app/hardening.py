@@ -7,14 +7,38 @@ import time
 from collections import defaultdict, deque
 from collections.abc import Callable, MutableMapping
 from typing import Any
+from urllib.parse import urlparse
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.config import Settings
 from app.logging_config import request_id_var
 
+DEFAULT_API_URL = "http://localhost:8000"
 KNOWN_ENVIRONMENTS = {"local", "staging", "production"}
 DEFAULT_COOKIE_SECRET = "dev-only-change-me"  # noqa: S105 - the value we refuse to run with
+
+
+# Hosts where every subdomain belongs to a different customer, so browsers treat two of them as
+# different sites and refuse to send the login cookie between them.
+SHARED_SUFFIXES = (
+    "up.railway.app", "railway.app", "vercel.app", "netlify.app", "herokuapp.com", "onrender.com",
+    "fly.dev", "github.io", "pages.dev", "workers.dev", "azurewebsites.net", "appspot.com",
+)  # fmt: skip
+
+
+def same_site(a: str, b: str) -> bool:
+    """Whether two origins are one site for cookies (sibling subdomains of a private domain)."""
+    ha, hb = (urlparse(x).hostname or "" for x in (a, b))
+    if ha == hb:
+        return True
+    if any(h == suf or h.endswith("." + suf) for h in (ha, hb) for suf in SHARED_SUFFIXES):
+        return False
+
+    def parent(host: str) -> str:
+        return host.split(".", 1)[1] if "." in host else host
+
+    return parent(ha) == parent(hb) or parent(ha) == hb or parent(hb) == ha
 
 
 def validate_settings(s: Settings) -> list[str]:
@@ -44,6 +68,12 @@ def validate_settings(s: Settings) -> list[str]:
         or s.google_token_url != "https://oauth2.googleapis.com/token"  # noqa: S105
     ):
         problems.append("GOOGLE_AUTH_URL and GOOGLE_TOKEN_URL are for local tests only.")
+    if s.api_public_url != DEFAULT_API_URL and not same_site(s.web_origin, s.api_public_url):
+        problems.append(
+            "WEB_ORIGIN and API_PUBLIC_URL must be on the same site (for example app.example.com "
+            "and api.example.com). On separate platform subdomains such as *.up.railway.app "
+            "browsers drop the login cookie, so nobody could stay signed in. Use custom domains."
+        )
     if not s.resend_api_key.get_secret_value() or not s.email_from:
         problems.append("RESEND_API_KEY and EMAIL_FROM must be set (sign-in links are emailed).")
     if s.environment == "production" and not s.openai_api_key.get_secret_value():
@@ -214,7 +244,7 @@ class RateLimitMiddleware:
             await self.app(scope, receive, send)
             return
         key = self.client_key(scope)
-        if path.startswith("/api/auth/"):
+        if path.startswith("/api/auth/") and path != "/api/auth/providers":
             wait = self.limiter.check(f"auth:{key}", self.s.rate_limit_auth_per_minute)
         else:
             wait = self.limiter.check(f"api:{key}", self.s.rate_limit_per_minute)

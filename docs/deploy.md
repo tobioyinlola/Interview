@@ -57,9 +57,25 @@ Optional. The sign-in and sign-up pages show "Continue with Google" only when it
 4. While the consent screen is in *Testing*, only listed test users can sign in. Publish it
    before the public beta.
 
+**If the Google button does not appear**, the API does not have both `GOOGLE_CLIENT_ID` and
+`GOOGLE_CLIENT_SECRET` (the API log says "google sign-in is off" at startup). **If Google shows
+`redirect_uri_mismatch`**, the URI in the Google client must equal `API_PUBLIC_URL` plus
+`/api/auth/google/callback` exactly (scheme, host, no trailing slash). **If you are sent back to the
+login page with "Google sign-in didn't work"**, the API log has a `google sign-in refused` line with
+the reason. **If you land signed out**, see "Domains and cookies".
+
 The same email address is the same account whichever way it signs in. Only emails that Google has
 verified are accepted. **Not yet tried against real Google**: the flow is tested against a mock
 Google and a fake Google in a real browser, but needs a first real sign-in on staging.
+
+### Passwords
+
+Accounts made with an email use a password (at least 10 characters, typed twice, with a reveal
+button). The account is created only when the emailed link is opened, which proves the address.
+Passwords are stored as scrypt hashes. Ten wrong passwords for one email in 15 minutes pause password
+sign-in for that email (the email link and Google still work). "Forgot password?" emails a reset
+link that works once; using it signs the person out everywhere else. A person who only used Google
+or email links can use the same reset link to add a password.
 
 ### Sign-in email (Resend)
 
@@ -87,6 +103,12 @@ verified in Chromium against the production build with the real headers, with ze
 so the policy matches.
 
 ## 4. Domains and cookies
+
+**Put the web app and the API on the same site**, for example `app.example.com` and
+`api.example.com`. Browsers treat two subdomains of a shared platform domain, such as two
+`*.up.railway.app` addresses, as different sites and silently refuse to send the login cookie between
+them, so nobody could stay signed in (email link, password and Google alike). The API checks this at
+boot when `API_PUBLIC_URL` is set and refuses to start on such a pair.
 
 Use HTTPS custom domains. Tab capture and the microphone need a secure context. The session cookie
 is `HttpOnly`, `Secure` and `SameSite=Lax`, and CORS allows only `WEB_ORIGIN`. Putting web and API

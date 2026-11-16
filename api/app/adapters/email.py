@@ -13,6 +13,10 @@ log = logging.getLogger("app.email")
 class EmailSender(Protocol):
     async def send_login_link(self, email: str, link: str) -> None: ...
 
+    async def send_signup_link(self, email: str, link: str) -> None: ...
+
+    async def send_reset_link(self, email: str, link: str) -> None: ...
+
 
 class ConsoleEmailSender:
     """Local development only: prints the link instead of emailing it."""
@@ -20,10 +24,22 @@ class ConsoleEmailSender:
     async def send_login_link(self, email: str, link: str) -> None:
         log.info("login link (local only)", extra={"fields": {"link": link}})
 
+    async def send_signup_link(self, email: str, link: str) -> None:
+        log.info("login link (local only)", extra={"fields": {"link": link, "kind": "signup"}})
+
+    async def send_reset_link(self, email: str, link: str) -> None:
+        log.info("login link (local only)", extra={"fields": {"link": link, "kind": "reset"}})
+
 
 class UnconfiguredEmailSender:
     async def send_login_link(self, email: str, link: str) -> None:
         log.error("no email provider configured; sign-in link was not delivered")
+
+    async def send_signup_link(self, email: str, link: str) -> None:
+        log.error("no email provider configured; sign-up link was not delivered")
+
+    async def send_reset_link(self, email: str, link: str) -> None:
+        log.error("no email provider configured; reset link was not delivered")
 
 
 class ResendEmailSender:
@@ -47,19 +63,46 @@ class ResendEmailSender:
         self._transport = transport
 
     async def send_login_link(self, email: str, link: str) -> None:
+        await self._send(
+            email,
+            link,
+            subject="Your sign-in link",
+            lead="Use this link to sign in to InterviewMeet.",
+            button="Sign in",
+        )
+
+    async def send_signup_link(self, email: str, link: str) -> None:
+        await self._send(
+            email,
+            link,
+            subject="Confirm your email to finish creating your account",
+            lead="Confirm your email address to finish creating your InterviewMeet account.",
+            button="Confirm and sign in",
+        )
+
+    async def send_reset_link(self, email: str, link: str) -> None:
+        await self._send(
+            email,
+            link,
+            subject="Reset your password",
+            lead="Use this link to choose a new password for InterviewMeet.",
+            button="Choose a new password",
+        )
+
+    async def _send(self, email: str, link: str, *, subject: str, lead: str, button: str) -> None:
         text = (
-            f"Use this link to sign in to InterviewMeet. It works once and expires in "
-            f"{self._ttl} minutes.\n\n{link}\n\nIf you did not ask for it, ignore this email."
+            f"{lead} It works once and expires in {self._ttl} minutes.\n\n{link}\n\n"
+            "If you did not ask for it, ignore this email."
         )
         safe = html.escape(link, quote=True)
         body = {
             "from": self._from,
             "to": [email],
-            "subject": "Your sign-in link",
+            "subject": subject,
             "text": text,
             "html": (
-                f"<p>Use this link to sign in to InterviewMeet. It works once and "
-                f'expires in {self._ttl} minutes.</p><p><a href="{safe}">Sign in</a></p>'
+                f"<p>{lead} It works once and expires in {self._ttl} minutes.</p>"
+                f'<p><a href="{safe}">{button}</a></p>'
                 f"<p>If you did not ask for it, ignore this email.</p>"
             ),
         }

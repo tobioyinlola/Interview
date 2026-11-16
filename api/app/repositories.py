@@ -19,6 +19,7 @@ from app.models import (
     CompanyBrief,
     CompanySource,
     IdempotencyKey,
+    LoginFailure,
     LoginToken,
     Note,
     PracticeSession,
@@ -51,31 +52,91 @@ class AuthRepo:
         )
         return int((await self.db.execute(stmt)).scalar_one())
 
-    async def create_login_token(self, email: str, *, ttl: timedelta) -> str:
+    async def create_login_token(
+        self,
+        email: str,
+        *,
+        ttl: timedelta,
+        purpose: str = "login",
+        password_hash: str | None = None,
+    ) -> str:
         token = new_token()
         self.db.add(
             LoginToken(
-                email=email, token_hash=hash_token(token, self.secret), expires_at=_now() + ttl
+                email=email,
+                token_hash=hash_token(token, self.secret),
+                expires_at=_now() + ttl,
+                purpose=purpose,
+                password_hash=password_hash,
             )
         )
         await self.db.commit()
         return token
 
-    async def consume_login_token(self, token: str) -> str | None:
-        """Atomically mark a valid unused token as used and return its email, else None."""
+    async def consume_token(
+        self, token: str, purposes: tuple[str, ...] = ("login", "signup")
+    ) -> tuple[str, str | None, str] | None:
+        """Atomically use a valid unused token. Returns (email, password_hash, purpose) or None."""
         stmt = (
             update(LoginToken)
             .where(
                 LoginToken.token_hash == hash_token(token, self.secret),
                 LoginToken.used_at.is_(None),
                 LoginToken.expires_at > _now(),
+                LoginToken.purpose.in_(purposes),
             )
             .values(used_at=_now())
-            .returning(LoginToken.email)
+            .returning(LoginToken.email, LoginToken.password_hash, LoginToken.purpose)
         )
-        email = (await self.db.execute(stmt)).scalar_one_or_none()
+        row = (await self.db.execute(stmt)).one_or_none()
         await self.db.commit()
-        return email
+        return (row[0], row[1], row[2]) if row else None
+
+    async def peek_token_email(self, token: str, purposes: tuple[str, ...]) -> str | None:
+        """The email a valid unused token belongs to, without using it up."""
+        stmt = select(LoginToken.email).where(
+            LoginToken.token_hash == hash_token(token, self.secret),
+            LoginToken.used_at.is_(None),
+            LoginToken.expires_at > _now(),
+            LoginToken.purpose.in_(purposes),
+        )
+        return (await self.db.execute(stmt)).scalar_one_or_none()
+
+    async def consume_login_token(self, token: str) -> str | None:
+        used = await self.consume_token(token)
+        return used[0] if used else None
+
+    async def find_user(self, email: str) -> User | None:
+        return (await self.db.execute(select(User).where(User.email == email))).scalar_one_or_none()
+
+    async def set_password(self, user_id: uuid.UUID, password_hash: str) -> None:
+        await self.db.execute(
+            update(User).where(User.id == user_id).values(password_hash=password_hash)
+        )
+        await self.db.commit()
+
+    async def revoke_sessions(self, user_id: uuid.UUID) -> None:
+        await self.db.execute(delete(AuthSession).where(AuthSession.user_id == user_id))
+        await self.db.commit()
+
+    async def recent_login_failures(self, email: str, *, within: timedelta) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(LoginFailure)
+            .where(LoginFailure.email == email, LoginFailure.created_at > _now() - within)
+        )
+        return int((await self.db.execute(stmt)).scalar_one())
+
+    async def record_login_failure(self, email: str) -> None:
+        self.db.add(LoginFailure(email=email))
+        await self.db.execute(
+            delete(LoginFailure).where(LoginFailure.created_at < _now() - timedelta(days=1))
+        )
+        await self.db.commit()
+
+    async def clear_login_failures(self, email: str) -> None:
+        await self.db.execute(delete(LoginFailure).where(LoginFailure.email == email))
+        await self.db.commit()
 
     async def get_or_create_user(self, email: str) -> User:
         user = (await self.db.execute(select(User).where(User.email == email))).scalar_one_or_none()

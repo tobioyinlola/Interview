@@ -225,6 +225,17 @@ async def test_sign_in_endpoints_have_a_stricter_limit_with_retry_after(monkeypa
     assert r.json()["error"]["code"] == "rate_limited"
 
 
+async def test_the_providers_read_does_not_use_up_the_strict_sign_in_budget(monkeypatch):
+    """Every sign-in page load reads it; it must not lock real sign-in attempts out behind it."""
+    async with make_client(monkeypatch, rate_limit_auth_per_minute=2) as c:
+        reads = [(await c.get("/api/auth/providers")).status_code for _ in range(6)]
+        first = await c.post("/api/auth/request-link", json={"email": "a@example.com"})
+        second = await c.post("/api/auth/request-link", json={"email": "b@example.com"})
+        third = await c.post("/api/auth/request-link", json={"email": "c@example.com"})
+    assert reads == [200] * 6
+    assert (first.status_code, second.status_code, third.status_code) == (202, 202, 429)
+
+
 async def test_the_general_limit_applies_to_the_rest_of_the_api(monkeypatch):
     async with make_client(monkeypatch, rate_limit_per_minute=4) as c:
         codes = [(await c.get("/api/me")).status_code for _ in range(6)]

@@ -94,3 +94,12 @@ describe("brand tokens", () => {
     expect(main).toContain("@fontsource-variable/inter/wght-italic.css");
   });
 });
+
+describe("header", () => {
+  it("blends into the page: no card, background or shadow of its own", async () => {
+    mockApi({ "GET /api/me": () => UNAUTH });
+    renderApp(<App />, "/");
+    const nav = await screen.findByRole("navigation", { name: "Main" });
+    expect(nav.className).not.toMatch(/bg-surface|shadow|rounded/);
+  });
+});

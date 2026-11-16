@@ -31,6 +31,12 @@ class CapturingSender:
     async def send_login_link(self, email: str, link: str) -> None:
         self.links.append((email, link))
 
+    async def send_signup_link(self, email: str, link: str) -> None:
+        self.links.append((email, link))
+
+    async def send_reset_link(self, email: str, link: str) -> None:
+        self.links.append((email, link))
+
     def token_for(self, email: str) -> str:
         link = [lnk for e, lnk in self.links if e == email.lower()][-1]
         return re.search(r"token=([^&]+)", link).group(1)  # type: ignore[union-attr]

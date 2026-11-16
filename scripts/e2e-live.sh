@@ -10,6 +10,7 @@ PY="${API_PYTHON_BIN:-$ROOT/api/.venv/bin}"
 export API_LOG="$OUT/api.log" API_PID="$OUT/api.pid" E2E_SHOTS="$OUT"
 # `;` not `&&`: with `cd x && cmd &` the shell backgrounds the whole list, so $! would be a subshell.
 export API_START="cd $ROOT/api; ENVIRONMENT=local USE_FAKE_PROVIDERS=true WEB_ORIGIN=http://localhost:5173 \
+  RATE_LIMIT_AUTH_PER_MINUTE=1000 LOGIN_REQUESTS_PER_HOUR=1000 \
   GOOGLE_CLIENT_ID=e2e-client GOOGLE_CLIENT_SECRET=e2e-secret API_PUBLIC_URL=http://localhost:8765 \
   GOOGLE_AUTH_URL=http://localhost:9099/auth GOOGLE_TOKEN_URL=http://localhost:9099/token \
   nohup $PY/uvicorn app.main:app --port 8765 --timeout-graceful-shutdown 1 >> $API_LOG 2>&1 & echo \$! > $API_PID"
@@ -29,4 +30,5 @@ trap cleanup EXIT
 for _ in $(seq 1 40); do curl -sf localhost:8765/healthz >/dev/null && curl -sf localhost:5173/ >/dev/null && break; sleep 0.5; done
 NODE_PATH="$(npm root -g)" node "$ROOT/web/e2e/live-session.cjs"
 NODE_PATH="$(npm root -g)" node "$ROOT/web/e2e/google-signin.cjs"
+NODE_PATH="$(npm root -g)" node "$ROOT/web/e2e/password-auth.cjs"
 echo "screenshots and logs in $OUT"

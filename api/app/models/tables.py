@@ -46,6 +46,8 @@ class User(Base):
     __tablename__ = "users"
     id: Mapped[uuid.UUID] = _pk()
     email: Mapped[str] = mapped_column(String(320), unique=True)
+    # scrypt hash; null for people who only use email links or Google. Never leaves the server.
+    password_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
 
 
@@ -60,6 +62,20 @@ class LoginToken(Base):
     expires_at: Mapped[datetime] = mapped_column(_TS)
     used_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
     created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+    # login (sign in), signup (confirm a new account) or reset (choose a new password)
+    purpose: Mapped[str] = mapped_column(String(10), server_default="login", default="login")
+    # signup only: the chosen password, hashed, applied only once the email address is proven
+    password_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class LoginFailure(Base):
+    """One wrong password. Counted per email to slow guessing; contains no password."""
+
+    __tablename__ = "login_failures"
+    id: Mapped[uuid.UUID] = _pk()
+    email: Mapped[str] = mapped_column(String(320))
+    created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+    __table_args__ = (Index("ix_login_failures_email_created", "email", "created_at"),)
 
 
 class AuthSession(Base):

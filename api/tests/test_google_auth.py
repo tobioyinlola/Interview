@@ -359,6 +359,38 @@ def test_google_settings_must_be_complete_and_https_outside_local() -> None:
     )
     assert any("API_PUBLIC_URL" in p for p in insecure)
     ok = Settings(  # type: ignore[arg-type]
-        **base, google_client_id="id", google_client_secret="s", api_public_url="https://api.x.com"
+        **base,
+        google_client_id="id",
+        google_client_secret="s",
+        api_public_url="https://api.example.com",
     )
     assert validate_settings(ok) == []
+
+
+def test_web_and_api_must_share_a_site_or_the_login_cookie_is_dropped() -> None:
+    from app.hardening import same_site
+
+    assert same_site("https://app.example.com", "https://api.example.com")
+    assert same_site("https://example.com", "https://api.example.com")
+    assert same_site("http://localhost:5173", "http://localhost:8000")
+    assert not same_site("https://web-prod.up.railway.app", "https://api-prod.up.railway.app")
+    assert not same_site("https://a.vercel.app", "https://b.vercel.app")
+    assert not same_site("https://app.example.com", "https://api.other.com")
+    base = dict(
+        environment="production",
+        cookie_secret="x" * 40,
+        database_url="postgresql+asyncpg://u:p@db/x",
+        openai_api_key="sk-x",
+        resend_api_key="re_x",
+        email_from="a@b.com",
+    )
+    bad = Settings(  # type: ignore[arg-type]
+        **base,
+        web_origin="https://web-prod.up.railway.app",
+        api_public_url="https://api-prod.up.railway.app",
+    )
+    assert any("same site" in p for p in validate_settings(bad))
+    good = Settings(  # type: ignore[arg-type]
+        **base, web_origin="https://app.example.com", api_public_url="https://api.example.com"
+    )
+    assert validate_settings(good) == []

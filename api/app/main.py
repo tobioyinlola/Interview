@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -30,9 +31,12 @@ from app.routers import (
     notes,
     sessions,
 )
+from app.services.google_oauth import GoogleOAuth
 from app.services.live import LiveHub
 from app.services.providers import build_answer_llm, build_runner
 from app.workers.scoring_worker import ScoringRunner
+
+log = logging.getLogger("app.main")
 
 
 @asynccontextmanager
@@ -41,6 +45,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     assert_safe(settings)  # an unsafe production configuration stops here, before serving
     configure_logging(settings.log_level)
     metrics.configure(settings)
+    if settings.google_client_id and settings.google_client_secret.get_secret_value():
+        log.info(
+            "google sign-in is on",
+            extra={"fields": {"redirect_uri": GoogleOAuth(settings).redirect_uri}},
+        )
+    else:
+        log.info("google sign-in is off: set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET")
     metrics.build_info.labels(app.version).set(1)
     init_sentry(settings)
     if settings.use_fake_providers and settings.environment == "production":

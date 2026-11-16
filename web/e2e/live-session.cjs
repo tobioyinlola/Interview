@@ -88,7 +88,7 @@ const FAKE_MIC = () => {
   // sign in
   await page.goto("http://localhost:5173/login");
   await page.fill("#email", `live${Date.now()}@example.com`);
-  await page.click("button[type=submit]");
+  await page.getByRole("button", { name: "Email me a sign-in link" }).click();
   await page.getByText("Check your email").waitFor();
   await sleep(300);
   const link = [
