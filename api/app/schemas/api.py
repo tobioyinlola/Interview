@@ -16,6 +16,10 @@ class StatusOut(BaseModel):
     status: str
 
 
+class ProvidersOut(BaseModel):
+    google: bool
+
+
 class VerifyIn(BaseModel):
     token: str = Field(min_length=10, max_length=200)
 

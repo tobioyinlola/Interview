@@ -32,7 +32,8 @@ cd api && python scripts/export_openapi.py ../web/openapi.json && cd ../web && n
 ```
 
 ## Sign-in (local)
-Email-link sign-in. With `ENVIRONMENT=local` the API logs the sign-in link to its console instead of
+Separate `/signup` and `/login` pages, no passwords: an emailed single-use link, or "Continue with Google" when
+`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` are set (see docs/deploy.md). Email-link sign-in. With `ENVIRONMENT=local` the API logs the sign-in link to its console instead of
 emailing it. Other environments send it through Resend (`RESEND_API_KEY`, `EMAIL_FROM`).
 
 Tests need Postgres: `TEST_DATABASE_URL` (default `postgresql+asyncpg://postgres:postgres@localhost:5432/meetpractice_test`).

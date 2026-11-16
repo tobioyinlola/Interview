@@ -18,6 +18,7 @@ from app.errors import ApiError
 from app.models import User
 from app.repositories import AuthRepo
 from app.security import COOKIE_NAME
+from app.services.google_oauth import GoogleOAuth
 from app.services.live import LiveHub
 from app.services.providers import build_answer_llm, build_runner, build_stt
 from app.services.suggest import SuggestionService
@@ -38,6 +39,12 @@ async def current_user(
     if user is None:
         raise ApiError(401, "not_authenticated", "Please sign in.")
     return user
+
+
+def get_google(
+    settings: Settings = Depends(get_settings),  # noqa: B008
+) -> GoogleOAuth:
+    return GoogleOAuth(settings)
 
 
 def get_email_sender(

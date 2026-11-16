@@ -35,6 +35,15 @@ def validate_settings(s: Settings) -> list[str]:
         problems.append("DATABASE_URL uses the default postgres:postgres credentials.")
     if s.use_fake_providers:
         problems.append("USE_FAKE_PROVIDERS must be off.")
+    if bool(s.google_client_id) != bool(s.google_client_secret.get_secret_value()):
+        problems.append("GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set together.")
+    if s.google_client_id and not s.api_public_url.startswith("https://"):
+        problems.append("API_PUBLIC_URL must be an https:// origin when Google sign-in is on.")
+    if (
+        s.google_auth_url != "https://accounts.google.com/o/oauth2/v2/auth"
+        or s.google_token_url != "https://oauth2.googleapis.com/token"  # noqa: S105
+    ):
+        problems.append("GOOGLE_AUTH_URL and GOOGLE_TOKEN_URL are for local tests only.")
     if not s.resend_api_key.get_secret_value() or not s.email_from:
         problems.append("RESEND_API_KEY and EMAIL_FROM must be set (sign-in links are emailed).")
     if s.environment == "production" and not s.openai_api_key.get_secret_value():

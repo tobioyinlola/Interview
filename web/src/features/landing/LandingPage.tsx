@@ -113,12 +113,20 @@ export function LandingPage() {
               Principles
             </a>
           </div>
-          <Link
-            to="/login"
-            className="rounded-xl bg-ink px-4 py-2 text-sm font-medium text-surface hover:bg-ink/90"
-          >
-            Sign in
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/login"
+              className="px-3 py-2 text-sm font-medium hover:text-accent-dark"
+            >
+              Sign in
+            </Link>
+            <Link
+              to="/signup"
+              className="rounded-xl bg-ink px-4 py-2 text-sm font-medium text-surface hover:bg-ink/90"
+            >
+              Get started
+            </Link>
+          </div>
         </nav>
       </header>
 
@@ -140,7 +148,7 @@ export function LandingPage() {
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link
-              to="/login"
+              to="/signup"
               className="w-full rounded-xl bg-ink px-7 py-3.5 font-medium text-surface shadow-card hover:bg-ink/90 sm:w-auto"
             >
               Get started
@@ -153,8 +161,8 @@ export function LandingPage() {
             </a>
           </div>
           <p className="mt-5 text-sm text-muted">
-            Sign in with just your email. For practice with a partner who knows
-            it is on.
+            Sign up with Google or just your email. For practice with a partner
+            who knows it is on.
           </p>
           <div className="mt-14 grid items-end gap-8 lg:grid-cols-[1fr_auto]">
             <HeroDevice />
@@ -318,12 +326,12 @@ export function LandingPage() {
               <em className="text-[#A98BFF]">starts here.</em>
             </h2>
             <p className="mx-auto mt-5 max-w-xl text-surface/80">
-              Sign in with your email, add your notes and a company, and run
-              your first practice session.
+              Create your account, add your notes and a company, and run your
+              first practice session.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link
-                to="/login"
+                to="/signup"
                 className="w-full rounded-xl bg-surface px-7 py-3.5 font-medium text-ink hover:bg-canvas sm:w-auto"
               >
                 Get started →
@@ -358,6 +366,9 @@ export function LandingPage() {
               </li>
               <li>
                 <a href="#how">How it works</a>
+              </li>
+              <li>
+                <Link to="/signup">Create account</Link>
               </li>
               <li>
                 <Link to="/login">Sign in</Link>

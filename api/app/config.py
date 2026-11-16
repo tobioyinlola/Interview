@@ -74,6 +74,14 @@ class Settings(BaseSettings):
     # Hardening.
     metrics_token: SecretStr = SecretStr("")  # Bearer token for /metrics ("" = open only in local)
     sentry_dsn: str = ""
+    # Sign in with Google (OpenID Connect). Both must be set to turn it on. Register this redirect
+    # URI in Google Cloud: `{api_public_url}/api/auth/google/callback`.
+    google_client_id: str = ""
+    google_client_secret: SecretStr = SecretStr("")
+    api_public_url: str = "http://localhost:8000"  # the API's own public origin
+    # Google's real endpoints. Only a local test with a fake Google may change them.
+    google_auth_url: str = "https://accounts.google.com/o/oauth2/v2/auth"
+    google_token_url: str = "https://oauth2.googleapis.com/token"  # noqa: S105
     resend_api_key: SecretStr = SecretStr("")  # sends the sign-in email
     email_from: str = ""  # e.g. "Meet Practice <login@yourdomain.com>", a Resend-verified domain
     admin_emails: str = ""  # comma-separated; may open the usage and cost view

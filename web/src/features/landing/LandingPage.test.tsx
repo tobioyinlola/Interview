@@ -25,9 +25,10 @@ describe("landing page", () => {
       }),
     ).toBeInTheDocument();
     expect(screen.getAllByText("InterviewMeet").length).toBeGreaterThan(0);
-    for (const link of screen.getAllByRole("link", {
-      name: /get started|sign in/i,
-    })) {
+    for (const link of screen.getAllByRole("link", { name: /get started/i })) {
+      expect(link).toHaveAttribute("href", "/signup");
+    }
+    for (const link of screen.getAllByRole("link", { name: /^sign in$/i })) {
       expect(link).toHaveAttribute("href", "/login");
     }
     expect(screen.getByRole("link", { name: "Privacy" })).toHaveAttribute(

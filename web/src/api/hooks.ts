@@ -44,6 +44,16 @@ export function useMe() {
   });
 }
 
+/** Which sign-in methods the server offers (Google only when it is configured). */
+export function useProviders() {
+  return useQuery<{ google: boolean }>({
+    queryKey: ["providers"],
+    staleTime: 5 * 60_000,
+    retry: false,
+    queryFn: () => apiFetch<{ google: boolean }>("/api/auth/providers"),
+  });
+}
+
 export function useRequestLink() {
   return useMutation({
     mutationFn: (email: string) =>

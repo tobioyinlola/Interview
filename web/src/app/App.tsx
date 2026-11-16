@@ -3,6 +3,7 @@ import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 import { SettingsPage } from "../features/account/SettingsPage";
 import { AuthGuard } from "../features/auth/AuthGuard";
 import { SignInForm } from "../features/auth/SignInForm";
+import { SignUpForm } from "../features/auth/SignUpForm";
 import { VerifyPage } from "../features/auth/VerifyPage";
 import { CompaniesPage } from "../features/companies/CompaniesPage";
 import { CompanyPage } from "../features/companies/CompanyPage";
@@ -40,6 +41,7 @@ export function App() {
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route element={<SupportedBrowser />}>
         <Route path="/login" element={<SignInForm />} />
+        <Route path="/signup" element={<SignUpForm />} />
         <Route path="/login/verify" element={<VerifyPage />} />
         <Route element={<AuthGuard />}>
           <Route element={<Layout />}>

@@ -25,6 +25,7 @@ Variables:
 | `METRICS_TOKEN` | random string; the scraper sends it as a bearer token |
 | `ADMIN_EMAILS` | comma-separated emails allowed to see the cost view |
 | `RESEND_API_KEY`, `EMAIL_FROM` | required; see below |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `API_PUBLIC_URL` | optional; see "Sign in with Google" |
 | `SENTRY_DSN` | optional |
 | `CAP_STT_SECONDS_DAILY`, `CAP_TOKENS_DAILY`, `CAP_RESEARCH_JOBS_DAILY` | per-user caps; defaults 5400, 500000, 10 |
 
@@ -41,6 +42,24 @@ Settings:
 The API refuses to boot when a variable is unsafe (default secret, `http://` origin, default
 database password, fake providers, missing key in production). The log line starts with
 `Unsafe configuration:` and lists every problem.
+
+### Sign in with Google
+
+Optional. The sign-in and sign-up pages show "Continue with Google" only when it is configured.
+
+1. In Google Cloud Console, create a project (or pick one) and configure the **OAuth consent
+   screen** (app name InterviewMeet, your support email; scopes `openid` and `email` only).
+2. Create an **OAuth client ID** of type *Web application*. Under *Authorized redirect URIs* add
+   exactly `https://<api-domain>/api/auth/google/callback`.
+3. On the api service set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `API_PUBLIC_URL`
+   (`https://<api-domain>`, no trailing slash). The API refuses to boot if only one of the pair is
+   set or the URL is not https.
+4. While the consent screen is in *Testing*, only listed test users can sign in. Publish it
+   before the public beta.
+
+The same email address is the same account whichever way it signs in. Only emails that Google has
+verified are accepted. **Not yet tried against real Google**: the flow is tested against a mock
+Google and a fake Google in a real browser, but needs a first real sign-in on staging.
 
 ### Sign-in email (Resend)
 
@@ -82,6 +101,7 @@ Scrape `https://<api>/metrics` with `Authorization: Bearer <METRICS_TOKEN>` and 
 
 - [ ] `GET /healthz` and `GET /readyz` return 200
 - [ ] Sign-in link arrives and signs in (needs the email provider)
+- [ ] "Continue with Google" signs in and lands on the dashboard (needs the Google client)
 - [ ] Add a company, research finishes, brief shows citations
 - [ ] Start a session with the consent box: tab audio captions appear, an outline streams
 - [ ] Restart the api service mid-session: the page reconnects and marks the gap
