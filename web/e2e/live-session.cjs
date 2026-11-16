@@ -29,11 +29,28 @@ const FAKE_SHARE = () => {
   }
 }
 
+// A stand-in for the microphone: another real MediaStream with a live audio track.
+const FAKE_MIC = () => {
+  navigator.mediaDevices.getUserMedia = async () => {
+    const ctx = new AudioContext()
+    await ctx.resume()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    gain.gain.value = 0.25
+    osc.frequency.value = 330
+    const dest = ctx.createMediaStreamDestination()
+    osc.connect(gain).connect(dest)
+    osc.start()
+    return dest.stream
+  }
+}
+
 ;(async () => {
   const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] })
   const ctx = await browser.newContext({ viewport: { width: 1200, height: 950 } })
   const page = await ctx.newPage()
   await page.addInitScript(FAKE_SHARE)
+  await page.addInitScript(FAKE_MIC)
   const pageErrors = []
   page.on('pageerror', (e) => pageErrors.push(e.message))
 
@@ -127,6 +144,29 @@ const FAKE_SHARE = () => {
   await page.getByRole('button', { name: 'Share Meet tab' }).click()
   await page.getByText('Listening', { exact: true }).waitFor({ timeout: 8000 })
 
+  // the user's own microphone (FR-17): a second socket, labelled You, never answered
+  await page.getByRole('checkbox', { name: /transcribe my microphone/i }).check()
+  await page.getByRole('meter', { name: 'Microphone level' }).waitFor({ timeout: 8000 })
+  let micLevel = 0
+  for (let i = 0; i < 20 && micLevel <= 5; i++) {
+    micLevel = Number(await page.getByRole('meter', { name: 'Microphone level' }).getAttribute('aria-valuenow'))
+    if (micLevel <= 5) await sleep(150)
+  }
+  check(micLevel > 5, 'the microphone level meter moves')
+  await page.getByRole('region', { name: 'Transcript' }).getByText('You:').first().waitFor({ timeout: 20000 })
+  step('microphone transcribed and labelled You')
+
+  // thumbs on an outline (FR-31)
+  await page.getByRole('button', { name: 'Useful', exact: true }).waitFor({ timeout: 20000 })
+  let pressed = 'false'
+  for (let i = 0; i < 3 && pressed !== 'true'; i++) {
+    await page.getByRole('button', { name: 'Useful', exact: true }).click()
+    await sleep(300)
+    pressed = await page.getByRole('button', { name: 'Useful', exact: true }).getAttribute('aria-pressed')
+  }
+  check(pressed === 'true', 'a thumbs up is kept on the outline')
+  step('outline rated useful')
+
   // end the session; transcript and review
   await page.getByRole('button', { name: 'End session' }).click()
   await page.getByText('Session saved.').waitFor()
@@ -137,6 +177,35 @@ const FAKE_SHARE = () => {
   await page.getByRole('heading', { name: 'Session review' }).waitFor()
   await page.screenshot({ path: SHOTS + '/6-review.png', fullPage: true })
   step('review page lists the saved transcript and outlines')
+
+  // answer scoring (FR-36) runs in the background and the page picks up the result
+  await page.getByRole('button', { name: 'Score my answers' }).click()
+  await page.getByRole('list', { name: 'Answer scores' }).waitFor({ timeout: 20000 })
+  const overall = await page.getByLabel(/Overall score \d+ out of 100/).first().innerText()
+  console.log('   first answer overall score:', overall.replace(/\s+/g, ' '))
+  check((await page.getByRole('meter', { name: 'Structure score' }).count()) > 0, 'score bars are shown')
+  check((await page.getByText('Fixes').count()) > 0, 'fixes are listed')
+  await page.screenshot({ path: SHOTS + '/7-scores.png', fullPage: true })
+  step('answers scored with fixes')
+  check((await page.getByRole('region', { name: 'Gaps in your notes and brief' }).count()) === 1, 'gap finder section is present')
+
+  // sessions list (FR-35) and the dashboard
+  await page.getByRole('link', { name: 'Sessions' }).first().click()
+  await page.getByRole('heading', { name: 'Sessions' }).waitFor()
+  const rowText = await page.getByRole('listitem').filter({ hasText: 'question' }).first().innerText()
+  console.log('   sessions row:', rowText.replace(/\s+/g, ' '))
+  check(/No company · .* · \d+ questions?/.test(rowText), 'the sessions list shows company, length and question count')
+  await page.getByRole('link', { name: 'Dashboard' }).click()
+  await page.getByRole('region', { name: 'Recent sessions' }).getByRole('link', { name: /2026/ }).first().waitFor()
+  await page.screenshot({ path: SHOTS + '/8-dashboard.png', fullPage: true })
+  step('sessions list and dashboard show the session')
+
+  // delete the session: it leaves the app at once
+  await page.getByRole('region', { name: 'Recent sessions' }).getByRole('link', { name: /2026/ }).first().click()
+  await page.getByRole('button', { name: 'Delete this session' }).click()
+  await page.getByRole('button', { name: 'Yes, delete' }).click()
+  await page.getByText(/No sessions yet/).waitFor()
+  step('session deleted')
   console.log('page errors:', pageErrors.length ? pageErrors : 'none')
   check(pageErrors.length === 0, 'no uncaught page errors')
   check(/Tell me about a time/.test(txt) && /Why do you want to work here/.test(txt), 'the downloaded transcript has both questions')

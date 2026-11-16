@@ -6,8 +6,12 @@ import {
 import {
   CaptureError,
   type TabCapture,
+  startMicCapture,
   startTabCapture,
 } from "../../audio/captureTab";
+import { ApiError } from "../../api/client";
+import { SegmentRecorder } from "../../audio/segments";
+import { postSegment } from "../../audio/segmentApi";
 import { SilenceWatch, SpeechEndDetector, rmsLevel } from "../../audio/pcm";
 import {
   type DoneInfo,
@@ -26,6 +30,8 @@ export interface ControllerDeps {
   endSession: () => Promise<unknown>;
   store?: Store;
   capture?: typeof startTabCapture;
+  micCapture?: typeof startMicCapture;
+  postSegment?: typeof postSegment;
   makeSocket?: (
     o: SocketOptions,
     ev: ConstructorParameters<typeof AudioSocket>[1],
@@ -42,6 +48,11 @@ export class LiveSessionController {
   private readonly now: () => number;
   private capture: TabCapture | null = null;
   private socket: AudioSocket | null = null;
+  private micCapture: TabCapture | null = null;
+  private micSocket: AudioSocket | null = null;
+  private recorder: SegmentRecorder | null = null;
+  /** Consecutive streaming failures; two in a row switch to the fallback mode. */
+  private streamFailures = 0;
   private abort: AbortController | null = null;
   private readonly detector = new SpeechEndDetector();
   private readonly silence = new SilenceWatch();
@@ -135,7 +146,140 @@ export class LiveSessionController {
         : null;
     if (notice !== this.state.notice && this.state.status !== "reconnecting")
       this.state.set({ notice });
+    if (this.state.mode === "segments") {
+      const segment = this.recorder?.push(pcm, level, t) ?? null;
+      if (segment) void this.sendSegment(segment);
+      return;
+    }
     this.socket?.sendAudio(pcm.buffer as ArrayBuffer);
+  }
+
+  // ---- fallback: per-utterance transcription (FR-20) ----------------------------------------
+
+  /** Live streaming failed twice in a row: stop streaming, cut speech into segments, send each
+   *  for file transcription, and tell the user it is slower. */
+  private enterSegmentMode(): void {
+    if (this.state.mode === "segments" || this.ended) return;
+    this.socket?.stop();
+    this.socket = null;
+    this.recorder = new SegmentRecorder(this.d.sampleRate);
+    this.state.set({
+      mode: "segments",
+      status: "listening",
+      problem: null,
+      notice:
+        "Live transcription paused. Using slower sentence-by-sentence transcription: captions appear after each pause.",
+    });
+  }
+
+  private async sendSegment(pcm: Int16Array): Promise<void> {
+    try {
+      const res = await (this.d.postSegment ?? postSegment)(
+        this.d.sessionId,
+        pcm,
+        this.d.sampleRate,
+        "partner",
+      );
+      if (this.ended || !res.text) return;
+      this.state.addLine({
+        key: res.id ?? `seg-${(this.noteSeq += 1)}`,
+        id: res.id ?? undefined,
+        seq: res.seq ?? undefined,
+        speaker: "partner",
+        text: res.text,
+      });
+      this.askAboutTurn();
+    } catch (e) {
+      if (this.ended) return;
+      if (e instanceof ApiError && e.code === "daily_cap") {
+        this.stopAudio();
+        this.state.set({
+          status: "stopped",
+          problem:
+            "Daily limit reached. Your notes and past sessions are still available.",
+        });
+      } else if (e instanceof ApiError && e.code === "not_configured") {
+        this.stopAudio();
+        this.state.set({
+          status: "error",
+          problem: `${e.message} You can type the question below.`,
+        });
+      } else {
+        this.state.set({
+          notice:
+            "Couldn't transcribe the last sentence. Keep talking, or type the question.",
+        });
+      }
+    }
+  }
+
+  // ---- the user's microphone (FR-17) ---------------------------------------------------------
+
+  /** Optionally transcribe the user's own voice, with echo cancellation. Labelled "You", never
+   *  answered, and a line from the user ends the partner's current turn. */
+  async setMic(on: boolean): Promise<void> {
+    if (this.ended) return;
+    if (!on) {
+      this.stopMic();
+      this.state.set({ mic: "off", micProblem: null, micLevel: 0 });
+      return;
+    }
+    if (this.micCapture) return;
+    this.state.set({ mic: "starting", micProblem: null });
+    const makeSocket = this.d.makeSocket ?? ((o, ev) => new AudioSocket(o, ev));
+    const fail = (msg: string) => {
+      this.stopMic();
+      this.state.set({ mic: "error", micProblem: msg, micLevel: 0 });
+    };
+    this.micSocket = makeSocket(
+      {
+        sessionId: this.d.sessionId,
+        speaker: "you",
+        getToken: this.d.fetchToken,
+      },
+      {
+        onState: () => undefined,
+        onReady: () => this.state.set({ mic: "on" }),
+        onPartial: () => undefined,
+        onFinal: (f) => this.onFinal(f),
+        onError: (e) => fail(e.message || "Microphone transcription failed."),
+        onCap: () => fail("Daily limit reached."),
+        onResumed: () => undefined,
+        onLost: () => fail("The microphone connection was lost."),
+      },
+    );
+    try {
+      this.micCapture = await (this.d.micCapture ?? startMicCapture)(
+        this.d.sampleRate,
+        {
+          onFrame: (pcm) => this.onMicFrame(pcm),
+          onEnded: () => fail("The microphone stopped."),
+        },
+      );
+    } catch (e) {
+      this.micSocket = null;
+      this.state.set({
+        mic: "error",
+        micProblem:
+          e instanceof CaptureError
+            ? e.message
+            : "Couldn't start the microphone.",
+      });
+      return;
+    }
+    this.micSocket.start();
+  }
+
+  private onMicFrame(pcm: Int16Array): void {
+    this.state.set({ micLevel: rmsLevel(pcm) });
+    this.micSocket?.sendAudio(pcm.buffer as ArrayBuffer);
+  }
+
+  private stopMic(): void {
+    this.micCapture?.stop();
+    this.micCapture = null;
+    this.micSocket?.stop();
+    this.micSocket = null;
   }
 
   private onShareEnded(): void {
@@ -153,7 +297,19 @@ export class LiveSessionController {
   }
 
   private onFinal(f: FinalCaption): void {
-    if (f.speaker !== "partner") return; // the microphone is transcribed for review but never answered
+    if (f.speaker === "you") {
+      // The microphone is transcribed for the review but never answered. A line from the user
+      // ends the partner's turn (assembleTurn stops at it), so a new question starts fresh.
+      this.state.addLine({
+        key: f.id,
+        id: f.id,
+        seq: f.seq,
+        speaker: "you",
+        text: f.text,
+      });
+      return;
+    }
+    this.streamFailures = 0;
     this.state.addLine({
       key: f.id,
       id: f.id,
@@ -162,6 +318,10 @@ export class LiveSessionController {
       text: f.text,
     });
     this.state.set({ partial: "" });
+    this.askAboutTurn();
+  }
+
+  private askAboutTurn(): void {
     const turn = assembleTurn(this.state.lines);
     void this.ask(turn.text, turn.ids, false, this.detector.takeEnd());
   }
@@ -243,6 +403,17 @@ export class LiveSessionController {
 
   private fail(message: string, code: string): void {
     if (code === "upstream_slow") return; // the socket reconnects by itself
+    if (code === "upstream_error" || code === "upstream_unavailable") {
+      this.streamFailures += 1;
+      if (this.streamFailures >= 2) {
+        this.enterSegmentMode(); // failed twice in a row: switch to the fallback
+      } else {
+        this.state.set({
+          notice: "Transcription was interrupted. Reconnecting…",
+        });
+      }
+      return;
+    }
     this.stopAudio();
     this.state.set({
       status: "error",
@@ -255,8 +426,17 @@ export class LiveSessionController {
     this.capture = null;
     this.socket?.stop();
     this.socket = null;
+    this.stopMic();
+    this.recorder = null;
     this.abort?.abort();
-    this.state.set({ level: 0, notice: null, partial: "" });
+    this.state.set({
+      level: 0,
+      notice: null,
+      partial: "",
+      mic: "off",
+      micLevel: 0,
+      mode: "live",
+    });
   }
 
   /** End the session: stop everything, then tell the server. */

@@ -19,3 +19,17 @@ export type SessionCreated = S["SessionCreateOut"];
 export type SessionDetail = S["SessionDetailOut"];
 export type Utterance = S["UtteranceOut"];
 export type SuggestionRecord = S["SuggestionOut"];
+export type SessionSummary = S["SessionSummary"];
+export type SessionList = S["SessionListOut"];
+export type Score = S["ScoreOut"];
+export type Gap = S["GapOut"];
+/** One change sent to the brief: no id adds a fact; an id updates, pins or deletes it. (Written by
+ *  hand: the generated type marks fields that have server defaults as required.) */
+export interface BriefEdit {
+  id?: string | null;
+  section_key: string;
+  text?: string;
+  pinned?: boolean;
+  delete?: boolean;
+}
+export type BriefEditResult = S["BriefEditOut"];

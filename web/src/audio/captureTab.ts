@@ -115,7 +115,7 @@ export async function startTabCapture(
 
 /** AudioContext at the provider's sample rate (the browser resamples), then an AudioWorklet that
  *  batches 1,024-sample frames. Not connected to the speakers: nothing is played back. */
-async function buildWebAudioGraph(
+export async function buildWebAudioGraph(
   stream: MediaStream,
   sampleRate: number,
   onFrame: (pcm: Int16Array) => void,
@@ -141,3 +141,77 @@ async function buildWebAudioGraph(
 }
 
 export { rmsLevel };
+
+export const MIC_BLOCKED_HELP =
+  "Microphone access was blocked. Allow the microphone for this site in the browser, then try again.";
+
+/** The user's own microphone, with echo cancellation so the partner's voice from the speakers is
+ *  not transcribed as the user's. Transcribed for the review, never answered. */
+export async function startMicCapture(
+  sampleRate: number,
+  cb: { onFrame: (pcm: Int16Array) => void; onEnded: () => void },
+  deps: {
+    getUserMedia?: (c: MediaStreamConstraints) => Promise<MediaStream>;
+    buildGraph?: CaptureDeps["buildGraph"];
+  } = {},
+): Promise<TabCapture> {
+  const getUserMedia =
+    deps.getUserMedia ??
+    navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);
+  if (!getUserMedia) {
+    throw new CaptureError(
+      "unsupported",
+      "This browser cannot use the microphone.",
+    );
+  }
+  let stream: MediaStream;
+  try {
+    stream = await getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+    });
+  } catch (e) {
+    const name = (e as DOMException)?.name;
+    if (name === "NotAllowedError" || name === "SecurityError") {
+      throw new CaptureError("cancelled", MIC_BLOCKED_HELP);
+    }
+    if (name === "NotFoundError") {
+      throw new CaptureError("failed", "No microphone was found.");
+    }
+    throw new CaptureError(
+      "failed",
+      "The browser couldn't start the microphone.",
+    );
+  }
+  let teardown: () => void;
+  try {
+    teardown = await (deps.buildGraph ?? buildWebAudioGraph)(
+      stream,
+      sampleRate,
+      cb.onFrame,
+    );
+  } catch {
+    stream.getTracks().forEach((t) => t.stop());
+    throw new CaptureError(
+      "failed",
+      "The browser couldn't start audio capture.",
+    );
+  }
+  let stopped = false;
+  const stop = () => {
+    if (stopped) return;
+    stopped = true;
+    teardown();
+    stream.getTracks().forEach((t) => t.stop());
+  };
+  stream.getAudioTracks()[0]?.addEventListener("ended", () => {
+    if (!stopped) {
+      stop();
+      cb.onEnded();
+    }
+  });
+  return { stop };
+}

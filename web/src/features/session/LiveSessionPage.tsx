@@ -1,11 +1,13 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useLocation, useParams } from "react-router-dom";
 
 import { API_BASE_URL } from "../../api/client";
-import { endSessionApi, fetchAudioToken } from "../../api/hooks";
+import { endSessionApi, fetchAudioToken, sendFeedback } from "../../api/hooks";
 import { FeatureBoundary } from "../../ui/FeatureBoundary";
 import { LiveSessionController } from "./controller";
 import { type Line, type Outline, useLiveStore } from "./store";
+import { useFloatingPanel } from "./useFloatingPanel";
 
 const STATUS_TEXT = {
   idle: "Not started",
@@ -27,11 +29,14 @@ const SPEAKER = {
 function CapturePanel({
   onShare,
   onEnd,
+  onMic,
 }: {
   onShare: () => void;
   onEnd: () => void;
+  onMic: (on: boolean) => void;
 }) {
-  const { status, level, problem, notice } = useLiveStore();
+  const { status, level, problem, notice, mic, micProblem, micLevel, mode } =
+    useLiveStore();
   const active =
     status === "listening" ||
     status === "reconnecting" ||
@@ -84,6 +89,52 @@ function CapturePanel({
           {notice}
         </p>
       )}
+      {mode === "segments" && (
+        <p className="text-xs text-gray-600">
+          Fallback mode: captions arrive after each pause.
+        </p>
+      )}
+      {status !== "ended" && (
+        <div className="space-y-1">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={mic === "on" || mic === "starting"}
+              disabled={status !== "listening" && status !== "reconnecting"}
+              onChange={(e) => onMic(e.target.checked)}
+            />
+            Also transcribe my microphone
+          </label>
+          <p className="text-xs text-gray-600">
+            Labelled &quot;You&quot; in the transcript and used for your review.
+            Headphones work best, so the partner&apos;s voice is not picked up
+            twice.
+          </p>
+          {mic === "on" && (
+            <div
+              role="meter"
+              aria-label="Microphone level"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.min(100, Math.round(micLevel * 400))}
+              className="h-2 w-full overflow-hidden rounded bg-gray-200"
+            >
+              <div
+                className="h-full bg-blue-600 transition-[width]"
+                style={{ width: `${Math.min(100, micLevel * 400)}%` }}
+              />
+            </div>
+          )}
+          {mic === "error" && micProblem && (
+            <p
+              role="alert"
+              className="rounded border border-red-700 p-2 text-sm text-red-800"
+            >
+              {micProblem}
+            </p>
+          )}
+        </div>
+      )}
       <div className="flex gap-2">
         {status !== "ended" && !active && (
           <button
@@ -107,6 +158,52 @@ function CapturePanel({
         </p>
       )}
     </section>
+  );
+}
+
+function FeedbackButtons({ outline }: { outline: Outline }) {
+  const patchOutline = useLiveStore((st) => st.patchOutline);
+  const [failed, setFailed] = useState(false);
+  const rate = (value: "up" | "down") => {
+    const id = outline.suggestionId;
+    if (!id) return;
+    setFailed(false);
+    patchOutline({ feedback: value }); // show the choice at once
+    sendFeedback(id, value).catch(() => {
+      patchOutline({ feedback: undefined });
+      setFailed(true);
+    });
+  };
+  return (
+    <span
+      className="flex items-center gap-1 text-sm"
+      role="group"
+      aria-label="Rate this outline"
+    >
+      <button
+        type="button"
+        aria-pressed={outline.feedback === "up"}
+        aria-label="Useful"
+        className={`rounded border px-2 py-1 ${outline.feedback === "up" ? "bg-green-100" : ""}`}
+        onClick={() => rate("up")}
+      >
+        👍
+      </button>
+      <button
+        type="button"
+        aria-pressed={outline.feedback === "down"}
+        aria-label="Not useful"
+        className={`rounded border px-2 py-1 ${outline.feedback === "down" ? "bg-red-100" : ""}`}
+        onClick={() => rate("down")}
+      >
+        👎
+      </button>
+      {failed && (
+        <span role="alert" className="text-red-800">
+          Couldn&apos;t save that.
+        </span>
+      )}
+    </span>
   );
 }
 
@@ -180,6 +277,9 @@ function OutlineView({
           />
           Answer-first (blur outlines)
         </label>
+        {outline.state === "done" && outline.suggestionId && (
+          <FeedbackButtons outline={outline} />
+        )}
         {outline.state !== "streaming" && (
           <button
             className="rounded border px-2 py-1 text-sm"
@@ -282,6 +382,7 @@ export function LiveSessionPage() {
   const sampleRate =
     (location.state as { sampleRate?: number } | null)?.sampleRate ?? 24000;
   const status = useLiveStore((s) => s.status);
+  const float = useFloatingPanel();
 
   const controller = useMemo(
     () =>
@@ -299,6 +400,8 @@ export function LiveSessionPage() {
     return () => controller.dispose(); // leaving the page stops capture; the session is ended explicitly
   }, [controller]);
 
+  const answer = <AnswerPanel onRegenerate={() => controller.regenerate()} />;
+
   return (
     <main className="mx-auto grid max-w-5xl gap-4 p-6 md:grid-cols-2">
       <div className="space-y-4">
@@ -306,10 +409,37 @@ export function LiveSessionPage() {
           <CapturePanel
             onShare={() => void controller.share()}
             onEnd={() => void controller.end()}
+            onMic={(on) => void controller.setMic(on)}
           />
         </FeatureBoundary>
         <FeatureBoundary name="answer panel">
-          <AnswerPanel onRegenerate={() => controller.regenerate()} />
+          {float.win ? (
+            <section className="space-y-2 rounded border p-4">
+              <p>The answer panel is in its own window, on top of Meet.</p>
+              <button
+                className="rounded border px-3 py-2"
+                onClick={float.close}
+              >
+                Bring it back here
+              </button>
+              {createPortal(
+                <div className="p-3">{answer}</div>,
+                float.win.document.body,
+              )}
+            </section>
+          ) : (
+            <>
+              {answer}
+              {float.supported && (
+                <button
+                  className="rounded border px-3 py-2 text-sm"
+                  onClick={() => void float.open()}
+                >
+                  Float the answer panel
+                </button>
+              )}
+            </>
+          )}
         </FeatureBoundary>
         {status !== "ended" && (
           <ManualQuestion onSubmit={(q) => controller.submitManual(q)} />

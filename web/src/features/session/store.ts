@@ -29,6 +29,8 @@ export interface Outline {
   suggestionId?: string;
   flags: string[];
   revealed: boolean;
+  /** The user's thumbs up or down on this outline. */
+  feedback?: "up" | "down";
 }
 
 const BLUR_KEY = "meet-practice-blur";
@@ -47,6 +49,12 @@ export interface LiveState {
   /** A passing warning (silent tab, hidden tab...). */
   notice: string | null;
   level: number;
+  /** The user's microphone (optional): off, starting, on, or error with `micProblem`. */
+  mic: "off" | "starting" | "on" | "error";
+  micProblem: string | null;
+  micLevel: number;
+  /** "live" streams captions; "segments" is the slower fallback after streaming failed twice. */
+  mode: "live" | "segments";
   lines: Line[];
   partial: string;
   outline: Outline | null;
@@ -64,6 +72,10 @@ const initial = {
   problem: null,
   notice: null,
   level: 0,
+  mic: "off" as const,
+  micProblem: null as string | null,
+  micLevel: 0,
+  mode: "live" as const,
   lines: [] as Line[],
   partial: "",
   outline: null as Outline | null,

@@ -1,8 +1,15 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import { ApiError, apiFetch } from "./client";
 import { POLL_MS, isActive } from "./polling";
 import type {
+  BriefEdit,
+  BriefEditResult,
   Company,
   CompanyCreated,
   CompanyDetail,
@@ -13,6 +20,7 @@ import type {
   NotesInput,
   SessionCreated,
   SessionDetail,
+  SessionList,
   Source,
 } from "./types";
 
@@ -233,5 +241,65 @@ export function useSessionDetail(id: string) {
   return useQuery<SessionDetail>({
     queryKey: ["session", id],
     queryFn: () => apiFetch<SessionDetail>(`/api/sessions/${id}`),
+    refetchInterval: (q) =>
+      q.state.data?.scoring_status === "running" ? POLL_MS : false,
+  });
+}
+
+// ------------------------------------------------------------- M4: editing etc.
+
+/** Send only the facts that changed: edit text, pin, add the user's own, or delete. */
+export function useEditBrief(companyId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (facts: BriefEdit[]) =>
+      apiFetch<BriefEditResult>(`/api/companies/${companyId}/brief`, {
+        method: "PUT",
+        body: json({ facts }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["company", companyId] }),
+  });
+}
+
+export function sendFeedback(suggestionId: string, value: "up" | "down") {
+  return apiFetch<{ status: string }>(
+    `/api/suggestions/${suggestionId}/feedback`,
+    {
+      method: "POST",
+      body: json({ value }),
+    },
+  );
+}
+
+export function useSessions() {
+  return useInfiniteQuery<SessionList>({
+    queryKey: ["sessions"],
+    initialPageParam: "",
+    queryFn: ({ pageParam }) =>
+      apiFetch<SessionList>(
+        `/api/sessions?limit=20${pageParam ? `&cursor=${encodeURIComponent(String(pageParam))}` : ""}`,
+      ),
+    getNextPageParam: (last) => last.next_cursor ?? undefined,
+  });
+}
+
+export function useDeleteSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<{ status: string }>(`/api/sessions/${id}`, { method: "DELETE" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["sessions"] }),
+  });
+}
+
+/** Start scoring, then keep refreshing the session until scoring finishes. */
+export function useScoreSession(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<{ status: string }>(`/api/sessions/${id}/score`, {
+        method: "POST",
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["session", id] }),
   });
 }

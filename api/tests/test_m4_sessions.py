@@ -269,6 +269,44 @@ async def test_scoring_runs_in_the_background_and_stores_scores_with_fixes(alice
     assert first["pace"] < 90
 
 
+async def test_a_poller_never_sees_scores_beside_a_job_that_still_says_running(
+    alice, db, with_scorer, engine, monkeypatch
+):
+    """Scores and the ready status land in one commit (a second step left a window where the page
+    showed finished scores under "Scoring your answers…")."""
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    sid = await ended_session_with_answers(alice, db)
+    real_finish = ScoringRunner._finish
+
+    async def slow_finish(self, *a, **kw):  # widens any gap between "scores saved" and "ready"
+        await asyncio.sleep(0.2)
+        return await real_finish(self, *a, **kw)
+
+    monkeypatch.setattr(ScoringRunner, "_finish", slow_finish)
+    seen: list[tuple[int, str]] = []
+    done = asyncio.Event()
+
+    async def observe():
+        maker = async_sessionmaker(engine, expire_on_commit=False)
+        while not done.is_set():
+            async with maker() as s:
+                row = await s.get(PracticeSession, uuid.UUID(sid))
+                n = (await s.execute(select(func.count()).select_from(Score))).scalar_one()
+                await s.refresh(row)
+                seen.append((int(n), row.scoring_status))
+            await asyncio.sleep(0.01)
+
+    watcher = asyncio.create_task(observe())
+    await alice.post(f"/api/sessions/{sid}/score")
+    await with_scorer.wait_idle()
+    await asyncio.sleep(0.05)
+    done.set()
+    await watcher
+    assert (2, "ready") in seen
+    assert not [x for x in seen if x[0] > 0 and x[1] == "running"], seen
+
+
 async def test_scoring_needs_an_ended_session(alice, with_scorer):
     sid = await mk(alice)
     r = await alice.post(f"/api/sessions/{sid}/score")

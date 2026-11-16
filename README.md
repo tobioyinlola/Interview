@@ -79,12 +79,27 @@ cd api && python -m evals.run grounding   # 30 questions x 3 note sets x with/wi
 ```
 Re-run whenever a prompt or model changes. `--model` picks the live answer model.
 
+## Beta features (M4)
+- **Edit the brief:** pin, edit, delete or add your own facts (labelled *From you*). A refresh keeps your
+  pins, edits and added facts and the search results they cite. Removing a source drops researched facts
+  that cited only it, so no unsourced claim stays.
+- **Microphone:** optionally transcribe your own voice (echo cancellation on). Lines are labelled *You*,
+  never answered, and they end the partner's current turn.
+- **Fallback transcription:** if live streaming fails twice in a row, the browser cuts speech into
+  sentences and sends each to `POST /api/sessions/{id}/segment`; the user is told it is slower.
+- **Floating panel:** the answer panel can move to a small always-on-top window (Document
+  Picture-in-Picture, Chromium) so the capture tab stays visible.
+- **Review:** session list, replay with outlines beside questions, thumbs on outlines, answer scoring
+  (five 0-100 scores and two or three fixes per answer; needs the microphone so answers are recorded),
+  and the gap finder (question types and company topics with nothing to draw on).
+- **Dashboard:** readiness checklist, companies, recent sessions.
+
 ## Status
-- M0 scaffolding: done.
-- M1 foundation: done.
-- M2 company research: done in code and tests; OpenAI adapters not yet run live.
-- M3 live session: done in code and tests, and verified in a real browser with scripted providers.
-  **Not yet verified:** the OpenAI realtime transcription protocol (`api/app/adapters/openai_realtime.py`),
-  real-speech latency, and the evaluation scores. These need a valid key and a real Meet call.
-- Next: M4 beta (brief editing and pins, mic capture, fallback transcription, floating panel,
-  feedback, scoring, replay, gap finder).
+- M0 scaffolding, M1 foundation: done.
+- M2 company research, M3 live session, M4 beta features: done in code and tests, and the live path is
+  verified in a real browser with scripted providers (`scripts/e2e-live.sh`).
+- **Not yet verified against OpenAI:** the research adapters, the realtime transcription protocol
+  (`api/app/adapters/openai_realtime.py`), the fallback transcription call, answer scoring quality, real
+  latency, and the evaluation scores. These need a valid key and a real Meet call.
+- Not done: release hardening (observability, load test, staging, runbooks, legal review of the consent
+  wording), the Railway deploy, and a sign-in email provider.

@@ -145,5 +145,11 @@ class ScoringRunner:
                 )
             if total_tokens:
                 await UsageMeterRepo(db, user_id).add_tokens(total_tokens, 0)
+            # The scores and the "ready" status are one commit, so a page that polls never sees
+            # finished scores beside a job that still says "running".
+            await db.execute(
+                update(PracticeSession)
+                .where(PracticeSession.id == session_id)
+                .values(scoring_status="ready", scoring_error=None)
+            )
             await db.commit()
-        await self._finish(session_id, "ready")

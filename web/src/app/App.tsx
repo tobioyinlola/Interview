@@ -6,22 +6,15 @@ import { SignInForm } from "../features/auth/SignInForm";
 import { VerifyPage } from "../features/auth/VerifyPage";
 import { CompaniesPage } from "../features/companies/CompaniesPage";
 import { CompanyPage } from "../features/companies/CompanyPage";
+import { DashboardPage } from "../features/dashboard/DashboardPage";
 import { LiveSessionPage } from "../features/session/LiveSessionPage";
 import { ReviewPage } from "../features/session/ReviewPage";
+import { SessionsPage } from "../features/session/SessionsPage";
 import { SessionSetupPage } from "../features/session/SessionSetupPage";
 import { NotesPage } from "../features/notes/NotesPage";
 import { BrowserNotice } from "./BrowserNotice";
 import { currentEnv, isSupported } from "./browserSupport";
 import { Layout } from "./Layout";
-
-function Placeholder({ name }: { name: string }) {
-  return (
-    <main className="mx-auto max-w-2xl p-8">
-      <h1 className="text-2xl font-semibold">{name}</h1>
-      <p className="mt-2 text-gray-600">Coming in a later milestone.</p>
-    </main>
-  );
-}
 
 export function App() {
   if (!isSupported(currentEnv())) return <BrowserNotice />;
@@ -31,12 +24,13 @@ export function App() {
       <Route path="/login/verify" element={<VerifyPage />} />
       <Route element={<AuthGuard />}>
         <Route element={<Layout />}>
-          <Route path="/" element={<Placeholder name="Dashboard" />} />
+          <Route path="/" element={<DashboardPage />} />
           <Route path="/notes" element={<NotesPage />} />
           <Route path="/companies" element={<CompaniesPage />} />
           <Route path="/companies/:id" element={<CompanyPage />} />
           <Route path="/session/new" element={<SessionSetupPage />} />
           <Route path="/session/:id" element={<LiveSessionPage />} />
+          <Route path="/sessions" element={<SessionsPage />} />
           <Route path="/sessions/:id" element={<ReviewPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>

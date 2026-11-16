@@ -174,12 +174,14 @@ describe("LiveSessionController: questions and outlines", () => {
     expect(x.streams[1].req.utteranceIds).toEqual(["u1", "u2"]);
   });
 
-  it("does not answer the user's own speech", async () => {
+  it("shows the user's own speech as You but never answers it", async () => {
     const x = setup();
     await x.c.share();
     x.sock.ev.onFinal(final("u1", "My answer is...", "you"));
     expect(x.streams).toHaveLength(0);
-    expect(x.s().lines).toHaveLength(0);
+    expect(x.s().lines).toMatchObject([
+      { speaker: "you", text: "My answer is..." },
+    ]);
   });
 
   it('measures "first words" from the END of the question to the first token', async () => {

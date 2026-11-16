@@ -127,6 +127,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/companies/{company_id}/brief": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Edit Brief
+         * @description Edit fact text, pin facts, add the user's own facts or delete facts. Only the changed facts
+         *     are sent. Edits and pins survive a refresh.
+         */
+        put: operations["edit_brief_api_companies__company_id__brief_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/companies/{company_id}/research": {
         parameters: {
             query?: never;
@@ -244,7 +265,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Sessions
+         * @description Past sessions, newest first, with cursor pagination.
+         */
+        get: operations["list_sessions_api_sessions_get"];
         put?: never;
         /**
          * Create Session
@@ -269,7 +294,11 @@ export interface paths {
         get: operations["get_session_api_sessions__session_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Session
+         * @description Delete one session with its transcript, outlines and scores. It leaves the app at once.
+         */
+        delete: operations["delete_session_api_sessions__session_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -312,6 +341,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sessions/{session_id}/score": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Score Session
+         * @description Score the user's answers after the session. Poll GET /sessions/{id} for the result.
+         */
+        post: operations["score_session_api_sessions__session_id__score_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sessions/{session_id}/segment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Transcribe Segment
+         * @description When live streaming keeps failing, the browser cuts speech into segments and sends each
+         *     one here. Audio is transcribed and discarded; only the text is saved, as with a caption.
+         */
+        post: operations["transcribe_segment_api_sessions__session_id__segment_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sessions/{session_id}/suggest": {
         parameters: {
             query?: never;
@@ -347,6 +417,26 @@ export interface paths {
         get: operations["transcript_api_sessions__session_id__transcript_txt_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/suggestions/{suggestion_id}/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Suggestion Feedback
+         * @description Thumbs up or down on an outline, stored with the session.
+         */
+        post: operations["suggestion_feedback_api_suggestions__suggestion_id__feedback_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -428,6 +518,17 @@ export interface components {
              */
             web_search_done: boolean;
         };
+        /** BriefEditIn */
+        BriefEditIn: {
+            /** Facts */
+            facts: components["schemas"]["BriefFactEdit"][];
+        };
+        /** BriefEditOut */
+        BriefEditOut: {
+            brief: components["schemas"]["BriefContent"];
+            /** Brief Version */
+            brief_version: number;
+        };
         /** BriefFact */
         BriefFact: {
             /** Date */
@@ -452,6 +553,31 @@ export interface components {
             /** Source Ids */
             source_ids: string[];
             /** Text */
+            text: string;
+        };
+        /**
+         * BriefFactEdit
+         * @description One change to the brief. No id adds a fact; an id updates, pins or removes (delete) it.
+         */
+        BriefFactEdit: {
+            /**
+             * Delete
+             * @default false
+             */
+            delete: boolean;
+            /** Id */
+            id?: string | null;
+            /**
+             * Pinned
+             * @default false
+             */
+            pinned: boolean;
+            /** Section Key */
+            section_key: string;
+            /**
+             * Text
+             * @default
+             */
             text: string;
         };
         /** BriefSection */
@@ -548,6 +674,22 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** FeedbackIn */
+        FeedbackIn: {
+            /** Value */
+            value: string;
+        };
+        /** GapOut */
+        GapOut: {
+            /** Hint */
+            hint: string;
+            /** Kind */
+            kind: string;
+            /** Questions */
+            questions: string[];
+            /** Type */
+            type: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -632,6 +774,53 @@ export interface components {
              */
             job_id: string;
         };
+        /** ScoreOut */
+        ScoreOut: {
+            /** Answer Text */
+            answer_text: string;
+            /** Fixes */
+            fixes: string[];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Impact */
+            impact: number;
+            /** Overall */
+            overall: number;
+            /** Pace */
+            pace: number;
+            /** Question Text */
+            question_text: string;
+            /** Relevance */
+            relevance: number;
+            /** Specificity */
+            specificity: number;
+            /** Structure */
+            structure: number;
+            /**
+             * Utterance Id
+             * Format: uuid
+             */
+            utterance_id: string;
+        };
+        /** ScoreStartedOut */
+        ScoreStartedOut: {
+            /** Status */
+            status: string;
+        };
+        /** SegmentOut */
+        SegmentOut: {
+            /** Ended At */
+            ended_at: string | null;
+            /** Id */
+            id: string | null;
+            /** Seq */
+            seq: number | null;
+            /** Text */
+            text: string;
+        };
         /** SessionCreateIn */
         SessionCreateIn: {
             /** Company Id */
@@ -677,6 +866,8 @@ export interface components {
             consent_confirmed_at: string;
             /** Ended At */
             ended_at: string | null;
+            /** Gaps */
+            gaps: components["schemas"]["GapOut"][];
             /**
              * Id
              * Format: uuid
@@ -684,6 +875,12 @@ export interface components {
             id: string;
             /** Role */
             role: string;
+            /** Scores */
+            scores: components["schemas"]["ScoreOut"][];
+            /** Scoring Error */
+            scoring_error: string | null;
+            /** Scoring Status */
+            scoring_status: string;
             /**
              * Started At
              * Format: date-time
@@ -704,6 +901,38 @@ export interface components {
             suggestions: number;
             /** Utterances */
             utterances: number;
+        };
+        /** SessionListOut */
+        SessionListOut: {
+            /** Items */
+            items: components["schemas"]["SessionSummary"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** SessionSummary */
+        SessionSummary: {
+            /** Company Id */
+            company_id: string | null;
+            /** Company Name */
+            company_name: string | null;
+            /** Duration Seconds */
+            duration_seconds: number | null;
+            /** Ended At */
+            ended_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Question Count */
+            question_count: number;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Status */
+            status: string;
         };
         /** SourceOut */
         SourceOut: {
@@ -1076,6 +1305,41 @@ export interface operations {
             };
         };
     };
+    edit_brief_api_companies__company_id__brief_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                company_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BriefEditIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BriefEditOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     rerun_research_api_companies__company_id__research_post: {
         parameters: {
             query?: never;
@@ -1278,6 +1542,38 @@ export interface operations {
             };
         };
     };
+    list_sessions_api_sessions_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     create_session_api_sessions_post: {
         parameters: {
             query?: never;
@@ -1331,6 +1627,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SessionDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_session_api_sessions__session_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -1406,6 +1735,71 @@ export interface operations {
             };
         };
     };
+    score_session_api_sessions__session_id__score_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScoreStartedOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transcribe_segment_api_sessions__session_id__segment_post: {
+        parameters: {
+            query?: {
+                speaker?: string;
+                sample_rate?: number;
+            };
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SegmentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     suggest_api_sessions__session_id__suggest_post: {
         parameters: {
             query?: never;
@@ -1459,6 +1853,43 @@ export interface operations {
                 };
                 content: {
                     "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    suggestion_feedback_api_suggestions__suggestion_id__feedback_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                suggestion_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedbackIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
                 };
             };
             /** @description Validation Error */

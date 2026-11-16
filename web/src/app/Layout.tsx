@@ -26,6 +26,9 @@ export function Layout() {
           <NavLink to="/session/new" className={link}>
             Practice
           </NavLink>
+          <NavLink to="/sessions" className={link}>
+            Sessions
+          </NavLink>
           <NavLink to="/settings" className={link}>
             Settings
           </NavLink>

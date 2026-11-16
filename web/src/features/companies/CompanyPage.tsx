@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 import {
   useCompany,
+  useEditBrief,
   useDeleteCompany,
   usePasteSource,
   useRemoveSource,
@@ -25,6 +26,7 @@ export function CompanyPage() {
   const rerun = useRerunResearch(id);
   const paste = usePasteSource(id);
   const remove = useRemoveSource(id);
+  const editBrief = useEditBrief(id);
 
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -121,7 +123,15 @@ export function CompanyPage() {
           Company brief
         </h2>
         {brief ? (
-          <BriefView brief={brief} sources={sources} />
+          <BriefView
+            brief={brief}
+            sources={sources}
+            editing={{
+              onSave: (edits) => editBrief.mutate(edits),
+              pending: editBrief.isPending,
+              error: editBrief.isError ? editBrief.error.message : null,
+            }}
+          />
         ) : (
           <p className="text-gray-600">
             {job?.status === "failed"
