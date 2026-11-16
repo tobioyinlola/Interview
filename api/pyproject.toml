@@ -15,7 +15,7 @@ dependencies = [
   "openai>=1.40,<3",
   "email-validator>=2.2,<3",
   "trafilatura>=1.12,<3",
-  "websockets>=13,<17",
+  "websockets>=13,<18",
   "prometheus-client>=0.20,<1",
 ]
 
