@@ -1,0 +1,33 @@
+from app.models.tables import (
+    AuthSession,
+    Company,
+    CompanyBrief,
+    CompanySource,
+    IdempotencyKey,
+    LoginToken,
+    Note,
+    PracticeSession,
+    ResearchJob,
+    Score,
+    Suggestion,
+    Usage,
+    User,
+    Utterance,
+)
+
+__all__ = [
+    "AuthSession",
+    "Company",
+    "CompanyBrief",
+    "CompanySource",
+    "IdempotencyKey",
+    "LoginToken",
+    "Note",
+    "PracticeSession",
+    "ResearchJob",
+    "Score",
+    "Suggestion",
+    "Usage",
+    "User",
+    "Utterance",
+]

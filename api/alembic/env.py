@@ -2,11 +2,11 @@ import asyncio
 
 from sqlalchemy.ext.asyncio import create_async_engine
 
+import app.models  # noqa: F401  (registers tables on Base.metadata)
 from alembic import context
 from app.config import get_settings
 from app.db import Base
 
-# Import models here as they are added (M1) so autogenerate sees them.
 target_metadata = Base.metadata
 
 

@@ -31,5 +31,15 @@ After changing API routes or schemas, regenerate the contract:
 cd api && python scripts/export_openapi.py ../web/openapi.json && cd ../web && npm run gen:api
 ```
 
+## Sign-in (local)
+Email-link sign-in. With `ENVIRONMENT=local` the API logs the sign-in link to its console instead of
+emailing it. Other environments need an email provider wired in `app/adapters/email.py` (open decision).
+
+Tests need Postgres: `TEST_DATABASE_URL` (default `postgresql+asyncpg://postgres:postgres@localhost:5432/meetpractice_test`).
+Create the database once with `createdb meetpractice_test`.
+
 ## Status
-M0 scaffolding done. Next: M1 foundation (data model, auth, notes, consent, account delete).
+- M0 scaffolding: done.
+- M1 foundation: done — 11-table schema and migration, email-link auth with cookie sessions and CSRF header,
+  notes with autosave, consent-enforced session creation (with idempotency), account deletion, settings page.
+- Next: M2 company research.

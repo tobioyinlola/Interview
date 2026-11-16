@@ -4,9 +4,10 @@ import uuid
 
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.responses import JSONResponse, Response
 
 from app.logging_config import request_id_var
+from app.security import CSRF_HEADER, CSRF_VALUE
 
 log = logging.getLogger("app.request")
 
@@ -35,3 +36,27 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             },
         )
         return response
+
+
+class CsrfMiddleware(BaseHTTPMiddleware):
+    """State-changing API requests must carry the custom header. A cross-site form or fetch
+    without CORS approval cannot add it, so it blocks cross-site request forgery on top of
+    SameSite cookies."""
+
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        if (
+            request.method in {"POST", "PUT", "PATCH", "DELETE"}
+            and request.url.path.startswith("/api/")
+            and request.headers.get(CSRF_HEADER) != CSRF_VALUE
+        ):
+            return JSONResponse(
+                {
+                    "error": {
+                        "code": "csrf_failed",
+                        "message": "Missing request header.",
+                        "request_id": request_id_var.get(),
+                    }
+                },
+                status_code=403,
+            )
+        return await call_next(request)

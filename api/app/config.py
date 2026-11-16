@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     research_max_pages: int = 8
     research_budget_seconds: int = 90
 
+    # Auth (email-link sign-in).
+    login_link_ttl_minutes: int = 15
+    login_requests_per_hour: int = 5
+    session_ttl_days: int = 30
+
     log_level: str = "INFO"
 
 

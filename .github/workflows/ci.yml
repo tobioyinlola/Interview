@@ -17,6 +17,7 @@ jobs:
           --health-cmd "pg_isready -U postgres" --health-interval 5s --health-retries 10
     env:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/meetpractice
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/meetpractice_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -25,9 +26,15 @@ jobs:
       - run: ruff check .
       - run: ruff format --check .
       - run: mypy app
+      - name: Create test database
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -c 'CREATE DATABASE meetpractice_test'
       - run: pytest -q
       - name: Migration check (throwaway database)
-        run: alembic upgrade head && alembic downgrade base && alembic upgrade head
+        run: |
+          alembic upgrade head
+          alembic downgrade base
+          alembic upgrade head
+          alembic check  # models and migrations must not drift
       - name: OpenAPI drift check
         run: |
           python scripts/export_openapi.py /tmp/openapi.json

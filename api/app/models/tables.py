@@ -1,0 +1,243 @@
+"""All tables. Every row belongs to one user, directly (user_id) or through a parent that has it.
+Audio is never stored: there is no audio column anywhere."""
+
+import uuid
+from datetime import UTC, date, datetime
+from typing import Any
+
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.db import Base
+
+
+def _now() -> datetime:
+    return datetime.now(UTC)
+
+
+def _pk() -> Mapped[uuid.UUID]:
+    return mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
+
+def _fk(target: str, **kw: Any) -> Mapped[uuid.UUID]:
+    return mapped_column(UUID(as_uuid=True), ForeignKey(target, ondelete="CASCADE"), **kw)
+
+
+_TS = DateTime(timezone=True)
+
+# ---------------------------------------------------------------- user + auth
+
+
+class User(Base):
+    __tablename__ = "users"
+    id: Mapped[uuid.UUID] = _pk()
+    email: Mapped[str] = mapped_column(String(320), unique=True)
+    created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+
+
+class LoginToken(Base):
+    """Single-use email sign-in link. Only a hash of the token is stored. Keyed by email so a
+    link can be requested before the user row exists (created at first sign-in)."""
+
+    __tablename__ = "login_tokens"
+    id: Mapped[uuid.UUID] = _pk()
+    email: Mapped[str] = mapped_column(String(320), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    expires_at: Mapped[datetime] = mapped_column(_TS)
+    used_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+
+
+class AuthSession(Base):
+    """Cookie session. Only a hash of the cookie value is stored, so sessions can be revoked."""
+
+    __tablename__ = "auth_sessions"
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = _fk("users.id", index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    expires_at: Mapped[datetime] = mapped_column(_TS)
+    created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+
+
+class IdempotencyKey(Base):
+    """A retried POST with the same key returns the stored response instead of acting twice."""
+
+    __tablename__ = "idempotency_keys"
+    __table_args__ = (UniqueConstraint("user_id", "key", "route"),)
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = _fk("users.id")
+    key: Mapped[str] = mapped_column(String(200))
+    route: Mapped[str] = mapped_column(String(100))
+    response: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+
+
+# --------------------------------------------------------------- user-owned
+
+
+class Note(Base):
+    __tablename__ = "notes"
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = _fk("users.id", unique=True)  # one row per user in v1
+    role: Mapped[str] = mapped_column(String(200), default="")
+    content: Mapped[str] = mapped_column(Text, default="")  # up to 16,000 characters
+    updated_at: Mapped[datetime] = mapped_column(_TS, default=_now, onupdate=_now)
+
+
+class Usage(Base):
+    """Counts only. Drives the daily caps and the owner's cost view."""
+
+    __tablename__ = "usage"
+    __table_args__ = (UniqueConstraint("user_id", "day"),)
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = _fk("users.id")
+    day: Mapped[date] = mapped_column(Date)
+    stt_seconds: Mapped[int] = mapped_column(Integer, default=0)
+    llm_input_tokens: Mapped[int] = mapped_column(BigInteger, default=0)
+    llm_output_tokens: Mapped[int] = mapped_column(BigInteger, default=0)
+    research_jobs: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class Company(Base):
+    __tablename__ = "companies"
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = _fk("users.id", index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    website_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    job_posting_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    role: Mapped[str] = mapped_column(String(200), default="")
+    known_text: Mapped[str] = mapped_column(Text, default="")  # up to 2,000 characters
+    last_researched_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+
+
+class CompanySource(Base):
+    __tablename__ = "company_sources"
+    id: Mapped[uuid.UUID] = _pk()
+    company_id: Mapped[uuid.UUID] = _fk("companies.id", index=True)
+    # website | job_posting | extra_link | search_result | pasted
+    kind: Mapped[str] = mapped_column(String(20))
+    url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    title: Mapped[str] = mapped_column(Text, default="")
+    published_at: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    # ok | blocked | login_required | too_large | timeout | disallowed
+    status: Mapped[str] = mapped_column(String(20), default="ok")
+    extracted_text: Mapped[str] = mapped_column(Text, default="")
+    removed_by_user: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class CompanyBrief(Base):
+    __tablename__ = "company_briefs"
+    __table_args__ = (
+        UniqueConstraint("company_id", "version"),
+        # At most one current brief per company.
+        Index(
+            "uq_company_briefs_current",
+            "company_id",
+            unique=True,
+            postgresql_where="is_current",
+        ),
+    )
+    id: Mapped[uuid.UUID] = _pk()
+    company_id: Mapped[uuid.UUID] = _fk("companies.id")
+    version: Mapped[int] = mapped_column(Integer)
+    content: Mapped[dict[str, Any]] = mapped_column(JSONB)  # sections of facts with source_ids
+    is_current: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+
+
+class ResearchJob(Base):
+    __tablename__ = "research_jobs"
+    __table_args__ = (Index("ix_research_jobs_company_started", "company_id", "started_at"),)
+    id: Mapped[uuid.UUID] = _pk()
+    company_id: Mapped[uuid.UUID] = _fk("companies.id")
+    user_id: Mapped[uuid.UUID] = _fk("users.id")
+    # queued | reading_pages | searching | writing | ready | failed
+    status: Mapped[str] = mapped_column(String(20), default="queued")
+    step_detail: Mapped[str] = mapped_column(Text, default="")
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    started_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+    heartbeat_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    search_calls: Mapped[int] = mapped_column(Integer, default=0)
+    tokens: Mapped[int] = mapped_column(BigInteger, default=0)
+
+
+class PracticeSession(Base):
+    __tablename__ = "sessions"
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = _fk("users.id", index=True)
+    company_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="SET NULL"), nullable=True
+    )
+    brief_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("company_briefs.id", ondelete="SET NULL"), nullable=True
+    )
+    started_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+    ended_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    # Required: the partner has agreed. The server refuses to create a session without it.
+    consent_confirmed_at: Mapped[datetime] = mapped_column(_TS)
+    role: Mapped[str] = mapped_column(String(200), default="")
+    notes_snapshot: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(10), default="active")  # active | ended | errored
+
+
+class Utterance(Base):
+    __tablename__ = "utterances"
+    __table_args__ = (UniqueConstraint("session_id", "seq"),)  # duplicate write is harmless
+    id: Mapped[uuid.UUID] = _pk()
+    session_id: Mapped[uuid.UUID] = _fk("sessions.id")
+    seq: Mapped[int] = mapped_column(Integer)
+    speaker: Mapped[str] = mapped_column(String(10))  # partner | you
+    text: Mapped[str] = mapped_column(Text)
+    started_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    ended_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+
+
+class Suggestion(Base):
+    __tablename__ = "suggestions"
+    __table_args__ = (UniqueConstraint("session_id", "utterance_id"),)
+    id: Mapped[uuid.UUID] = _pk()
+    session_id: Mapped[uuid.UUID] = _fk("sessions.id")
+    utterance_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("utterances.id", ondelete="CASCADE"), nullable=True
+    )
+    question_text: Mapped[str] = mapped_column(Text, default="")
+    type: Mapped[str] = mapped_column(String(20), default="")
+    output_text: Mapped[str] = mapped_column(Text, default="")
+    sources_used: Mapped[list[Any]] = mapped_column(JSONB, default=list)
+    model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    first_token_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    total_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    grounding_flags: Mapped[list[Any]] = mapped_column(JSONB, default=list)
+    feedback: Mapped[str | None] = mapped_column(String(4), nullable=True)  # up | down
+    created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+
+
+class Score(Base):
+    __tablename__ = "scores"
+    id: Mapped[uuid.UUID] = _pk()
+    session_id: Mapped[uuid.UUID] = _fk("sessions.id")
+    utterance_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("utterances.id", ondelete="CASCADE")
+    )
+    structure: Mapped[int] = mapped_column(Integer)
+    specificity: Mapped[int] = mapped_column(Integer)
+    impact: Mapped[int] = mapped_column(Integer)
+    relevance: Mapped[int] = mapped_column(Integer)
+    pace: Mapped[int] = mapped_column(Integer)
+    overall: Mapped[int] = mapped_column(Integer)
+    fixes: Mapped[list[Any]] = mapped_column(JSONB, default=list)
