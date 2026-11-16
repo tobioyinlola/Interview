@@ -49,6 +49,16 @@ const FAKE_MIC = () => {
   const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] })
   const ctx = await browser.newContext({ viewport: { width: 1200, height: 950 } })
   const page = await ctx.newPage()
+  const cspViolations = []
+  let cspHeaderSeen = false
+  await page.exposeFunction('reportCsp', (m) => cspViolations.push(m))
+  await page.addInitScript(() => {
+    document.addEventListener('securitypolicyviolation', (e) => window.reportCsp(`${e.violatedDirective} blocked ${e.blockedURI}`))
+  })
+  page.on('response', (r) => {
+    if (r.request().resourceType() === 'document' && r.headers()['content-security-policy']) cspHeaderSeen = true
+  })
+  page.on('console', (m) => { if (/Content Security Policy|Refused to (load|execute|apply)/.test(m.text())) cspViolations.push('console: ' + m.text().slice(0, 160)) })
   await page.addInitScript(FAKE_SHARE)
   await page.addInitScript(FAKE_MIC)
   const pageErrors = []
@@ -208,6 +218,9 @@ const FAKE_MIC = () => {
   step('session deleted')
   console.log('page errors:', pageErrors.length ? pageErrors : 'none')
   check(pageErrors.length === 0, 'no uncaught page errors')
+  console.log('CSP violations:', cspViolations.length ? cspViolations : 'none', '| CSP header served:', cspHeaderSeen)
+  check(cspViolations.length === 0, 'the page triggered no Content-Security-Policy violations')
+  if (process.env.E2E_PROD === '1') check(cspHeaderSeen, 'the production build was served with a Content-Security-Policy')
   check(/Tell me about a time/.test(txt) && /Why do you want to work here/.test(txt), 'the downloaded transcript has both questions')
   await browser.close()
 })().catch((e) => { console.error('E2E FAILED:', e.message); process.exit(1) })

@@ -1,0 +1,114 @@
+# Prometheus alert rules for the Meet Practice API. Thresholds come from the design document
+# (section 14). A test (api/tests/test_observability.py) fails if a rule uses a metric the API does
+# not export. Values marked PROVISIONAL must be replaced with numbers from the load test and the
+# real budget before the beta opens.
+groups:
+  - name: meet-practice-latency
+    rules:
+      - alert: AnswerLatencyMedianHigh
+        expr: histogram_quantile(0.5, sum by (le) (rate(answer_first_token_seconds_bucket[10m]))) > 3
+        for: 10m
+        labels: {severity: page}
+        annotations:
+          summary: Median time to first answer token is over 3 s
+          runbook: docs/runbooks/latency-spike.md
+      - alert: AnswerLatencyP95High
+        expr: histogram_quantile(0.95, sum by (le) (rate(answer_first_token_seconds_bucket[10m]))) > 5
+        for: 10m
+        labels: {severity: page}
+        annotations:
+          summary: 95th percentile time to first answer token is over 5 s
+          runbook: docs/runbooks/latency-spike.md
+      - alert: AnswerContextStageSlow
+        # budget for loading the context is well under 0.3 s; alert at twice that
+        expr: histogram_quantile(0.95, sum by (le) (rate(answer_stage_seconds_bucket{stage="context"}[10m]))) > 0.6
+        for: 10m
+        labels: {severity: ticket}
+        annotations:
+          summary: Loading the answer context takes over twice its budget
+          runbook: docs/runbooks/latency-spike.md
+      - alert: AnswerModelFirstTokenSlow
+        # model time to first token has a 1.2 s budget; alert at twice that
+        expr: histogram_quantile(0.95, sum by (le) (rate(answer_stage_seconds_bucket{stage="model_first_token"}[10m]))) > 2.4
+        for: 10m
+        labels: {severity: page}
+        annotations:
+          summary: Model time to first token is over twice its budget
+          runbook: docs/runbooks/latency-spike.md
+      - alert: EventLoopLagHigh
+        expr: histogram_quantile(0.99, sum by (le) (rate(event_loop_lag_seconds_bucket[5m]))) > 0.1
+        for: 5m
+        labels: {severity: page}
+        annotations:
+          summary: An API replica is overloaded (event loop running timers more than 100 ms late)
+          runbook: docs/runbooks/latency-spike.md
+
+  - name: meet-practice-capacity
+    rules:
+      - alert: AudioSocketsNearLimit
+        # Load test (docs/operations.md): 200 concurrent sockets ran clean on one worker with FAKE providers.
+        # The real OpenAI audio path costs more CPU per socket and was not measured, so the limit is
+        # set at half the tested figure (100). Re-measure with a real key and adjust.
+        expr: audio_websockets_open > 0.7 * 100
+        for: 5m
+        labels: {severity: ticket}
+        annotations:
+          summary: Open audio WebSockets passed 70% of the tested limit (add replicas)
+          runbook: docs/runbooks/latency-spike.md
+      - alert: DbPoolSaturated
+        expr: db_pool_connections_in_use / db_pool_connections_max > 0.9
+        for: 5m
+        labels: {severity: page}
+        annotations:
+          summary: Database connection pool is over 90% in use
+          runbook: docs/runbooks/db-connection-exhaustion.md
+
+  - name: meet-practice-providers
+    rules:
+      - alert: ProviderErrorRateHigh
+        expr: sum(rate(provider_calls_total{outcome="error"}[5m])) / sum(rate(provider_calls_total[5m])) > 0.05
+        for: 5m
+        labels: {severity: page}
+        annotations:
+          summary: More than 5% of calls to transcription, model or search are failing
+          runbook: docs/runbooks/provider-outage.md
+      - alert: AnswersFallingBack
+        expr: sum(rate(answers_total{outcome="fallback"}[10m])) / sum(rate(answers_total{outcome="done"}[10m])) > 0.2
+        for: 10m
+        labels: {severity: ticket}
+        annotations:
+          summary: Over 20% of answers needed the fallback model (primary model unhealthy)
+          runbook: docs/runbooks/provider-outage.md
+      - alert: ResearchFailuresHigh
+        expr: increase(research_jobs_total{status="failed"}[1h]) / increase(research_jobs_total{status="started"}[1h]) > 0.2
+        labels: {severity: ticket}
+        annotations:
+          summary: More than 20% of research jobs failed in the last hour
+          runbook: docs/runbooks/stuck-research-jobs.md
+
+  - name: meet-practice-cost
+    rules:
+      - alert: DailySpendNearBudget
+        # PROVISIONAL: 80% of a 50 USD daily budget. Replace 50 with the real daily budget.
+        expr: increase(estimated_spend_usd_total[24h]) > 0.8 * 50
+        labels: {severity: page}
+        annotations:
+          summary: Estimated provider spend in the last 24 h is over 80% of the daily budget
+          runbook: docs/runbooks/cost-spike.md
+
+  - name: meet-practice-availability
+    rules:
+      - alert: Http5xxRateHigh
+        expr: sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m])) > 0.02
+        for: 5m
+        labels: {severity: page}
+        annotations:
+          summary: More than 2% of API requests return a 5xx error
+          runbook: docs/runbooks/provider-outage.md
+      - alert: ApiTargetDown
+        expr: up{job="meet-practice-api"} == 0
+        for: 2m
+        labels: {severity: page}
+        annotations:
+          summary: The API is not answering its metrics scrape
+          runbook: docs/operations.md

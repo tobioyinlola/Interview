@@ -23,7 +23,7 @@ cd web && npm ci && npm run dev
 
 ## Checks (also run in CI)
 ```bash
-cd api && ruff check . && ruff format --check . && mypy app && pytest
+cd api && ruff check . && ruff format --check . && mypy app evals loadtest && pytest
 cd web && npm run lint && npm run typecheck && npm test && npm run build
 ```
 After changing API routes or schemas, regenerate the contract:
@@ -103,3 +103,22 @@ Re-run whenever a prompt or model changes. `--model` picks the live answer model
   latency, and the evaluation scores. These need a valid key and a real Meet call.
 - Not done: release hardening (observability, load test, staging, runbooks, legal review of the consent
   wording), the Railway deploy, and a sign-in email provider.
+
+## Release hardening
+- **Security:** startup refuses unsafe staging/production configuration; security headers on every response;
+  body-size limits, per-client rate limits (stricter for sign-in); a 3 s database statement timeout;
+  strict Content-Security-Policy for the web app (`web/nginx.conf.template`), verified in Chromium against the
+  production build (`E2E_PROD=1 scripts/e2e-live.sh`).
+- **Observability:** Prometheus `/metrics` (route templates only, never content), alert rules in
+  `ops/alerts.yml` with a runbook each (`docs/runbooks/`), optional scrubbed Sentry, admin-only cost view at `/admin/usage`.
+- **Reliability:** circuit breaker with a fallback answer model, stale research-job recovery, graceful
+  shutdown that tells browsers to reconnect.
+- **Checks you can run:** `scripts/loadtest.sh` (synthetic sessions, fake providers) and
+  `scripts/restore_drill.sh` (backup restore check). Results and thresholds: [docs/operations.md](docs/operations.md).
+- **Deploying:** [docs/deploy.md](docs/deploy.md).
+
+## Status
+Built and tested: sign-in, notes, company research, live sessions, review and scoring, hardening.
+**Not yet verified against the real world** (needs a key, a call, or a deployment): OpenAI realtime
+transcription protocol and answer quality (evals above), Docker builds, the GitHub Actions workflow,
+Railway. **Open decisions:** sign-in email provider, transcript retention policy, daily budget figure.
