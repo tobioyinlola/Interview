@@ -42,8 +42,8 @@ function CapturePanel({
     status === "reconnecting" ||
     status === "starting";
   return (
-    <section aria-labelledby="cap-h" className="space-y-2 rounded border p-4">
-      <h2 id="cap-h" className="text-lg font-medium">
+    <section aria-labelledby="cap-h" className="card space-y-2">
+      <h2 id="cap-h" className="text-lg font-semibold">
         Capture
       </h2>
       <p>
@@ -66,7 +66,7 @@ function CapturePanel({
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.min(100, Math.round(level * 400))}
-        className="h-2 w-full overflow-hidden rounded bg-line"
+        className="h-2 w-full overflow-hidden rounded-full bg-line"
       >
         <div
           className="h-full bg-green-600 transition-[width]"
@@ -74,18 +74,12 @@ function CapturePanel({
         />
       </div>
       {problem && (
-        <p
-          role="alert"
-          className="rounded border border-red-700 p-2 text-sm text-red-800"
-        >
+        <p role="alert" className="notice-error">
           {problem}
         </p>
       )}
       {notice && (
-        <p
-          role="status"
-          className="rounded border border-amber-600 bg-amber-50 p-2 text-sm"
-        >
+        <p role="status" className="notice-warn">
           {notice}
         </p>
       )}
@@ -117,7 +111,7 @@ function CapturePanel({
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={Math.min(100, Math.round(micLevel * 400))}
-              className="h-2 w-full overflow-hidden rounded bg-line"
+              className="h-2 w-full overflow-hidden rounded-full bg-line"
             >
               <div
                 className="h-full bg-accent transition-[width]"
@@ -126,10 +120,7 @@ function CapturePanel({
             </div>
           )}
           {mic === "error" && micProblem && (
-            <p
-              role="alert"
-              className="rounded border border-red-700 p-2 text-sm text-red-800"
-            >
+            <p role="alert" className="notice-error">
               {micProblem}
             </p>
           )}
@@ -137,15 +128,12 @@ function CapturePanel({
       )}
       <div className="flex gap-2">
         {status !== "ended" && !active && (
-          <button
-            className="rounded bg-accent px-3 py-2 text-white"
-            onClick={onShare}
-          >
+          <button className="btn-primary" onClick={onShare}>
             Share Meet tab
           </button>
         )}
         {status !== "ended" && (
-          <button className="rounded border px-3 py-2" onClick={onEnd}>
+          <button className="btn-secondary" onClick={onEnd}>
             End session
           </button>
         )}
@@ -184,7 +172,7 @@ function FeedbackButtons({ outline }: { outline: Outline }) {
         type="button"
         aria-pressed={outline.feedback === "up"}
         aria-label="Useful"
-        className={`rounded border px-2 py-1 ${outline.feedback === "up" ? "bg-green-100" : ""}`}
+        className={`btn-secondary btn-sm ${outline.feedback === "up" ? "bg-green-100" : ""}`}
         onClick={() => rate("up")}
       >
         👍
@@ -193,7 +181,7 @@ function FeedbackButtons({ outline }: { outline: Outline }) {
         type="button"
         aria-pressed={outline.feedback === "down"}
         aria-label="Not useful"
-        className={`rounded border px-2 py-1 ${outline.feedback === "down" ? "bg-red-100" : ""}`}
+        className={`btn-secondary btn-sm ${outline.feedback === "down" ? "bg-red-100" : ""}`}
         onClick={() => rate("down")}
       >
         👎
@@ -227,7 +215,7 @@ function OutlineView({
         aria-live="polite"
         aria-busy={outline.state === "streaming"}
         onClick={() => hidden && patchOutline({ revealed: true })}
-        className={`whitespace-pre-wrap rounded border p-3 ${hidden ? "cursor-pointer select-none blur-sm" : ""}`}
+        className={`whitespace-pre-wrap card !p-4 ${hidden ? "cursor-pointer select-none blur-sm" : ""}`}
         data-testid="outline"
       >
         {outline.text ||
@@ -239,7 +227,7 @@ function OutlineView({
       </div>
       {hidden && (
         <button
-          className="rounded border px-2 py-1 text-sm"
+          className="btn-secondary btn-sm"
           onClick={() => patchOutline({ revealed: true })}
         >
           Reveal
@@ -251,7 +239,7 @@ function OutlineView({
         </p>
       )}
       {outline.flags.length > 0 && (
-        <div className="rounded border border-amber-600 bg-amber-50 p-2 text-sm">
+        <div className="notice-warn">
           Check these points. They may not be in your notes or the brief:
           <ul className="list-disc pl-5">
             {outline.flags.map((f) => (
@@ -261,10 +249,7 @@ function OutlineView({
         </div>
       )}
       {outline.state === "error" && outline.error && (
-        <p
-          role="alert"
-          className="rounded border border-red-700 p-2 text-sm text-red-800"
-        >
+        <p role="alert" className="notice-error">
           {outline.error.message} {outline.error.next_step}
         </p>
       )}
@@ -281,10 +266,7 @@ function OutlineView({
           <FeedbackButtons outline={outline} />
         )}
         {outline.state !== "streaming" && (
-          <button
-            className="rounded border px-2 py-1 text-sm"
-            onClick={onRegenerate}
-          >
+          <button className="btn-secondary btn-sm" onClick={onRegenerate}>
             Regenerate
           </button>
         )}
@@ -296,8 +278,8 @@ function OutlineView({
 function AnswerPanel({ onRegenerate }: { onRegenerate: () => void }) {
   const outline = useLiveStore((s) => s.outline);
   return (
-    <section aria-labelledby="ans-h" className="space-y-2 rounded border p-4">
-      <h2 id="ans-h" className="text-lg font-medium">
+    <section aria-labelledby="ans-h" className="card space-y-2">
+      <h2 id="ans-h" className="text-lg font-semibold">
         Answer outline
       </h2>
       {outline ? (
@@ -316,8 +298,8 @@ function TranscriptList() {
   const lines = useLiveStore((s) => s.lines);
   const partial = useLiveStore((s) => s.partial);
   return (
-    <section aria-labelledby="tr-h" className="space-y-2 rounded border p-4">
-      <h2 id="tr-h" className="text-lg font-medium">
+    <section aria-labelledby="tr-h" className="card space-y-2">
+      <h2 id="tr-h" className="text-lg font-semibold">
         Transcript
       </h2>
       {lines.length === 0 && !partial && (
@@ -363,13 +345,9 @@ function ManualQuestion({ onSubmit }: { onSubmit: (q: string) => void }) {
         maxLength={2000}
         onChange={(e) => setText(e.target.value)}
         placeholder="Type a question and press Enter (to try it alone)"
-        className="w-full rounded border px-3 py-2"
+        className="input w-full"
       />
-      <button
-        type="submit"
-        className="rounded border px-3 py-2"
-        disabled={!text.trim()}
-      >
+      <button type="submit" className="btn-secondary" disabled={!text.trim()}>
         Ask
       </button>
     </form>
@@ -414,12 +392,9 @@ export function LiveSessionPage() {
         </FeatureBoundary>
         <FeatureBoundary name="answer panel">
           {float.win ? (
-            <section className="space-y-2 rounded border p-4">
+            <section className="card space-y-2">
               <p>The answer panel is in its own window, on top of Meet.</p>
-              <button
-                className="rounded border px-3 py-2"
-                onClick={float.close}
-              >
+              <button className="btn-secondary" onClick={float.close}>
                 Bring it back here
               </button>
               {createPortal(
@@ -432,7 +407,7 @@ export function LiveSessionPage() {
               {answer}
               {float.supported && (
                 <button
-                  className="rounded border px-3 py-2 text-sm"
+                  className="btn-secondary text-sm"
                   onClick={() => void float.open()}
                 >
                   Float the answer panel
@@ -450,7 +425,7 @@ export function LiveSessionPage() {
           <TranscriptList />
         </FeatureBoundary>
         {status === "ended" && (
-          <p className="space-x-3 rounded border p-3">
+          <p className="space-x-3 card !p-4">
             <span>Session saved.</span>
             <Link to={`/sessions/${id}`} className="text-accent-dark underline">
               Review it

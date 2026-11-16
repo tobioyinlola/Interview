@@ -21,7 +21,7 @@ export class FeatureBoundary extends Component<Props, { failed: boolean }> {
   render() {
     if (this.state.failed) {
       return (
-        <div role="alert" className="rounded border border-red-700 p-3 text-sm">
+        <div role="alert" className="notice-error">
           The {this.props.name} had a problem. The rest of the page still works.{" "}
           <button
             className="underline"

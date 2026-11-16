@@ -38,7 +38,7 @@ export function SourceList({ sources, onPaste, onRemove, removingId }: Props) {
           <li
             key={s.id}
             id={`source-${s.id}`}
-            className="rounded border p-2 text-sm"
+            className="rounded-xl border border-line p-2 text-sm"
           >
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-muted">[{i + 1}]</span>
@@ -69,14 +69,14 @@ export function SourceList({ sources, onPaste, onRemove, removingId }: Props) {
             <div className="mt-1 flex gap-2">
               {failed && (
                 <button
-                  className="rounded border px-2 py-1 text-xs"
+                  className="btn-secondary btn-sm"
                   onClick={() => onPaste(s.title || s.url || "")}
                 >
                   Paste its text
                 </button>
               )}
               <button
-                className="rounded border px-2 py-1 text-xs disabled:opacity-50"
+                className="btn-secondary btn-sm disabled:opacity-50"
                 disabled={removingId === s.id}
                 aria-label={`Remove source ${i + 1}`}
                 onClick={() => onRemove(s.id)}

@@ -38,8 +38,8 @@ export function ResearchStatus({
   const index = STEPS.findIndex(([k]) => k === job?.status);
 
   return (
-    <section aria-labelledby="rs" className="rounded border p-4">
-      <h2 id="rs" className="text-lg font-medium">
+    <section aria-labelledby="rs" className="card">
+      <h2 id="rs" className="text-lg font-semibold">
         Research
       </h2>
 
@@ -108,7 +108,7 @@ export function ResearchStatus({
         </p>
       )}
       <button
-        className="mt-3 rounded border px-3 py-2 disabled:opacity-50"
+        className="btn-secondary mt-3  disabled:opacity-50"
         disabled={active || researching}
         onClick={onResearch}
       >

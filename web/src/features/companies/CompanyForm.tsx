@@ -53,7 +53,7 @@ export function CompanyForm({
     });
   };
 
-  const field = "mt-1 w-full rounded border px-3 py-2";
+  const field = "input mt-1 w-full";
   return (
     <form onSubmit={submit} className="space-y-4" aria-label="Company details">
       <div>
@@ -115,11 +115,11 @@ export function CompanyForm({
               onChange={(e) =>
                 setExtra(extra.map((x, j) => (j === i ? e.target.value : x)))
               }
-              className="w-full rounded border px-3 py-2"
+              className="input w-full"
             />
             <button
               type="button"
-              className="rounded border px-2"
+              className="input !px-2"
               aria-label={`Remove extra link ${i + 1}`}
               onClick={() => setExtra(extra.filter((_, j) => j !== i))}
             >
@@ -129,7 +129,7 @@ export function CompanyForm({
         ))}
         <button
           type="button"
-          className="mt-2 rounded border px-2 py-1 text-sm disabled:opacity-50"
+          className="btn-secondary btn-sm mt-2  disabled:opacity-50"
           disabled={extra.length >= MAX_EXTRA_LINKS}
           onClick={() => setExtra([...extra, ""])}
         >
@@ -175,10 +175,7 @@ export function CompanyForm({
       </div>
 
       {error && (
-        <p
-          role="alert"
-          className="rounded border border-red-700 p-3 text-sm text-red-800"
-        >
+        <p role="alert" className="notice-error">
           {error}
         </p>
       )}
@@ -186,16 +183,12 @@ export function CompanyForm({
         <button
           type="submit"
           disabled={pending || !name.trim()}
-          className="rounded bg-accent px-4 py-2 text-white disabled:opacity-50"
+          className="btn-primary"
         >
           {pending ? "Saving…" : submitLabel}
         </button>
         {onCancel && (
-          <button
-            type="button"
-            className="rounded border px-4 py-2"
-            onClick={onCancel}
-          >
+          <button type="button" className="btn-secondary" onClick={onCancel}>
             Cancel
           </button>
         )}

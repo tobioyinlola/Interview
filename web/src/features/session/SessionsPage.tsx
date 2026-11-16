@@ -12,13 +12,10 @@ export function SessionsPage() {
   const items = q.data?.pages.flatMap((p) => p.items) ?? [];
 
   return (
-    <main className="mx-auto max-w-3xl space-y-4 p-6">
+    <main className="page-narrow">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Sessions</h1>
-        <Link
-          to="/session/new"
-          className="rounded bg-accent px-3 py-2 text-white"
-        >
+        <h1 className="text-3xl font-semibold tracking-tight">Sessions</h1>
+        <Link to="/session/new" className="btn-primary">
           Start practice
         </Link>
       </div>
@@ -32,7 +29,7 @@ export function SessionsPage() {
           transcript and scores.
         </p>
       )}
-      <ul className="divide-y rounded border">
+      <ul className="list-card">
         {items.map((s) => (
           <li key={s.id} className="p-3">
             <div className="flex items-center justify-between gap-3">
@@ -56,7 +53,7 @@ export function SessionsPage() {
                   aria-label="Confirm deletion"
                 >
                   <button
-                    className="rounded bg-red-700 px-2 py-1 text-sm text-white disabled:opacity-50"
+                    className="btn-danger btn-sm"
                     disabled={del.isPending}
                     onClick={() =>
                       del.mutate(s.id, { onSuccess: () => setConfirm(null) })
@@ -65,7 +62,7 @@ export function SessionsPage() {
                     Yes, delete
                   </button>
                   <button
-                    className="rounded border px-2 py-1 text-sm"
+                    className="btn-secondary btn-sm"
                     onClick={() => setConfirm(null)}
                   >
                     Cancel
@@ -73,7 +70,7 @@ export function SessionsPage() {
                 </span>
               ) : (
                 <button
-                  className="rounded border px-2 py-1 text-sm text-red-700"
+                  className="btn-secondary btn-sm text-red-700"
                   aria-label={`Delete session from ${formatWhen(s.started_at)}`}
                   onClick={() => setConfirm(s.id)}
                 >
@@ -91,7 +88,7 @@ export function SessionsPage() {
       )}
       {q.hasNextPage && (
         <button
-          className="rounded border px-3 py-2 disabled:opacity-50"
+          className="btn-secondary disabled:opacity-50"
           disabled={q.isFetchingNextPage}
           onClick={() => void q.fetchNextPage()}
         >

@@ -54,12 +54,14 @@ export function ReviewPage() {
   const ended = data.status !== "active";
 
   return (
-    <main className="mx-auto max-w-3xl space-y-6 p-6">
+    <main className="page-narrow">
       <div>
         <Link to="/sessions" className="text-sm text-accent-dark underline">
           ← Sessions
         </Link>
-        <h1 className="text-2xl font-semibold">Session review</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">
+          Session review
+        </h1>
         <p className="text-sm text-muted">
           {formatWhen(data.started_at)} · {data.utterances.length} lines ·{" "}
           {data.suggestions.length} outlines
@@ -67,12 +69,12 @@ export function ReviewPage() {
         <div className="mt-2 flex gap-2">
           <a
             href={`${API_BASE_URL}/api/sessions/${id}/transcript.txt`}
-            className="rounded border px-3 py-2"
+            className="btn-secondary"
           >
             Download transcript
           </a>
           {!ended && (
-            <Link to={`/session/${id}`} className="rounded border px-3 py-2">
+            <Link to={`/session/${id}`} className="btn-secondary">
               Back to the live session
             </Link>
           )}
@@ -85,7 +87,7 @@ export function ReviewPage() {
         </h2>
         {ended && (
           <button
-            className="rounded bg-accent px-3 py-2 text-white disabled:opacity-50"
+            className="btn-primary"
             disabled={running || score.isPending}
             onClick={() => score.mutate()}
           >
@@ -135,7 +137,7 @@ export function ReviewPage() {
           {data.utterances.map((u) => {
             const s = outlineFor(u.id, u.text);
             return (
-              <li key={u.id} className="rounded border p-3">
+              <li key={u.id} className="card !p-4">
                 <p>
                   <strong>{u.speaker === "you" ? "You" : "Partner"}:</strong>{" "}
                   {u.text}
@@ -156,7 +158,7 @@ export function ReviewPage() {
             );
           })}
           {typed.map((s) => (
-            <li key={s.id} className="rounded border p-3">
+            <li key={s.id} className="card !p-4">
               <p>
                 <strong>Typed:</strong> {s.question_text}
               </p>
@@ -176,12 +178,12 @@ export function ReviewPage() {
           <div
             role="alertdialog"
             aria-label="Confirm deletion"
-            className="space-y-2 rounded border border-red-700 p-3"
+            className="notice-error space-y-2"
           >
             <p>Delete this session with its transcript, outlines and scores?</p>
             <div className="flex gap-2">
               <button
-                className="rounded bg-red-700 px-3 py-2 text-white disabled:opacity-50"
+                className="btn-danger"
                 disabled={del.isPending}
                 onClick={() =>
                   del.mutate(id, { onSuccess: () => navigate("/sessions") })
@@ -190,7 +192,7 @@ export function ReviewPage() {
                 Yes, delete
               </button>
               <button
-                className="rounded border px-3 py-2"
+                className="btn-secondary"
                 onClick={() => setConfirming(false)}
               >
                 Cancel
@@ -204,7 +206,7 @@ export function ReviewPage() {
           </div>
         ) : (
           <button
-            className="rounded border border-red-700 px-3 py-2 text-red-700"
+            className="btn-danger-outline"
             onClick={() => setConfirming(true)}
           >
             Delete this session

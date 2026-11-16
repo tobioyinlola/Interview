@@ -6,7 +6,7 @@ import { useDeleteAccount } from "../../api/hooks";
 export function PrivacyNotice() {
   return (
     <section aria-labelledby="privacy" className="space-y-2">
-      <h2 id="privacy" className="text-lg font-medium">
+      <h2 id="privacy" className="text-lg font-semibold">
         Privacy and responsible use
       </h2>
       <ul className="list-disc space-y-1 pl-5 text-sm">
@@ -41,7 +41,7 @@ export function DeleteAccountButton() {
   if (!confirming) {
     return (
       <button
-        className="rounded border border-red-700 px-3 py-2 text-red-700"
+        className="btn-danger-outline"
         onClick={() => setConfirming(true)}
       >
         Delete my account and data
@@ -52,7 +52,7 @@ export function DeleteAccountButton() {
     <div
       role="alertdialog"
       aria-label="Confirm deletion"
-      className="space-y-2 rounded border border-red-700 p-4"
+      className="card space-y-2 border border-red-200"
     >
       <p>
         This permanently deletes your notes, companies, sessions and account. It
@@ -60,7 +60,7 @@ export function DeleteAccountButton() {
       </p>
       <div className="flex gap-2">
         <button
-          className="rounded bg-red-700 px-3 py-2 text-white disabled:opacity-50"
+          className="btn-danger"
           disabled={del.isPending}
           onClick={() =>
             del.mutate(undefined, { onSuccess: () => navigate("/login") })
@@ -68,10 +68,7 @@ export function DeleteAccountButton() {
         >
           {del.isPending ? "Deleting…" : "Yes, delete everything"}
         </button>
-        <button
-          className="rounded border px-3 py-2"
-          onClick={() => setConfirming(false)}
-        >
+        <button className="btn-secondary" onClick={() => setConfirming(false)}>
           Cancel
         </button>
       </div>
@@ -86,11 +83,11 @@ export function DeleteAccountButton() {
 
 export function SettingsPage() {
   return (
-    <main className="mx-auto max-w-2xl space-y-8 p-6">
-      <h1 className="text-2xl font-semibold">Settings</h1>
+    <main className="page-narrow">
+      <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
       <PrivacyNotice />
       <section aria-labelledby="danger" className="space-y-2">
-        <h2 id="danger" className="text-lg font-medium">
+        <h2 id="danger" className="text-lg font-semibold">
           Delete my data
         </h2>
         <DeleteAccountButton />

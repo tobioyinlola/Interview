@@ -40,22 +40,19 @@ export function CompaniesPage() {
 
   const items = companies.data ?? [];
   return (
-    <main className="mx-auto max-w-3xl space-y-6 p-6">
+    <main className="page-narrow">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Companies</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Companies</h1>
         {!adding && (
-          <button
-            className="rounded bg-accent px-3 py-2 text-white"
-            onClick={() => setAdding(true)}
-          >
+          <button className="btn-primary" onClick={() => setAdding(true)}>
             Add a company
           </button>
         )}
       </div>
 
       {adding && (
-        <section aria-labelledby="add-h" className="rounded border p-4">
-          <h2 id="add-h" className="mb-3 text-lg font-medium">
+        <section aria-labelledby="add-h" className="card">
+          <h2 id="add-h" className="mb-3 text-lg font-semibold">
             Add a company
           </h2>
           <p className="mb-3 text-sm text-muted">
@@ -84,7 +81,7 @@ export function CompaniesPage() {
           a researched brief before your practice call.
         </p>
       )}
-      <ul className="divide-y rounded border">
+      <ul className="list-card">
         {items.map((c) => (
           <li key={c.id} className="flex items-center justify-between p-3">
             <Link

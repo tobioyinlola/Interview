@@ -18,7 +18,7 @@ function Bar({ label, value }: { label: string; value: number }) {
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={value}
-        className="h-2 flex-1 overflow-hidden rounded bg-line"
+        className="h-2 flex-1 overflow-hidden rounded-full bg-line"
       >
         <div className="h-full bg-accent" style={{ width: `${value}%` }} />
       </div>
@@ -32,11 +32,13 @@ export function ScoreCards({ scores }: { scores: Score[] }) {
   return (
     <ol className="space-y-3" aria-label="Answer scores">
       {scores.map((s, i) => (
-        <li key={s.id} className="rounded border p-3">
+        <li key={s.id} className="card !p-4">
           <div className="flex items-baseline justify-between">
             <h3 className="font-medium">Answer {i + 1}</h3>
             <p aria-label={`Overall score ${s.overall} out of 100`}>
-              <span className="text-2xl font-semibold">{s.overall}</span>
+              <span className="text-3xl font-semibold tracking-tight">
+                {s.overall}
+              </span>
               <span className="text-sm text-muted"> / 100</span>
             </p>
           </div>

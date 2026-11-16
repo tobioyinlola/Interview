@@ -86,7 +86,7 @@ function PinToggle({
       aria-pressed={pinned}
       disabled={disabled}
       onClick={onToggle}
-      className={`rounded border px-1 text-xs ${pinned ? "bg-yellow-100" : ""}`}
+      className={`rounded-lg border border-line px-1.5 text-xs hover:border-accent ${pinned ? "bg-yellow-100" : ""}`}
     >
       {pinned ? "Unpin" : "Pin"}
     </button>
@@ -130,12 +130,12 @@ function Fact({
             maxLength={500}
             rows={3}
             onChange={(e) => setDraft(e.target.value)}
-            className="w-full rounded border px-2 py-1"
+            className="input w-full !py-1 !text-sm"
           />
           <span className="flex gap-2">
             <button
               type="button"
-              className="rounded bg-accent px-2 py-1 text-xs text-white disabled:opacity-50"
+              className="btn-primary btn-sm"
               disabled={!draft.trim() || editing?.pending}
               onClick={() => {
                 change({ text: draft.trim() });
@@ -146,7 +146,7 @@ function Fact({
             </button>
             <button
               type="button"
-              className="rounded border px-2 py-1 text-xs"
+              className="btn-secondary btn-sm"
               onClick={() => {
                 setDraft(fact.text);
                 setEditingText(false);
@@ -193,7 +193,7 @@ function Fact({
               />
               <button
                 type="button"
-                className="rounded border px-1 text-xs"
+                className="rounded-lg border border-line px-1.5 text-xs hover:border-accent"
                 aria-label={`Edit fact: ${fact.text.slice(0, 40)}`}
                 onClick={() => setEditingText(true)}
               >
@@ -201,7 +201,7 @@ function Fact({
               </button>
               <button
                 type="button"
-                className="rounded border px-1 text-xs text-red-700 disabled:opacity-50"
+                className="rounded-lg border border-line px-1.5 text-xs text-red-700 hover:border-red-300 disabled:opacity-50"
                 aria-label={`Delete fact: ${fact.text.slice(0, 40)}`}
                 disabled={editing.pending}
                 onClick={() => change({ delete: true })}
@@ -229,7 +229,7 @@ function AddFact({
     return (
       <button
         type="button"
-        className="mt-1 rounded border px-2 py-1 text-xs"
+        className="btn-secondary btn-sm mt-1"
         onClick={() => setOpen(true)}
       >
         Add my own fact to {section.title}
@@ -258,18 +258,18 @@ function AddFact({
         maxLength={500}
         onChange={(e) => setText(e.target.value)}
         placeholder="Something you know. It is labelled From you."
-        className="w-full rounded border px-2 py-1 text-sm"
+        className="input w-full !py-1 !text-sm"
       />
       <button
         type="submit"
         disabled={!text.trim() || editing.pending}
-        className="rounded bg-accent px-2 py-1 text-xs text-white disabled:opacity-50"
+        className="btn-primary btn-sm"
       >
         Add
       </button>
       <button
         type="button"
-        className="rounded border px-2 py-1 text-xs"
+        className="btn-secondary btn-sm"
         onClick={() => setOpen(false)}
       >
         Cancel
@@ -291,7 +291,10 @@ function Section({
     section.facts.length > 0 &&
     section.facts.every((f) => f.label === "suggestion");
   return (
-    <section aria-labelledby={`sec-${section.key}`} className="border-t pt-3">
+    <section
+      aria-labelledby={`sec-${section.key}`}
+      className="border-t border-line pt-3"
+    >
       <h3 id={`sec-${section.key}`} className="font-medium">
         {section.title}
       </h3>
@@ -336,15 +339,12 @@ export function BriefView({
   return (
     <article aria-label="Company brief" className="space-y-3">
       {editing?.error && (
-        <p
-          role="alert"
-          className="rounded border border-red-700 p-2 text-sm text-red-800"
-        >
+        <p role="alert" className="notice-error">
           {editing.error}
         </p>
       )}
       {brief.assumed_company && (
-        <p className="rounded border border-amber-600 bg-amber-50 p-3 text-sm">
+        <p className="notice-warn">
           <strong>Assumed company:</strong> {brief.assumed_company}. If this is
           the wrong one, fix the website above and research again.
         </p>

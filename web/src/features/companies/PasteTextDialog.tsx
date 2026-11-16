@@ -42,9 +42,9 @@ export function PasteTextDialog({
         aria-modal="true"
         aria-labelledby="paste-h"
         onSubmit={submit}
-        className="w-full max-w-xl space-y-3 rounded bg-white p-5 shadow"
+        className="w-full max-w-xl space-y-3 rounded-2xl bg-surface p-5 shadow-lift"
       >
-        <h2 id="paste-h" className="text-lg font-medium">
+        <h2 id="paste-h" className="text-lg font-semibold">
           Paste text from the page
         </h2>
         <p className="text-sm text-muted">
@@ -60,7 +60,7 @@ export function PasteTextDialog({
             maxLength={200}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="mt-1 w-full rounded border px-3 py-2"
+            className="input mt-1 w-full"
           />
         </div>
         <div>
@@ -74,7 +74,7 @@ export function PasteTextDialog({
             maxLength={PASTE_MAX}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            className="mt-1 w-full rounded border px-3 py-2"
+            className="input mt-1 w-full"
           />
           <p className="text-right text-xs text-muted">
             {text.length.toLocaleString()} / {PASTE_MAX.toLocaleString()}
@@ -86,17 +86,13 @@ export function PasteTextDialog({
           </p>
         )}
         <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            className="rounded border px-3 py-2"
-            onClick={onClose}
-          >
+          <button type="button" className="btn-secondary" onClick={onClose}>
             Cancel
           </button>
           <button
             type="submit"
             disabled={pending || !text.trim()}
-            className="rounded bg-accent px-3 py-2 text-white disabled:opacity-50"
+            className="btn-primary"
           >
             {pending ? "Saving…" : "Save text"}
           </button>

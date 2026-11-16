@@ -18,13 +18,15 @@ export function UsagePage() {
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-6">
       <div className="flex items-end justify-between">
-        <h1 className="text-2xl font-semibold">Usage and cost</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">
+          Usage and cost
+        </h1>
         <label className="text-sm">
           Window{" "}
           <select
             value={days}
             onChange={(e) => setDays(Number(e.target.value))}
-            className="rounded border px-2 py-1"
+            className="input !py-1"
           >
             {[7, 30, 90].map((n) => (
               <option key={n} value={n}>
@@ -46,7 +48,7 @@ export function UsagePage() {
           ["Avg per session", usd(d.avg_cost_per_session_usd)],
           ["Avg per research job", usd(d.avg_cost_per_research_job_usd)],
         ].map(([k, v]) => (
-          <div key={k} className="rounded border p-3">
+          <div key={k} className="card !p-4">
             <dt className="text-xs text-muted">{k}</dt>
             <dd className="text-xl font-semibold">{v}</dd>
           </div>
@@ -54,7 +56,7 @@ export function UsagePage() {
       </dl>
 
       <section aria-labelledby="days-h" className="space-y-2">
-        <h2 id="days-h" className="text-lg font-medium">
+        <h2 id="days-h" className="text-lg font-semibold">
           By day
         </h2>
         {d.days.length === 0 ? (
@@ -93,10 +95,10 @@ export function UsagePage() {
       </section>
 
       <section aria-labelledby="top-h" className="space-y-2">
-        <h2 id="top-h" className="text-lg font-medium">
+        <h2 id="top-h" className="text-lg font-semibold">
           Heaviest users
         </h2>
-        <ol className="divide-y rounded border">
+        <ol className="list-card">
           {d.top_users.map((u) => (
             <li key={u.email} className="flex justify-between p-2 text-sm">
               <span>{u.email}</span>
@@ -111,7 +113,7 @@ export function UsagePage() {
       </section>
 
       <section aria-labelledby="caps-h" className="space-y-1 text-sm">
-        <h2 id="caps-h" className="text-lg font-medium">
+        <h2 id="caps-h" className="text-lg font-semibold">
           Caps in force (per user, per day)
         </h2>
         <p>

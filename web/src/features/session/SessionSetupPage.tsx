@@ -55,8 +55,10 @@ export function SessionSetupPage() {
   };
 
   return (
-    <main className="mx-auto max-w-2xl space-y-6 p-6">
-      <h1 className="text-2xl font-semibold">Start a practice call</h1>
+    <main className="page-narrow">
+      <h1 className="text-3xl font-semibold tracking-tight">
+        Start a practice call
+      </h1>
       <p className="text-sm text-muted">
         Practice with a friend, mentor or peer who knows the assistant is on.
         Join them on Google Meet, then share the Meet tab with its audio on the
@@ -64,7 +66,7 @@ export function SessionSetupPage() {
       </p>
 
       <section aria-labelledby="co-h" className="space-y-2">
-        <h2 id="co-h" className="text-lg font-medium">
+        <h2 id="co-h" className="text-lg font-semibold">
           Company
         </h2>
         <label htmlFor="company" className="block text-sm font-medium">
@@ -74,7 +76,7 @@ export function SessionSetupPage() {
           id="company"
           value={choice}
           onChange={(e) => setChoice(e.target.value)}
-          className="w-full rounded border px-3 py-2"
+          className="input w-full"
         >
           <option value="">Choose…</option>
           <option value={NONE}>No company (use my notes only)</option>
@@ -106,11 +108,8 @@ export function SessionSetupPage() {
         )}
       </section>
 
-      <section
-        aria-labelledby="consent-h"
-        className="space-y-2 rounded border p-4"
-      >
-        <h2 id="consent-h" className="text-lg font-medium">
+      <section aria-labelledby="consent-h" className="card space-y-2">
+        <h2 id="consent-h" className="text-lg font-semibold">
           Consent
         </h2>
         <label className="flex items-start gap-2 text-sm">
@@ -134,7 +133,7 @@ export function SessionSetupPage() {
       </section>
 
       <section aria-labelledby="ready-h">
-        <h2 id="ready-h" className="mb-2 text-lg font-medium">
+        <h2 id="ready-h" className="mb-2 text-lg font-semibold">
           Readiness
         </h2>
         <ul className="space-y-1 text-sm">
@@ -152,15 +151,12 @@ export function SessionSetupPage() {
       </section>
 
       {create.isError && (
-        <p
-          role="alert"
-          className="rounded border border-red-700 p-3 text-sm text-red-800"
-        >
+        <p role="alert" className="notice-error">
           {create.error.message}
         </p>
       )}
       <button
-        className="rounded bg-accent px-4 py-2 text-white disabled:opacity-50"
+        className="btn-primary"
         disabled={!ready || create.isPending}
         onClick={start}
       >

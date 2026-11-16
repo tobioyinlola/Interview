@@ -14,10 +14,7 @@ export function GapList({ gaps }: { gaps: Gap[] }) {
   return (
     <ul className="space-y-3">
       {gaps.map((g) => (
-        <li
-          key={`${g.kind}-${g.type}`}
-          className="rounded border border-amber-600 bg-amber-50 p-3"
-        >
+        <li key={`${g.kind}-${g.type}`} className="notice-warn">
           <p className="font-medium">
             {g.kind === "experience"
               ? `No matching story for ${g.type} questions`

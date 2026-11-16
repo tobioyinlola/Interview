@@ -12,6 +12,7 @@ export default {
         // Secondary text and hairlines, derived from the ink so the palette stays one family.
         muted: "#5E5C75",
         line: "#E6E1F5",
+        "line-strong": "#D3CAEB",
       },
       fontFamily: {
         sans: ['"Inter Variable"', "Inter", "system-ui", "sans-serif"],

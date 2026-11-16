@@ -30,8 +30,8 @@ export function NotesPage() {
     );
 
   return (
-    <main className="mx-auto max-w-3xl space-y-4 p-6">
-      <h1 className="text-2xl font-semibold">Your notes</h1>
+    <main className="page-narrow">
+      <h1 className="text-3xl font-semibold tracking-tight">Your notes</h1>
       <p className="text-sm text-muted">
         Outlines use only what you write here (and any company brief). Add
         stories, results and facts you want to be able to cite.
@@ -45,7 +45,7 @@ export function NotesPage() {
           maxLength={200}
           value={role}
           onChange={(e) => setRole(e.target.value)}
-          className="mt-1 w-full rounded border px-3 py-2"
+          className="input mt-1 w-full"
           placeholder="e.g. Senior Product Manager"
         />
       </div>
@@ -59,7 +59,7 @@ export function NotesPage() {
           maxLength={NOTES_MAX}
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          className="mt-1 w-full rounded border px-3 py-2 font-mono text-sm"
+          className="input mt-1 w-full font-mono text-sm"
         />
         <div className="mt-1 flex justify-between">
           <SaveIndicator status={status} onRetry={() => void retry()} />

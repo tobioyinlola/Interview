@@ -52,12 +52,14 @@ export function CompanyPage() {
 
   const { company, brief, sources, job } = data;
   return (
-    <main className="mx-auto max-w-3xl space-y-6 p-6">
+    <main className="page-narrow">
       <div>
         <Link to="/companies" className="text-sm text-accent-dark underline">
           ← Companies
         </Link>
-        <h1 className="text-2xl font-semibold">{company.name}</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">
+          {company.name}
+        </h1>
         {company.role && <p className="text-muted">{company.role}</p>}
       </div>
 
@@ -72,15 +74,15 @@ export function CompanyPage() {
       {saved && (
         <p
           role="status"
-          className="rounded border border-green-700 p-3 text-sm"
+          className="rounded-xl border border-green-300 bg-green-50 p-3 text-sm text-green-900"
         >
           Saved. Press <strong>Research again</strong> to use these changes.
         </p>
       )}
 
       {editing ? (
-        <section aria-labelledby="edit-h" className="rounded border p-4">
-          <h2 id="edit-h" className="mb-3 text-lg font-medium">
+        <section aria-labelledby="edit-h" className="card">
+          <h2 id="edit-h" className="mb-3 text-lg font-semibold">
             Edit company
           </h2>
           <CompanyForm
@@ -108,7 +110,7 @@ export function CompanyPage() {
         </section>
       ) : (
         <button
-          className="rounded border px-3 py-2"
+          className="btn-secondary"
           onClick={() => {
             setSaved(false);
             setEditing(true);
@@ -118,7 +120,7 @@ export function CompanyPage() {
         </button>
       )}
 
-      <section aria-labelledby="brief-h" className="space-y-3">
+      <section aria-labelledby="brief-h" className="card space-y-3">
         <h2 id="brief-h" className="text-xl font-semibold">
           Company brief
         </h2>
@@ -141,13 +143,13 @@ export function CompanyPage() {
         )}
       </section>
 
-      <section aria-labelledby="src-h" className="space-y-2">
+      <section aria-labelledby="src-h" className="card space-y-2">
         <div className="flex items-center justify-between">
           <h2 id="src-h" className="text-xl font-semibold">
             Sources
           </h2>
           <button
-            className="rounded border px-2 py-1 text-sm"
+            className="btn-secondary btn-sm"
             onClick={() => setPasteTitle("")}
           >
             Paste text
@@ -181,7 +183,7 @@ export function CompanyPage() {
           <div
             role="alertdialog"
             aria-label="Confirm deletion"
-            className="space-y-2 rounded border border-red-700 p-3"
+            className="notice-error space-y-2"
           >
             <p>
               Delete {company.name} and its brief and sources? Past sessions are
@@ -189,7 +191,7 @@ export function CompanyPage() {
             </p>
             <div className="flex gap-2">
               <button
-                className="rounded bg-red-700 px-3 py-2 text-white disabled:opacity-50"
+                className="btn-danger"
                 disabled={del.isPending}
                 onClick={() =>
                   del.mutate(undefined, {
@@ -200,7 +202,7 @@ export function CompanyPage() {
                 Yes, delete
               </button>
               <button
-                className="rounded border px-3 py-2"
+                className="btn-secondary"
                 onClick={() => setConfirmDelete(false)}
               >
                 Cancel
@@ -214,7 +216,7 @@ export function CompanyPage() {
           </div>
         ) : (
           <button
-            className="rounded border border-red-700 px-3 py-2 text-red-700"
+            className="btn-danger-outline"
             onClick={() => setConfirmDelete(true)}
           >
             Delete this company

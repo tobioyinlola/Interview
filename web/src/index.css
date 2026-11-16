@@ -2,6 +2,48 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  .page {
+    @apply mx-auto max-w-5xl space-y-6 p-4 sm:p-6 lg:p-8;
+  }
+  .page-narrow {
+    @apply mx-auto max-w-3xl space-y-6 p-4 sm:p-6 lg:p-8;
+  }
+  .card {
+    @apply rounded-2xl bg-surface p-5 shadow-card;
+  }
+  .list-card {
+    @apply divide-y divide-line overflow-hidden rounded-2xl bg-surface shadow-card;
+  }
+  .input {
+    @apply rounded-xl border border-line-strong bg-surface px-3 py-2 text-ink placeholder:text-muted/70 focus:border-accent;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-accent text-surface hover:bg-accent-dark;
+  }
+  .btn-secondary {
+    @apply btn border border-line-strong bg-surface text-ink hover:border-accent;
+  }
+  .btn-danger {
+    @apply btn bg-red-700 text-surface hover:bg-red-800;
+  }
+  .btn-danger-outline {
+    @apply btn border border-red-300 bg-surface text-red-700 hover:bg-red-50;
+  }
+  .btn-sm {
+    @apply !px-3 !py-1.5 !text-xs;
+  }
+  .notice-error {
+    @apply rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800;
+  }
+  .notice-warn {
+    @apply rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900;
+  }
+}
+
 @layer base {
   body {
     @apply bg-canvas font-sans text-ink antialiased;
