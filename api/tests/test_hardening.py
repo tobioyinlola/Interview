@@ -14,6 +14,8 @@ GOOD = dict(
     web_origin="https://app.example.com",
     database_url="postgresql+asyncpg://app:s3cretpw@db.internal:5432/meet",
     openai_api_key="sk-live-abc",
+    resend_api_key="re_test_key",
+    email_from="Meet <login@example.com>",
 )
 
 

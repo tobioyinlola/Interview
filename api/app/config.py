@@ -74,6 +74,8 @@ class Settings(BaseSettings):
     # Hardening.
     metrics_token: SecretStr = SecretStr("")  # Bearer token for /metrics ("" = open only in local)
     sentry_dsn: str = ""
+    resend_api_key: SecretStr = SecretStr("")  # sends the sign-in email
+    email_from: str = ""  # e.g. "Meet Practice <login@yourdomain.com>", a Resend-verified domain
     admin_emails: str = ""  # comma-separated; may open the usage and cost view
     trust_proxy_headers: bool = False  # read the client IP from X-Forwarded-For (behind a proxy)
     rate_limit_per_minute: int = 600  # general /api limit per client

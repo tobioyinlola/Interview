@@ -35,6 +35,8 @@ def validate_settings(s: Settings) -> list[str]:
         problems.append("DATABASE_URL uses the default postgres:postgres credentials.")
     if s.use_fake_providers:
         problems.append("USE_FAKE_PROVIDERS must be off.")
+    if not s.resend_api_key.get_secret_value() or not s.email_from:
+        problems.append("RESEND_API_KEY and EMAIL_FROM must be set (sign-in links are emailed).")
     if s.environment == "production" and not s.openai_api_key.get_secret_value():
         problems.append("OPENAI_API_KEY is not set (research, transcription and answers need it).")
     return problems

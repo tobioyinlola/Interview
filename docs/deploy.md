@@ -24,6 +24,7 @@ Variables:
 | `TRUST_PROXY_HEADERS` | `true` (Railway's proxy sets `X-Forwarded-For`; needed for per-client rate limits) |
 | `METRICS_TOKEN` | random string; the scraper sends it as a bearer token |
 | `ADMIN_EMAILS` | comma-separated emails allowed to see the cost view |
+| `RESEND_API_KEY`, `EMAIL_FROM` | required; see below |
 | `SENTRY_DSN` | optional |
 | `CAP_STT_SECONDS_DAILY`, `CAP_TOKENS_DAILY`, `CAP_RESEARCH_JOBS_DAILY` | per-user caps; defaults 5400, 500000, 10 |
 
@@ -41,11 +42,13 @@ The API refuses to boot when a variable is unsafe (default secret, `http://` ori
 database password, fake providers, missing key in production). The log line starts with
 `Unsafe configuration:` and lists every problem.
 
-### Sign-in email
+### Sign-in email (Resend)
 
-**Not decided.** Sign-in links are emailed, and without a provider the API logs an error and no
-one can sign in outside local development. Choose a provider (Resend, Postmark, SES, ...) and add
-an `EmailSender` for it in `api/app/adapters/email.py`; this is the one blocker for a real beta.
+Sign-in links are sent through [Resend](https://resend.com). Add and verify a sending domain in
+Resend (DNS records), create an API key, then set `RESEND_API_KEY` and `EMAIL_FROM` (for example
+`Meet Practice <login@yourdomain.com>`, an address on the verified domain). In staging and
+production the API refuses to boot without both. A delivery failure is logged without the address or
+link, and the sign-in endpoint still answers the same for every address.
 
 ## 3. Web service (root directory `web/`, uses `web/Dockerfile`)
 

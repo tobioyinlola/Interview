@@ -33,7 +33,7 @@ cd api && python scripts/export_openapi.py ../web/openapi.json && cd ../web && n
 
 ## Sign-in (local)
 Email-link sign-in. With `ENVIRONMENT=local` the API logs the sign-in link to its console instead of
-emailing it. Other environments need an email provider wired in `app/adapters/email.py` (open decision).
+emailing it. Other environments send it through Resend (`RESEND_API_KEY`, `EMAIL_FROM`).
 
 Tests need Postgres: `TEST_DATABASE_URL` (default `postgresql+asyncpg://postgres:postgres@localhost:5432/meetpractice_test`).
 Create the database once with `createdb meetpractice_test`.
@@ -121,4 +121,4 @@ Re-run whenever a prompt or model changes. `--model` picks the live answer model
 Built and tested: sign-in, notes, company research, live sessions, review and scoring, hardening.
 **Not yet verified against the real world** (needs a key, a call, or a deployment): OpenAI realtime
 transcription protocol and answer quality (evals above), Docker builds, the GitHub Actions workflow,
-Railway. **Open decisions:** sign-in email provider, transcript retention policy, daily budget figure.
+Railway. **Open decisions:** transcript retention policy, daily budget figure.

@@ -5,7 +5,12 @@ from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import HTTPConnection
 
-from app.adapters.email import ConsoleEmailSender, EmailSender, UnconfiguredEmailSender
+from app.adapters.email import (
+    ConsoleEmailSender,
+    EmailSender,
+    ResendEmailSender,
+    UnconfiguredEmailSender,
+)
 from app.adapters.interfaces import SttProvider
 from app.config import Settings, get_settings
 from app.db import get_db, get_sessionmaker
@@ -38,6 +43,11 @@ async def current_user(
 def get_email_sender(
     settings: Settings = Depends(get_settings),  # noqa: B008
 ) -> EmailSender:
+    key = settings.resend_api_key.get_secret_value()
+    if key and settings.email_from:
+        return ResendEmailSender(
+            key, settings.email_from, ttl_minutes=settings.login_link_ttl_minutes
+        )
     return ConsoleEmailSender() if settings.environment == "local" else UnconfiguredEmailSender()
 
 
