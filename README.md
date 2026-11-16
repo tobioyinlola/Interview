@@ -1,4 +1,4 @@
-# Meet Practice Assistant
+# InterviewMeet
 
 React + FastAPI app that researches a company before a practice interview, then listens to a Google Meet
 practice call (tab-audio sharing) and streams answer outlines grounded in the user's notes and a cited
@@ -103,6 +103,13 @@ Re-run whenever a prompt or model changes. `--model` picks the live answer model
   latency, and the evaluation scores. These need a valid key and a real Meet call.
 - Not done: release hardening (observability, load test, staging, runbooks, legal review of the consent
   wording), the Railway deploy, and a sign-in email provider.
+
+## Landing page and brand
+`/` shows a public landing page to signed-out visitors (signed-in users go to `/dashboard`). It works in any
+browser; the app itself needs desktop Chromium. Brand: Inter (self-hosted via `@fontsource-variable/inter`,
+so the strict CSP holds) and four colours defined in `web/tailwind.config.js`: `#F7F4FF` canvas, `#FFFFFF`
+surface, `#1C1B2E` ink, `#7B47F3` accent. The page states only what the product does: no invented
+statistics, ratings, logos or testimonials, and every illustration is labelled "Example".
 
 ## Release hardening
 - **Security:** startup refuses unsafe staging/production configuration; security headers on every response;

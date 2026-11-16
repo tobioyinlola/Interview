@@ -5,9 +5,8 @@ export function BrowserNotice() {
         This browser isn&apos;t supported
       </h1>
       <p className="mt-3">
-        Meet Practice Assistant listens to your Meet tab&apos;s audio, which
-        only works in Chrome or Edge on a desktop computer. Please open this
-        page there.
+        InterviewMeet listens to your Meet tab&apos;s audio, which only works in
+        Chrome or Edge on a desktop computer. Please open this page there.
       </p>
     </main>
   );

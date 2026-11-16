@@ -3,7 +3,7 @@ import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useLogout, useMe } from "../api/hooks";
 
 const link = ({ isActive }: { isActive: boolean }) =>
-  `px-2 py-1 rounded ${isActive ? "bg-blue-100 font-medium" : "hover:underline"}`;
+  `px-2 py-1 rounded ${isActive ? "bg-accent-soft font-medium text-accent-dark" : "hover:underline"}`;
 
 export function Layout() {
   const { data: me } = useMe();
@@ -12,9 +12,9 @@ export function Layout() {
   return (
     <>
       <header className="flex items-center gap-2 border-b px-4 py-2">
-        <strong className="mr-4">Meet Practice Assistant</strong>
+        <strong className="mr-4">InterviewMeet</strong>
         <nav aria-label="Main" className="flex gap-1">
-          <NavLink to="/" end className={link}>
+          <NavLink to="/dashboard" end className={link}>
             Dashboard
           </NavLink>
           <NavLink to="/notes" className={link}>

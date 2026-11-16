@@ -32,11 +32,10 @@ export function TermsPage() {
     <Shell title="Terms of use">
       <h2 className="text-lg font-medium">Practice only</h2>
       <p>
-        Meet Practice Assistant is for practising interviews with a friend,
-        mentor or peer who knows the assistant is on. It is not for real
-        interviews, and it has no feature to hide the assistant from another
-        person or to avoid screen-share, proctoring or detection tools. None
-        will be added.
+        InterviewMeet is for practising interviews with a friend, mentor or peer
+        who knows the assistant is on. It is not for real interviews, and it has
+        no feature to hide the assistant from another person or to avoid
+        screen-share, proctoring or detection tools. None will be added.
       </p>
       <h2 className="text-lg font-medium">Consent</h2>
       <p>

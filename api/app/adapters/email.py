@@ -48,7 +48,7 @@ class ResendEmailSender:
 
     async def send_login_link(self, email: str, link: str) -> None:
         text = (
-            f"Use this link to sign in to Meet Practice Assistant. It works once and expires in "
+            f"Use this link to sign in to InterviewMeet. It works once and expires in "
             f"{self._ttl} minutes.\n\n{link}\n\nIf you did not ask for it, ignore this email."
         )
         safe = html.escape(link, quote=True)
@@ -58,7 +58,7 @@ class ResendEmailSender:
             "subject": "Your sign-in link",
             "text": text,
             "html": (
-                f"<p>Use this link to sign in to Meet Practice Assistant. It works once and "
+                f"<p>Use this link to sign in to InterviewMeet. It works once and "
                 f'expires in {self._ttl} minutes.</p><p><a href="{safe}">Sign in</a></p>'
                 f"<p>If you did not ask for it, ignore this email.</p>"
             ),

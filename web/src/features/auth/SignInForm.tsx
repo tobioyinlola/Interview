@@ -18,8 +18,8 @@ export function SignInForm() {
     <main className="mx-auto max-w-md p-8">
       <h1 className="text-2xl font-semibold">Sign in</h1>
       <p className="mt-2 text-sm text-gray-600">
-        Meet Practice Assistant is for practice with a partner who knows the
-        assistant is on.
+        InterviewMeet is for practice with a partner who knows the assistant is
+        on.
       </p>
       {request.isSuccess ? (
         <p role="status" className="mt-6 rounded border p-4">

@@ -66,7 +66,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    app = FastAPI(title="Meet Practice Assistant API", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="InterviewMeet API", version="0.1.0", lifespan=lifespan)
 
     # Last added is outermost. CORS and the request id wrap everything, so even rejections
     # (rate limit, body size, CSRF) carry the CORS headers and a request id.
