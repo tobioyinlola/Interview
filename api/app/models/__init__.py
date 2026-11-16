@@ -1,4 +1,5 @@
 from app.models.tables import (
+    AudioToken,
     AuthSession,
     Company,
     CompanyBrief,
@@ -16,6 +17,7 @@ from app.models.tables import (
 )
 
 __all__ = [
+    "AudioToken",
     "AuthSession",
     "Company",
     "CompanyBrief",

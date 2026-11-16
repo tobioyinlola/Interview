@@ -5,13 +5,16 @@ from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.email import ConsoleEmailSender, EmailSender, UnconfiguredEmailSender
+from app.adapters.interfaces import SttProvider
 from app.config import Settings, get_settings
 from app.db import get_db, get_sessionmaker
 from app.errors import ApiError
 from app.models import User
 from app.repositories import AuthRepo
 from app.security import COOKIE_NAME
-from app.services.providers import build_runner
+from app.services.live import LiveHub
+from app.services.providers import build_answer_llm, build_runner, build_stt
+from app.services.suggest import SuggestionService
 from app.services.url_guard import Resolver, system_resolver
 from app.workers.research_worker import ResearchRunner
 
@@ -60,3 +63,23 @@ def get_runner(
 
 def get_resolver() -> Resolver:
     return system_resolver
+
+
+def get_hub(request: Request) -> LiveHub:
+    return request.app.state.live_hub  # type: ignore[no-any-return]
+
+
+def get_stt(settings: Settings = Depends(get_settings)) -> SttProvider:  # noqa: B008
+    return build_stt(settings)
+
+
+def get_suggester(
+    request: Request,
+    settings: Settings = Depends(get_settings),  # noqa: B008
+) -> SuggestionService:
+    """One service per process: it holds the in-memory per-session context cache."""
+    svc: SuggestionService | None = getattr(request.app.state, "suggester", None)
+    if svc is None:
+        svc = SuggestionService(build_answer_llm(settings), settings, get_sessionmaker())
+        request.app.state.suggester = svc
+    return svc

@@ -47,6 +47,25 @@ class Settings(BaseSettings):
     research_stale_after_seconds: int = 120
     research_prompt_chars: int = 60_000
 
+    # Live audio relay (design doc section 5 and 9).
+    stt_sample_rate: int = 24000  # provider's PCM rate; the browser captures at this rate
+    audio_token_ttl_seconds: int = 60
+    audio_auth_timeout_seconds: float = 5.0
+    relay_buffer_seconds: float = 5.0  # max audio held for a stalled upstream
+    ws_ping_seconds: float = 15.0
+    usage_flush_seconds: float = 5.0
+
+    # Live answers.
+    suggest_first_token_timeout_seconds: float = 5.0
+    suggest_total_timeout_seconds: float = 20.0
+    suggest_prefilter_min_words: int = 3
+    openai_answer_fallback_model: str = "gpt-4o-mini"
+    openai_realtime_protocol: str = "beta"  # "beta" or "ga"; confirm on the first live run
+    openai_realtime_url: str = "wss://api.openai.com/v1/realtime?intent=transcription"
+
+    # Run the whole live path with scripted fakes (no OpenAI). Refused in production.
+    use_fake_providers: bool = False
+
     # Auth (email-link sign-in).
     login_link_ttl_minutes: int = 15
     login_requests_per_hour: int = 5

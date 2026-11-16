@@ -12,6 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
+    AudioToken,
     AuthSession,
     Company,
     CompanyBrief,
@@ -21,8 +22,10 @@ from app.models import (
     Note,
     PracticeSession,
     ResearchJob,
+    Suggestion,
     Usage,
     User,
+    Utterance,
 )
 from app.security import hash_token, new_token
 
@@ -343,3 +346,208 @@ class IdempotencyRepo:
 
     def add(self, key: str, route: str, response: dict[str, Any]) -> None:
         self.db.add(IdempotencyKey(user_id=self.user_id, key=key, route=route, response=response))
+
+
+class AudioTokenRepo:
+    def __init__(self, db: AsyncSession, secret: str) -> None:
+        self.db = db
+        self.secret = secret
+
+    async def issue(self, user_id: uuid.UUID, session_id: uuid.UUID, *, ttl: timedelta) -> str:
+        token = new_token()
+        self.db.add(
+            AudioToken(
+                user_id=user_id,
+                session_id=session_id,
+                token_hash=hash_token(token, self.secret),
+                expires_at=_now() + ttl,
+            )
+        )
+        await self.db.commit()
+        return token
+
+    async def consume(self, token: str, session_id: uuid.UUID) -> uuid.UUID | None:
+        """Atomically spend a valid token for this session; returns the user id, else None.
+        A second use, an expired token, or another session's token all return None."""
+        stmt = (
+            update(AudioToken)
+            .where(
+                AudioToken.token_hash == hash_token(token, self.secret),
+                AudioToken.session_id == session_id,
+                AudioToken.used_at.is_(None),
+                AudioToken.expires_at > _now(),
+            )
+            .values(used_at=_now())
+            .returning(AudioToken.user_id)
+        )
+        user_id = (await self.db.execute(stmt)).scalar_one_or_none()
+        await self.db.commit()
+        return user_id
+
+
+class LiveRepo:
+    """Rows written while a session is live. Constructed with the owner's id, like the others."""
+
+    def __init__(self, db: AsyncSession, user_id: uuid.UUID) -> None:
+        self.db = db
+        self.user_id = user_id
+
+    async def active_session(self, session_id: uuid.UUID) -> PracticeSession | None:
+        row = await SessionsRepo(self.db, self.user_id).get(session_id)
+        return row if row is not None and row.status == "active" else None
+
+    async def max_seq(self, session_id: uuid.UUID) -> int:
+        stmt = select(func.coalesce(func.max(Utterance.seq), 0)).where(
+            Utterance.session_id == session_id
+        )
+        return int((await self.db.execute(stmt)).scalar_one())
+
+    async def save_utterance(
+        self,
+        session_id: uuid.UUID,
+        *,
+        seq: int,
+        speaker: str,
+        text: str,
+        started_at: datetime | None,
+        ended_at: datetime,
+    ) -> uuid.UUID:
+        """Insert once. A repeated write of the same (session, seq), such as after a reconnect,
+        is harmless and returns the existing row's id."""
+        if await SessionsRepo(self.db, self.user_id).get(session_id) is None:
+            raise PermissionError("session not owned")
+        stmt = (
+            pg_insert(Utterance)
+            .values(
+                session_id=session_id,
+                seq=seq,
+                speaker=speaker,
+                text=text,
+                started_at=started_at,
+                ended_at=ended_at,
+            )
+            .on_conflict_do_nothing(index_elements=[Utterance.session_id, Utterance.seq])
+            .returning(Utterance.id)
+        )
+        new_id = (await self.db.execute(stmt)).scalar_one_or_none()
+        if new_id is None:
+            new_id = (
+                await self.db.execute(
+                    select(Utterance.id).where(
+                        Utterance.session_id == session_id, Utterance.seq == seq
+                    )
+                )
+            ).scalar_one()
+        await self.db.commit()
+        return new_id
+
+    async def utterances(self, session_id: uuid.UUID) -> list[Utterance]:
+        if await SessionsRepo(self.db, self.user_id).get(session_id) is None:
+            return []
+        stmt = select(Utterance).where(Utterance.session_id == session_id).order_by(Utterance.seq)
+        return list((await self.db.execute(stmt)).scalars().all())
+
+    async def recent_utterances(
+        self, session_id: uuid.UUID, ids: list[uuid.UUID], limit: int = 3
+    ) -> list[Utterance]:
+        """The utterances a suggest request names, only from this user's session, in order."""
+        if not ids or await SessionsRepo(self.db, self.user_id).get(session_id) is None:
+            return []
+        stmt = (
+            select(Utterance)
+            .where(Utterance.session_id == session_id, Utterance.id.in_(ids))
+            .order_by(Utterance.seq)
+            .limit(limit)
+        )
+        return list((await self.db.execute(stmt)).scalars().all())
+
+    async def suggestions(self, session_id: uuid.UUID) -> list[Suggestion]:
+        if await SessionsRepo(self.db, self.user_id).get(session_id) is None:
+            return []
+        stmt = (
+            select(Suggestion)
+            .where(Suggestion.session_id == session_id)
+            .order_by(Suggestion.created_at)
+        )
+        return list((await self.db.execute(stmt)).scalars().all())
+
+    async def saved_suggestion(
+        self, session_id: uuid.UUID, utterance_id: uuid.UUID | None, question: str
+    ) -> Suggestion | None:
+        """A repeat request for the same question returns the saved outline, free."""
+        if await SessionsRepo(self.db, self.user_id).get(session_id) is None:
+            return None
+        stmt = select(Suggestion).where(Suggestion.session_id == session_id)
+        if utterance_id is not None:
+            stmt = stmt.where(Suggestion.utterance_id == utterance_id)
+        else:
+            stmt = stmt.where(Suggestion.question_text == question)
+        return (await self.db.execute(stmt.limit(1))).scalar_one_or_none()
+
+    async def end_session(
+        self, session_id: uuid.UUID, status: str = "ended"
+    ) -> PracticeSession | None:
+        row = await SessionsRepo(self.db, self.user_id).get(session_id)
+        if row is None:
+            return None
+        if row.status == "active":
+            row.status = status
+            row.ended_at = _now()
+            await self.db.commit()
+        return row
+
+
+class UsageMeterRepo:
+    """Daily counters that drive the caps. All updates are single atomic upserts."""
+
+    def __init__(self, db: AsyncSession, user_id: uuid.UUID) -> None:
+        self.db = db
+        self.user_id = user_id
+
+    async def today(self) -> Usage | None:
+        stmt = select(Usage).where(Usage.user_id == self.user_id, Usage.day == _now().date())
+        return (await self.db.execute(stmt)).scalar_one_or_none()
+
+    async def stt_seconds_today(self) -> int:
+        row = await self.today()
+        return row.stt_seconds if row else 0
+
+    async def tokens_today(self) -> int:
+        row = await self.today()
+        return (row.llm_input_tokens + row.llm_output_tokens) if row else 0
+
+    async def add_stt_seconds(self, seconds: int) -> int:
+        if seconds <= 0:
+            return await self.stt_seconds_today()
+        stmt = (
+            pg_insert(Usage)
+            .values(user_id=self.user_id, day=_now().date(), stt_seconds=seconds)
+            .on_conflict_do_update(
+                index_elements=[Usage.user_id, Usage.day],
+                set_={"stt_seconds": Usage.stt_seconds + seconds},
+            )
+            .returning(Usage.stt_seconds)
+        )
+        total = (await self.db.execute(stmt)).scalar_one()
+        await self.db.commit()
+        return int(total)
+
+    async def add_tokens(self, input_tokens: int, output_tokens: int) -> None:
+        stmt = (
+            pg_insert(Usage)
+            .values(
+                user_id=self.user_id,
+                day=_now().date(),
+                llm_input_tokens=input_tokens,
+                llm_output_tokens=output_tokens,
+            )
+            .on_conflict_do_update(
+                index_elements=[Usage.user_id, Usage.day],
+                set_={
+                    "llm_input_tokens": Usage.llm_input_tokens + input_tokens,
+                    "llm_output_tokens": Usage.llm_output_tokens + output_tokens,
+                },
+            )
+        )
+        await self.db.execute(stmt)
+        await self.db.commit()

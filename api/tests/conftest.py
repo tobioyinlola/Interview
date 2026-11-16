@@ -1,3 +1,4 @@
+import asyncio
 import os
 import re
 from collections.abc import AsyncIterator, Callable
@@ -10,11 +11,13 @@ from sqlalchemy.pool import NullPool
 import app.models  # noqa: F401
 from app.adapters.fakes import FakeSearchProvider
 from app.config import Settings, get_settings
-from app.db import Base, get_db
-from app.deps import get_email_sender, get_resolver, get_runner
+from app.db import Base, get_db, get_sessionmaker
+from app.deps import get_email_sender, get_hub, get_resolver, get_runner, get_stt, get_suggester
 from app.main import create_app
+from app.services.live import LiveHub
+from app.services.suggest import SuggestionService
 from app.workers.research_worker import ResearchRunner
-from tests.helpers import FakeFetcher, ScriptedLlm, good_reply, ok
+from tests.helpers import AnswerLlm, ControlledStt, FakeFetcher, ScriptedLlm, good_reply, ok
 
 TEST_DB = os.environ.get(
     "TEST_DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/meetpractice_test"
@@ -85,13 +88,37 @@ def runner(engine, settings, fetcher, llm, search):
     )
 
 
+@pytest.fixture
+def stt():
+    return ControlledStt()
+
+
+@pytest.fixture
+def answer_llm():
+    return AnswerLlm()
+
+
+@pytest.fixture
+def hub():
+    return LiveHub()
+
+
+@pytest.fixture
+def suggester(answer_llm, settings, engine):
+    return SuggestionService(
+        answer_llm,  # type: ignore[arg-type]
+        settings,
+        async_sessionmaker(engine, expire_on_commit=False),
+    )
+
+
 async def fake_resolver(host: str, port: int) -> list[str]:
     """Names starting with 'private' resolve to a private address; everything else is public."""
     return ["10.0.0.1"] if host.startswith("private") else ["93.184.216.34"]
 
 
 @pytest.fixture
-def app(engine, sender, settings, runner):
+def app(engine, sender, settings, runner, stt, hub, suggester):
     application = create_app()
     maker = async_sessionmaker(engine, expire_on_commit=False)
 
@@ -103,6 +130,10 @@ def app(engine, sender, settings, runner):
     application.dependency_overrides[get_email_sender] = lambda: sender
     application.dependency_overrides[get_settings] = lambda: settings
     application.dependency_overrides[get_runner] = lambda: runner
+    application.dependency_overrides[get_stt] = lambda: stt
+    application.dependency_overrides[get_hub] = lambda: hub
+    application.dependency_overrides[get_suggester] = lambda: suggester
+    application.dependency_overrides[get_sessionmaker] = lambda: maker
     application.dependency_overrides[get_resolver] = lambda: fake_resolver
     return application
 
@@ -132,3 +163,22 @@ def sign_in(sender):
         return v
 
     return _sign_in
+
+
+@pytest.fixture
+async def live_server(app):
+    """A real uvicorn server on a free port, in the test's event loop (so the async test engine
+    works). Needed for WebSockets and for client disconnects, which ASGI test clients can't do."""
+    import uvicorn
+
+    server = uvicorn.Server(
+        uvicorn.Config(app, host="127.0.0.1", port=0, log_level="warning", lifespan="off")
+    )
+    task = asyncio.create_task(server.serve())
+    async with asyncio.timeout(5):
+        while not server.started:
+            await asyncio.sleep(0.01)
+    port = server.servers[0].sockets[0].getsockname()[1]
+    yield f"127.0.0.1:{port}"
+    server.should_exit = True
+    await task

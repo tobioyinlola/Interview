@@ -73,6 +73,19 @@ class AuthSession(Base):
     created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
 
 
+class AudioToken(Base):
+    """Single-use WebSocket credential: 60 s life, bound to one user and one session, sent as the
+    first socket message (never in a URL). Only a hash is stored."""
+
+    __tablename__ = "audio_tokens"
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = _fk("users.id")
+    session_id: Mapped[uuid.UUID] = _fk("sessions.id", index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    expires_at: Mapped[datetime] = mapped_column(_TS)
+    used_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+
+
 class IdempotencyKey(Base):
     """A retried POST with the same key returns the stored response instead of acting twice."""
 

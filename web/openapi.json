@@ -1,6 +1,29 @@
 {
   "components": {
     "schemas": {
+      "AudioTokenOut": {
+        "properties": {
+          "audio_token": {
+            "title": "Audio Token",
+            "type": "string"
+          },
+          "expires_in": {
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "sample_rate": {
+            "title": "Sample Rate",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "audio_token",
+          "expires_in",
+          "sample_rate"
+        ],
+        "title": "AudioTokenOut",
+        "type": "object"
+      },
       "BriefContent": {
         "properties": {
           "assumed_company": {
@@ -629,10 +652,26 @@
       },
       "SessionCreateOut": {
         "properties": {
+          "audio_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio Token"
+          },
           "consent_confirmed_at": {
             "format": "date-time",
             "title": "Consent Confirmed At",
             "type": "string"
+          },
+          "sample_rate": {
+            "default": 24000,
+            "title": "Sample Rate",
+            "type": "integer"
           },
           "session_id": {
             "format": "uuid",
@@ -650,6 +689,107 @@
           "consent_confirmed_at"
         ],
         "title": "SessionCreateOut",
+        "type": "object"
+      },
+      "SessionDetailOut": {
+        "properties": {
+          "company_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Id"
+          },
+          "consent_confirmed_at": {
+            "format": "date-time",
+            "title": "Consent Confirmed At",
+            "type": "string"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "suggestions": {
+            "items": {
+              "$ref": "#/components/schemas/SuggestionOut"
+            },
+            "title": "Suggestions",
+            "type": "array"
+          },
+          "utterances": {
+            "items": {
+              "$ref": "#/components/schemas/UtteranceOut"
+            },
+            "title": "Utterances",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "company_id",
+          "role",
+          "started_at",
+          "ended_at",
+          "consent_confirmed_at",
+          "utterances",
+          "suggestions"
+        ],
+        "title": "SessionDetailOut",
+        "type": "object"
+      },
+      "SessionEndOut": {
+        "properties": {
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "suggestions": {
+            "title": "Suggestions",
+            "type": "integer"
+          },
+          "utterances": {
+            "title": "Utterances",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "status",
+          "utterances",
+          "suggestions"
+        ],
+        "title": "SessionEndOut",
         "type": "object"
       },
       "SourceOut": {
@@ -734,6 +874,182 @@
           "status"
         ],
         "title": "StatusOut",
+        "type": "object"
+      },
+      "SuggestIn": {
+        "properties": {
+          "question_text": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Question Text",
+            "type": "string"
+          },
+          "regenerate": {
+            "default": false,
+            "title": "Regenerate",
+            "type": "boolean"
+          },
+          "utterance_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 5,
+            "title": "Utterance Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "question_text"
+        ],
+        "title": "SuggestIn",
+        "type": "object"
+      },
+      "SuggestionOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "feedback": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback"
+          },
+          "first_token_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Token Ms"
+          },
+          "grounding_flags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Grounding Flags",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "output_text": {
+            "title": "Output Text",
+            "type": "string"
+          },
+          "question_text": {
+            "title": "Question Text",
+            "type": "string"
+          },
+          "total_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Ms"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "utterance_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Utterance Id"
+          }
+        },
+        "required": [
+          "id",
+          "utterance_id",
+          "question_text",
+          "type",
+          "output_text",
+          "first_token_ms",
+          "total_ms",
+          "grounding_flags",
+          "feedback",
+          "created_at"
+        ],
+        "title": "SuggestionOut",
+        "type": "object"
+      },
+      "UtteranceOut": {
+        "properties": {
+          "ended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          },
+          "speaker": {
+            "title": "Speaker",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "seq",
+          "speaker",
+          "text",
+          "started_at",
+          "ended_at"
+        ],
+        "title": "UtteranceOut",
         "type": "object"
       },
       "ValidationError": {
@@ -1477,6 +1793,232 @@
           }
         },
         "summary": "Create Session",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/api/sessions/{session_id}": {
+      "get": {
+        "operationId": "get_session_api_sessions__session_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Session",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/api/sessions/{session_id}/audio-token": {
+      "post": {
+        "description": "A fresh single-use token, for a reconnect or a second audio source (the microphone).",
+        "operationId": "audio_token_api_sessions__session_id__audio_token_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudioTokenOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Audio Token",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/api/sessions/{session_id}/end": {
+      "post": {
+        "operationId": "end_session_api_sessions__session_id__end_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionEndOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "End Session",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/api/sessions/{session_id}/suggest": {
+      "post": {
+        "description": "Stream an answer outline as server-sent events: delta, skip, done or error. If the client\ndisconnects, the stream (and the model call under it) is cancelled.",
+        "operationId": "suggest_api_sessions__session_id__suggest_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuggestIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Suggest",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/api/sessions/{session_id}/transcript.txt": {
+      "get": {
+        "description": "The saved transcript as text, with timestamps (FR-34).",
+        "operationId": "transcript_api_sessions__session_id__transcript_txt_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Transcript",
         "tags": [
           "sessions"
         ]

@@ -15,6 +15,7 @@ dependencies = [
   "openai>=1.40,<3",
   "email-validator>=2.2,<3",
   "trafilatura>=1.12,<3",
+  "websockets>=13,<17",
 ]
 
 [project.optional-dependencies]
@@ -43,7 +44,8 @@ select = ["E", "F", "I", "UP", "B", "ASYNC", "S"]
 ignore = ["S101"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S"]
+"tests/*" = ["S", "ASYNC", "E501"]
+"alembic/versions/*" = ["E501", "I001", "Q"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -56,4 +58,5 @@ disallow_untyped_defs = false
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]

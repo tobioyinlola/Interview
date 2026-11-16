@@ -47,6 +47,62 @@ class SessionCreateOut(BaseModel):
     session_id: uuid.UUID
     status: str
     consent_confirmed_at: datetime
+    # Single-use, 60 s. Sent as the first WebSocket message. Absent on an idempotent replay
+    # (ask /audio-token for a fresh one).
+    audio_token: str | None = None
+    sample_rate: int = 24000
+
+
+class AudioTokenOut(BaseModel):
+    audio_token: str
+    expires_in: int
+    sample_rate: int
+
+
+class SessionEndOut(BaseModel):
+    status: str
+    utterances: int
+    suggestions: int
+
+
+class UtteranceOut(BaseModel):
+    id: uuid.UUID
+    seq: int
+    speaker: str
+    text: str
+    started_at: datetime | None
+    ended_at: datetime | None
+
+
+class SuggestionOut(BaseModel):
+    id: uuid.UUID
+    utterance_id: uuid.UUID | None
+    question_text: str
+    type: str
+    output_text: str
+    first_token_ms: int | None
+    total_ms: int | None
+    grounding_flags: list[str]
+    feedback: str | None
+    created_at: datetime
+
+
+class SessionDetailOut(BaseModel):
+    id: uuid.UUID
+    status: str
+    company_id: uuid.UUID | None
+    role: str
+    started_at: datetime
+    ended_at: datetime | None
+    consent_confirmed_at: datetime
+    utterances: list[UtteranceOut]
+    suggestions: list[SuggestionOut]
+
+
+class SuggestIn(BaseModel):
+    question_text: str = Field(min_length=1, max_length=2000)
+    utterance_ids: list[uuid.UUID] = Field(default_factory=list, max_length=5)
+    regenerate: bool = False
 
 
 # ----------------------------------------------------------------- companies
