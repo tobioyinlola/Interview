@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.adapters.email import EmailSender
 from app.config import Settings, get_settings
 from app.db import get_db
-from app.deps import current_user, get_email_sender
+from app.deps import current_user, get_email_sender, is_admin
 from app.errors import ApiError
 from app.models import User
 from app.repositories import AuthRepo
@@ -63,7 +63,7 @@ async def verify(
         samesite="lax",
         path="/",
     )
-    return MeOut(id=user.id, email=user.email)
+    return MeOut(id=user.id, email=user.email, is_admin=is_admin(user, settings))
 
 
 @router.post("/auth/logout")
@@ -81,5 +81,8 @@ async def logout(
 
 
 @router.get("/me")
-async def me(user: User = Depends(current_user)) -> MeOut:  # noqa: B008
-    return MeOut(id=user.id, email=user.email)
+async def me(
+    user: User = Depends(current_user),  # noqa: B008
+    settings: Settings = Depends(get_settings),  # noqa: B008
+) -> MeOut:
+    return MeOut(id=user.id, email=user.email, is_admin=is_admin(user, settings))

@@ -11,6 +11,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import metrics
 from app.models import (
     AudioToken,
     AuthSession,
@@ -627,6 +628,7 @@ class UsageMeterRepo:
         return (row.llm_input_tokens + row.llm_output_tokens) if row else 0
 
     async def add_stt_seconds(self, seconds: int) -> int:
+        metrics.record_stt_seconds(seconds)
         if seconds <= 0:
             return await self.stt_seconds_today()
         stmt = (
@@ -643,6 +645,7 @@ class UsageMeterRepo:
         return int(total)
 
     async def add_tokens(self, input_tokens: int, output_tokens: int) -> None:
+        metrics.record_tokens(input_tokens, output_tokens)
         stmt = (
             pg_insert(Usage)
             .values(

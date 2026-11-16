@@ -16,6 +16,7 @@ from typing import Any
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app import metrics
 from app.adapters.interfaces import LlmProvider, ProviderError, ProviderNotConfigured
 from app.config import Settings
 from app.models import CompanyBrief, CompanySource, PracticeSession, Suggestion, Utterance
@@ -23,6 +24,7 @@ from app.prompts import load_prompt
 from app.repositories import LiveRepo, UsageMeterRepo
 from app.schemas.brief import BriefContent
 from app.services import grounding
+from app.services.breaker import CircuitBreaker
 
 log = logging.getLogger("app.suggest")
 NOTES_CHARS = 16_000
@@ -83,6 +85,8 @@ class SuggestionService:
         self.settings = settings
         self.sf = session_factory
         self._ctx: OrderedDict[uuid.UUID, Context] = OrderedDict()
+        # Traffic to the primary model is diverted for 60 s after 5 failures in 30 s.
+        self.breaker = CircuitBreaker()
 
     # ---------------------------------------------------------------- context
 
@@ -178,6 +182,7 @@ class SuggestionService:
             # Repeats are free: return the saved outline, do not call the model again.
             saved = await live.saved_suggestion(session_id, utterance_id, question)
             if saved is not None and not regenerate:
+                metrics.answers.labels("repeat").inc()
                 yield {"event": "delta", "data": {"text": saved.output_text}}
                 yield _done(saved, saved.first_token_ms or 0)
                 return
@@ -187,44 +192,68 @@ class SuggestionService:
 
             # Cheap pre-filter: a very short turn with no question mark never reaches the model.
             if is_prefiltered(question, cfg.suggest_prefilter_min_words):
+                metrics.answers.labels("skip").inc()
                 yield {"event": "skip", "data": {}}
                 return
 
             if await UsageMeterRepo(db, user_id).tokens_today() >= cfg.cap_tokens_daily:
+                metrics.answers.labels("error").inc()
                 yield _error("daily_cap", "Daily answer limit reached.", "Try again tomorrow.")
                 return
 
+            ctx_started = time.monotonic()
             ctx = await self.context(db, session)
             history = [f"{u.speaker}: {u.text}" for u in utts[:-1]]
             prompt = self.build_prompt(ctx, history, question)
             system = load_prompt("suggestion")
+            metrics.answer_stage.labels("context").observe(time.monotonic() - ctx_started)
 
         text, first_token_ms, usage, model = "", None, (0, 0), ""
         skipped = False
-        models: list[str | None] = [None, cfg.openai_answer_fallback_model]
+        # A sick primary model is bypassed while its breaker is open.
+        use_primary = self.breaker.allow()
+        models: list[str | None] = (
+            [None, cfg.openai_answer_fallback_model]
+            if use_primary
+            else [cfg.openai_answer_fallback_model]
+        )
+        used_fallback = not use_primary
         for attempt, model_name in enumerate(models):
             text, first_token_ms, usage, skipped = "", None, (0, 0), False
+            is_primary = use_primary and attempt == 0
+            used_fallback = used_fallback or attempt > 0
             stream = self.llm.stream_text(system=system, user=prompt, model=model_name)
             model = model_name or cfg.openai_answer_model
+            model_started = time.monotonic()
             try:
                 async for kind, payload in self._consume(stream, started):
                     if kind == "delta":
                         text += payload
                         if first_token_ms is None:
                             first_token_ms = int((time.monotonic() - started) * 1000)
+                            metrics.answer_stage.labels("model_first_token").observe(
+                                time.monotonic() - model_started
+                            )
                         yield {"event": "delta", "data": {"text": payload}}
                     elif kind == "skip":
                         skipped = True
                     elif kind == "usage":
                         usage = payload
+                if is_primary:
+                    self.breaker.record_success()
                 break
             except (TimeoutError, ProviderError) as exc:
+                metrics.provider_calls.labels("llm", "answer", "error").inc()
+                if is_primary:
+                    self.breaker.record_failure()
                 if isinstance(exc, ProviderNotConfigured):
+                    metrics.answers.labels("error").inc()
                     yield _error("not_configured", exc.message, "Ask the owner to add the key.")
                     return
-                if attempt == 0 and not text:
+                if attempt == 0 and len(models) > 1 and not text:
                     log.info("answer retry on fallback model")
                     continue  # nothing shown yet: retry once on the fallback model
+                metrics.answers.labels("error").inc()
                 yield _error(
                     "answer_unavailable",
                     "The answer couldn't be written.",
@@ -236,10 +265,18 @@ class SuggestionService:
                     await stream.aclose()  # type: ignore[attr-defined]  # cancels the model call
 
         if skipped:
+            metrics.answers.labels("skip").inc()
             yield {"event": "skip", "data": {}}
             return
 
         total_ms = int((time.monotonic() - started) * 1000)
+        metrics.provider_calls.labels("llm", "answer", "ok").inc()
+        metrics.answers.labels("done").inc()
+        if used_fallback:
+            metrics.answers.labels("fallback").inc()
+        if first_token_ms is not None:
+            metrics.answer_first_token.observe(first_token_ms / 1000)
+        metrics.answer_total.observe(total_ms / 1000)
         flags = grounding.check_outline(text, [*ctx.allowed, question, *[u.text for u in utts]])
         async with self.sf() as db:
             row = Suggestion(

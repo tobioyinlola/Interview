@@ -6,6 +6,8 @@ import { SignInForm } from "../features/auth/SignInForm";
 import { VerifyPage } from "../features/auth/VerifyPage";
 import { CompaniesPage } from "../features/companies/CompaniesPage";
 import { CompanyPage } from "../features/companies/CompanyPage";
+import { UsagePage } from "../features/admin/UsagePage";
+import { PrivacyPage, TermsPage } from "../features/legal/LegalPages";
 import { DashboardPage } from "../features/dashboard/DashboardPage";
 import { LiveSessionPage } from "../features/session/LiveSessionPage";
 import { ReviewPage } from "../features/session/ReviewPage";
@@ -22,6 +24,8 @@ export function App() {
     <Routes>
       <Route path="/login" element={<SignInForm />} />
       <Route path="/login/verify" element={<VerifyPage />} />
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
       <Route element={<AuthGuard />}>
         <Route element={<Layout />}>
           <Route path="/" element={<DashboardPage />} />
@@ -33,6 +37,7 @@ export function App() {
           <Route path="/sessions" element={<SessionsPage />} />
           <Route path="/sessions/:id" element={<ReviewPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/admin/usage" element={<UsagePage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 
 import { useLogout, useMe } from "../api/hooks";
 
@@ -29,6 +29,11 @@ export function Layout() {
           <NavLink to="/sessions" className={link}>
             Sessions
           </NavLink>
+          {me?.is_admin && (
+            <NavLink to="/admin/usage" className={link}>
+              Usage
+            </NavLink>
+          )}
           <NavLink to="/settings" className={link}>
             Settings
           </NavLink>
@@ -44,6 +49,15 @@ export function Layout() {
         </button>
       </header>
       <Outlet />
+      <footer className="mt-8 border-t p-4 text-center text-xs text-gray-600">
+        <Link to="/terms" className="underline">
+          Terms
+        </Link>{" "}
+        ·{" "}
+        <Link to="/privacy" className="underline">
+          Privacy
+        </Link>
+      </footer>
     </>
   );
 }

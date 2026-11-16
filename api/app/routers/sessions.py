@@ -10,6 +10,7 @@ from fastapi.responses import PlainTextResponse, StreamingResponse
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import metrics
 from app.adapters.interfaces import ProviderError, ProviderNotConfigured, SttProvider
 from app.config import Settings, get_settings
 from app.db import get_db
@@ -380,7 +381,9 @@ async def transcribe_segment(
     except ProviderNotConfigured as exc:
         raise ApiError(503, "not_configured", exc.message) from None
     except ProviderError as exc:
+        metrics.provider_calls.labels("stt", "segment", "error").inc()
         raise ApiError(502, "transcription_failed", exc.message) from None
+    metrics.provider_calls.labels("stt", "segment", "ok").inc()
     await meter.add_stt_seconds(seconds)
     if not text:
         return SegmentOut(id=None, seq=None, text="", ended_at=None)

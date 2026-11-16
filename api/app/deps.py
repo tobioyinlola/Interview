@@ -98,3 +98,18 @@ def get_scorer(
         runner = ScoringRunner(build_answer_llm(settings), settings, get_sessionmaker())
         request.app.state.scoring_runner = runner
     return runner
+
+
+def is_admin(user: User, settings: Settings) -> bool:
+    admins = {e.strip().lower() for e in settings.admin_emails.split(",") if e.strip()}
+    return user.email.lower() in admins
+
+
+async def require_admin(
+    user: User = Depends(current_user),  # noqa: B008
+    settings: Settings = Depends(get_settings),  # noqa: B008
+) -> User:
+    """Owner-only routes. A non-admin gets 404, so the route's existence is not revealed."""
+    if not is_admin(user, settings):
+        raise ApiError(404, "not_found", "Not found.")
+    return user

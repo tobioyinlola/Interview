@@ -17,6 +17,7 @@ from typing import Any
 from fastapi import WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app import metrics
 from app.adapters.interfaces import ProviderError, ProviderNotConfigured, SttProvider, SttStream
 from app.config import Settings
 from app.repositories import AudioTokenRepo, LiveRepo, UsageMeterRepo
@@ -109,6 +110,7 @@ class AudioRelay:
     async def run(self) -> None:
         """Handle one accepted socket from the first message to the close."""
         self.hub.sockets.add(self.ws)
+        metrics.ws_open.inc()
         try:
             if not await self._authenticate():
                 return
@@ -167,11 +169,13 @@ class AudioRelay:
             try:
                 async with asyncio.timeout(5):
                     self._stream = await self.stt.open_stream(sample_rate=self.cfg.stt_sample_rate)
+                metrics.provider_calls.labels("stt", "open", "ok").inc()
                 return True
             except ProviderNotConfigured as exc:
                 await self._fail(CLOSE_UPSTREAM, "not_configured", exc.message)
                 return False
             except (ProviderError, TimeoutError):
+                metrics.provider_calls.labels("stt", "open", "error").inc()
                 if attempt == 2:
                     await self._fail(
                         CLOSE_UPSTREAM,
@@ -261,6 +265,7 @@ class AudioRelay:
                 self._saves.add(task)
                 task.add_done_callback(self._saves.discard)
             elif event.kind == "error":
+                metrics.provider_calls.labels("stt", "stream", "error").inc()
                 await self._fail(
                     CLOSE_UPSTREAM, "upstream_error", event.message or "Transcription failed."
                 )
@@ -334,6 +339,8 @@ class AudioRelay:
 
     async def _cleanup(self) -> None:
         self.hub.sockets.discard(self.ws)
+        metrics.ws_open.dec()
+        metrics.ws_closes.labels(str(self._close_code)).inc()
         if self.user_id is not None:
             with contextlib.suppress(Exception):
                 await self._flush_usage()

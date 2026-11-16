@@ -33,3 +33,5 @@ export interface BriefEdit {
   delete?: boolean;
 }
 export type BriefEditResult = S["BriefEditOut"];
+export type UsageSummary = S["UsageSummary"];
+export type UsageDay = S["UsageDay"];

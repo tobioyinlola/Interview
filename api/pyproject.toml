@@ -16,9 +16,11 @@ dependencies = [
   "email-validator>=2.2,<3",
   "trafilatura>=1.12,<3",
   "websockets>=13,<17",
+  "prometheus-client>=0.20,<1",
 ]
 
 [project.optional-dependencies]
+sentry = ["sentry-sdk>=2,<3"]
 dev = [
   "pytest>=9.0.3,<10",
   "pytest-asyncio>=0.23,<2",
@@ -47,11 +49,16 @@ ignore = ["S101"]
 "tests/*" = ["S", "ASYNC", "E501"]
 "alembic/versions/*" = ["E501", "I001", "Q"]
 "evals/*" = ["E501", "S311"]  # long data strings; a seeded shuffle for sampling, not security
+"loadtest/*" = ["S", "ASYNC", "BLE"]  # a test client run by hand, not served code
 
 [tool.mypy]
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["sentry_sdk", "sentry_sdk.*"]  # optional dependency
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = ["tests.*"]

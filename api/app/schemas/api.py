@@ -23,6 +23,7 @@ class VerifyIn(BaseModel):
 class MeOut(BaseModel):
     id: uuid.UUID
     email: str
+    is_admin: bool = False  # may open the owner's usage and cost view
 
 
 class NotesIn(BaseModel):
@@ -283,3 +284,35 @@ class BriefEditIn(BaseModel):
 class BriefEditOut(BaseModel):
     brief: BriefContent
     brief_version: int
+
+
+class UsageDay(BaseModel):
+    day: str
+    sessions: int
+    active_users: int
+    stt_seconds: int
+    llm_input_tokens: int
+    llm_output_tokens: int
+    research_jobs: int
+    research_tokens: int
+    estimated_cost_usd: float
+
+
+class UsageUser(BaseModel):
+    email: str
+    stt_seconds: int
+    tokens: int
+    research_jobs: int
+    estimated_cost_usd: float
+
+
+class UsageSummary(BaseModel):
+    days: list[UsageDay]
+    top_users: list[UsageUser]
+    total_cost_usd: float
+    sessions: int
+    avg_cost_per_session_usd: float | None
+    research_jobs: int
+    avg_cost_per_research_job_usd: float | None
+    caps: dict[str, int]
+    prices: dict[str, float]

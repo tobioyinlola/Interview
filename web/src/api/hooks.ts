@@ -21,6 +21,7 @@ import type {
   SessionCreated,
   SessionDetail,
   SessionList,
+  UsageSummary,
   Source,
 } from "./types";
 
@@ -301,5 +302,14 @@ export function useScoreSession(id: string) {
         method: "POST",
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["session", id] }),
+  });
+}
+
+/** The owner's cost view. Only admins can load it (everyone else gets a 404). */
+export function useAdminUsage(days: number) {
+  return useQuery<UsageSummary>({
+    queryKey: ["admin-usage", days],
+    queryFn: () => apiFetch<UsageSummary>(`/api/admin/usage?days=${days}`),
+    retry: false,
   });
 }

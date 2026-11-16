@@ -632,6 +632,11 @@
             "format": "uuid",
             "title": "Id",
             "type": "string"
+          },
+          "is_admin": {
+            "default": false,
+            "title": "Is Admin",
+            "type": "boolean"
           }
         },
         "required": [
@@ -1394,6 +1399,171 @@
         "title": "SuggestionOut",
         "type": "object"
       },
+      "UsageDay": {
+        "properties": {
+          "active_users": {
+            "title": "Active Users",
+            "type": "integer"
+          },
+          "day": {
+            "title": "Day",
+            "type": "string"
+          },
+          "estimated_cost_usd": {
+            "title": "Estimated Cost Usd",
+            "type": "number"
+          },
+          "llm_input_tokens": {
+            "title": "Llm Input Tokens",
+            "type": "integer"
+          },
+          "llm_output_tokens": {
+            "title": "Llm Output Tokens",
+            "type": "integer"
+          },
+          "research_jobs": {
+            "title": "Research Jobs",
+            "type": "integer"
+          },
+          "research_tokens": {
+            "title": "Research Tokens",
+            "type": "integer"
+          },
+          "sessions": {
+            "title": "Sessions",
+            "type": "integer"
+          },
+          "stt_seconds": {
+            "title": "Stt Seconds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day",
+          "sessions",
+          "active_users",
+          "stt_seconds",
+          "llm_input_tokens",
+          "llm_output_tokens",
+          "research_jobs",
+          "research_tokens",
+          "estimated_cost_usd"
+        ],
+        "title": "UsageDay",
+        "type": "object"
+      },
+      "UsageSummary": {
+        "properties": {
+          "avg_cost_per_research_job_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Cost Per Research Job Usd"
+          },
+          "avg_cost_per_session_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Cost Per Session Usd"
+          },
+          "caps": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Caps",
+            "type": "object"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/UsageDay"
+            },
+            "title": "Days",
+            "type": "array"
+          },
+          "prices": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Prices",
+            "type": "object"
+          },
+          "research_jobs": {
+            "title": "Research Jobs",
+            "type": "integer"
+          },
+          "sessions": {
+            "title": "Sessions",
+            "type": "integer"
+          },
+          "top_users": {
+            "items": {
+              "$ref": "#/components/schemas/UsageUser"
+            },
+            "title": "Top Users",
+            "type": "array"
+          },
+          "total_cost_usd": {
+            "title": "Total Cost Usd",
+            "type": "number"
+          }
+        },
+        "required": [
+          "days",
+          "top_users",
+          "total_cost_usd",
+          "sessions",
+          "avg_cost_per_session_usd",
+          "research_jobs",
+          "avg_cost_per_research_job_usd",
+          "caps",
+          "prices"
+        ],
+        "title": "UsageSummary",
+        "type": "object"
+      },
+      "UsageUser": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "estimated_cost_usd": {
+            "title": "Estimated Cost Usd",
+            "type": "number"
+          },
+          "research_jobs": {
+            "title": "Research Jobs",
+            "type": "integer"
+          },
+          "stt_seconds": {
+            "title": "Stt Seconds",
+            "type": "integer"
+          },
+          "tokens": {
+            "title": "Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "email",
+          "stt_seconds",
+          "tokens",
+          "research_jobs",
+          "estimated_cost_usd"
+        ],
+        "title": "UsageUser",
+        "type": "object"
+      },
       "UtteranceOut": {
         "properties": {
           "ended_at": {
@@ -1531,6 +1701,52 @@
         "summary": "Delete Account",
         "tags": [
           "account"
+        ]
+      }
+    },
+    "/api/admin/usage": {
+      "get": {
+        "description": "The owner's cost view: spend per day, the heaviest users, and the average cost of a session\nand of a research job. These are ESTIMATES from counted audio seconds and tokens times the\nPRICE_* settings; the provider's own billing is the source of truth.",
+        "operationId": "usage_api_admin_usage_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 90,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Usage",
+        "tags": [
+          "admin"
         ]
       }
     },

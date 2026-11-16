@@ -16,6 +16,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app import metrics
 from app.adapters.interfaces import (
     LlmProvider,
     ProviderError,
@@ -129,6 +130,8 @@ class ResearchRunner:
 
     async def _guarded(self, job_id: uuid.UUID) -> None:
         async with self._sem:
+            metrics.research_jobs.labels("started").inc()
+            began = time.monotonic()
             try:
                 async with asyncio.timeout(self.settings.research_job_timeout_seconds):
                     await self._run(job_id)
@@ -139,8 +142,11 @@ class ResearchRunner:
             except Exception as exc:  # a job must always end in ready or failed
                 log.error("research job crashed", extra={"fields": {"error": type(exc).__name__}})
                 await self._fail(job_id, "Something went wrong. Press Research to try again.")
+            finally:
+                metrics.research_duration.observe(time.monotonic() - began)
 
     async def _fail(self, job_id: uuid.UUID, message: str) -> None:
+        metrics.research_jobs.labels("failed").inc()
         async with self.sf() as db:
             await db.execute(
                 update(ResearchJob)
@@ -181,6 +187,7 @@ class ResearchRunner:
             await self._set(db, job, "writing", "Writing your brief")
             sources = await self._usable_sources(db, company, {u for _, u in links})
             if not sources:
+                metrics.research_jobs.labels("failed").inc()
                 job.status = "failed"
                 job.error = (
                     "No readable sources were found. Paste text from the company's pages, "
@@ -201,6 +208,7 @@ class ResearchRunner:
                 no_website=not company.website_url,
             )
             if fact_count(content) == 0:
+                metrics.research_jobs.labels("failed").inc()
                 job.status = "failed"
                 job.error = (
                     "The sources didn't contain facts the brief could cite. "
@@ -241,6 +249,7 @@ class ResearchRunner:
                 )
             )
             company.last_researched_at = self._now()
+            metrics.research_jobs.labels("ready").inc()
             job.status = "ready"
             job.step_detail = ""
             job.error = None
@@ -360,6 +369,8 @@ class ResearchRunner:
                 job.step_detail = "Searching the web"
                 job.heartbeat_at = self._now()
                 resp = await self.search.search(q)
+                metrics.provider_calls.labels("search", "brief", "ok").inc()
+                metrics.record_tokens(resp.tokens, 0)  # approximate: search tokens are one total
                 job.search_calls += 1
                 job.tokens += resp.tokens
                 await db.commit()
@@ -468,6 +479,7 @@ class ResearchRunner:
         schema = LlmBrief.model_json_schema()
         for attempt in (1, 2):
             text = await self.llm.generate_json(system=system, user=user, schema=schema)
+            metrics.provider_calls.labels("llm", "brief", "ok").inc()
             job.tokens += getattr(self.llm, "last_tokens", 0)
             try:
                 data = json.loads(text)

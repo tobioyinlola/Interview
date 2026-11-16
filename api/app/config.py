@@ -71,6 +71,24 @@ class Settings(BaseSettings):
     login_requests_per_hour: int = 5
     session_ttl_days: int = 30
 
+    # Hardening.
+    metrics_token: SecretStr = SecretStr("")  # Bearer token for /metrics ("" = open only in local)
+    sentry_dsn: str = ""
+    admin_emails: str = ""  # comma-separated; may open the usage and cost view
+    trust_proxy_headers: bool = False  # read the client IP from X-Forwarded-For (behind a proxy)
+    rate_limit_per_minute: int = 600  # general /api limit per client
+    rate_limit_auth_per_minute: int = 30  # sign-in endpoints, stricter
+    max_body_bytes: int = 1_000_000
+    max_audio_body_bytes: int = 2 * 1024 * 1024 + 4096  # POST .../segment
+    db_statement_timeout_ms: int = 3000
+    db_pool_size: int = 10
+    db_max_overflow: int = 10
+
+    # Unit prices for the owner's cost estimate (confirm against OpenAI's pricing page).
+    price_stt_per_minute: float = 0.017
+    price_llm_input_per_million: float = 0.40
+    price_llm_output_per_million: float = 1.60
+
     log_level: str = "INFO"
 
 

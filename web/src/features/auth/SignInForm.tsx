@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 
 import { useMe, useRequestLink } from "../../api/hooks";
 
@@ -54,6 +54,17 @@ export function SignInForm() {
           )}
         </form>
       )}
+      <p className="mt-6 text-xs text-gray-600">
+        By signing in you agree to the{" "}
+        <Link to="/terms" className="underline">
+          terms
+        </Link>{" "}
+        and accept the{" "}
+        <Link to="/privacy" className="underline">
+          privacy notice
+        </Link>
+        . Practice only, with a partner who knows the assistant is on.
+      </p>
     </main>
   );
 }

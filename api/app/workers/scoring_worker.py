@@ -11,6 +11,7 @@ from pydantic import ValidationError
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app import metrics
 from app.adapters.interfaces import LlmProvider, ProviderError
 from app.config import Settings
 from app.models import PracticeSession, Score, Utterance
@@ -73,6 +74,7 @@ class ScoringRunner:
         except TimeoutError:
             await self._finish(session_id, "failed", "Scoring took too long. Press Score to retry.")
         except ProviderError as exc:
+            metrics.provider_calls.labels("llm", "score", "error").inc()
             await self._finish(session_id, "failed", exc.message)
         except Exception as exc:  # always end in ready or failed
             log.error("scoring crashed", extra={"fields": {"error": type(exc).__name__}})
@@ -82,6 +84,7 @@ class ScoringRunner:
         schema = ScoreResult.model_json_schema()
         for attempt in (1, 2):
             raw = await self.llm.generate_json(system=system, user=user, schema=schema)
+            metrics.provider_calls.labels("llm", "score", "ok").inc()
             tokens = getattr(self.llm, "last_tokens", 0)
             try:
                 return ScoreResult.model_validate(json.loads(raw)), tokens

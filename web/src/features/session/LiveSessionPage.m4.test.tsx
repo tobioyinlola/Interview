@@ -293,6 +293,29 @@ describe("floating panel (FR-29)", () => {
     expect(screen.queryByText(/in its own window/)).toBeNull();
   });
 
+  it("links a sheet that has a URL instead of copying it inline (a strict CSP blocks inline styles)", async () => {
+    const doc = document.implementation.createHTMLDocument("pip");
+    const { copyStyles } = await import("./useFloatingPanel");
+    copyStyles(
+      {
+        styleSheets: [
+          {
+            href: "https://app.example.com/assets/index-abc.css",
+            cssRules: [],
+          },
+          { href: null, cssRules: [{ cssText: ".dev { color: red }" }] },
+        ],
+      } as unknown as Document,
+      doc,
+    );
+    const link = doc.head.querySelector(
+      "link[rel=stylesheet]",
+    ) as HTMLLinkElement;
+    expect(link.href).toBe("https://app.example.com/assets/index-abc.css");
+    expect(doc.head.querySelectorAll("style")).toHaveLength(1); // only the URL-less (dev) sheet is inline
+    expect(doc.head.querySelector("style")!.textContent).toContain(".dev");
+  });
+
   it("copies the page's stylesheets into the new window", async () => {
     const sheet = document.createElement("style");
     sheet.textContent = ".probe { color: red }";

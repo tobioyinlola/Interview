@@ -24,6 +24,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Usage
+         * @description The owner's cost view: spend per day, the heaviest users, and the average cost of a session
+         *     and of a research job. These are ESTIMATES from counted audio seconds and tokens times the
+         *     PRICE_* settings; the provider's own billing is the source of truth.
+         */
+        get: operations["usage_api_admin_usage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/logout": {
         parameters: {
             query?: never;
@@ -725,6 +747,11 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /**
+             * Is Admin
+             * @default false
+             */
+            is_admin: boolean;
         };
         /** NotesIn */
         NotesIn: {
@@ -1002,6 +1029,65 @@ export interface components {
             /** Utterance Id */
             utterance_id: string | null;
         };
+        /** UsageDay */
+        UsageDay: {
+            /** Active Users */
+            active_users: number;
+            /** Day */
+            day: string;
+            /** Estimated Cost Usd */
+            estimated_cost_usd: number;
+            /** Llm Input Tokens */
+            llm_input_tokens: number;
+            /** Llm Output Tokens */
+            llm_output_tokens: number;
+            /** Research Jobs */
+            research_jobs: number;
+            /** Research Tokens */
+            research_tokens: number;
+            /** Sessions */
+            sessions: number;
+            /** Stt Seconds */
+            stt_seconds: number;
+        };
+        /** UsageSummary */
+        UsageSummary: {
+            /** Avg Cost Per Research Job Usd */
+            avg_cost_per_research_job_usd: number | null;
+            /** Avg Cost Per Session Usd */
+            avg_cost_per_session_usd: number | null;
+            /** Caps */
+            caps: {
+                [key: string]: number;
+            };
+            /** Days */
+            days: components["schemas"]["UsageDay"][];
+            /** Prices */
+            prices: {
+                [key: string]: number;
+            };
+            /** Research Jobs */
+            research_jobs: number;
+            /** Sessions */
+            sessions: number;
+            /** Top Users */
+            top_users: components["schemas"]["UsageUser"][];
+            /** Total Cost Usd */
+            total_cost_usd: number;
+        };
+        /** UsageUser */
+        UsageUser: {
+            /** Email */
+            email: string;
+            /** Estimated Cost Usd */
+            estimated_cost_usd: number;
+            /** Research Jobs */
+            research_jobs: number;
+            /** Stt Seconds */
+            stt_seconds: number;
+            /** Tokens */
+            tokens: number;
+        };
         /** UtteranceOut */
         UtteranceOut: {
             /** Ended At */
@@ -1063,6 +1149,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StatusOut"];
+                };
+            };
+        };
+    };
+    usage_api_admin_usage_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsageSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

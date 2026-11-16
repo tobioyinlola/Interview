@@ -10,9 +10,23 @@ declare global {
   }
 }
 
-/** Give the floating window the page's styles, since it starts as an empty document. */
-export function copyStyles(from: Document, to: Document): void {
+/** Give the floating window the page's styles, since it starts as an empty document.
+ *
+ *  A stylesheet that has a URL (every one in the production build) is LINKED, never copied as inline
+ *  text: a strict Content-Security-Policy (`style-src 'self'`) blocks inline <style> in the new
+ *  window. Only a sheet with no URL (the development server's injected styles) is copied inline. */
+export function copyStyles(
+  from: Pick<Document, "styleSheets">,
+  to: Document,
+): void {
   for (const sheet of Array.from(from.styleSheets)) {
+    if (sheet.href) {
+      const link = to.createElement("link");
+      link.rel = "stylesheet";
+      link.href = sheet.href;
+      to.head.appendChild(link);
+      continue;
+    }
     try {
       const css = Array.from(sheet.cssRules)
         .map((r) => r.cssText)
@@ -21,13 +35,7 @@ export function copyStyles(from: Document, to: Document): void {
       style.textContent = css;
       to.head.appendChild(style);
     } catch {
-      // A cross-origin sheet cannot be read rule by rule: link it instead.
-      if (sheet.href) {
-        const link = to.createElement("link");
-        link.rel = "stylesheet";
-        link.href = sheet.href;
-        to.head.appendChild(link);
-      }
+      /* an unreadable sheet without a URL cannot be copied */
     }
   }
 }
