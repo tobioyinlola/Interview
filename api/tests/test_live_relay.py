@@ -98,6 +98,7 @@ async def test_audio_in_captions_out_and_utterances_saved(alice, live_server, st
     assert (await next_event(ws, "partial"))["text"] == "Tell me about a time"
     f1 = await next_event(ws, "final")
     f2 = await next_event(ws, "final")
+    assert uuid.UUID(f1["id"]) != uuid.UUID(f2["id"])
     assert (f1["seq"], f1["speaker"], f1["text"]) == (
         1,
         "partner",
@@ -109,6 +110,7 @@ async def test_audio_in_captions_out_and_utterances_saved(alice, live_server, st
     await ws.send(json.dumps({"type": "stop"}))
     assert await close_code(ws) == 1000
     rows = await utterances(db, s["session_id"])
+    assert [str(u.id) for u in rows] == [f1["id"], f2["id"]]  # the announced id is the saved id
     assert [(u.seq, u.speaker, u.text) for u in rows] == [
         (1, "partner", "Tell me about a time you led a team?"),
         (2, "partner", "Why this company?"),
@@ -462,3 +464,16 @@ async def test_session_end_stops_new_sockets_but_keeps_the_transcript(alice, liv
     sess = await db.get(PracticeSession, uuid.UUID(s["session_id"]))
     await db.refresh(sess)
     assert sess.status == "ended" and sess.ended_at is not None
+
+
+async def test_the_real_hub_dependency_works_on_a_websocket_route(alice, live_server, app, hub):
+    """Every other test overrides get_hub. Without the override the route must still accept a
+    WebSocket (it once returned HTTP 500 because the dependency asked for an HTTP Request)."""
+    from app.deps import get_hub
+
+    app.dependency_overrides.pop(get_hub)
+    app.state.live_hub = hub
+    s = await new_session(alice)
+    ws, ready = await open_ready(live_server, s["session_id"], s["audio_token"])
+    assert ready["type"] == "ready"
+    await ws.close()

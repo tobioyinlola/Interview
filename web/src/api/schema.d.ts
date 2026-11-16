@@ -258,6 +258,101 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Session */
+        get: operations["get_session_api_sessions__session_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sessions/{session_id}/audio-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Audio Token
+         * @description A fresh single-use token, for a reconnect or a second audio source (the microphone).
+         */
+        post: operations["audio_token_api_sessions__session_id__audio_token_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sessions/{session_id}/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** End Session */
+        post: operations["end_session_api_sessions__session_id__end_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sessions/{session_id}/suggest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Suggest
+         * @description Stream an answer outline as server-sent events: delta, skip, done or error. If the client
+         *     disconnects, the stream (and the model call under it) is cancelled.
+         */
+        post: operations["suggest_api_sessions__session_id__suggest_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sessions/{session_id}/transcript.txt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Transcript
+         * @description The saved transcript as text, with timestamps (FR-34).
+         */
+        get: operations["transcript_api_sessions__session_id__transcript_txt_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -302,6 +397,15 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AudioTokenOut */
+        AudioTokenOut: {
+            /** Audio Token */
+            audio_token: string;
+            /** Expires In */
+            expires_in: number;
+            /** Sample Rate */
+            sample_rate: number;
+        };
         /** BriefContent */
         BriefContent: {
             /** Assumed Company */
@@ -542,11 +646,18 @@ export interface components {
         };
         /** SessionCreateOut */
         SessionCreateOut: {
+            /** Audio Token */
+            audio_token?: string | null;
             /**
              * Consent Confirmed At
              * Format: date-time
              */
             consent_confirmed_at: string;
+            /**
+             * Sample Rate
+             * @default 24000
+             */
+            sample_rate: number;
             /**
              * Session Id
              * Format: uuid
@@ -554,6 +665,45 @@ export interface components {
             session_id: string;
             /** Status */
             status: string;
+        };
+        /** SessionDetailOut */
+        SessionDetailOut: {
+            /** Company Id */
+            company_id: string | null;
+            /**
+             * Consent Confirmed At
+             * Format: date-time
+             */
+            consent_confirmed_at: string;
+            /** Ended At */
+            ended_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Role */
+            role: string;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Status */
+            status: string;
+            /** Suggestions */
+            suggestions: components["schemas"]["SuggestionOut"][];
+            /** Utterances */
+            utterances: components["schemas"]["UtteranceOut"][];
+        };
+        /** SessionEndOut */
+        SessionEndOut: {
+            /** Status */
+            status: string;
+            /** Suggestions */
+            suggestions: number;
+            /** Utterances */
+            utterances: number;
         };
         /** SourceOut */
         SourceOut: {
@@ -581,6 +731,65 @@ export interface components {
         StatusOut: {
             /** Status */
             status: string;
+        };
+        /** SuggestIn */
+        SuggestIn: {
+            /** Question Text */
+            question_text: string;
+            /**
+             * Regenerate
+             * @default false
+             */
+            regenerate: boolean;
+            /** Utterance Ids */
+            utterance_ids?: string[];
+        };
+        /** SuggestionOut */
+        SuggestionOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Feedback */
+            feedback: string | null;
+            /** First Token Ms */
+            first_token_ms: number | null;
+            /** Grounding Flags */
+            grounding_flags: string[];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Output Text */
+            output_text: string;
+            /** Question Text */
+            question_text: string;
+            /** Total Ms */
+            total_ms: number | null;
+            /** Type */
+            type: string;
+            /** Utterance Id */
+            utterance_id: string | null;
+        };
+        /** UtteranceOut */
+        UtteranceOut: {
+            /** Ended At */
+            ended_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Seq */
+            seq: number;
+            /** Speaker */
+            speaker: string;
+            /** Started At */
+            started_at: string | null;
+            /** Text */
+            text: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -1091,6 +1300,165 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SessionCreateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_session_api_sessions__session_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    audio_token_api_sessions__session_id__audio_token_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AudioTokenOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    end_session_api_sessions__session_id__end_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionEndOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    suggest_api_sessions__session_id__suggest_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuggestIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transcript_api_sessions__session_id__transcript_txt_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
             /** @description Validation Error */

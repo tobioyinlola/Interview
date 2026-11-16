@@ -3,6 +3,7 @@ from collections.abc import Callable
 
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.requests import HTTPConnection
 
 from app.adapters.email import ConsoleEmailSender, EmailSender, UnconfiguredEmailSender
 from app.adapters.interfaces import SttProvider
@@ -65,8 +66,10 @@ def get_resolver() -> Resolver:
     return system_resolver
 
 
-def get_hub(request: Request) -> LiveHub:
-    return request.app.state.live_hub  # type: ignore[no-any-return]
+def get_hub(conn: HTTPConnection) -> LiveHub:
+    """HTTPConnection, not Request: this dependency is also used by the WebSocket route, which has
+    no HTTP request to inject."""
+    return conn.app.state.live_hub  # type: ignore[no-any-return]
 
 
 def get_stt(settings: Settings = Depends(get_settings)) -> SttProvider:  # noqa: B008

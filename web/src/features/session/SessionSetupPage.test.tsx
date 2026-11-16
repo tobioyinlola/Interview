@@ -1,0 +1,225 @@
+import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+
+import { App } from "../../app/App";
+import { ME, mockApi, renderApp, stubSupportedBrowser } from "../../test-utils";
+
+const ago = (d: number) => new Date(Date.now() - d * 86_400_000).toISOString();
+const notes = (content = "Led a launch.") => ({
+  json: { role: "Product Manager", content, updated_at: "x" },
+});
+const base = (over: Record<string, () => object> = {}) => ({
+  "GET /api/me": () => ({ json: ME }),
+  "GET /api/notes": () => notes(),
+  "GET /api/companies": () => ({
+    json: [
+      {
+        id: "c1",
+        name: "Acme",
+        last_researched_at: ago(1),
+        job_status: "ready",
+      },
+    ],
+  }),
+  ...over,
+});
+const open = () => renderApp(<App />, "/session/new");
+const start = () => screen.getByRole("button", { name: "Start session" });
+
+beforeEach(() => stubSupportedBrowser());
+afterEach(() => vi.restoreAllMocks());
+
+describe("SessionSetupPage", () => {
+  it("keeps Start disabled until notes are saved, a company is chosen and consent is ticked", async () => {
+    mockApi(base());
+    open();
+    await screen.findByRole("heading", { name: "Start a practice call" });
+    await screen.findByRole("option", { name: "Acme" });
+    expect(start()).toBeDisabled();
+
+    await userEvent.selectOptions(screen.getByLabelText(/Which company/), "c1");
+    expect(start()).toBeDisabled(); // consent still missing
+    await userEvent.click(screen.getByRole("checkbox"));
+    expect(start()).toBeEnabled();
+    await userEvent.click(screen.getByRole("checkbox"));
+    expect(start()).toBeDisabled(); // un-ticking consent turns the gate back on
+  });
+
+  it("an explicit 'no company' choice counts", async () => {
+    mockApi(base());
+    open();
+    await screen.findByRole("option", { name: "Acme" });
+    await userEvent.selectOptions(
+      screen.getByLabelText(/Which company/),
+      "none",
+    );
+    await userEvent.click(screen.getByRole("checkbox"));
+    expect(start()).toBeEnabled();
+  });
+
+  it("blocks Start and links to the notes when none are saved", async () => {
+    mockApi(base({ "GET /api/notes": () => notes("   ") }));
+    open();
+    await screen.findByRole("option", { name: "Acme" });
+    await userEvent.selectOptions(
+      screen.getByLabelText(/Which company/),
+      "none",
+    );
+    await userEvent.click(screen.getByRole("checkbox"));
+    expect(start()).toBeDisabled();
+    expect(
+      screen.getByRole("link", { name: "Add your notes" }),
+    ).toHaveAttribute("href", "/notes");
+  });
+
+  it("states the practice-only, consent and third-party terms", async () => {
+    mockApi(base());
+    open();
+    expect(
+      await screen.findByText(/knows this assistant is listening/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/practice only/i)).toBeInTheDocument();
+    expect(screen.getByText(/follow local law/i)).toBeInTheDocument();
+    expect(screen.getByText(/processed by OpenAI/)).toBeInTheDocument();
+  });
+
+  it("creates the session with consent, the company and an idempotency key, then opens the live page", async () => {
+    const calls = mockApi(
+      base({
+        "POST /api/sessions": () => ({
+          status: 201,
+          json: {
+            session_id: "s-123",
+            status: "active",
+            consent_confirmed_at: "x",
+            audio_token: "t",
+            sample_rate: 24000,
+          },
+        }),
+      }),
+    );
+    open();
+    await screen.findByRole("option", { name: "Acme" });
+    await userEvent.selectOptions(screen.getByLabelText(/Which company/), "c1");
+    await userEvent.click(screen.getByRole("checkbox"));
+    await userEvent.click(start());
+
+    expect(
+      await screen.findByRole("heading", { name: "Capture" }),
+    ).toBeInTheDocument();
+    const post = calls.find((c) => c.key === "POST /api/sessions")!;
+    expect(post.body).toEqual({
+      consent: true,
+      company_id: "c1",
+      role: "Product Manager",
+    });
+    expect(post.headers.get("idempotency-key")).toMatch(/^[0-9a-f-]{36}$/);
+    expect(post.headers.get("x-requested-with")).toBe("meet-practice");
+  });
+
+  it("sends company_id null for 'no company'", async () => {
+    const calls = mockApi(
+      base({
+        "POST /api/sessions": () => ({
+          status: 201,
+          json: {
+            session_id: "s",
+            status: "active",
+            consent_confirmed_at: "x",
+            sample_rate: 24000,
+          },
+        }),
+      }),
+    );
+    open();
+    await screen.findByRole("option", { name: "Acme" });
+    await userEvent.selectOptions(
+      screen.getByLabelText(/Which company/),
+      "none",
+    );
+    await userEvent.click(screen.getByRole("checkbox"));
+    await userEvent.click(start());
+    await waitFor(() =>
+      expect(calls.some((c) => c.key === "POST /api/sessions")).toBe(true),
+    );
+    expect(
+      calls.find((c) => c.key === "POST /api/sessions")!.body,
+    ).toMatchObject({
+      consent: true,
+      company_id: null,
+    });
+  });
+
+  it("shows a server refusal and issues a new idempotency key for the retry", async () => {
+    const calls = mockApi(
+      base({
+        "POST /api/sessions": () => ({
+          status: 404,
+          json: {
+            error: {
+              code: "company_not_found",
+              message: "Company not found.",
+              request_id: "r",
+            },
+          },
+        }),
+      }),
+    );
+    open();
+    await screen.findByRole("option", { name: "Acme" });
+    await userEvent.selectOptions(screen.getByLabelText(/Which company/), "c1");
+    await userEvent.click(screen.getByRole("checkbox"));
+    await userEvent.click(start());
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Company not found.",
+    );
+    await userEvent.click(start());
+    await waitFor(() =>
+      expect(calls.filter((c) => c.key === "POST /api/sessions")).toHaveLength(
+        2,
+      ),
+    );
+    const keys = calls
+      .filter((c) => c.key === "POST /api/sessions")
+      .map((c) => c.headers.get("idempotency-key"));
+    expect(keys[0]).not.toBe(keys[1]);
+  });
+
+  it("tells the user when a company is still researching, has no brief, or is stale", async () => {
+    mockApi(
+      base({
+        "GET /api/companies": () => ({
+          json: [
+            {
+              id: "a",
+              name: "Busy",
+              last_researched_at: null,
+              job_status: "searching",
+            },
+            {
+              id: "b",
+              name: "Bare",
+              last_researched_at: null,
+              job_status: null,
+            },
+            {
+              id: "c",
+              name: "Old",
+              last_researched_at: ago(10),
+              job_status: "ready",
+            },
+          ],
+        }),
+      }),
+    );
+    open();
+    await screen.findByRole("option", { name: "Busy" });
+    const pick = screen.getByLabelText(/Which company/);
+    await userEvent.selectOptions(pick, "a");
+    expect(screen.getByText(/still being researched/)).toBeInTheDocument();
+    await userEvent.selectOptions(pick, "b");
+    expect(screen.getByText(/No brief yet/)).toBeInTheDocument();
+    await userEvent.selectOptions(pick, "c");
+    expect(screen.getByText(/10 days old/)).toBeInTheDocument();
+  });
+});

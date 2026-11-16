@@ -452,3 +452,29 @@ async def test_closing_the_connection_cancels_the_model_call(alice, live_server,
             await asyncio.sleep(0.02)
     assert answer_llm.finished == 0
     assert await count(db, Suggestion) == 0  # an abandoned outline is not saved
+
+
+async def test_an_utterance_that_is_still_being_saved_is_waited_for(alice, answer_llm, db):
+    """The browser asks for an outline as soon as the caption arrives; the save lands just after."""
+    sid = await new_session(alice)
+    uid = uuid.uuid4()
+
+    async def save_late():
+        await asyncio.sleep(0.15)
+        user = (await db.execute(select(User))).scalars().first()
+        await LiveRepo(db, user.id).save_utterance(
+            uuid.UUID(sid),
+            seq=1,
+            speaker="partner",
+            text=QUESTION,
+            started_at=None,
+            ended_at=datetime.now(UTC),
+            utterance_id=uid,
+        )
+
+    task = asyncio.create_task(save_late())
+    events = await ask(alice, sid, ids=[uid])
+    await task
+    assert events[-1][0] == "done"
+    row = (await db.execute(select(Suggestion))).scalar_one()
+    assert row.utterance_id == uid  # the outline is linked to the question it answers

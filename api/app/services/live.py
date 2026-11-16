@@ -243,17 +243,21 @@ class AudioRelay:
                 assert self.user_id is not None
                 user_id = self.user_id
                 seq = await self.hub.seq.take(self.session_id, self._seed_seq)
+                utterance_id = uuid.uuid4()  # announced now, saved beside the caption
                 ended = datetime.now(UTC)
                 await self._send(
                     {
                         "type": "final",
+                        "id": str(utterance_id),
                         "speaker": self.speaker,
                         "text": text,
                         "seq": seq,
                         "ended_at": ended.isoformat(),
                     }
                 )
-                task = asyncio.create_task(self._save(user_id, seq, text, started, ended))
+                task = asyncio.create_task(
+                    self._save(user_id, utterance_id, seq, text, started, ended)
+                )
                 self._saves.add(task)
                 task.add_done_callback(self._saves.discard)
             elif event.kind == "error":
@@ -268,7 +272,13 @@ class AudioRelay:
             return await LiveRepo(db, self.user_id).max_seq(self.session_id)
 
     async def _save(
-        self, user_id: uuid.UUID, seq: int, text: str, started: datetime | None, ended: datetime
+        self,
+        user_id: uuid.UUID,
+        utterance_id: uuid.UUID,
+        seq: int,
+        text: str,
+        started: datetime | None,
+        ended: datetime,
     ) -> None:
         for attempt in range(4):  # a brief database outage must not lose the utterance
             try:
@@ -280,6 +290,7 @@ class AudioRelay:
                         text=text,
                         started_at=started,
                         ended_at=ended,
+                        utterance_id=utterance_id,
                     )
                 return
             except Exception as exc:

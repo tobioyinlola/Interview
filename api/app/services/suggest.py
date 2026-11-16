@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.adapters.interfaces import LlmProvider, ProviderError, ProviderNotConfigured
 from app.config import Settings
-from app.models import CompanyBrief, CompanySource, PracticeSession, Suggestion
+from app.models import CompanyBrief, CompanySource, PracticeSession, Suggestion, Utterance
 from app.prompts import load_prompt
 from app.repositories import LiveRepo, UsageMeterRepo
 from app.schemas.brief import BriefContent
@@ -63,6 +63,12 @@ def render_brief(
         out.append(line)
         size += len(line) + 1
     return "\n".join(out)
+
+
+def is_prefiltered(question: str, min_words: int) -> bool:
+    """A very short turn with no question mark ("Mm-hm", "Right, ok") never reaches the model."""
+    q = " ".join(question.split())
+    return len(q.split()) < min_words and "?" not in q
 
 
 class SuggestionService:
@@ -126,6 +132,21 @@ class SuggestionService:
             f"Latest interviewer turn:\n{question}"
         )
 
+    @staticmethod
+    async def _wait_for_utterances(
+        live: LiveRepo, session_id: uuid.UUID, ids: list[uuid.UUID]
+    ) -> list[Utterance]:
+        """The browser asks for an outline the moment a caption arrives, and the relay saves that
+        utterance beside the caption, so the row may land a few milliseconds later. Wait briefly
+        for it rather than losing the link between question and outline."""
+        found = await live.recent_utterances(session_id, ids)
+        for _ in range(10):
+            if len(found) >= min(len(ids), 3):
+                break
+            await asyncio.sleep(0.05)
+            found = await live.recent_utterances(session_id, ids)
+        return found
+
     # ----------------------------------------------------------------- stream
 
     async def stream(
@@ -150,7 +171,7 @@ class SuggestionService:
                     "session_not_active", "This session has ended.", "Start a new session."
                 )
                 return
-            utts = await live.recent_utterances(session_id, utterance_ids)
+            utts = await self._wait_for_utterances(live, session_id, utterance_ids)
             utterance_id = utts[-1].id if utts else None
 
             # Repeats are free: return the saved outline, do not call the model again.
@@ -164,7 +185,7 @@ class SuggestionService:
                 await db.commit()
 
             # Cheap pre-filter: a very short turn with no question mark never reaches the model.
-            if len(question.split()) < cfg.suggest_prefilter_min_words and "?" not in question:
+            if is_prefiltered(question, cfg.suggest_prefilter_min_words):
                 yield {"event": "skip", "data": {}}
                 return
 

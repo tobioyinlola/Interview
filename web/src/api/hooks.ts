@@ -11,6 +11,8 @@ import type {
   Me,
   Notes,
   NotesInput,
+  SessionCreated,
+  SessionDetail,
   Source,
 } from "./types";
 
@@ -187,5 +189,49 @@ export function useRemoveSource(id: string) {
         method: "DELETE",
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["company", id] }),
+  });
+}
+
+// ------------------------------------------------------------------ sessions
+
+export function useCreateSession() {
+  return useMutation({
+    mutationFn: ({
+      companyId,
+      role,
+      key,
+    }: {
+      companyId: string | null;
+      role?: string;
+      key: string;
+    }) =>
+      apiFetch<SessionCreated>("/api/sessions", {
+        method: "POST",
+        // Consent is always explicit: the server refuses to start a session without it.
+        body: json({ consent: true, company_id: companyId, role }),
+        headers: { "idempotency-key": key },
+      }),
+  });
+}
+
+export function fetchAudioToken(sessionId: string) {
+  return apiFetch<{
+    audio_token: string;
+    expires_in: number;
+    sample_rate: number;
+  }>(`/api/sessions/${sessionId}/audio-token`, { method: "POST" });
+}
+
+export function endSessionApi(sessionId: string) {
+  return apiFetch<{ status: string; utterances: number; suggestions: number }>(
+    `/api/sessions/${sessionId}/end`,
+    { method: "POST" },
+  );
+}
+
+export function useSessionDetail(id: string) {
+  return useQuery<SessionDetail>({
+    queryKey: ["session", id],
+    queryFn: () => apiFetch<SessionDetail>(`/api/sessions/${id}`),
   });
 }

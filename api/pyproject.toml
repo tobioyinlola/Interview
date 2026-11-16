@@ -46,6 +46,7 @@ ignore = ["S101"]
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S", "ASYNC", "E501"]
 "alembic/versions/*" = ["E501", "I001", "Q"]
+"evals/*" = ["E501", "S311"]  # long data strings; a seeded shuffle for sampling, not security
 
 [tool.mypy]
 python_version = "3.12"

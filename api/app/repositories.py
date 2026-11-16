@@ -411,6 +411,7 @@ class LiveRepo:
         text: str,
         started_at: datetime | None,
         ended_at: datetime,
+        utterance_id: uuid.UUID | None = None,
     ) -> uuid.UUID:
         """Insert once. A repeated write of the same (session, seq), such as after a reconnect,
         is harmless and returns the existing row's id."""
@@ -419,6 +420,7 @@ class LiveRepo:
         stmt = (
             pg_insert(Utterance)
             .values(
+                id=utterance_id or uuid.uuid4(),
                 session_id=session_id,
                 seq=seq,
                 speaker=speaker,

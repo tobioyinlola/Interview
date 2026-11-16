@@ -6,6 +6,9 @@ import { SignInForm } from "../features/auth/SignInForm";
 import { VerifyPage } from "../features/auth/VerifyPage";
 import { CompaniesPage } from "../features/companies/CompaniesPage";
 import { CompanyPage } from "../features/companies/CompanyPage";
+import { LiveSessionPage } from "../features/session/LiveSessionPage";
+import { ReviewPage } from "../features/session/ReviewPage";
+import { SessionSetupPage } from "../features/session/SessionSetupPage";
 import { NotesPage } from "../features/notes/NotesPage";
 import { BrowserNotice } from "./BrowserNotice";
 import { currentEnv, isSupported } from "./browserSupport";
@@ -32,15 +35,9 @@ export function App() {
           <Route path="/notes" element={<NotesPage />} />
           <Route path="/companies" element={<CompaniesPage />} />
           <Route path="/companies/:id" element={<CompanyPage />} />
-          <Route
-            path="/session/new"
-            element={<Placeholder name="Session setup" />}
-          />
-          <Route
-            path="/session/:id"
-            element={<Placeholder name="Live session" />}
-          />
-          <Route path="/sessions/:id" element={<Placeholder name="Review" />} />
+          <Route path="/session/new" element={<SessionSetupPage />} />
+          <Route path="/session/:id" element={<LiveSessionPage />} />
+          <Route path="/sessions/:id" element={<ReviewPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
       </Route>

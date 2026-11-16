@@ -25,7 +25,7 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: ruff check .
       - run: ruff format --check .
-      - run: mypy app
+      - run: mypy app evals
       - name: Create test database
         run: PGPASSWORD=postgres psql -h localhost -U postgres -c 'CREATE DATABASE meetpractice_test'
       - run: pytest -q

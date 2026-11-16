@@ -15,3 +15,7 @@ export type Source = S["SourceOut"];
 export type Brief = S["BriefContent"];
 export type BriefSection = S["BriefSection"];
 export type BriefFact = S["BriefFact"];
+export type SessionCreated = S["SessionCreateOut"];
+export type SessionDetail = S["SessionDetailOut"];
+export type Utterance = S["UtteranceOut"];
+export type SuggestionRecord = S["SuggestionOut"];
