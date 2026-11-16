@@ -7,7 +7,7 @@ ARG VITE_API_BASE_URL
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 RUN npm run build
 
-FROM nginxinc/nginx-unprivileged:1.27-alpine
+FROM nginxinc/nginx-unprivileged:1.31-alpine
 # The nginx image renders /etc/nginx/templates/*.template with the environment at start-up.
 ENV API_ORIGIN=http://localhost:8000 API_WS_ORIGIN=ws://localhost:8000
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
