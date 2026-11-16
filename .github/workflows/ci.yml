@@ -68,9 +68,9 @@ jobs:
       - run: docker build -t meet-api ./api
       - run: docker build -t meet-web ./web
       # Fail on fixable HIGH or CRITICAL vulnerabilities in either image.
-      - uses: aquasecurity/trivy-action@0.28.0
+      - uses: aquasecurity/trivy-action@v0.36.0
         with: { image-ref: meet-api, severity: "HIGH,CRITICAL", ignore-unfixed: true, exit-code: "1" }
-      - uses: aquasecurity/trivy-action@0.28.0
+      - uses: aquasecurity/trivy-action@v0.36.0
         with: { image-ref: meet-web, severity: "HIGH,CRITICAL", ignore-unfixed: true, exit-code: "1" }
 
   # Real-browser test of the live session against the PRODUCTION build and its strict
