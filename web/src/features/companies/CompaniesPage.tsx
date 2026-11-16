@@ -45,7 +45,7 @@ export function CompaniesPage() {
         <h1 className="text-2xl font-semibold">Companies</h1>
         {!adding && (
           <button
-            className="rounded bg-blue-700 px-3 py-2 text-white"
+            className="rounded bg-accent px-3 py-2 text-white"
             onClick={() => setAdding(true)}
           >
             Add a company
@@ -58,7 +58,7 @@ export function CompaniesPage() {
           <h2 id="add-h" className="mb-3 text-lg font-medium">
             Add a company
           </h2>
-          <p className="mb-3 text-sm text-gray-600">
+          <p className="mb-3 text-sm text-muted">
             The app reads the links you give and searches the web, then writes a
             brief with a source for every fact. It takes about a minute and
             keeps going if you leave.
@@ -79,7 +79,7 @@ export function CompaniesPage() {
         <p>Couldn&apos;t load your companies. Reload to try again.</p>
       )}
       {companies.isSuccess && items.length === 0 && !adding && (
-        <p className="text-gray-600">
+        <p className="text-muted">
           No companies yet. Add the company you&apos;re interviewing with to get
           a researched brief before your practice call.
         </p>
@@ -89,11 +89,11 @@ export function CompaniesPage() {
           <li key={c.id} className="flex items-center justify-between p-3">
             <Link
               to={`/companies/${c.id}`}
-              className="font-medium text-blue-700 underline"
+              className="font-medium text-accent-dark underline"
             >
               {c.name}
             </Link>
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-muted">
               {statusText(c.job_status, c.last_researched_at)}
             </span>
           </li>

@@ -6,7 +6,7 @@ import type { Gap } from "../../api/types";
 export function GapList({ gaps }: { gaps: Gap[] }) {
   if (gaps.length === 0) {
     return (
-      <p className="text-gray-600">
+      <p className="text-muted">
         No gaps found: every outline had a matching note or brief fact.
       </p>
     );
@@ -31,7 +31,7 @@ export function GapList({ gaps }: { gaps: Gap[] }) {
           <p className="mt-1 text-sm">{g.hint}</p>
           <Link
             to={g.kind === "experience" ? "/notes" : "/companies"}
-            className="mt-1 inline-block text-sm text-blue-700 underline"
+            className="mt-1 inline-block text-sm text-accent-dark underline"
           >
             {g.kind === "experience" ? "Add a note" : "Open companies"}
           </Link>

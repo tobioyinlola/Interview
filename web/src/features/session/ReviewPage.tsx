@@ -33,7 +33,7 @@ export function ReviewPage() {
             ? "That session was not found."
             : "Couldn't load this session."}
         </p>
-        <Link to="/sessions" className="text-blue-700 underline">
+        <Link to="/sessions" className="text-accent-dark underline">
           Back to sessions
         </Link>
       </main>
@@ -56,11 +56,11 @@ export function ReviewPage() {
   return (
     <main className="mx-auto max-w-3xl space-y-6 p-6">
       <div>
-        <Link to="/sessions" className="text-sm text-blue-700 underline">
+        <Link to="/sessions" className="text-sm text-accent-dark underline">
           ← Sessions
         </Link>
         <h1 className="text-2xl font-semibold">Session review</h1>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-muted">
           {formatWhen(data.started_at)} · {data.utterances.length} lines ·{" "}
           {data.suggestions.length} outlines
         </p>
@@ -85,7 +85,7 @@ export function ReviewPage() {
         </h2>
         {ended && (
           <button
-            className="rounded bg-blue-700 px-3 py-2 text-white disabled:opacity-50"
+            className="rounded bg-accent px-3 py-2 text-white disabled:opacity-50"
             disabled={running || score.isPending}
             onClick={() => score.mutate()}
           >
@@ -93,9 +93,7 @@ export function ReviewPage() {
           </button>
         )}
         {!ended && (
-          <p className="text-gray-600">
-            End the session to score your answers.
-          </p>
+          <p className="text-muted">End the session to score your answers.</p>
         )}
         {score.isError && (
           <p role="alert" className="text-sm text-red-800">
@@ -103,7 +101,7 @@ export function ReviewPage() {
           </p>
         )}
         {running && (
-          <p role="status" className="text-gray-700">
+          <p role="status" className="text-muted">
             Scoring your answers… you can leave this page and come back.
           </p>
         )}
@@ -113,7 +111,7 @@ export function ReviewPage() {
           </p>
         )}
         {data.scoring_status === "ready" && data.scores.length === 0 && (
-          <p className="text-gray-700">
+          <p className="text-muted">
             No answers to score. Turn on{" "}
             <strong>Also transcribe my microphone</strong> during the session so
             your answers are recorded.
@@ -144,11 +142,11 @@ export function ReviewPage() {
                 </p>
                 {s && (
                   <>
-                    <pre className="mt-2 whitespace-pre-wrap rounded bg-gray-50 p-2 text-sm">
+                    <pre className="mt-2 whitespace-pre-wrap rounded bg-canvas p-2 text-sm">
                       {s.output_text}
                     </pre>
                     {s.feedback && (
-                      <p className="text-xs text-gray-600">
+                      <p className="text-xs text-muted">
                         {RATING[s.feedback as keyof typeof RATING]}
                       </p>
                     )}
@@ -162,7 +160,7 @@ export function ReviewPage() {
               <p>
                 <strong>Typed:</strong> {s.question_text}
               </p>
-              <pre className="mt-2 whitespace-pre-wrap rounded bg-gray-50 p-2 text-sm">
+              <pre className="mt-2 whitespace-pre-wrap rounded bg-canvas p-2 text-sm">
                 {s.output_text}
               </pre>
             </li>

@@ -72,7 +72,7 @@ export function CompanyForm({
       <div>
         <label htmlFor="c-site" className="block text-sm font-medium">
           Company website{" "}
-          <span className="font-normal text-gray-600">(recommended)</span>
+          <span className="font-normal text-muted">(recommended)</span>
         </label>
         <input
           id="c-site"
@@ -86,7 +86,7 @@ export function CompanyForm({
       <div>
         <label htmlFor="c-job" className="block text-sm font-medium">
           Job posting link{" "}
-          <span className="font-normal text-gray-600">(recommended)</span>
+          <span className="font-normal text-muted">(recommended)</span>
         </label>
         <input
           id="c-job"
@@ -101,7 +101,7 @@ export function CompanyForm({
       <fieldset>
         <legend className="text-sm font-medium">
           Other links{" "}
-          <span className="font-normal text-gray-600">
+          <span className="font-normal text-muted">
             (up to {MAX_EXTRA_LINKS})
           </span>
         </legend>
@@ -135,7 +135,7 @@ export function CompanyForm({
         >
           Add a link
         </button>
-        <p className="mt-1 text-xs text-gray-600">
+        <p className="mt-1 text-xs text-muted">
           Public pages only, such as an About page or a news article. Pages
           behind a sign-in can&apos;t be read: paste their text afterwards
           instead.
@@ -169,7 +169,7 @@ export function CompanyForm({
           onChange={(e) => setKnown(e.target.value)}
           className={field}
         />
-        <p className="mt-1 text-right text-xs text-gray-600">
+        <p className="mt-1 text-right text-xs text-muted">
           {known.length.toLocaleString()} / {KNOWN_MAX.toLocaleString()}
         </p>
       </div>
@@ -186,7 +186,7 @@ export function CompanyForm({
         <button
           type="submit"
           disabled={pending || !name.trim()}
-          className="rounded bg-blue-700 px-4 py-2 text-white disabled:opacity-50"
+          className="rounded bg-accent px-4 py-2 text-white disabled:opacity-50"
         >
           {pending ? "Saving…" : submitLabel}
         </button>

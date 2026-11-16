@@ -32,7 +32,7 @@ export function NotesPage() {
   return (
     <main className="mx-auto max-w-3xl space-y-4 p-6">
       <h1 className="text-2xl font-semibold">Your notes</h1>
-      <p className="text-sm text-gray-600">
+      <p className="text-sm text-muted">
         Outlines use only what you write here (and any company brief). Add
         stories, results and facts you want to be able to cite.
       </p>
@@ -63,7 +63,7 @@ export function NotesPage() {
         />
         <div className="mt-1 flex justify-between">
           <SaveIndicator status={status} onRetry={() => void retry()} />
-          <span className="text-sm text-gray-600">
+          <span className="text-sm text-muted">
             {content.length.toLocaleString()} / {NOTES_MAX.toLocaleString()}
           </span>
         </div>

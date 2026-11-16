@@ -19,7 +19,7 @@ function Shell({
       <h1 className="text-2xl font-semibold">{title}</h1>
       {children}
       <p className="text-sm">
-        <Link to="/" className="text-blue-700 underline">
+        <Link to="/" className="text-accent-dark underline">
           Back to the app
         </Link>
       </p>

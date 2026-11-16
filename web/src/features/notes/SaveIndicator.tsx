@@ -16,7 +16,7 @@ export function SaveIndicator({
   onRetry: () => void;
 }) {
   return (
-    <span role="status" aria-live="polite" className="text-sm text-gray-600">
+    <span role="status" aria-live="polite" className="text-sm text-muted">
       {TEXT[status]}
       {status === "error" && (
         <button className="ml-2 underline" onClick={onRetry}>

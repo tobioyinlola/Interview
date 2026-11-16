@@ -63,7 +63,10 @@ describe("CompaniesPage", () => {
       }),
     });
     renderApp(<App />, "/companies");
-    const items = await screen.findAllByRole("listitem");
+    // within the page, not the sidebar navigation that wraps every signed-in page
+    const items = await waitFor(() =>
+      within(screen.getByRole("main")).getAllByRole("listitem"),
+    );
     const text = items.map((i) => i.textContent);
     expect(text).toEqual([
       expect.stringContaining("AlphaResearching…"),

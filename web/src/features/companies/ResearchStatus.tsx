@@ -54,10 +54,10 @@ export function ResearchStatus({
                   aria-current={i === index ? "step" : undefined}
                   className={`rounded px-2 py-1 ${
                     i === index
-                      ? "bg-blue-100 font-medium"
+                      ? "bg-accent-soft font-medium"
                       : i < index
-                        ? "text-gray-600"
-                        : "text-gray-400"
+                        ? "text-muted"
+                        : "text-muted"
                   }`}
                 >
                   {i < index ? "✓ " : ""}
@@ -66,9 +66,9 @@ export function ResearchStatus({
               ))}
             </ol>
             {job.step_detail && (
-              <p className="mt-1 text-sm text-gray-600">{job.step_detail}</p>
+              <p className="mt-1 text-sm text-muted">{job.step_detail}</p>
             )}
-            <p className="mt-1 text-sm text-gray-600">
+            <p className="mt-1 text-sm text-muted">
               You can leave this page. Research keeps going and the brief will
               be here when you come back.
             </p>
@@ -80,9 +80,7 @@ export function ResearchStatus({
             {age !== null && (
               <span
                 className={
-                  age > STALE_DAYS
-                    ? "font-medium text-amber-800"
-                    : "text-gray-600"
+                  age > STALE_DAYS ? "font-medium text-amber-800" : "text-muted"
                 }
               >
                 Researched{" "}
@@ -98,7 +96,7 @@ export function ResearchStatus({
           </p>
         )}
         {!job && (
-          <p className="text-gray-600">
+          <p className="text-muted">
             This company hasn&apos;t been researched yet.
           </p>
         )}

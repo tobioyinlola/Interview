@@ -18,9 +18,9 @@ function Bar({ label, value }: { label: string; value: number }) {
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={value}
-        className="h-2 flex-1 overflow-hidden rounded bg-gray-200"
+        className="h-2 flex-1 overflow-hidden rounded bg-line"
       >
-        <div className="h-full bg-blue-600" style={{ width: `${value}%` }} />
+        <div className="h-full bg-accent" style={{ width: `${value}%` }} />
       </div>
       <span className="w-8 text-right tabular-nums">{value}</span>
     </div>
@@ -37,10 +37,10 @@ export function ScoreCards({ scores }: { scores: Score[] }) {
             <h3 className="font-medium">Answer {i + 1}</h3>
             <p aria-label={`Overall score ${s.overall} out of 100`}>
               <span className="text-2xl font-semibold">{s.overall}</span>
-              <span className="text-sm text-gray-600"> / 100</span>
+              <span className="text-sm text-muted"> / 100</span>
             </p>
           </div>
-          <p className="mt-1 text-sm text-gray-600">
+          <p className="mt-1 text-sm text-muted">
             Question: <q>{s.question_text}</q>
           </p>
           <details className="mt-1 text-sm">

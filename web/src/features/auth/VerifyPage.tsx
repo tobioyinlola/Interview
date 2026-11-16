@@ -27,7 +27,7 @@ export function VerifyPage() {
           <p className="mt-2">It may have expired or already been used.</p>
           <Link
             to="/login"
-            className="mt-4 inline-block text-blue-700 underline"
+            className="mt-4 inline-block text-accent-dark underline"
           >
             Request a new link
           </Link>

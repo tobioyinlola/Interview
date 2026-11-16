@@ -111,6 +111,10 @@ so the strict CSP holds) and four colours defined in `web/tailwind.config.js`: `
 surface, `#1C1B2E` ink, `#7B47F3` accent. The page states only what the product does: no invented
 statistics, ratings, logos or testimonials, and every illustration is labelled "Example".
 
+The signed-in app uses a dark sidebar (Menu, Account, Support) with a greeting header, stat cards, quick actions,
+a practice chart and a recent-sessions column. Every number comes from the user's own sessions; with fewer than
+two sessions the chart says so instead of drawing a trend. On phones the sidebar becomes a menu drawer.
+
 ## Release hardening
 - **Security:** startup refuses unsafe staging/production configuration; security headers on every response;
   body-size limits, per-client rate limits (stricter for sign-in); a 3 s database statement timeout;

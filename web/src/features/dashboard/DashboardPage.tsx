@@ -1,7 +1,16 @@
 import { Link } from "react-router-dom";
 
 import { currentEnv, isSupported } from "../../app/browserSupport";
-import { useCompanies, useNotes, useSessions } from "../../api/hooks";
+import { useCompanies, useMe, useNotes, useSessions } from "../../api/hooks";
+import {
+  ArrowIcon,
+  BuildingIcon,
+  ClockIcon,
+  MicIcon,
+  NoteIcon,
+  PlusIcon,
+} from "../../app/icons";
+import { PracticeChart } from "./PracticeChart";
 import { daysSince } from "../companies/ResearchStatus";
 import { formatDuration, formatWhen } from "../review/format";
 
@@ -46,7 +55,10 @@ function ReadinessCard() {
   const ready = notesSaved && canCapture;
 
   return (
-    <section aria-labelledby="ready-h" className="space-y-2 rounded border p-4">
+    <section
+      aria-labelledby="ready-h"
+      className="space-y-3 rounded-2xl bg-surface p-5 shadow-card"
+    >
       <h2 id="ready-h" className="text-lg font-medium">
         Readiness
       </h2>
@@ -54,7 +66,7 @@ function ReadinessCard() {
         <Item ok={notesSaved}>
           Notes saved{" "}
           {!notesSaved && (
-            <Link to="/notes" className="text-blue-700 underline">
+            <Link to="/notes" className="text-accent-dark underline">
               Add your notes
             </Link>
           )}
@@ -66,7 +78,7 @@ function ReadinessCard() {
               : "Company brief ready and fresh"
             : "Company brief (optional)"}{" "}
           {!hasBrief && (
-            <Link to="/companies" className="text-blue-700 underline">
+            <Link to="/companies" className="text-accent-dark underline">
               Add a company
             </Link>
           )}
@@ -78,7 +90,7 @@ function ReadinessCard() {
       </ul>
       <Link
         to="/session/new"
-        className={`inline-block rounded px-3 py-2 ${ready ? "bg-blue-700 text-white" : "border"}`}
+        className={`inline-block rounded-xl px-4 py-2.5 font-medium ${ready ? "bg-accent text-surface hover:bg-accent-dark" : "border border-line"}`}
       >
         Start practice
       </Link>
@@ -86,81 +98,277 @@ function ReadinessCard() {
   );
 }
 
+const greeting = () => {
+  const h = new Date().getHours();
+  return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+};
+const firstName = (email?: string) => {
+  const n = (email ?? "").split("@")[0].split(/[._+-]/)[0];
+  return n ? n[0].toUpperCase() + n.slice(1) : "";
+};
+
+function Stat({
+  label,
+  value,
+  hint,
+  icon,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl bg-surface p-5 shadow-card">
+      <div className="flex items-center justify-between text-sm text-muted">
+        {label}
+        <span className="rounded-lg bg-accent-soft p-1.5 text-accent-dark">
+          {icon}
+        </span>
+      </div>
+      <p className="mt-4 text-3xl font-semibold tabular-nums tracking-tight">
+        {value}
+      </p>
+      <p className="mt-1 text-xs text-muted">{hint}</p>
+    </div>
+  );
+}
+
+function Action({
+  to,
+  title,
+  sub,
+  primary,
+}: {
+  to: string;
+  title: string;
+  sub: string;
+  primary?: boolean;
+}) {
+  return (
+    <Link
+      to={to}
+      className={`flex items-center gap-3 rounded-2xl p-3.5 transition-colors ${
+        primary
+          ? "bg-accent text-surface hover:bg-accent-dark"
+          : "bg-canvas hover:bg-accent-soft"
+      }`}
+    >
+      <span
+        className={`rounded-xl p-2 ${primary ? "bg-surface/20" : "bg-surface text-accent-dark"}`}
+      >
+        {title.includes("practice") ? (
+          <MicIcon />
+        ) : title.includes("company") ? (
+          <BuildingIcon />
+        ) : (
+          <NoteIcon />
+        )}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium">{title}</span>
+        <span
+          className={`block truncate text-xs ${primary ? "text-surface/80" : "text-muted"}`}
+        >
+          {sub}
+        </span>
+      </span>
+      <ArrowIcon className="h-4 w-4 shrink-0" />
+    </Link>
+  );
+}
+
+const minutes = (s: number) =>
+  s >= 3600 ? `${(s / 3600).toFixed(1)} h` : `${Math.round(s / 60)} min`;
+
 export function DashboardPage() {
+  const { data: me } = useMe();
   const companies = useCompanies();
   const sessions = useSessions();
+  const all = sessions.data?.pages.flatMap((p) => p.items) ?? [];
   const recent = (sessions.data?.pages[0]?.items ?? []).slice(0, 5);
+  const more = sessions.hasNextPage ? "+" : "";
+  const questions = all.reduce((n, s) => n + s.question_count, 0);
+  const seconds = all.reduce((n, s) => n + (s.duration_seconds ?? 0), 0);
+  const ready = (companies.data ?? []).filter(
+    (c) => c.job_status === "ready",
+  ).length;
 
   return (
-    <main className="mx-auto max-w-3xl space-y-6 p-6">
-      <h1 className="text-2xl font-semibold">Dashboard</h1>
-      <ReadinessCard />
-
-      <section aria-labelledby="co-h" className="space-y-2">
-        <div className="flex items-baseline justify-between">
-          <h2 id="co-h" className="text-lg font-medium">
-            Companies
-          </h2>
-          <Link to="/companies" className="text-sm text-blue-700 underline">
-            All companies
-          </Link>
+    <main className="mx-auto max-w-6xl p-4 sm:p-6 lg:p-8">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="sr-only">Dashboard</h1>
+          <p className="text-3xl font-semibold tracking-tight sm:text-4xl">
+            {greeting()}
+            {firstName(me?.email) ? `, ${firstName(me?.email)}` : ""}
+          </p>
+          <p className="mt-1 text-muted">Here&apos;s your practice overview.</p>
         </div>
-        {companies.isSuccess && companies.data.length === 0 && (
-          <p className="text-gray-600">No companies yet.</p>
-        )}
-        <ul className="divide-y rounded border">
-          {(companies.data ?? []).slice(0, 5).map((c) => (
-            <li key={c.id} className="flex justify-between p-2">
-              <Link
-                to={`/companies/${c.id}`}
-                className="text-blue-700 underline"
-              >
-                {c.name}
-              </Link>
-              <span className="text-sm text-gray-600">
-                {c.job_status === "ready"
-                  ? "Brief ready"
-                  : c.job_status === "failed"
-                    ? "Research failed"
-                    : c.job_status
-                      ? "Researching…"
-                      : "Not researched"}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
+        <Link
+          to="/session/new"
+          className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-medium text-surface shadow-card hover:bg-accent-dark"
+        >
+          <PlusIcon className="h-4 w-4" /> New practice
+        </Link>
+      </div>
 
-      <section aria-labelledby="se-h" className="space-y-2">
-        <div className="flex items-baseline justify-between">
-          <h2 id="se-h" className="text-lg font-medium">
-            Recent sessions
-          </h2>
-          <Link to="/sessions" className="text-sm text-blue-700 underline">
-            All sessions
-          </Link>
-        </div>
-        {sessions.isSuccess && recent.length === 0 && (
-          <p className="text-gray-600">No sessions yet.</p>
-        )}
-        <ul className="divide-y rounded border">
-          {recent.map((s) => (
-            <li key={s.id} className="p-2">
+      <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="space-y-6">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <Stat
+              label="Sessions"
+              value={`${all.length}${more}`}
+              hint="Practice calls"
+              icon={<MicIcon className="h-4 w-4" />}
+            />
+            <Stat
+              label="Questions"
+              value={`${questions}${more}`}
+              hint="Answered in practice"
+              icon={<NoteIcon className="h-4 w-4" />}
+            />
+            <Stat
+              label="Practice time"
+              value={minutes(seconds)}
+              hint={
+                all.length
+                  ? "Across your sessions"
+                  : "Starts at your first call"
+              }
+              icon={<ClockIcon className="h-4 w-4" />}
+            />
+            <Stat
+              label="Briefs ready"
+              value={String(ready)}
+              hint={`${companies.data?.length ?? 0} companies added`}
+              icon={<BuildingIcon className="h-4 w-4" />}
+            />
+          </div>
+
+          <ReadinessCard />
+
+          <section
+            aria-labelledby="chart-h"
+            className="rounded-2xl bg-surface p-5 shadow-card"
+          >
+            <h2 id="chart-h" className="text-lg font-semibold">
+              Practice summary
+            </h2>
+            <p className="text-sm text-muted">
+              Questions per session, most recent sessions.
+            </p>
+            <div className="mt-4">
+              <PracticeChart sessions={all} />
+            </div>
+          </section>
+
+          <section
+            aria-labelledby="co-h"
+            className="rounded-2xl bg-surface p-5 shadow-card"
+          >
+            <div className="flex items-baseline justify-between">
+              <h2 id="co-h" className="text-lg font-semibold">
+                Companies
+              </h2>
               <Link
-                to={`/sessions/${s.id}`}
-                className="text-blue-700 underline"
+                to="/companies"
+                className="text-sm text-accent-dark underline"
               >
-                {formatWhen(s.started_at)}
+                All companies
               </Link>
-              <span className="ml-2 text-sm text-gray-600">
-                {s.company_name ?? "No company"} ·{" "}
-                {formatDuration(s.duration_seconds)} · {s.question_count}{" "}
-                question{s.question_count === 1 ? "" : "s"}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
+            </div>
+            {companies.isSuccess && companies.data.length === 0 && (
+              <p className="mt-3 text-muted">No companies yet.</p>
+            )}
+            <ul className="mt-3 divide-y divide-line">
+              {(companies.data ?? []).slice(0, 5).map((c) => (
+                <li key={c.id} className="flex justify-between gap-3 py-2.5">
+                  <Link
+                    to={`/companies/${c.id}`}
+                    className="font-medium text-accent-dark underline"
+                  >
+                    {c.name}
+                  </Link>
+                  <span className="text-sm text-muted">
+                    {c.job_status === "ready"
+                      ? "Brief ready"
+                      : c.job_status === "failed"
+                        ? "Research failed"
+                        : c.job_status
+                          ? "Researching…"
+                          : "Not researched"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </div>
+
+        <div className="space-y-6">
+          <section
+            aria-label="Quick actions"
+            className="rounded-2xl bg-surface p-5 shadow-card"
+          >
+            <h2 className="text-lg font-semibold">Quick actions</h2>
+            <div className="mt-3 space-y-2">
+              <Action
+                primary
+                to="/session/new"
+                title="New practice session"
+                sub="Confirm consent, then share your Meet tab"
+              />
+              <Action
+                to="/companies"
+                title="Add a company"
+                sub="Research a role and get a cited brief"
+              />
+              <Action
+                to="/notes"
+                title="Edit your notes"
+                sub="What outlines are built from"
+              />
+            </div>
+          </section>
+
+          <section
+            aria-labelledby="se-h"
+            className="rounded-2xl bg-surface p-5 shadow-card"
+          >
+            <div className="flex items-baseline justify-between">
+              <h2 id="se-h" className="text-lg font-semibold">
+                Recent sessions
+              </h2>
+              <Link
+                to="/sessions"
+                className="text-sm text-accent-dark underline"
+              >
+                All sessions
+              </Link>
+            </div>
+            {sessions.isSuccess && recent.length === 0 && (
+              <p className="mt-3 text-muted">No sessions yet.</p>
+            )}
+            <ul className="mt-3 divide-y divide-line">
+              {recent.map((s) => (
+                <li key={s.id} className="py-2.5">
+                  <Link
+                    to={`/sessions/${s.id}`}
+                    className="font-medium text-accent-dark underline"
+                  >
+                    {formatWhen(s.started_at)}
+                  </Link>
+                  <span className="mt-0.5 block text-sm text-muted">
+                    {s.company_name ?? "No company"} ·{" "}
+                    {formatDuration(s.duration_seconds)} · {s.question_count}{" "}
+                    question{s.question_count === 1 ? "" : "s"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </div>
+      </div>
     </main>
   );
 }

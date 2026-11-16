@@ -43,7 +43,7 @@ export function CompanyPage() {
             ? "That company was not found."
             : "Couldn't load this company."}
         </p>
-        <Link to="/companies" className="text-blue-700 underline">
+        <Link to="/companies" className="text-accent-dark underline">
           Back to companies
         </Link>
       </main>
@@ -54,11 +54,11 @@ export function CompanyPage() {
   return (
     <main className="mx-auto max-w-3xl space-y-6 p-6">
       <div>
-        <Link to="/companies" className="text-sm text-blue-700 underline">
+        <Link to="/companies" className="text-sm text-accent-dark underline">
           ← Companies
         </Link>
         <h1 className="text-2xl font-semibold">{company.name}</h1>
-        {company.role && <p className="text-gray-600">{company.role}</p>}
+        {company.role && <p className="text-muted">{company.role}</p>}
       </div>
 
       <ResearchStatus
@@ -133,7 +133,7 @@ export function CompanyPage() {
             }}
           />
         ) : (
-          <p className="text-gray-600">
+          <p className="text-muted">
             {job?.status === "failed"
               ? "No brief yet. Check the sources below, paste text for any page that could not be read, then research again."
               : "The brief will appear here when research finishes."}

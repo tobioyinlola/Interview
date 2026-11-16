@@ -17,6 +17,7 @@ export default {
         sans: ['"Inter Variable"', "Inter", "system-ui", "sans-serif"],
         mono: ["ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
+      borderColor: { DEFAULT: "#E6E1F5" },
       boxShadow: {
         card: "0 1px 2px rgba(28,27,46,.04), 0 8px 24px rgba(28,27,46,.06)",
         lift: "0 2px 4px rgba(28,27,46,.06), 0 18px 40px rgba(28,27,46,.12)",

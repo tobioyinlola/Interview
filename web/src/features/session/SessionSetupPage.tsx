@@ -11,7 +11,7 @@ function Tick({ ok, children }: { ok: boolean; children: React.ReactNode }) {
   return (
     <li className="flex items-start gap-2">
       <span aria-hidden="true">{ok ? "✓" : "○"}</span>
-      <span className={ok ? "" : "text-gray-700"}>
+      <span className={ok ? "" : "text-muted"}>
         <span className="sr-only">{ok ? "Done: " : "Not done: "}</span>
         {children}
       </span>
@@ -57,7 +57,7 @@ export function SessionSetupPage() {
   return (
     <main className="mx-auto max-w-2xl space-y-6 p-6">
       <h1 className="text-2xl font-semibold">Start a practice call</h1>
-      <p className="text-sm text-gray-700">
+      <p className="text-sm text-muted">
         Practice with a friend, mentor or peer who knows the assistant is on.
         Join them on Google Meet, then share the Meet tab with its audio on the
         next screen.
@@ -126,7 +126,7 @@ export function SessionSetupPage() {
             and I will follow local law on recording and transcribing calls.
           </span>
         </label>
-        <p className="text-xs text-gray-600">
+        <p className="text-xs text-muted">
           Audio is relayed for transcription and discarded; only text is saved.
           Audio and text are processed by OpenAI to transcribe and write
           outlines.
@@ -141,7 +141,7 @@ export function SessionSetupPage() {
           <Tick ok={notesSaved}>
             Notes saved{" "}
             {!notesSaved && (
-              <Link to="/notes" className="text-blue-700 underline">
+              <Link to="/notes" className="text-accent-dark underline">
                 Add your notes
               </Link>
             )}
@@ -160,7 +160,7 @@ export function SessionSetupPage() {
         </p>
       )}
       <button
-        className="rounded bg-blue-700 px-4 py-2 text-white disabled:opacity-50"
+        className="rounded bg-accent px-4 py-2 text-white disabled:opacity-50"
         disabled={!ready || create.isPending}
         onClick={start}
       >

@@ -17,7 +17,7 @@ export function SessionsPage() {
         <h1 className="text-2xl font-semibold">Sessions</h1>
         <Link
           to="/session/new"
-          className="rounded bg-blue-700 px-3 py-2 text-white"
+          className="rounded bg-accent px-3 py-2 text-white"
         >
           Start practice
         </Link>
@@ -27,7 +27,7 @@ export function SessionsPage() {
         <p>Couldn&apos;t load your sessions. Reload to try again.</p>
       )}
       {q.isSuccess && items.length === 0 && (
-        <p className="text-gray-600">
+        <p className="text-muted">
           No sessions yet. After a practice call, it appears here with its
           transcript and scores.
         </p>
@@ -39,11 +39,11 @@ export function SessionsPage() {
               <div>
                 <Link
                   to={`/sessions/${s.id}`}
-                  className="font-medium text-blue-700 underline"
+                  className="font-medium text-accent-dark underline"
                 >
                   {formatWhen(s.started_at)}
                 </Link>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-muted">
                   {s.company_name ?? "No company"} ·{" "}
                   {formatDuration(s.duration_seconds)} · {s.question_count}{" "}
                   question{s.question_count === 1 ? "" : "s"}

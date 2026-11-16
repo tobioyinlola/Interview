@@ -1,0 +1,45 @@
+type P = { className?: string };
+const base = {
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.8,
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+  "aria-hidden": true,
+};
+const make = (d: string) =>
+  function Icon({ className = "h-5 w-5" }: P) {
+    return (
+      <svg {...base} className={className}>
+        <path d={d} />
+      </svg>
+    );
+  };
+
+export const HomeIcon = make("M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10");
+export const NoteIcon = make("M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7");
+export const BuildingIcon = make(
+  "M4 21V5l8-2v18M12 9h8v12M7 8h2M7 12h2M7 16h2M15 13h2M15 17h2M3 21h18",
+);
+export const MicIcon = make(
+  "M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM6 11a6 6 0 0 0 12 0M12 17v4",
+);
+export const ListIcon = make(
+  "M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01",
+);
+export const GearIcon = make(
+  "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z",
+);
+export const ChartIcon = make("M4 20V10M10 20V4M16 20v-7M22 20H2");
+export const ShieldIcon = make("M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z");
+export const FileIcon = make("M6 3h9l4 4v14H6zM14 3v5h5");
+export const LogoutIcon = make("M15 17l5-5-5-5M20 12H9M9 21H4V3h5");
+export const MenuIcon = make("M4 6h16M4 12h16M4 18h16");
+export const CloseIcon = make("M6 6l12 12M18 6L6 18");
+export const PlusIcon = make("M12 5v14M5 12h14");
+export const ArrowIcon = make("M7 17L17 7M8 7h9v9");
+export const ClockIcon = make(
+  "M12 7v5l3 2M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z",
+);
+export const CheckIcon = make("M5 12l5 5L20 7");

@@ -17,7 +17,7 @@ export function SignInForm() {
   return (
     <main className="mx-auto max-w-md p-8">
       <h1 className="text-2xl font-semibold">Sign in</h1>
-      <p className="mt-2 text-sm text-gray-600">
+      <p className="mt-2 text-sm text-muted">
         InterviewMeet is for practice with a partner who knows the assistant is
         on.
       </p>
@@ -43,7 +43,7 @@ export function SignInForm() {
           <button
             type="submit"
             disabled={request.isPending}
-            className="rounded bg-blue-700 px-4 py-2 text-white disabled:opacity-50"
+            className="rounded bg-accent px-4 py-2 text-white disabled:opacity-50"
           >
             {request.isPending ? "Sending…" : "Email me a sign-in link"}
           </button>
@@ -54,7 +54,7 @@ export function SignInForm() {
           )}
         </form>
       )}
-      <p className="mt-6 text-xs text-gray-600">
+      <p className="mt-6 text-xs text-muted">
         By signing in you agree to the{" "}
         <Link to="/terms" className="underline">
           terms

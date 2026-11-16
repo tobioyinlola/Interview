@@ -47,7 +47,7 @@ export function PasteTextDialog({
         <h2 id="paste-h" className="text-lg font-medium">
           Paste text from the page
         </h2>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-muted">
           Copy the page&apos;s text in your browser and paste it here. It will
           be used as a source, labelled &quot;Pasted by you&quot;.
         </p>
@@ -76,7 +76,7 @@ export function PasteTextDialog({
             onChange={(e) => setText(e.target.value)}
             className="mt-1 w-full rounded border px-3 py-2"
           />
-          <p className="text-right text-xs text-gray-600">
+          <p className="text-right text-xs text-muted">
             {text.length.toLocaleString()} / {PASTE_MAX.toLocaleString()}
           </p>
         </div>
@@ -96,7 +96,7 @@ export function PasteTextDialog({
           <button
             type="submit"
             disabled={pending || !text.trim()}
-            className="rounded bg-blue-700 px-3 py-2 text-white disabled:opacity-50"
+            className="rounded bg-accent px-3 py-2 text-white disabled:opacity-50"
           >
             {pending ? "Saving…" : "Save text"}
           </button>

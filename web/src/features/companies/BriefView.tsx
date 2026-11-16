@@ -61,7 +61,7 @@ function SourceLinks({
               : {})}
             title={name}
             aria-label={`Source ${n}: ${name}`}
-            className="ml-1 text-xs text-blue-700 underline"
+            className="ml-1 text-xs text-accent-dark underline"
           >
             [{n}]
           </a>
@@ -135,7 +135,7 @@ function Fact({
           <span className="flex gap-2">
             <button
               type="button"
-              className="rounded bg-blue-700 px-2 py-1 text-xs text-white disabled:opacity-50"
+              className="rounded bg-accent px-2 py-1 text-xs text-white disabled:opacity-50"
               disabled={!draft.trim() || editing?.pending}
               onClick={() => {
                 change({ text: draft.trim() });
@@ -160,7 +160,7 @@ function Fact({
         <>
           <span>{fact.text}</span>
           {fact.date && (
-            <span className="ml-2 rounded bg-gray-100 px-1 text-xs">
+            <span className="ml-2 rounded bg-canvas px-1 text-xs">
               {fact.date}
             </span>
           )}
@@ -179,7 +179,7 @@ function Fact({
             </span>
           )}
           {fact.edited_by_user && fact.label !== "from_you" && (
-            <span className="ml-2 rounded bg-blue-100 px-1 text-xs">
+            <span className="ml-2 rounded bg-accent-soft px-1 text-xs">
               Edited
             </span>
           )}
@@ -263,7 +263,7 @@ function AddFact({
       <button
         type="submit"
         disabled={!text.trim() || editing.pending}
-        className="rounded bg-blue-700 px-2 py-1 text-xs text-white disabled:opacity-50"
+        className="rounded bg-accent px-2 py-1 text-xs text-white disabled:opacity-50"
       >
         Add
       </button>
@@ -296,12 +296,12 @@ function Section({
         {section.title}
       </h3>
       {isSuggestions && (
-        <p className="text-xs text-gray-600">
+        <p className="text-xs text-muted">
           Suggestions for you to consider, not facts.
         </p>
       )}
       {section.not_found ? (
-        <p className="text-gray-600">Not found</p>
+        <p className="text-muted">Not found</p>
       ) : (
         <ul className="list-disc pl-5">
           {section.facts.map((f) => (
@@ -350,12 +350,12 @@ export function BriefView({
         </p>
       )}
       {brief.no_website && (
-        <p className="text-sm text-gray-700">
+        <p className="text-sm text-muted">
           No website was given, so this brief uses web search only.
         </p>
       )}
       {!brief.web_search_done && (
-        <p className="text-sm text-gray-700">
+        <p className="text-sm text-muted">
           Web search wasn&apos;t done this time, so this brief uses the pages
           you gave only.
         </p>

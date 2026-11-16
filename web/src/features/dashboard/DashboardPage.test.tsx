@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 
 import { App } from "../../app/App";
 import { ME, mockApi, renderApp, stubSupportedBrowser } from "../../test-utils";
@@ -209,5 +209,46 @@ describe("DashboardPage (FR-33)", () => {
     renderApp(<App />, "/");
     await screen.findByText("Company0");
     expect(screen.queryByText("Company5")).toBeNull();
+  });
+
+  it("summarises the user's own sessions in the stat cards", async () => {
+    const item = (id: string, q: number, secs: number) => ({
+      id,
+      started_at: "2026-11-16T10:00:00Z",
+      ended_at: "x",
+      duration_seconds: secs,
+      status: "ended",
+      company_id: null,
+      company_name: null,
+      question_count: q,
+    });
+    mockApi(
+      base({
+        "GET /api/sessions": () => ({
+          json: {
+            items: [item("a", 3, 600), item("b", 4, 1200)],
+            next_cursor: null,
+          },
+        }),
+      }),
+    );
+    renderApp(<App />, "/");
+    const stat = async (hint: string, value: string) =>
+      waitFor(() =>
+        expect(
+          within(screen.getByText(hint).parentElement!).getByText(value),
+        ).toBeInTheDocument(),
+      );
+    await stat("Practice calls", "2");
+    await stat("Answered in practice", "7");
+    await stat("Across your sessions", "30 min");
+  });
+
+  it("shows zeros, not placeholders, for a new user", async () => {
+    mockApi(base());
+    renderApp(<App />, "/");
+    const sessions = (await screen.findByText("Practice calls")).parentElement!;
+    expect(within(sessions).getByText("0")).toBeInTheDocument();
+    expect(screen.getByText(/after two sessions/i)).toBeInTheDocument();
   });
 });

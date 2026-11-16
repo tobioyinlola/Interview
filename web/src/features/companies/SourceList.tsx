@@ -28,7 +28,7 @@ interface Props {
 
 export function SourceList({ sources, onPaste, onRemove, removingId }: Props) {
   if (sources.length === 0)
-    return <p className="text-gray-600">No sources yet.</p>;
+    return <p className="text-muted">No sources yet.</p>;
   return (
     <ol className="space-y-2">
       {sources.map((s, i) => {
@@ -41,8 +41,8 @@ export function SourceList({ sources, onPaste, onRemove, removingId }: Props) {
             className="rounded border p-2 text-sm"
           >
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-gray-600">[{i + 1}]</span>
-              <span className="rounded bg-gray-100 px-1 text-xs">
+              <span className="text-muted">[{i + 1}]</span>
+              <span className="rounded bg-canvas px-1 text-xs">
                 {KIND[s.kind] ?? s.kind}
               </span>
               {isWebUrl(s.url) ? (
@@ -50,7 +50,7 @@ export function SourceList({ sources, onPaste, onRemove, removingId }: Props) {
                   href={s.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-700 underline"
+                  className="text-accent-dark underline"
                 >
                   {name}
                 </a>

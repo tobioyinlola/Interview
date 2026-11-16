@@ -40,7 +40,10 @@ describe("SessionsPage (FR-35)", () => {
       }),
     });
     renderApp(<App />, "/sessions");
-    const items = await screen.findAllByRole("listitem");
+    // within the page, not the sidebar navigation that wraps every signed-in page
+    const items = await waitFor(() =>
+      within(screen.getByRole("main")).getAllByRole("listitem"),
+    );
     const rows = items.filter((i) => i.textContent?.includes("question"));
     expect(rows[0]).toHaveTextContent("Acme · 12 min 30 s · 3 questions");
     expect(rows[1]).toHaveTextContent("No company · in progress · 1 question");

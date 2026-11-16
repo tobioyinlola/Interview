@@ -34,7 +34,7 @@ export function UsagePage() {
           </select>
         </label>
       </div>
-      <p className="text-sm text-gray-600">
+      <p className="text-sm text-muted">
         Estimates from counted audio seconds and tokens at the configured
         prices. Check the provider&apos;s own billing for the real figure.
       </p>
@@ -47,7 +47,7 @@ export function UsagePage() {
           ["Avg per research job", usd(d.avg_cost_per_research_job_usd)],
         ].map(([k, v]) => (
           <div key={k} className="rounded border p-3">
-            <dt className="text-xs text-gray-600">{k}</dt>
+            <dt className="text-xs text-muted">{k}</dt>
             <dd className="text-xl font-semibold">{v}</dd>
           </div>
         ))}
@@ -58,7 +58,7 @@ export function UsagePage() {
           By day
         </h2>
         {d.days.length === 0 ? (
-          <p className="text-gray-600">No usage in this window.</p>
+          <p className="text-muted">No usage in this window.</p>
         ) : (
           <table className="w-full text-left text-sm">
             <thead>
@@ -100,7 +100,7 @@ export function UsagePage() {
           {d.top_users.map((u) => (
             <li key={u.email} className="flex justify-between p-2 text-sm">
               <span>{u.email}</span>
-              <span className="text-gray-700">
+              <span className="text-muted">
                 {(u.stt_seconds / 60).toFixed(1)} min ·{" "}
                 {u.tokens.toLocaleString()} tokens · {u.research_jobs} research
                 · <strong>{usd(u.estimated_cost_usd)}</strong>
@@ -119,7 +119,7 @@ export function UsagePage() {
           {d.caps.tokens_daily.toLocaleString()} · Research jobs{" "}
           {d.caps.research_jobs_daily}
         </p>
-        <p className="text-gray-600">
+        <p className="text-muted">
           Prices: ${d.prices.stt_per_minute}/min audio · $
           {d.prices.llm_input_per_million}/M input tokens · $
           {d.prices.llm_output_per_million}/M output tokens

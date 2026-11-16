@@ -54,7 +54,7 @@ function CapturePanel({
               ? "bg-green-100"
               : status === "error"
                 ? "bg-red-100"
-                : "bg-gray-100"
+                : "bg-canvas"
           }`}
         >
           {STATUS_TEXT[status]}
@@ -66,7 +66,7 @@ function CapturePanel({
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.min(100, Math.round(level * 400))}
-        className="h-2 w-full overflow-hidden rounded bg-gray-200"
+        className="h-2 w-full overflow-hidden rounded bg-line"
       >
         <div
           className="h-full bg-green-600 transition-[width]"
@@ -90,7 +90,7 @@ function CapturePanel({
         </p>
       )}
       {mode === "segments" && (
-        <p className="text-xs text-gray-600">
+        <p className="text-xs text-muted">
           Fallback mode: captions arrive after each pause.
         </p>
       )}
@@ -105,7 +105,7 @@ function CapturePanel({
             />
             Also transcribe my microphone
           </label>
-          <p className="text-xs text-gray-600">
+          <p className="text-xs text-muted">
             Labelled &quot;You&quot; in the transcript and used for your review.
             Headphones work best, so the partner&apos;s voice is not picked up
             twice.
@@ -117,10 +117,10 @@ function CapturePanel({
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={Math.min(100, Math.round(micLevel * 400))}
-              className="h-2 w-full overflow-hidden rounded bg-gray-200"
+              className="h-2 w-full overflow-hidden rounded bg-line"
             >
               <div
-                className="h-full bg-blue-600 transition-[width]"
+                className="h-full bg-accent transition-[width]"
                 style={{ width: `${Math.min(100, micLevel * 400)}%` }}
               />
             </div>
@@ -138,7 +138,7 @@ function CapturePanel({
       <div className="flex gap-2">
         {status !== "ended" && !active && (
           <button
-            className="rounded bg-blue-700 px-3 py-2 text-white"
+            className="rounded bg-accent px-3 py-2 text-white"
             onClick={onShare}
           >
             Share Meet tab
@@ -151,7 +151,7 @@ function CapturePanel({
         )}
       </div>
       {status === "idle" && (
-        <p className="text-xs text-gray-600">
+        <p className="text-xs text-muted">
           In the share window, pick your Meet tab and tick{" "}
           <strong>Also share tab audio</strong>. Keep this tab visible, or
           Chrome may slow it down.
@@ -218,7 +218,7 @@ function OutlineView({
   const hidden = blur && !outline.revealed && outline.state !== "error";
   return (
     <div className="space-y-2">
-      <p className="text-sm text-gray-600">
+      <p className="text-sm text-muted">
         Heard: <q>{outline.question}</q>
       </p>
       {/* aria-busy holds announcements until the outline is complete, so a screen reader is not
@@ -232,7 +232,7 @@ function OutlineView({
       >
         {outline.text ||
           (outline.state === "streaming" ? (
-            <span className="text-gray-500">Thinking…</span>
+            <span className="text-muted">Thinking…</span>
           ) : (
             ""
           ))}
@@ -246,7 +246,7 @@ function OutlineView({
         </button>
       )}
       {outline.firstWordsMs !== undefined && (
-        <p className="text-xs text-gray-600">
+        <p className="text-xs text-muted">
           First words in {(outline.firstWordsMs / 1000).toFixed(1)} s
         </p>
       )}
@@ -303,7 +303,7 @@ function AnswerPanel({ onRegenerate }: { onRegenerate: () => void }) {
       {outline ? (
         <OutlineView outline={outline} onRegenerate={onRegenerate} />
       ) : (
-        <p className="text-gray-600">
+        <p className="text-muted">
           When your partner asks a question, an outline built from your notes
           appears here.
         </p>
@@ -321,12 +321,12 @@ function TranscriptList() {
         Transcript
       </h2>
       {lines.length === 0 && !partial && (
-        <p className="text-gray-600">Nothing heard yet.</p>
+        <p className="text-muted">Nothing heard yet.</p>
       )}
       <ol className="space-y-1 text-sm">
         {lines.map((l: Line) =>
           l.speaker === "gap" ? (
-            <li key={l.key} className="text-gray-500">
+            <li key={l.key} className="text-muted">
               {l.text}
             </li>
           ) : (
@@ -336,7 +336,7 @@ function TranscriptList() {
           ),
         )}
         {partial && (
-          <li className="italic text-gray-600">
+          <li className="italic text-muted">
             <strong>Partner:</strong> {partial}…
           </li>
         )}
@@ -452,12 +452,12 @@ export function LiveSessionPage() {
         {status === "ended" && (
           <p className="space-x-3 rounded border p-3">
             <span>Session saved.</span>
-            <Link to={`/sessions/${id}`} className="text-blue-700 underline">
+            <Link to={`/sessions/${id}`} className="text-accent-dark underline">
               Review it
             </Link>
             <a
               href={`${API_BASE_URL}/api/sessions/${id}/transcript.txt`}
-              className="text-blue-700 underline"
+              className="text-accent-dark underline"
             >
               Download transcript
             </a>
