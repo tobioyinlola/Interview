@@ -1,6 +1,412 @@
 {
   "components": {
     "schemas": {
+      "BriefContent": {
+        "properties": {
+          "assumed_company": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assumed Company"
+          },
+          "dropped_facts": {
+            "default": 0,
+            "title": "Dropped Facts",
+            "type": "integer"
+          },
+          "no_website": {
+            "default": false,
+            "title": "No Website",
+            "type": "boolean"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/BriefSection"
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "web_search_done": {
+            "default": true,
+            "title": "Web Search Done",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "sections"
+        ],
+        "title": "BriefContent",
+        "type": "object"
+      },
+      "BriefFact": {
+        "properties": {
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "edited_by_user": {
+            "default": false,
+            "title": "Edited By User",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "enum": [
+                  "from_you",
+                  "pasted_by_you",
+                  "suggestion"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "pinned": {
+            "default": false,
+            "title": "Pinned",
+            "type": "boolean"
+          },
+          "source_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Source Ids",
+            "type": "array"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "source_ids"
+        ],
+        "title": "BriefFact",
+        "type": "object"
+      },
+      "BriefSection": {
+        "properties": {
+          "facts": {
+            "items": {
+              "$ref": "#/components/schemas/BriefFact"
+            },
+            "title": "Facts",
+            "type": "array"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "not_found": {
+            "title": "Not Found",
+            "type": "boolean"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "title",
+          "facts",
+          "not_found"
+        ],
+        "title": "BriefSection",
+        "type": "object"
+      },
+      "CompanyCreatedOut": {
+        "properties": {
+          "company": {
+            "$ref": "#/components/schemas/CompanyOut"
+          },
+          "job_id": {
+            "format": "uuid",
+            "title": "Job Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "company",
+          "job_id"
+        ],
+        "title": "CompanyCreatedOut",
+        "type": "object"
+      },
+      "CompanyDetailOut": {
+        "properties": {
+          "brief": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BriefContent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "brief_created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brief Created At"
+          },
+          "brief_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brief Version"
+          },
+          "company": {
+            "$ref": "#/components/schemas/CompanyOut"
+          },
+          "job": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceOut"
+            },
+            "title": "Sources",
+            "type": "array"
+          }
+        },
+        "required": [
+          "company",
+          "brief",
+          "brief_version",
+          "brief_created_at",
+          "sources",
+          "job"
+        ],
+        "title": "CompanyDetailOut",
+        "type": "object"
+      },
+      "CompanyIn": {
+        "properties": {
+          "extra_links": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 3,
+            "title": "Extra Links",
+            "type": "array"
+          },
+          "job_posting_url": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Posting Url"
+          },
+          "known_text": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Known Text",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "default": "",
+            "maxLength": 200,
+            "title": "Role",
+            "type": "string"
+          },
+          "website_url": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website Url"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CompanyIn",
+        "type": "object"
+      },
+      "CompanyOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "extra_links": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Extra Links",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "job_posting_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Posting Url"
+          },
+          "known_text": {
+            "title": "Known Text",
+            "type": "string"
+          },
+          "last_researched_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Researched At"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "website_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website Url"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "website_url",
+          "job_posting_url",
+          "extra_links",
+          "role",
+          "known_text",
+          "last_researched_at",
+          "created_at"
+        ],
+        "title": "CompanyOut",
+        "type": "object"
+      },
+      "CompanySummary": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "job_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Status"
+          },
+          "last_researched_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Researched At"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "last_researched_at",
+          "job_status"
+        ],
+        "title": "CompanySummary",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -12,6 +418,61 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "JobOut": {
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "step_detail": {
+            "title": "Step Detail",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "step_detail",
+          "error",
+          "started_at",
+          "finished_at"
+        ],
+        "title": "JobOut",
         "type": "object"
       },
       "MeOut": {
@@ -82,6 +543,27 @@
         "title": "NotesOut",
         "type": "object"
       },
+      "PasteIn": {
+        "properties": {
+          "text": {
+            "maxLength": 50000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "title": {
+            "default": "Pasted text",
+            "maxLength": 200,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "PasteIn",
+        "type": "object"
+      },
       "RequestLinkIn": {
         "properties": {
           "email": {
@@ -94,6 +576,20 @@
           "email"
         ],
         "title": "RequestLinkIn",
+        "type": "object"
+      },
+      "ResearchStartedOut": {
+        "properties": {
+          "job_id": {
+            "format": "uuid",
+            "title": "Job Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "title": "ResearchStartedOut",
         "type": "object"
       },
       "SessionCreateIn": {
@@ -154,6 +650,77 @@
           "consent_confirmed_at"
         ],
         "title": "SessionCreateOut",
+        "type": "object"
+      },
+      "SourceOut": {
+        "properties": {
+          "fetched_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fetched At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "url",
+          "title",
+          "status",
+          "reason",
+          "published_at",
+          "fetched_at"
+        ],
+        "title": "SourceOut",
         "type": "object"
       },
       "StatusOut": {
@@ -356,6 +923,420 @@
         "summary": "Verify",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/companies": {
+      "get": {
+        "operationId": "list_companies_api_companies_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CompanySummary"
+                  },
+                  "title": "Response List Companies Api Companies Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Companies",
+        "tags": [
+          "companies"
+        ]
+      },
+      "post": {
+        "description": "Save a company and start its research job.",
+        "operationId": "create_company_api_companies_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "idempotency-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompanyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyCreatedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Company",
+        "tags": [
+          "companies"
+        ]
+      }
+    },
+    "/api/companies/{company_id}": {
+      "delete": {
+        "operationId": "delete_company_api_companies__company_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Company",
+        "tags": [
+          "companies"
+        ]
+      },
+      "get": {
+        "operationId": "get_company_api_companies__company_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Company",
+        "tags": [
+          "companies"
+        ]
+      },
+      "put": {
+        "description": "Edit company details. This does not start research by itself (it costs money); the page\noffers \"Research again\" so the user decides.",
+        "operationId": "update_company_api_companies__company_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompanyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Company",
+        "tags": [
+          "companies"
+        ]
+      }
+    },
+    "/api/companies/{company_id}/research": {
+      "post": {
+        "description": "Re-run research (bypasses the page cache). One job per company at a time: if one is\nalready running, its id is returned and nothing new starts.",
+        "operationId": "rerun_research_api_companies__company_id__research_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchStartedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rerun Research",
+        "tags": [
+          "companies"
+        ]
+      }
+    },
+    "/api/companies/{company_id}/research/status": {
+      "get": {
+        "operationId": "research_status_api_companies__company_id__research_status_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Research Status",
+        "tags": [
+          "companies"
+        ]
+      }
+    },
+    "/api/companies/{company_id}/sources/paste": {
+      "post": {
+        "description": "Add text the app could not read itself. It is labelled \"Pasted by you\" in the brief.",
+        "operationId": "paste_source_api_companies__company_id__sources_paste_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Paste Source",
+        "tags": [
+          "companies"
+        ]
+      }
+    },
+    "/api/companies/{company_id}/sources/{source_id}": {
+      "delete": {
+        "operationId": "remove_source_api_companies__company_id__sources__source_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Source Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Source",
+        "tags": [
+          "companies"
         ]
       }
     },

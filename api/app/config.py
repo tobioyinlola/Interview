@@ -32,6 +32,21 @@ class Settings(BaseSettings):
     research_max_pages: int = 8
     research_budget_seconds: int = 90
 
+    # Page fetching safety limits (design doc: fetcher rules).
+    fetch_user_agent: str = "MeetPracticeAssistant/0.1 (+company research for interview practice)"
+    fetch_timeout_seconds: float = 10.0
+    fetch_max_bytes: int = 2 * 1024 * 1024
+    fetch_max_redirects: int = 3
+    fetch_host_interval_seconds: float = 1.0
+    fetch_cache_hours: int = 24
+    source_text_max_chars: int = 20_000
+
+    # Research worker.
+    research_concurrency: int = 3
+    research_job_timeout_seconds: int = 180
+    research_stale_after_seconds: int = 120
+    research_prompt_chars: int = 60_000
+
     # Auth (email-link sign-in).
     login_link_ttl_minutes: int = 15
     login_requests_per_hour: int = 5

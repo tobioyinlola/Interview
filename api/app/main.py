@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -5,17 +6,26 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.db import dispose_engine
+from app.db import dispose_engine, get_sessionmaker
 from app.errors import install_error_handlers
 from app.logging_config import configure_logging
 from app.middleware import CsrfMiddleware, RequestContextMiddleware
-from app.routers import account, auth, health, notes, sessions
+from app.routers import account, auth, companies, health, notes, sessions
+from app.services.providers import build_runner
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    configure_logging(get_settings().log_level)
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    settings = get_settings()
+    configure_logging(settings.log_level)
+    runner = build_runner(settings, get_sessionmaker())
+    app.state.research_runner = runner
+    await runner.recover_stale()  # requeue jobs a restart interrupted
     yield
+    try:  # give running jobs a moment; anything unfinished is recovered on the next boot
+        await asyncio.wait_for(runner.wait_idle(), timeout=25)
+    except TimeoutError:
+        pass
     await dispose_engine()
 
 
@@ -37,7 +47,7 @@ def create_app() -> FastAPI:
     install_error_handlers(app)
 
     app.include_router(health.router)
-    for r in (auth.router, account.router, notes.router, sessions.router):
+    for r in (auth.router, account.router, notes.router, companies.router, sessions.router):
         app.include_router(r)
     return app
 

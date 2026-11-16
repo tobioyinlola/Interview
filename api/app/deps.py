@@ -6,11 +6,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.email import ConsoleEmailSender, EmailSender, UnconfiguredEmailSender
 from app.config import Settings, get_settings
-from app.db import get_db
+from app.db import get_db, get_sessionmaker
 from app.errors import ApiError
 from app.models import User
 from app.repositories import AuthRepo
 from app.security import COOKIE_NAME
+from app.services.providers import build_runner
+from app.services.url_guard import Resolver, system_resolver
+from app.workers.research_worker import ResearchRunner
 
 
 async def current_user(
@@ -41,3 +44,19 @@ def parse_uuid(value: str, code: str, message: str) -> uuid.UUID:
 
 
 UserId = Callable[..., uuid.UUID]
+
+
+def get_runner(
+    request: Request,
+    settings: Settings = Depends(get_settings),  # noqa: B008
+) -> ResearchRunner:
+    """The single in-process research runner (created at startup, or lazily on first use)."""
+    runner: ResearchRunner | None = getattr(request.app.state, "research_runner", None)
+    if runner is None:
+        runner = build_runner(settings, get_sessionmaker())
+        request.app.state.research_runner = runner
+    return runner
+
+
+def get_resolver() -> Resolver:
+    return system_resolver

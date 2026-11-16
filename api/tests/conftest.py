@@ -8,10 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import NullPool
 
 import app.models  # noqa: F401
+from app.adapters.fakes import FakeSearchProvider
 from app.config import Settings, get_settings
 from app.db import Base, get_db
-from app.deps import get_email_sender
+from app.deps import get_email_sender, get_resolver, get_runner
 from app.main import create_app
+from app.workers.research_worker import ResearchRunner
+from tests.helpers import FakeFetcher, ScriptedLlm, good_reply, ok
 
 TEST_DB = os.environ.get(
     "TEST_DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/meetpractice_test"
@@ -57,7 +60,38 @@ def settings() -> Settings:
 
 
 @pytest.fixture
-def app(engine, sender, settings):
+def fetcher():
+    return FakeFetcher({"https://acme.com/": ok("https://acme.com/")})
+
+
+@pytest.fixture
+def llm():
+    return ScriptedLlm(good_reply)
+
+
+@pytest.fixture
+def search():
+    return FakeSearchProvider()
+
+
+@pytest.fixture
+def runner(engine, settings, fetcher, llm, search):
+    return ResearchRunner(
+        session_factory=async_sessionmaker(engine, expire_on_commit=False),
+        fetcher=fetcher,  # type: ignore[arg-type]
+        llm=llm,  # type: ignore[arg-type]
+        search=search,
+        settings=settings,
+    )
+
+
+async def fake_resolver(host: str, port: int) -> list[str]:
+    """Names starting with 'private' resolve to a private address; everything else is public."""
+    return ["10.0.0.1"] if host.startswith("private") else ["93.184.216.34"]
+
+
+@pytest.fixture
+def app(engine, sender, settings, runner):
     application = create_app()
     maker = async_sessionmaker(engine, expire_on_commit=False)
 
@@ -68,6 +102,8 @@ def app(engine, sender, settings):
     application.dependency_overrides[get_db] = _db
     application.dependency_overrides[get_email_sender] = lambda: sender
     application.dependency_overrides[get_settings] = lambda: settings
+    application.dependency_overrides[get_runner] = lambda: runner
+    application.dependency_overrides[get_resolver] = lambda: fake_resolver
     return application
 
 

@@ -16,6 +16,8 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    false,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -119,6 +121,9 @@ class Company(Base):
     job_posting_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     role: Mapped[str] = mapped_column(String(200), default="")
     known_text: Mapped[str] = mapped_column(Text, default="")  # up to 2,000 characters
+    extra_links: Mapped[list[Any]] = mapped_column(
+        JSONB, default=list, server_default=text("'[]'::jsonb")
+    )  # up to 3 URLs
     last_researched_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
     created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
 
@@ -127,7 +132,7 @@ class CompanySource(Base):
     __tablename__ = "company_sources"
     id: Mapped[uuid.UUID] = _pk()
     company_id: Mapped[uuid.UUID] = _fk("companies.id", index=True)
-    # website | job_posting | extra_link | search_result | pasted
+    # website | job_posting | extra_link | search_result | pasted | known ("From you")
     kind: Mapped[str] = mapped_column(String(20))
     url: Mapped[str | None] = mapped_column(Text, nullable=True)
     title: Mapped[str] = mapped_column(Text, default="")
@@ -135,6 +140,10 @@ class CompanySource(Base):
     # ok | blocked | login_required | too_large | timeout | disallowed
     status: Mapped[str] = mapped_column(String(20), default="ok")
     extracted_text: Mapped[str] = mapped_column(Text, default="")
+    reason: Mapped[str] = mapped_column(
+        Text, default="", server_default=""
+    )  # plain-language reason when not ok
+    fetched_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
     removed_by_user: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
@@ -174,6 +183,12 @@ class ResearchJob(Base):
     model: Mapped[str | None] = mapped_column(String(100), nullable=True)
     search_calls: Mapped[int] = mapped_column(Integer, default=0)
     tokens: Mapped[int] = mapped_column(BigInteger, default=0)
+    attempts: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0"
+    )  # restarts survived (requeued once)
+    refresh: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=false()
+    )  # bypass the 24 h page cache
 
 
 class PracticeSession(Base):

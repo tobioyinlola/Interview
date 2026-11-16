@@ -6,6 +6,18 @@ from dataclasses import dataclass, field
 from typing import Literal, Protocol
 
 
+class ProviderError(Exception):
+    """An outside service failed. `message` is plain language and never contains user content."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self.message = message
+
+
+class ProviderNotConfigured(ProviderError):
+    """A required key or setting is missing."""
+
+
 @dataclass(frozen=True)
 class SttEvent:
     kind: Literal["ready", "partial", "final", "error"]
