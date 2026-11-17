@@ -106,3 +106,43 @@ def test_dev_email_links_work_in_staging_only_and_never_in_production() -> None:
     assert any("DEV_LOG_EMAIL_LINKS" in p for p in validate_settings(bad))
     no_flag = Settings(environment="staging", **base)  # type: ignore[arg-type]
     assert any("RESEND_API_KEY" in p for p in validate_settings(no_flag))
+
+
+async def test_dev_mode_with_resend_sends_for_real_and_also_logs_the_link() -> None:
+    from app.adapters.email import TeeEmailSender
+
+    cfg = Settings(  # type: ignore[arg-type]
+        environment="staging",
+        dev_log_email_links=True,
+        resend_api_key="re_x",
+        email_from="Meet <onboarding@resend.dev>",
+    )
+    sender = get_email_sender(cfg)
+    assert isinstance(sender, TeeEmailSender)
+    # production-style config (no dev switch) sends only through Resend
+    plain = Settings(environment="staging", resend_api_key="re_x", email_from="a@b.com")  # type: ignore[arg-type]
+    assert isinstance(get_email_sender(plain), ResendEmailSender)
+
+
+async def test_tee_sender_calls_the_real_sender_and_the_log_in_order() -> None:
+    from app.adapters.email import TeeEmailSender
+
+    calls: list[str] = []
+
+    class Rec:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+        async def send_login_link(self, email: str, link: str) -> None:
+            calls.append(f"{self.name}:login")
+
+        async def send_signup_link(self, email: str, link: str) -> None:
+            calls.append(f"{self.name}:signup")
+
+        async def send_reset_link(self, email: str, link: str) -> None:
+            calls.append(f"{self.name}:reset")
+
+    tee = TeeEmailSender(Rec("resend"), Rec("log"))  # type: ignore[arg-type]
+    await tee.send_signup_link("a@b.com", "https://x/y")
+    await tee.send_reset_link("a@b.com", "https://x/y")
+    assert calls == ["resend:signup", "log:signup", "resend:reset", "log:reset"]

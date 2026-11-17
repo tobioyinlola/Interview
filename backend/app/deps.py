@@ -9,6 +9,7 @@ from app.adapters.email import (
     ConsoleEmailSender,
     EmailSender,
     ResendEmailSender,
+    TeeEmailSender,
     UnconfiguredEmailSender,
 )
 from app.adapters.interfaces import SttProvider
@@ -51,13 +52,13 @@ def get_email_sender(
     settings: Settings = Depends(get_settings),  # noqa: B008
 ) -> EmailSender:
     key = settings.resend_api_key.get_secret_value()
+    dev_log = settings.dev_log_email_links and settings.environment == "staging"
     if key and settings.email_from:
-        return ResendEmailSender(
+        resend = ResendEmailSender(
             key, settings.email_from, ttl_minutes=settings.login_link_ttl_minutes
         )
-    if settings.environment == "local" or (
-        settings.dev_log_email_links and settings.environment == "staging"
-    ):
+        return TeeEmailSender(resend, ConsoleEmailSender()) if dev_log else resend
+    if settings.environment == "local" or dev_log:
         return ConsoleEmailSender()
     return UnconfiguredEmailSender()
 

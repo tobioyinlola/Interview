@@ -117,3 +117,23 @@ class ResendEmailSender:
                 )
         except httpx.HTTPError as exc:
             log.error("resend request failed", extra={"fields": {"error": type(exc).__name__}})
+
+
+class TeeEmailSender:
+    """Development: send for real AND print the link in the log. Lets a dev deployment use a test
+    sending address that can only reach one inbox, while sign-ups for other addresses still work."""
+
+    def __init__(self, primary: EmailSender, console: EmailSender) -> None:
+        self._senders = (primary, console)
+
+    async def send_login_link(self, email: str, link: str) -> None:
+        for sender in self._senders:
+            await sender.send_login_link(email, link)
+
+    async def send_signup_link(self, email: str, link: str) -> None:
+        for sender in self._senders:
+            await sender.send_signup_link(email, link)
+
+    async def send_reset_link(self, email: str, link: str) -> None:
+        for sender in self._senders:
+            await sender.send_reset_link(email, link)
