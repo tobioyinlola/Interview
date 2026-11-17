@@ -163,7 +163,7 @@ async def test_prompt_holds_the_session_notes_role_and_recent_conversation(alice
     assert prompt.rstrip().endswith(f"Latest interviewer turn:\n{QUESTION}")
     assert "No company brief is available." in prompt
     assert "NO_QUESTION" in answer_llm.calls[0]["system"]
-    assert "No matching story in your notes" in answer_llm.calls[0]["system"]
+    assert "No matching story in your CV" in answer_llm.calls[0]["system"]
 
 
 async def test_the_prompt_uses_the_notes_from_session_start_not_later_edits(alice, answer_llm):

@@ -31,7 +31,9 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const method = (init.method ?? "GET").toUpperCase();
   const headers = new Headers(init.headers);
-  if (init.body) headers.set("content-type", "application/json");
+  // JSON unless the caller sends something else (a file upload sets its own content type)
+  if (init.body && !headers.has("content-type"))
+    headers.set("content-type", "application/json");
   if (method !== "GET") headers.set("x-requested-with", "meet-practice"); // CSRF header
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...init,

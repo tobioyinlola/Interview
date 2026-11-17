@@ -154,8 +154,11 @@ class BodyLimitMiddleware:
         self.app = app
         self.default = settings.max_body_bytes
         self.audio = settings.max_audio_body_bytes
+        self.cv = settings.max_cv_body_bytes
 
     def limit_for(self, path: str) -> int:
+        if path.endswith("/notes/cv"):
+            return self.cv
         return self.audio if path.endswith("/segment") else self.default
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
@@ -246,7 +249,9 @@ class RateLimitMiddleware:
             await self.app(scope, receive, send)
             return
         key = self.client_key(scope)
-        if path.startswith("/api/auth/") and path != "/api/auth/providers":
+        if path == "/api/notes/cv":
+            wait = self.limiter.check(f"cv:{key}", self.s.rate_limit_upload_per_minute)
+        elif path.startswith("/api/auth/") and path != "/api/auth/providers":
             wait = self.limiter.check(f"auth:{key}", self.s.rate_limit_auth_per_minute)
         else:
             wait = self.limiter.check(f"api:{key}", self.s.rate_limit_per_minute)

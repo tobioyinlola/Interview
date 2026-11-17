@@ -124,7 +124,7 @@ export function ReviewPage() {
 
       <section aria-labelledby="gaps-h" className="space-y-2">
         <h2 id="gaps-h" className="text-xl font-semibold">
-          Gaps in your notes and brief
+          Gaps in your CV and brief
         </h2>
         <GapList gaps={data.gaps} />
       </section>

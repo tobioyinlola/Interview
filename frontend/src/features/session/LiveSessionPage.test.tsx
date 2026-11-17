@@ -97,7 +97,7 @@ describe("LiveSessionPage", () => {
   it("explains the empty answer panel, then shows the heard question and outline", () => {
     renderPage();
     expect(
-      screen.getByText(/an outline built from your notes appears here/),
+      screen.getByText(/an outline built from your CV appears here/),
     ).toBeInTheDocument();
     set({ outline: outline({ firstWordsMs: 2400 }) });
     expect(
@@ -166,12 +166,10 @@ describe("LiveSessionPage", () => {
     expect(ctl.regenerate).toHaveBeenCalled();
   });
 
-  it("warns about points that may not come from the notes", () => {
+  it("warns about points that may not come from the CV", () => {
     renderPage();
     set({ outline: outline({ flags: ["Cut onboarding time by 45%"] }) });
-    expect(
-      screen.getByText(/They may not be in your notes/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/They may not be in your CV/)).toBeInTheDocument();
     expect(screen.getByText("Cut onboarding time by 45%")).toBeInTheDocument();
   });
 

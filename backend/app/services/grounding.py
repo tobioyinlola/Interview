@@ -1,5 +1,5 @@
 """After an outline is written, check that its bullets introduce nothing new: no number and no
-capitalised name that is absent from the candidate's notes, the company brief or the question."""
+capitalised name that is absent from the candidate's CV, the company brief or the question."""
 
 import re
 
@@ -7,7 +7,7 @@ _BULLET = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s+(.*\S)\s*$")
 _LABEL = re.compile(r"\[(?:note|brief)\s*:[^\]]*\]", re.IGNORECASE)
 _NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?%?")
 _NAME = re.compile(r"\b[A-Z][a-zA-Z0-9&'’-]*(?:\s+[A-Z][a-zA-Z0-9&'’-]*)*")
-NO_STORY = "no matching story in your notes"
+NO_STORY_PHRASES = ("no matching story in your cv", "no matching story in your notes")
 
 # Words that are capitalised for grammar or because they name a method, not a fact.
 _STOP = {
@@ -53,7 +53,7 @@ def check_outline(outline: str, allowed: list[str]) -> list[str]:
     corpus_nums = {n.rstrip(",.") for n in _NUMBER.findall(" ".join(allowed))}
     flagged: list[str] = []
     for bullet in bullets(outline):
-        if NO_STORY in bullet.lower():
+        if any(p in bullet.lower() for p in NO_STORY_PHRASES):
             continue
         numbers, names = _claims(bullet)
         bad = any(n not in corpus_nums and n.replace(",", "") not in corpus_nums for n in numbers)

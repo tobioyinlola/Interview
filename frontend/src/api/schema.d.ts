@@ -417,6 +417,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/notes/cv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Cv
+         * @description Upload a CV as the raw request body (PDF, Word .docx or text), with its name in the
+         *     `x-filename` header. Only the text it holds is kept, never the file. Replaces any earlier CV.
+         */
+        post: operations["upload_cv_api_notes_cv_post"];
+        /**
+         * Remove Cv
+         * @description Remove the CV text. The target role stays.
+         */
+        delete: operations["remove_cv_api_notes_cv_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sessions": {
         parameters: {
             query?: never;
@@ -833,6 +858,24 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** CvUploadOut */
+        CvUploadOut: {
+            /** Content */
+            content: string;
+            /** Cv Filename */
+            cv_filename?: string | null;
+            /** Cv Uploaded At */
+            cv_uploaded_at?: string | null;
+            /** Role */
+            role: string;
+            /**
+             * Truncated
+             * @default false
+             */
+            truncated: boolean;
+            /** Updated At */
+            updated_at: string | null;
+        };
         /** FeedbackIn */
         FeedbackIn: {
             /** Value */
@@ -900,23 +943,25 @@ export interface components {
              */
             is_admin: boolean;
         };
-        /** NotesIn */
+        /**
+         * NotesIn
+         * @description A field left out is left as it is. The web app sends only the role; the text comes from the
+         *     CV upload.
+         */
         NotesIn: {
-            /**
-             * Content
-             * @default
-             */
-            content: string;
-            /**
-             * Role
-             * @default
-             */
-            role: string;
+            /** Content */
+            content?: string | null;
+            /** Role */
+            role?: string | null;
         };
         /** NotesOut */
         NotesOut: {
             /** Content */
             content: string;
+            /** Cv Filename */
+            cv_filename?: string | null;
+            /** Cv Uploaded At */
+            cv_uploaded_at?: string | null;
             /** Role */
             role: string;
             /** Updated At */
@@ -2029,6 +2074,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_cv_api_notes_cv_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CvUploadOut"];
+                };
+            };
+        };
+    };
+    remove_cv_api_notes_cv_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotesOut"];
                 };
             };
         };

@@ -199,17 +199,47 @@ class NotesRepo:
         stmt = select(Note).where(Note.user_id == self.user_id)
         return (await self.db.execute(stmt)).scalar_one_or_none()
 
-    async def upsert(self, *, role: str, content: str) -> Note:
+    async def upsert(self, *, role: str | None = None, content: str | None = None) -> Note:
+        """Set the fields given. Setting the text directly means it is no longer from a CV file."""
         note = await self.get()
         if note is None:
-            note = Note(user_id=self.user_id, role=role, content=content)
+            note = Note(user_id=self.user_id, role=role or "", content=content or "")
             self.db.add(note)
         else:
-            note.role = role
-            note.content = content
+            if role is not None:
+                note.role = role
+            if content is not None:
+                note.content = content
+                note.cv_filename = None
+                note.cv_uploaded_at = None
             note.updated_at = _now()
         await self.db.commit()
         await self.db.refresh(note)
+        return note
+
+    async def set_cv(self, *, text: str, filename: str) -> Note:
+        note = await self.get()
+        if note is None:
+            note = Note(user_id=self.user_id, role="", content=text)
+            self.db.add(note)
+        else:
+            note.content = text
+        note.cv_filename = filename
+        note.cv_uploaded_at = _now()
+        note.updated_at = _now()
+        await self.db.commit()
+        await self.db.refresh(note)
+        return note
+
+    async def clear_cv(self) -> Note | None:
+        note = await self.get()
+        if note is not None:
+            note.content = ""
+            note.cv_filename = None
+            note.cv_uploaded_at = None
+            note.updated_at = _now()
+            await self.db.commit()
+            await self.db.refresh(note)
         return note
 
 

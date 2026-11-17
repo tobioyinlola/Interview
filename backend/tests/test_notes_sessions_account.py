@@ -17,7 +17,13 @@ async def test_notes_round_trip_and_default_empty(new_client, sign_in):
     async with new_client() as c:
         await sign_in(c, "n@example.com")
         empty = (await c.get("/api/notes")).json()
-        assert empty == {"role": "", "content": "", "updated_at": None}
+        assert empty == {
+            "role": "",
+            "content": "",
+            "updated_at": None,
+            "cv_filename": None,
+            "cv_uploaded_at": None,
+        }
         put = await c.put("/api/notes", json={"role": "PM", "content": "Led a launch."})
         got = (await c.get("/api/notes")).json()
     assert put.status_code == 200 and got["role"] == "PM" and got["content"] == "Led a launch."

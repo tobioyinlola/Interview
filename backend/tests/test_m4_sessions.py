@@ -194,6 +194,14 @@ def test_gaps_group_by_kind_and_type_with_their_questions():
     assert "behavioral story" in gaps[0].hint and "company" in gaps[1].hint
 
 
+def test_gaps_are_found_with_the_new_cv_wording_and_the_old_notes_wording_and_say_cv():
+    new = find_gaps([S("TYPE: behavioral\nPOINTS:\n- No matching story in your CV\n- Use STAR")])
+    old = find_gaps([S("TYPE: behavioral\nPOINTS:\n- No matching story in your notes\n- Use STAR")])
+    for gaps in (new, old):
+        assert [(g.kind, g.type) for g in gaps] == [("experience", "behavioral")]
+        assert "your CV" in gaps[0].hint and "notes" not in gaps[0].hint
+
+
 def test_no_gaps_when_everything_was_grounded():
     assert find_gaps([S("- x [note: a]", sources=["note: a"])]) == []
 

@@ -17,7 +17,11 @@ export function mockApi(routes: Record<string, Handler>) {
       const path = new URL(url).pathname;
       const key = `${(init.method ?? "GET").toUpperCase()} ${path}`;
       const headers = new Headers(init.headers);
-      const body = init.body ? JSON.parse(init.body as string) : undefined;
+      // JSON bodies are parsed for the handler; a file body (a CV upload) is passed through as is
+      const body =
+        typeof init.body === "string"
+          ? JSON.parse(init.body)
+          : (init.body ?? undefined);
       calls.push({ key, body, headers });
       const h = routes[key];
       if (!h) throw new Error(`Unmocked request: ${key}`);

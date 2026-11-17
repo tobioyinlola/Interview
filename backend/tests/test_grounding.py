@@ -64,9 +64,14 @@ def test_facts_from_the_brief_and_the_question_are_allowed():
 
 def test_the_no_matching_story_bullet_and_star_framework_are_exempt():
     out = outline(
-        "No matching story in your notes",
+        "No matching story in your CV",
         "Use STAR: Situation, Task, Action, Result; bring a story about leading a team",
     )
+    assert check_outline(out, [NOTES]) == []
+
+
+def test_the_old_notes_wording_in_saved_sessions_is_still_recognised():
+    out = outline("No matching story in your notes", "Use STAR: Situation, Task, Action, Result")
     assert check_outline(out, [NOTES]) == []
 
 

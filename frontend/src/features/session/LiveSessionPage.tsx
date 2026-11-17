@@ -241,7 +241,7 @@ function OutlineView({
       )}
       {outline.flags.length > 0 && (
         <div className="notice-warn">
-          Check these points. They may not be in your notes or the brief:
+          Check these points. They may not be in your CV or the brief:
           <ul className="list-disc pl-5">
             {outline.flags.map((f) => (
               <li key={f}>{f}</li>
@@ -288,7 +288,7 @@ function AnswerPanel({ onRegenerate }: { onRegenerate: () => void }) {
         <OutlineView outline={outline} onRegenerate={onRegenerate} />
       ) : (
         <p className="text-muted">
-          When your partner asks a question, an outline built from your notes
+          When your partner asks a question, an outline built from your CV
           appears here.
         </p>
       )}

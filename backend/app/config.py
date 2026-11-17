@@ -94,6 +94,8 @@ class Settings(BaseSettings):
     rate_limit_auth_per_minute: int = 30  # sign-in endpoints, stricter
     max_body_bytes: int = 1_000_000
     max_audio_body_bytes: int = 2 * 1024 * 1024 + 4096  # POST .../segment
+    max_cv_body_bytes: int = 5 * 1024 * 1024 + 4096  # POST /api/notes/cv
+    rate_limit_upload_per_minute: int = 10  # CV uploads per client: parsing a file costs real CPU
     db_statement_timeout_ms: int = 3000
     db_pool_size: int = 10
     db_max_overflow: int = 10

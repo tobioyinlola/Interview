@@ -73,7 +73,7 @@ export function Layout() {
 
   const menu = [
     item("/dashboard", "Overview", <HomeIcon />, true),
-    item("/notes", "Notes", <NoteIcon />),
+    item("/notes", "CV", <NoteIcon />),
     item("/companies", "Companies", <BuildingIcon />),
     item("/session/new", "Practice", <MicIcon />),
   ];

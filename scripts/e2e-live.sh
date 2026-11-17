@@ -29,7 +29,7 @@ if [ "$PROXY" = "1" ]; then
     envsubst '${API_UPSTREAM} ${DNS_RESOLVER} ${API_ORIGIN} ${API_WS_ORIGIN}' < "$ROOT/frontend/nginx.conf.template" \
     | sed "s|root /usr/share/nginx/html;|root $ROOT/frontend/dist;|; s|listen 8080;|listen 5173;|" > "$N/default.conf"
   cat > "$N/nginx.conf" <<NGINX
-worker_processes 1; pid $OUT/nginx.pid; error_log $N/error.log;
+user $(id -un); worker_processes 1; pid $OUT/nginx.pid; error_log $N/error.log;
 events { worker_connections 256; }
 http { include /etc/nginx/mime.types; access_log $N/access.log;
   client_body_temp_path $N/tmp/c; proxy_temp_path $N/tmp/p; fastcgi_temp_path $N/tmp/f; uwsgi_temp_path $N/tmp/u; scgi_temp_path $N/tmp/s;

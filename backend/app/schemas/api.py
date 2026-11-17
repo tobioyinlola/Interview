@@ -46,14 +46,23 @@ class MeOut(BaseModel):
 
 
 class NotesIn(BaseModel):
-    role: str = Field(default="", max_length=200)
-    content: str = Field(default="", max_length=NOTES_MAX)
+    """A field left out is left as it is. The web app sends only the role; the text comes from the
+    CV upload."""
+
+    role: str | None = Field(default=None, max_length=200)
+    content: str | None = Field(default=None, max_length=NOTES_MAX)
 
 
 class NotesOut(BaseModel):
     role: str
-    content: str
+    content: str  # the text read from the CV
     updated_at: datetime | None
+    cv_filename: str | None = None
+    cv_uploaded_at: datetime | None = None
+
+
+class CvUploadOut(NotesOut):
+    truncated: bool = False  # the CV was longer than the limit and was cut at a word
 
 
 class SessionCreateIn(BaseModel):

@@ -18,6 +18,7 @@ import type {
   Me,
   Notes,
   NotesInput,
+  CvUpload,
   SessionCreated,
   SessionDetail,
   SessionList,
@@ -136,8 +137,37 @@ export function useNotes() {
   });
 }
 
-export function saveNotes(input: NotesInput) {
-  return apiFetch<Notes>("/api/notes", { method: "PUT", body: json(input) });
+/** The target role. The text of the notes comes only from the CV upload. */
+export function saveRole(role: string) {
+  return apiFetch<Notes>("/api/notes", {
+    method: "PUT",
+    body: json({ role } satisfies NotesInput),
+  });
+}
+
+/** Send a CV as the raw request body. The server reads the type from the file's own bytes. */
+export function useUploadCv() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) =>
+      apiFetch<CvUpload>("/api/notes/cv", {
+        method: "POST",
+        body: file,
+        headers: {
+          "content-type": file.type || "application/octet-stream",
+          "x-filename": encodeURIComponent(file.name),
+        },
+      }),
+    onSuccess: (notes) => qc.setQueryData(["notes"], notes),
+  });
+}
+
+export function useRemoveCv() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiFetch<Notes>("/api/notes/cv", { method: "DELETE" }),
+    onSuccess: (notes) => qc.setQueryData(["notes"], notes),
+  });
 }
 
 export function useDeleteAccount() {

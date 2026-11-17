@@ -35,7 +35,7 @@ server {
     proxy_buffering off;               # answer outlines stream as they are written
     proxy_read_timeout 3600s;          # a practice session is a long-lived socket
     proxy_send_timeout 3600s;
-    client_max_body_size 3m;           # the largest audio segment the API accepts
+    client_max_body_size 6m;           # the API accepts CVs up to 5 MB (audio chunks are smaller)
     # One copy of each security header: this server's, not the backend's as well.
     proxy_hide_header Content-Security-Policy;
     proxy_hide_header X-Content-Type-Options;

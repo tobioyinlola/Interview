@@ -123,7 +123,9 @@ class Note(Base):
     id: Mapped[uuid.UUID] = _pk()
     user_id: Mapped[uuid.UUID] = _fk("users.id", unique=True)  # one row per user in v1
     role: Mapped[str] = mapped_column(String(200), default="")
-    content: Mapped[str] = mapped_column(Text, default="")  # up to 16,000 characters
+    content: Mapped[str] = mapped_column(Text, default="")  # the CV's text, up to 16,000 characters
+    cv_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)  # name only
+    cv_uploaded_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(_TS, default=_now, onupdate=_now)
 
 

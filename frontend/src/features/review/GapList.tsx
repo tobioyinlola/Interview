@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 
 import type { Gap } from "../../api/types";
 
-/** Where the notes or the brief had nothing to offer, with what to add. */
+/** Where the CV or the brief had nothing to offer, with what to add. */
 export function GapList({ gaps }: { gaps: Gap[] }) {
   if (gaps.length === 0) {
     return (

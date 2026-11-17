@@ -99,15 +99,64 @@ const FAKE_MIC = () => {
   await page.goto(link);
   await page.getByRole("heading", { name: "Dashboard" }).waitFor();
 
-  // notes
+  // CV upload: a real PDF, then a Word file, then files the server must refuse
   await page.goto("http://localhost:5173/notes");
   await page.fill("#role", "Product Manager");
-  await page.fill(
-    "#notes",
-    "## Launch project\nLed the 2025 launch with a team of 6. Cut onboarding time by 30%.",
+  const fixtures = __dirname + "/fixtures";
+  await page.setInputFiles('input[type="file"]', fixtures + "/cv.pdf");
+  await page.getByRole("heading", { name: "cv.pdf" }).waitFor();
+  await page.getByText("See what we read").click();
+  check(
+    await page.getByText(/Cut onboarding time by 30%/).isVisible(),
+    "the text of the uploaded PDF is shown back",
   );
-  await sleep(2500);
-  step("signed in and notes saved");
+  await page.setInputFiles('input[type="file"]', fixtures + "/cv.docx");
+  await page.getByRole("heading", { name: "cv.docx" }).waitFor();
+  step("uploaded a PDF, then replaced it with a Word file");
+  await page.setInputFiles('input[type="file"]', {
+    name: "photo.png",
+    mimeType: "image/png",
+    buffer: Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      Buffer.alloc(64),
+    ]),
+  });
+  await page.getByRole("alert").waitFor();
+  check(
+    /isn't supported/i.test(await page.getByRole("alert").innerText()),
+    "an image is refused with a clear message",
+  );
+  await page.setInputFiles('input[type="file"]', {
+    name: "huge.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.alloc(5 * 1024 * 1024 + 1),
+  });
+  check(
+    /over 5 MB/i.test(await page.getByRole("alert").innerText()),
+    "a file over 5 MB is refused before it is sent",
+  );
+  check(
+    await page.getByRole("heading", { name: "cv.docx" }).isVisible(),
+    "the earlier CV is kept after a refused upload",
+  );
+  // a large file must get through the web server in front of the API (its body limit), and be cut
+  const apiBase = process.env.API_BASE || new URL(page.url()).origin;
+  const big = await page.request.post(apiBase + "/api/notes/cv", {
+    headers: {
+      "x-requested-with": "meet-practice",
+      "x-filename": "big.txt",
+      "content-type": "text/plain",
+    },
+    data: Buffer.from("word ".repeat(900_000)), // 4.5 MB
+  });
+  check(
+    big.status() === 200 && (await big.json()).truncated === true,
+    "a 4.5 MB file passes the proxy and is cut to the length limit",
+  );
+  await page.setInputFiles('input[type="file"]', fixtures + "/cv.pdf"); // back to the real CV
+  await page.getByRole("heading", { name: "cv.pdf" }).waitFor();
+  await sleep(2200); // the role autosaves
+  step("signed in and CV uploaded");
 
   // setup: Start stays disabled until the three conditions hold
   await page.goto("http://localhost:5173/session/new");
@@ -314,7 +363,7 @@ const FAKE_MIC = () => {
   step("answers scored with fixes");
   check(
     (await page
-      .getByRole("region", { name: "Gaps in your notes and brief" })
+      .getByRole("region", { name: "Gaps in your CV and brief" })
       .count()) === 1,
     "gap finder section is present",
   );

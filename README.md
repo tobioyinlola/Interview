@@ -1,7 +1,7 @@
 # InterviewMeet
 
 React + FastAPI app that researches a company before a practice interview, then listens to a Google Meet
-practice call (tab-audio sharing) and streams answer outlines grounded in the user's notes and a cited
+practice call (tab-audio sharing) and streams answer outlines grounded in the user's CV and a cited
 company brief. **For practice with a partner who knows the assistant is on.** There is no feature to hide
 the assistant or evade screen-share or proctoring, and none will be added.
 
@@ -40,6 +40,13 @@ emailing it. Other environments send it through Resend (`RESEND_API_KEY`, `EMAIL
 Tests need Postgres: `TEST_DATABASE_URL` (default `postgresql+asyncpg://postgres:postgres@localhost:5432/meetpractice_test`).
 Create the database once with `createdb meetpractice_test`.
 
+## CV upload
+The Notes page is a CV upload: PDF, Word (.docx) or plain text, up to 5 MB, 20 pages for a PDF. The server reads the
+text (`backend/app/services/cv.py`), keeps that text and the file name, and discards the file. The type is decided from
+the file's bytes, not its name; password-protected PDFs, scans with no text, old `.doc` files, oversized files, and
+zip or XML bombs are refused with a plain-language reason. A CV longer than 16,000 characters is cut at a word and the
+page says so. Outlines, the grounding check, scoring and the gap finder all work from this text. There is no OCR.
+
 ## Company research
 Add a company (name, website, job posting link, up to 3 extra links, role, "what I already know"). A
 background job reads the links, searches the web and writes a brief where **every fact cites a source**.
@@ -54,7 +61,7 @@ Facts with no valid source are dropped and empty sections say "Not found". Pages
 - Needs `OPENAI_API_KEY` to research. Without it a job fails with a clear message.
 
 ## Live practice session
-Sign in, save notes, optionally add a company, then **Practice**: tick the partner-consent box, start a
+Sign in, upload your CV, optionally add a company, then **Practice**: tick the partner-consent box, start a
 session, join Google Meet in another tab, and press **Share Meet tab** (pick the Meet tab and tick *Also
 share tab audio*). The app transcribes the partner and streams an answer outline for each question.
 
@@ -65,7 +72,7 @@ share tab audio*). The app transcribes the partner and streams an answer outline
   while the outage stays within 10 s).
 - **Answers:** `POST /api/sessions/{id}/suggest` streams server-sent events. One model call decides
   whether the turn is a question (`NO_QUESTION`) and writes the outline (TYPE/OPENER/POINTS/CLOSE) from the
-  notes snapshot and the company brief. Each bullet cites `[note: ...]` or `[brief: ...]`; a grounding
+  CV snapshot and the company brief. Each bullet cites `[note: ...]` or `[brief: ...]`; a grounding
   check flags numbers or names that are in neither. A newer question cancels an unfinished one.
 - **Limits:** daily caps on transcription seconds and tokens (`CAP_*`), enforced mid-session.
 
@@ -140,9 +147,9 @@ sideways scrolling and undersized controls, and runs with the other browser test
 - **Deploying:** [docs/deploy.md](docs/deploy.md).
 
 ## Status
-Built and tested: sign-in, notes, company research, live sessions, review and scoring, hardening.
+Built and tested: sign-in, CV upload, company research, live sessions, review and scoring, hardening.
 **Deployed:** a Railway dev environment (Postgres, backend, frontend) runs this branch; sign-up, password
-login, notes, consent, the live audio socket and OpenAI transcription were checked on it.
+login, CV upload, consent, the live audio socket and OpenAI transcription were checked on it.
 **Not yet verified against the real world:** answer quality and the evaluation scores (evals above),
 research adapters, a real Google Meet call, the GitHub Actions workflow, Google sign-in against real Google.
 **Open decisions:** transcript retention policy, daily budget figure.

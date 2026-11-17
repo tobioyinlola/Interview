@@ -55,7 +55,7 @@ export function DeleteAccountButton() {
       className="card space-y-2 border border-red-200"
     >
       <p>
-        This permanently deletes your notes, companies, sessions and account. It
+        This permanently deletes your CV, companies, sessions and account. It
         disappears from the app immediately and from storage within 30 days.
       </p>
       <div className="flex gap-2">

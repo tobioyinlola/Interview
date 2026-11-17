@@ -509,6 +509,65 @@
         "title": "CompanySummary",
         "type": "object"
       },
+      "CvUploadOut": {
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "cv_filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cv Filename"
+          },
+          "cv_uploaded_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cv Uploaded At"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "truncated": {
+            "default": false,
+            "title": "Truncated",
+            "type": "boolean"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "role",
+          "content",
+          "updated_at"
+        ],
+        "title": "CvUploadOut",
+        "type": "object"
+      },
       "FeedbackIn": {
         "properties": {
           "value": {
@@ -668,18 +727,31 @@
         "type": "object"
       },
       "NotesIn": {
+        "description": "A field left out is left as it is. The web app sends only the role; the text comes from the\nCV upload.",
         "properties": {
           "content": {
-            "default": "",
-            "maxLength": 16000,
-            "title": "Content",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 16000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
           },
           "role": {
-            "default": "",
-            "maxLength": 200,
-            "title": "Role",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
           }
         },
         "title": "NotesIn",
@@ -690,6 +762,29 @@
           "content": {
             "title": "Content",
             "type": "string"
+          },
+          "cv_filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cv Filename"
+          },
+          "cv_uploaded_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cv Uploaded At"
           },
           "role": {
             "title": "Role",
@@ -2764,6 +2859,48 @@
           }
         },
         "summary": "Put Notes",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
+    "/api/notes/cv": {
+      "delete": {
+        "description": "Remove the CV text. The target role stays.",
+        "operationId": "remove_cv_api_notes_cv_delete",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Remove Cv",
+        "tags": [
+          "notes"
+        ]
+      },
+      "post": {
+        "description": "Upload a CV as the raw request body (PDF, Word .docx or text), with its name in the\n`x-filename` header. Only the text it holds is kept, never the file. Replaces any earlier CV.",
+        "operationId": "upload_cv_api_notes_cv_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CvUploadOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Upload Cv",
         "tags": [
           "notes"
         ]

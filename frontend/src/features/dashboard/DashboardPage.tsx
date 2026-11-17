@@ -38,11 +38,11 @@ function Item({
   );
 }
 
-/** What to do next: notes saved, a fresh brief, a browser that can share tab audio. */
+/** What to do next: CV uploaded, a fresh brief, a browser that can share tab audio. */
 function ReadinessCard() {
   const notes = useNotes();
   const companies = useCompanies();
-  const notesSaved = (notes.data?.content ?? "").trim().length > 0;
+  const cvUploaded = (notes.data?.content ?? "").trim().length > 0;
   const researched = (companies.data ?? []).filter(
     (c) => c.job_status === "ready" && c.last_researched_at,
   );
@@ -52,7 +52,7 @@ function ReadinessCard() {
   const hasBrief = researched.length > 0;
   const stale = hasBrief && newest > STALE_DAYS;
   const canCapture = isSupported(currentEnv());
-  const ready = notesSaved && canCapture;
+  const ready = cvUploaded && canCapture;
 
   return (
     <section
@@ -63,11 +63,11 @@ function ReadinessCard() {
         Readiness
       </h2>
       <ul className="space-y-1 text-sm">
-        <Item ok={notesSaved}>
-          Notes saved{" "}
-          {!notesSaved && (
+        <Item ok={cvUploaded}>
+          CV uploaded{" "}
+          {!cvUploaded && (
             <Link to="/notes" className="text-accent-dark underline">
-              Add your notes
+              Upload your CV
             </Link>
           )}
         </Item>
@@ -325,7 +325,7 @@ export function DashboardPage() {
               />
               <Action
                 to="/notes"
-                title="Edit your notes"
+                title="Upload your CV"
                 sub="What outlines are built from"
               />
             </div>

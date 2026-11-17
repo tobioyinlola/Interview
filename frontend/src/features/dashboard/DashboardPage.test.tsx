@@ -29,8 +29,8 @@ describe("DashboardPage (FR-33)", () => {
     );
     renderApp(<App />, "/");
     const c = within(await card());
-    expect(c.getAllByText("Not done:").length).toBeGreaterThanOrEqual(3); // notes, brief and consent
-    expect(c.getByRole("link", { name: "Add your notes" })).toHaveAttribute(
+    expect(c.getAllByText("Not done:").length).toBeGreaterThanOrEqual(3); // CV, brief and consent
+    expect(c.getByRole("link", { name: "Upload your CV" })).toHaveAttribute(
       "href",
       "/notes",
     );
@@ -42,7 +42,7 @@ describe("DashboardPage (FR-33)", () => {
     expect(await screen.findByText("No sessions yet.")).toBeInTheDocument();
   });
 
-  it("ticks notes, a fresh brief and the browser, and reminds about consent", async () => {
+  it("ticks the CV, a fresh brief and the browser, and reminds about consent", async () => {
     mockApi(
       base({
         "GET /api/companies": () => ({
@@ -60,8 +60,8 @@ describe("DashboardPage (FR-33)", () => {
     renderApp(<App />, "/");
     const c = within(await card());
     await screen.findByText("Company brief ready and fresh");
-    expect(c.getByText(/Notes saved/)).toBeInTheDocument();
-    expect(c.queryByRole("link", { name: "Add your notes" })).toBeNull();
+    expect(c.getByText(/CV uploaded/)).toBeInTheDocument();
+    expect(c.queryByRole("link", { name: "Upload your CV" })).toBeNull();
     expect(c.getByText("Browser can share tab audio")).toBeInTheDocument();
     expect(
       c.getByText(/Partner consent: you confirm it when you start a session/),

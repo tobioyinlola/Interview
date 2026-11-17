@@ -90,7 +90,7 @@ describe("terms and privacy", () => {
       }),
     });
     renderApp(<App />, "/notes");
-    await screen.findByRole("heading", { name: "Your notes" });
+    await screen.findByRole("heading", { name: "Your CV" });
     expect(screen.getByRole("link", { name: "Terms" })).toHaveAttribute(
       "href",
       "/terms",

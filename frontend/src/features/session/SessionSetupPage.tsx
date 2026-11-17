@@ -29,9 +29,9 @@ export function SessionSetupPage() {
   // One idempotency key per attempt, so a double click cannot start two sessions.
   const key = useRef(crypto.randomUUID());
 
-  const notesSaved = (notes.data?.content ?? "").trim().length > 0;
+  const cvUploaded = (notes.data?.content ?? "").trim().length > 0;
   const chosen = choice !== "";
-  const ready = notesSaved && chosen && consent;
+  const ready = cvUploaded && chosen && consent;
   const company = companies.data?.find((c) => c.id === choice);
   const age = daysSince(company?.last_researched_at);
 
@@ -79,7 +79,7 @@ export function SessionSetupPage() {
           className="input w-full"
         >
           <option value="">Choose…</option>
-          <option value={NONE}>No company (use my notes only)</option>
+          <option value={NONE}>No company (use my CV only)</option>
           {companies.data?.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -88,7 +88,7 @@ export function SessionSetupPage() {
         </select>
         {company && isActive(company.job_status) && (
           <p role="status" className="text-sm text-amber-800">
-            This company is still being researched. Outlines will use your notes
+            This company is still being researched. Outlines will use your CV
             only until the brief is ready (the brief is chosen when the session
             starts).
           </p>
@@ -97,8 +97,7 @@ export function SessionSetupPage() {
           !isActive(company.job_status) &&
           !company.last_researched_at && (
             <p className="text-sm text-amber-800">
-              No brief yet, so outlines for this company will use your notes
-              alone.
+              No brief yet, so outlines for this company will use your CV alone.
             </p>
           )}
         {age !== null && age > 7 && (
@@ -137,11 +136,11 @@ export function SessionSetupPage() {
           Readiness
         </h2>
         <ul className="space-y-1 text-sm">
-          <Tick ok={notesSaved}>
-            Notes saved{" "}
-            {!notesSaved && (
+          <Tick ok={cvUploaded}>
+            CV uploaded{" "}
+            {!cvUploaded && (
               <Link to="/notes" className="text-accent-dark underline">
-                Add your notes
+                Upload your CV
               </Link>
             )}
           </Tick>
