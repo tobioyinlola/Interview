@@ -42,6 +42,16 @@ class UnconfiguredEmailSender:
         log.error("no email provider configured; reset link was not delivered")
 
 
+def _reason(resp: httpx.Response) -> str:
+    """Resend's short error name (for example validation_error). Never its message: that can name
+    the recipient."""
+    try:
+        name = str(resp.json().get("name", ""))
+    except (ValueError, AttributeError):
+        return "unknown"
+    return name if name.replace("_", "").isalnum() and len(name) <= 40 else "unknown"
+
+
 class ResendEmailSender:
     """Sends the sign-in email through Resend. A failure is logged (never the address or link) and
     swallowed: the sign-in endpoint answers the same for every address, so it must not reveal
@@ -113,7 +123,8 @@ class ResendEmailSender:
                 )
             if resp.status_code >= 300:
                 log.error(
-                    "resend rejected the email", extra={"fields": {"status": resp.status_code}}
+                    "resend rejected the email",
+                    extra={"fields": {"status": resp.status_code, "reason": _reason(resp)}},
                 )
         except httpx.HTTPError as exc:
             log.error("resend request failed", extra={"fields": {"error": type(exc).__name__}})

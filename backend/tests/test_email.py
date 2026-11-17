@@ -146,3 +146,21 @@ async def test_tee_sender_calls_the_real_sender_and_the_log_in_order() -> None:
     await tee.send_signup_link("a@b.com", "https://x/y")
     await tee.send_reset_link("a@b.com", "https://x/y")
     assert calls == ["resend:signup", "log:signup", "resend:reset", "log:reset"]
+
+
+async def test_the_log_names_the_resend_error_but_never_its_message(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    def refuse(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            403,
+            json={
+                "name": "validation_error",
+                "message": "You can only send testing emails to owner@private.example",
+            },
+        )
+
+    await sender(refuse).send_login_link("someone@b.com", LINK)
+    logged = " ".join(r.getMessage() + str(getattr(r, "fields", "")) for r in caplog.records)
+    assert "validation_error" in logged and "403" in logged
+    assert "owner@private.example" not in logged and "someone@b.com" not in logged
