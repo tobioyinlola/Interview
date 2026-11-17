@@ -708,6 +708,17 @@
             "title": "Email",
             "type": "string"
           },
+          "full_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -717,6 +728,21 @@
             "default": false,
             "title": "Is Admin",
             "type": "boolean"
+          },
+          "onboarded": {
+            "default": true,
+            "title": "Onboarded",
+            "type": "boolean"
+          },
+          "onboarding": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OnboardingAnswers"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -811,6 +837,182 @@
         "title": "NotesOut",
         "type": "object"
       },
+      "OnboardingAnswers": {
+        "properties": {
+          "focus": {
+            "items": {
+              "enum": [
+                "structure",
+                "results",
+                "confidence",
+                "technical",
+                "company",
+                "curveballs"
+              ],
+              "type": "string"
+            },
+            "maxItems": 3,
+            "title": "Focus",
+            "type": "array"
+          },
+          "goal": {
+            "anyOf": [
+              {
+                "enum": [
+                  "new_job",
+                  "promotion",
+                  "career_change",
+                  "practice"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "enum": [
+                  "entry",
+                  "mid",
+                  "senior",
+                  "lead"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "timeline": {
+            "anyOf": [
+              {
+                "enum": [
+                  "this_week",
+                  "few_weeks",
+                  "few_months",
+                  "not_scheduled"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timeline"
+          }
+        },
+        "title": "OnboardingAnswers",
+        "type": "object"
+      },
+      "OnboardingIn": {
+        "description": "Finish onboarding with all four answers, or skip it. `role` is the CV page's target role;\n`full_name` is only asked for when the account has none.",
+        "properties": {
+          "focus": {
+            "items": {
+              "enum": [
+                "structure",
+                "results",
+                "confidence",
+                "technical",
+                "company",
+                "curveballs"
+              ],
+              "type": "string"
+            },
+            "maxItems": 3,
+            "title": "Focus",
+            "type": "array"
+          },
+          "full_name": {
+            "anyOf": [
+              {
+                "maxLength": 400,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name"
+          },
+          "goal": {
+            "anyOf": [
+              {
+                "enum": [
+                  "new_job",
+                  "promotion",
+                  "career_change",
+                  "practice"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "enum": [
+                  "entry",
+                  "mid",
+                  "senior",
+                  "lead"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "skipped": {
+            "default": false,
+            "title": "Skipped",
+            "type": "boolean"
+          },
+          "timeline": {
+            "anyOf": [
+              {
+                "enum": [
+                  "this_week",
+                  "few_weeks",
+                  "few_months",
+                  "not_scheduled"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timeline"
+          }
+        },
+        "title": "OnboardingIn",
+        "type": "object"
+      },
       "PasteIn": {
         "properties": {
           "text": {
@@ -830,6 +1032,21 @@
           "text"
         ],
         "title": "PasteIn",
+        "type": "object"
+      },
+      "ProfileIn": {
+        "properties": {
+          "full_name": {
+            "maxLength": 400,
+            "minLength": 1,
+            "title": "Full Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "full_name"
+        ],
+        "title": "ProfileIn",
         "type": "object"
       },
       "ProvidersOut": {
@@ -1352,6 +1569,12 @@
             "title": "Email",
             "type": "string"
           },
+          "full_name": {
+            "maxLength": 400,
+            "minLength": 1,
+            "title": "Full Name",
+            "type": "string"
+          },
           "password": {
             "maxLength": 256,
             "minLength": 1,
@@ -1361,6 +1584,7 @@
         },
         "required": [
           "email",
+          "full_name",
           "password"
         ],
         "title": "SignUpIn",
@@ -1856,7 +2080,7 @@
   "paths": {
     "/api/account": {
       "delete": {
-        "description": "Delete the user and everything they own at once. Backups age out within 30 days.",
+        "description": "Delete the user and everything they own at once. Backups age out within 30 days. One\nconfirmation email goes out afterwards, and the address is kept for nothing else.",
         "operationId": "delete_account_api_account_delete",
         "responses": {
           "202": {
@@ -2903,6 +3127,89 @@
         "summary": "Upload Cv",
         "tags": [
           "notes"
+        ]
+      }
+    },
+    "/api/onboarding": {
+      "put": {
+        "description": "Finish onboarding with all four answers, or skip it. Either way the person is not asked\nagain. The target role, if given, goes to the CV page.",
+        "operationId": "save_onboarding_api_onboarding_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnboardingIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Onboarding",
+        "tags": [
+          "profile"
+        ]
+      }
+    },
+    "/api/profile": {
+      "put": {
+        "operationId": "save_profile_api_profile_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Profile",
+        "tags": [
+          "profile"
         ]
       }
     },

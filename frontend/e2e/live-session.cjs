@@ -97,6 +97,8 @@ const FAKE_MIC = () => {
       .matchAll(/http:\/\/localhost:5173\/login\/verify\?token=[\w-]+/g),
   ].pop()[0];
   await page.goto(link);
+  // A brand-new account is asked four questions first; this test skips them.
+  await page.getByRole("button", { name: "Skip for now" }).click();
   await page.getByRole("heading", { name: "Dashboard" }).waitFor();
 
   // CV upload: a real PDF, then a Word file, then files the server must refuse

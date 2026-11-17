@@ -1,8 +1,9 @@
-"""Sign-in link delivery. Resend sends the email when configured; local runs without it log the
-link to the console, and any other environment without it logs an error."""
+"""Sending email. Templates (app/services/email_templates.py) build the messages; the senders here
+only deliver them. Resend sends for real when configured; local runs print sign-in links to the
+console; any other environment without Resend logs an error and sends nothing."""
 
-import html
 import logging
+from dataclasses import dataclass
 from typing import Protocol
 
 import httpx
@@ -10,36 +11,42 @@ import httpx
 log = logging.getLogger("app.email")
 
 
+@dataclass(frozen=True)
+class EmailMessage:
+    kind: str  # signup | login | reset | welcome | password_changed | account_deleted
+    to: str
+    subject: str
+    html: str
+    text: str
+    # The one-time sign-in, confirmation or reset link, if the message carries one. Used only to
+    # print it in development logs and to let tests pick it up; never logged otherwise.
+    link: str | None = None
+    reply_to: str | None = None
+
+
 class EmailSender(Protocol):
-    async def send_login_link(self, email: str, link: str) -> None: ...
-
-    async def send_signup_link(self, email: str, link: str) -> None: ...
-
-    async def send_reset_link(self, email: str, link: str) -> None: ...
+    async def send(self, message: EmailMessage) -> None: ...
 
 
 class ConsoleEmailSender:
     """Local development only: prints the link instead of emailing it."""
 
-    async def send_login_link(self, email: str, link: str) -> None:
-        log.info("login link (local only)", extra={"fields": {"link": link}})
-
-    async def send_signup_link(self, email: str, link: str) -> None:
-        log.info("login link (local only)", extra={"fields": {"link": link, "kind": "signup"}})
-
-    async def send_reset_link(self, email: str, link: str) -> None:
-        log.info("login link (local only)", extra={"fields": {"link": link, "kind": "reset"}})
+    async def send(self, message: EmailMessage) -> None:
+        if message.link:
+            log.info(
+                "login link (local only)",
+                extra={"fields": {"link": message.link, "kind": message.kind}},
+            )
+        else:
+            log.info("email (local only, not sent)", extra={"fields": {"kind": message.kind}})
 
 
 class UnconfiguredEmailSender:
-    async def send_login_link(self, email: str, link: str) -> None:
-        log.error("no email provider configured; sign-in link was not delivered")
-
-    async def send_signup_link(self, email: str, link: str) -> None:
-        log.error("no email provider configured; sign-up link was not delivered")
-
-    async def send_reset_link(self, email: str, link: str) -> None:
-        log.error("no email provider configured; reset link was not delivered")
+    async def send(self, message: EmailMessage) -> None:
+        log.error(
+            "no email provider configured; email was not delivered",
+            extra={"fields": {"kind": message.kind}},
+        )
 
 
 def _reason(resp: httpx.Response) -> str:
@@ -53,9 +60,9 @@ def _reason(resp: httpx.Response) -> str:
 
 
 class ResendEmailSender:
-    """Sends the sign-in email through Resend. A failure is logged (never the address or link) and
-    swallowed: the sign-in endpoint answers the same for every address, so it must not reveal
-    whether delivery worked."""
+    """Sends through Resend. A failure is logged (never the address, the link or Resend's message)
+    and swallowed: the web endpoints answer the same whether or not delivery worked, so they
+    must not reveal it."""
 
     URL = "https://api.resend.com/emails"
 
@@ -64,58 +71,22 @@ class ResendEmailSender:
         api_key: str,
         from_address: str,
         *,
-        ttl_minutes: int = 15,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self._key = api_key
         self._from = from_address
-        self._ttl = ttl_minutes
         self._transport = transport
 
-    async def send_login_link(self, email: str, link: str) -> None:
-        await self._send(
-            email,
-            link,
-            subject="Your sign-in link",
-            lead="Use this link to sign in to InterviewMeet.",
-            button="Sign in",
-        )
-
-    async def send_signup_link(self, email: str, link: str) -> None:
-        await self._send(
-            email,
-            link,
-            subject="Confirm your email to finish creating your account",
-            lead="Confirm your email address to finish creating your InterviewMeet account.",
-            button="Confirm and sign in",
-        )
-
-    async def send_reset_link(self, email: str, link: str) -> None:
-        await self._send(
-            email,
-            link,
-            subject="Reset your password",
-            lead="Use this link to choose a new password for InterviewMeet.",
-            button="Choose a new password",
-        )
-
-    async def _send(self, email: str, link: str, *, subject: str, lead: str, button: str) -> None:
-        text = (
-            f"{lead} It works once and expires in {self._ttl} minutes.\n\n{link}\n\n"
-            "If you did not ask for it, ignore this email."
-        )
-        safe = html.escape(link, quote=True)
-        body = {
+    async def send(self, message: EmailMessage) -> None:
+        body: dict[str, object] = {
             "from": self._from,
-            "to": [email],
-            "subject": subject,
-            "text": text,
-            "html": (
-                f"<p>{lead} It works once and expires in {self._ttl} minutes.</p>"
-                f'<p><a href="{safe}">{button}</a></p>'
-                f"<p>If you did not ask for it, ignore this email.</p>"
-            ),
+            "to": [message.to],
+            "subject": message.subject,
+            "html": message.html,
+            "text": message.text,
         }
+        if message.reply_to:
+            body["reply_to"] = message.reply_to
         try:
             async with httpx.AsyncClient(timeout=10, transport=self._transport) as client:
                 resp = await client.post(
@@ -124,7 +95,13 @@ class ResendEmailSender:
             if resp.status_code >= 300:
                 log.error(
                     "resend rejected the email",
-                    extra={"fields": {"status": resp.status_code, "reason": _reason(resp)}},
+                    extra={
+                        "fields": {
+                            "status": resp.status_code,
+                            "reason": _reason(resp),
+                            "kind": message.kind,
+                        }
+                    },
                 )
         except httpx.HTTPError as exc:
             log.error("resend request failed", extra={"fields": {"error": type(exc).__name__}})
@@ -137,14 +114,6 @@ class TeeEmailSender:
     def __init__(self, primary: EmailSender, console: EmailSender) -> None:
         self._senders = (primary, console)
 
-    async def send_login_link(self, email: str, link: str) -> None:
+    async def send(self, message: EmailMessage) -> None:
         for sender in self._senders:
-            await sender.send_login_link(email, link)
-
-    async def send_signup_link(self, email: str, link: str) -> None:
-        for sender in self._senders:
-            await sender.send_signup_link(email, link)
-
-    async def send_reset_link(self, email: str, link: str) -> None:
-        for sender in self._senders:
-            await sender.send_reset_link(email, link)
+            await sender.send(message)

@@ -28,8 +28,10 @@ const mode = (m) => fetch(`http://localhost:9099/control?mode=${m}`);
   await page.getByRole("checkbox", { name: /i agree/i }).check();
   await mode("ok");
   await google.click();
+  await page.waitForURL("**/onboarding");
+  await page.getByRole("button", { name: "Skip for now" }).click();
   await page.waitForURL("**/dashboard");
-  await page.getByText(/Good (morning|afternoon|evening)/).waitFor();
+  await page.getByText(/^Hello/).waitFor();
   ok(
     await page.getByText("google.user@example.com").isVisible(),
     "signed in through Google; the email was normalised to lower case",

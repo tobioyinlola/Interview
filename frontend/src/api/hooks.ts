@@ -18,6 +18,7 @@ import type {
   Me,
   Notes,
   NotesInput,
+  OnboardingInput,
   CvUpload,
   SessionCreated,
   SessionDetail,
@@ -67,7 +68,7 @@ export function useRequestLink() {
 
 export function useSignUp() {
   return useMutation({
-    mutationFn: (v: { email: string; password: string }) =>
+    mutationFn: (v: { email: string; password: string; full_name: string }) =>
       apiFetch<{ status: string }>("/api/auth/signup", {
         method: "POST",
         body: json(v),
@@ -80,6 +81,27 @@ export function useLogin() {
   return useMutation({
     mutationFn: (v: { email: string; password: string }) =>
       apiFetch<Me>("/api/auth/login", { method: "POST", body: json(v) }),
+    onSuccess: (me) => qc.setQueryData(["me"], me),
+  });
+}
+
+export function useSaveProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (full_name: string) =>
+      apiFetch<Me>("/api/profile", {
+        method: "PUT",
+        body: json({ full_name }),
+      }),
+    onSuccess: (me) => qc.setQueryData(["me"], me),
+  });
+}
+
+export function useSaveOnboarding() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: OnboardingInput) =>
+      apiFetch<Me>("/api/onboarding", { method: "PUT", body: json(input) }),
     onSuccess: (me) => qc.setQueryData(["me"], me),
   });
 }

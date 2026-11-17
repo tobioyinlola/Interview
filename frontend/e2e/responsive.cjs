@@ -25,6 +25,7 @@ const OUT = [
 ];
 const IN = [
   "/dashboard",
+  "/onboarding",
   "/notes",
   "/companies",
   "/session/new",
@@ -103,6 +104,7 @@ const probe = () => {
       .matchAll(/http:\/\/localhost:5173\/login\/verify\?token=[\w-]+/g),
   ].pop()[0];
   await seed.goto(link);
+  await seed.getByRole("button", { name: "Skip for now" }).click();
   await seed.waitForURL("**/dashboard");
   const state = await seed.context().storageState();
   let checks = 0,

@@ -49,6 +49,7 @@ const NEW = "a brand new passphrase";
   }
 
   await page.goto(BASE + "/signup");
+  await page.getByLabel("Full name").fill("  Jordan   Reyes ");
   await page.getByLabel("Email address").fill(EMAIL);
   await page.getByLabel("Password", { exact: true }).fill(PASS);
   await page.getByLabel("Confirm password", { exact: true }).fill(PASS + "x");
@@ -107,10 +108,48 @@ const NEW = "a brand new passphrase";
     /http:\/\/localhost:5173\/login\/verify\?token=[\w-]+/g,
   );
   await page.goto(link);
-  await page.waitForURL("**/dashboard");
+  await page.waitForURL("**/onboarding");
   ok(
-    await page.getByText(EMAIL).isVisible(),
-    "opening the emailed link creates the account and signs in",
+    true,
+    "opening the emailed link creates the account and starts onboarding",
+  );
+  const pick = async (name) => {
+    await page.getByRole("radio", { name }).check({ force: true });
+    await page.getByRole("button", { name: "Continue" }).click();
+  };
+  await page.getByText("Step 1 of 4").waitFor();
+  ok(
+    await page.getByRole("button", { name: "Continue" }).isDisabled(),
+    "Continue is disabled until an answer is chosen",
+  );
+  await pick(/A new job/);
+  await page.getByText("Step 2 of 4").waitFor();
+  await pick(/Senior/);
+  await page.getByText("Step 3 of 4").waitFor();
+  await pick(/This week/);
+  await page.getByText("Step 4 of 4").waitFor();
+  await page
+    .getByRole("checkbox", { name: /Structuring my answers/ })
+    .check({ force: true });
+  await page.getByRole("button", { name: "Finish" }).click();
+  await page.getByText("You're all set, Jordan").waitFor();
+  ok(true, "the finish screen thanks the person by first name");
+  await page.getByRole("link", { name: "Go to your dashboard" }).click();
+  await page.waitForURL("**/dashboard");
+  await page.getByText("Hello, Jordan 👋").waitFor();
+  ok(
+    true,
+    "four answers saved; the dashboard greets the first name with a wave",
+  );
+  ok(
+    await page.getByRole("region", { name: "Your focus" }).isVisible(),
+    "the dashboard shows the chosen focus",
+  );
+  await page.reload();
+  await page.getByText("Hello, Jordan 👋").waitFor();
+  ok(
+    !page.url().includes("onboarding"),
+    "a finished onboarding is not asked again after a reload",
   );
 
   await page.getByRole("button", { name: "Sign out" }).click();

@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
@@ -18,6 +19,7 @@ class StatusOut(BaseModel):
 
 class SignUpIn(BaseModel):
     email: EmailStr
+    full_name: str = Field(min_length=1, max_length=400)  # the name rules give the message
     password: str = Field(min_length=1, max_length=256)  # the real rules are checked server-side
 
 
@@ -39,10 +41,40 @@ class VerifyIn(BaseModel):
     token: str = Field(min_length=10, max_length=200)
 
 
+# The onboarding questions and their allowed answers. The web app's options are typed from these.
+Goal = Literal["new_job", "promotion", "career_change", "practice"]
+Level = Literal["entry", "mid", "senior", "lead"]
+Timeline = Literal["this_week", "few_weeks", "few_months", "not_scheduled"]
+Focus = Literal["structure", "results", "confidence", "technical", "company", "curveballs"]
+
+
+class OnboardingAnswers(BaseModel):
+    goal: Goal | None = None
+    level: Level | None = None
+    timeline: Timeline | None = None
+    focus: list[Focus] = Field(default_factory=list, max_length=3)
+
+
+class OnboardingIn(OnboardingAnswers):
+    """Finish onboarding with all four answers, or skip it. `role` is the CV page's target role;
+    `full_name` is only asked for when the account has none."""
+
+    skipped: bool = False
+    role: str | None = Field(default=None, max_length=200)
+    full_name: str | None = Field(default=None, max_length=400)
+
+
+class ProfileIn(BaseModel):
+    full_name: str = Field(min_length=1, max_length=400)
+
+
 class MeOut(BaseModel):
     id: uuid.UUID
     email: str
     is_admin: bool = False  # may open the owner's usage and cost view
+    full_name: str | None = None
+    onboarded: bool = True  # false until onboarding is finished or skipped
+    onboarding: OnboardingAnswers | None = None
 
 
 class NotesIn(BaseModel):

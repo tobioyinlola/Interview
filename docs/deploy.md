@@ -25,6 +25,7 @@ Variables:
 | `METRICS_TOKEN` | random string; the scraper sends it as a bearer token |
 | `ADMIN_EMAILS` | comma-separated emails allowed to see the cost view |
 | `RESEND_API_KEY`, `EMAIL_FROM` | required; see below |
+| `SUPPORT_EMAIL` | optional; the contact address in every email footer; the line is left out when empty |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `API_PUBLIC_URL` | optional; see "Sign in with Google" |
 | `SENTRY_DSN` | optional |
 | `CAP_STT_SECONDS_DAILY`, `CAP_TOKENS_DAILY`, `CAP_RESEARCH_JOBS_DAILY` | per-user caps; defaults 5400, 500000, 10 |
@@ -85,6 +86,10 @@ Resend (DNS records), create an API key, then set `RESEND_API_KEY` and `EMAIL_FR
 `Meet Practice <login@yourdomain.com>`, an address on the verified domain). In staging and
 production the API refuses to boot without both. A delivery failure is logged without the address or
 link, and the sign-in endpoint still answers the same for every address.
+
+The same sender delivers the other account emails: sign-up confirmation, welcome (when an account is created), "your password was changed" and "your account was deleted". They are best-effort: if one
+fails to send, the action it reports still succeeds. The logo is `frontend/public/email-logo.png`,
+loaded from `WEB_ORIGIN`, so the web service must be reachable for it to show.
 
 ## 3. Web service (root directory `frontend/`, uses `frontend/Dockerfile`)
 

@@ -122,7 +122,7 @@ async def test_start_sends_the_browser_to_google_with_state_nonce_and_pkce(
     assert r.headers["location"].startswith("https://accounts.google.com/o/oauth2/v2/auth?")
     assert q["client_id"] == CLIENT_ID
     assert q["redirect_uri"] == "https://api.example.com/api/auth/google/callback"
-    assert q["response_type"] == "code" and q["scope"] == "openid email"
+    assert q["response_type"] == "code" and q["scope"] == "openid email profile"
     assert q["code_challenge_method"] == "S256"
     assert len(q["state"]) >= 32 and len(q["nonce"]) >= 32
     cookie = r.headers["set-cookie"].lower()
@@ -394,3 +394,53 @@ def test_web_and_api_must_share_a_site_or_the_login_cookie_is_dropped() -> None:
         **base, web_origin="https://app.example.com", api_public_url="https://api.example.com"
     )
     assert validate_settings(good) == []
+
+
+# ------------------------------------------------------------------ the name and the welcome email
+
+
+async def finish_sign_in(c, google, **kw) -> dict:  # type: ignore[no-untyped-def,type-arg]
+    q = await begin(c, google)
+    r = await c.get("/api/auth/google/callback", params={"code": "abc", "state": q["state"]})
+    assert r.status_code == 303 and r.headers["location"].endswith("/dashboard")
+    return (await c.get("/api/me")).json()  # type: ignore[no-any-return]
+
+
+async def test_a_new_google_account_takes_its_name_and_gets_one_welcome_email(
+    new_client, google, sender
+) -> None:
+    google.override = {"name": "Rahman  Adeyemi"}
+    async with new_client() as c:
+        me = await finish_sign_in(c, google)
+        again = await finish_sign_in(c, google)
+    assert me["full_name"] == "Rahman Adeyemi" and again["id"] == me["id"]
+    assert sender.kinds("rahman@example.com") == ["welcome"]  # not on the second sign-in
+    assert "Hi Rahman," in sender.messages[0].text
+
+
+async def test_an_unusable_name_from_google_is_ignored_but_the_account_still_works(
+    new_client, google, sender
+) -> None:
+    google.override = {"name": "<script>alert(1)</script>"}
+    async with new_client() as c:
+        me = await finish_sign_in(c, google)
+    assert me["full_name"] is None and sender.kinds() == ["welcome"]
+    assert "Hi there," in sender.messages[0].text
+
+
+async def test_google_without_a_name_claim_still_signs_in(new_client, google, sender) -> None:
+    async with new_client() as c:
+        me = await finish_sign_in(c, google)  # the fake token has no name claim by default
+    assert me["full_name"] is None and me["onboarded"] is False
+
+
+async def test_signing_in_to_an_existing_account_with_google_changes_nothing_and_sends_nothing(
+    new_client, google, sender, sign_in
+) -> None:
+    async with new_client() as c:
+        await sign_in(c, "rahman@example.com")
+    sender.messages.clear()
+    google.override = {"name": "Someone Else"}
+    async with new_client() as c2:
+        me = await finish_sign_in(c2, google)
+    assert me["full_name"] is None and sender.messages == []

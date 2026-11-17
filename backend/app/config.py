@@ -85,6 +85,8 @@ class Settings(BaseSettings):
     # Dev environments only: print sign-in links in the log instead of emailing them, so a dev
     # deployment works before an email provider exists. Anyone who can read the log can sign in as
     # anyone, so the API refuses to start with this on in production.
+    # Shown in email footers and used as the Reply-To, so people can write back. Optional.
+    support_email: str = ""
     dev_log_email_links: bool = False
     resend_api_key: SecretStr = SecretStr("")  # sends the sign-in email
     email_from: str = ""  # e.g. "Meet Practice <login@yourdomain.com>", a Resend-verified domain

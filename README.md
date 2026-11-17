@@ -37,6 +37,15 @@ emailed single-use sign-in link, or "Continue with Google" when
 `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` are set (see docs/deploy.md). Email-link sign-in. With `ENVIRONMENT=local` the API logs the sign-in link to its console instead of
 emailing it. Other environments send it through Resend (`RESEND_API_KEY`, `EMAIL_FROM`).
 
+Sign-up asks for a full name (the dashboard greets the first name: "Hello, Jordan 👋"). A new account then
+goes through four onboarding questions (goal, experience, timeline, what to work on); they can be skipped and
+are changed later from the dashboard. Answers are stored on the user (`users.onboarding`).
+
+Emails (sign-up confirmation, sign-in link, password reset, welcome, password-changed and account-deleted
+notices) come from `backend/app/services/email_templates.py`: one HTML layout with a plain-text twin, dark-mode
+styles and a fallback link. They use `SUPPORT_EMAIL` as the reply/contact address and the logo at
+`frontend/public/email-logo.png` (served from `WEB_ORIGIN`).
+
 Tests need Postgres: `TEST_DATABASE_URL` (default `postgresql+asyncpg://postgres:postgres@localhost:5432/meetpractice_test`).
 Create the database once with `createdb meetpractice_test`.
 

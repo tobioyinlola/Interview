@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import NullPool
 
 import app.models  # noqa: F401
+from app.adapters.email import EmailMessage
 from app.adapters.fakes import FakeSearchProvider
 from app.config import Settings, get_settings
 from app.db import Base, get_db, get_sessionmaker
@@ -25,17 +26,20 @@ TEST_DB = os.environ.get(
 
 
 class CapturingSender:
+    """A test mailbox. `links` holds the one-time links (sign-in, sign-up, reset) per recipient;
+    `messages` holds every message, including ones with no link (welcome, security notices)."""
+
     def __init__(self) -> None:
         self.links: list[tuple[str, str]] = []
+        self.messages: list[EmailMessage] = []
 
-    async def send_login_link(self, email: str, link: str) -> None:
-        self.links.append((email, link))
+    async def send(self, message: EmailMessage) -> None:
+        self.messages.append(message)
+        if message.link:
+            self.links.append((message.to, message.link))
 
-    async def send_signup_link(self, email: str, link: str) -> None:
-        self.links.append((email, link))
-
-    async def send_reset_link(self, email: str, link: str) -> None:
-        self.links.append((email, link))
+    def kinds(self, to: str | None = None) -> list[str]:
+        return [m.kind for m in self.messages if to is None or m.to == to]
 
     def token_for(self, email: str) -> str:
         link = [lnk for e, lnk in self.links if e == email.lower()][-1]
