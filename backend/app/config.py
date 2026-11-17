@@ -60,7 +60,7 @@ class Settings(BaseSettings):
     suggest_total_timeout_seconds: float = 20.0
     suggest_prefilter_min_words: int = 3
     openai_answer_fallback_model: str = "gpt-4o-mini"
-    openai_realtime_protocol: str = "beta"  # "beta" or "ga"; confirm on the first live run
+    openai_realtime_protocol: str = "ga"  # "ga" verified live 2026-11-17; "beta" kept as a fallback
     openai_realtime_url: str = "wss://api.openai.com/v1/realtime?intent=transcription"
 
     # Run the whole live path with scripted fakes (no OpenAI). Refused in production.

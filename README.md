@@ -100,9 +100,11 @@ Re-run whenever a prompt or model changes. `--model` picks the live answer model
 - M0 scaffolding, M1 foundation: done.
 - M2 company research, M3 live session, M4 beta features: done in code and tests, and the live path is
   verified in a real browser with scripted providers (`scripts/e2e-live.sh`).
-- **Not yet verified against OpenAI:** the research adapters, the realtime transcription protocol
-  (`backend/app/adapters/openai_realtime.py`), the fallback transcription call, answer scoring quality, real
-  latency, and the evaluation scores. These need a valid key and a real Meet call.
+- **Verified live (Railway dev deployment, 2026-11-17):** the realtime transcription protocol
+  (`backend/app/adapters/openai_realtime.py`, protocol `ga`): synthesized speech streamed through the deployed
+  stack came back word for word, and the answer outline streamed from the answer model.
+- **Not yet verified against OpenAI:** the research adapters, the fallback transcription call, answer scoring
+  quality, real latency under a real Meet call, and the evaluation scores.
 - Not done: release hardening (observability, load test, staging, runbooks, legal review of the consent
   wording), the Railway deploy, and a sign-in email provider.
 
@@ -139,6 +141,8 @@ sideways scrolling and undersized controls, and runs with the other browser test
 
 ## Status
 Built and tested: sign-in, notes, company research, live sessions, review and scoring, hardening.
-**Not yet verified against the real world** (needs a key, a call, or a deployment): OpenAI realtime
-transcription protocol and answer quality (evals above), Docker builds, the GitHub Actions workflow,
-Railway. **Open decisions:** transcript retention policy, daily budget figure.
+**Deployed:** a Railway dev environment (Postgres, backend, frontend) runs this branch; sign-up, password
+login, notes, consent, the live audio socket and OpenAI transcription were checked on it.
+**Not yet verified against the real world:** answer quality and the evaluation scores (evals above),
+research adapters, a real Google Meet call, the GitHub Actions workflow, Google sign-in against real Google.
+**Open decisions:** transcript retention policy, daily budget figure.

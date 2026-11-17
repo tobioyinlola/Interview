@@ -145,6 +145,5 @@ Scrape `https://<api>/metrics` with `Authorization: Bearer <METRICS_TOKEN>` and 
 - [ ] `/metrics` rejects no token and accepts the bearer token
 - [ ] Response headers on the web page include the CSP; the browser console shows no violations
 - [ ] `scripts/restore_drill.sh` against a copy of staging passes
-- [ ] Real OpenAI check: confirm `OPENAI_REALTIME_PROTOCOL` (`beta` or `ga`) against the live
-      service; the transcription protocol in this repository has not been exercised against
-      OpenAI yet
+- [x] Real OpenAI check: realtime transcription works with `OPENAI_REALTIME_PROTOCOL=ga` (the default);
+      `beta` was refused by OpenAI on the first live run (2026-11-17)
