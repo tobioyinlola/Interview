@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "../api/client";
+import { API_BASE_URL, socketBase } from "../api/client";
 
 export interface FinalCaption {
   id: string;
@@ -67,7 +67,7 @@ export class AudioSocket {
     opts: SocketOptions,
     private readonly ev: SocketEvents,
   ) {
-    const wsBase = (opts.baseUrl ?? API_BASE_URL).replace(/^http/i, "ws");
+    const wsBase = socketBase(opts.baseUrl ?? API_BASE_URL);
     this.o = {
       speaker: "partner",
       WebSocketImpl: opts.WebSocketImpl ?? WebSocket,

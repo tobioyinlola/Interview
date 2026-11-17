@@ -55,7 +55,11 @@ def get_email_sender(
         return ResendEmailSender(
             key, settings.email_from, ttl_minutes=settings.login_link_ttl_minutes
         )
-    return ConsoleEmailSender() if settings.environment == "local" else UnconfiguredEmailSender()
+    if settings.environment == "local" or (
+        settings.dev_log_email_links and settings.environment == "staging"
+    ):
+        return ConsoleEmailSender()
+    return UnconfiguredEmailSender()
 
 
 def parse_uuid(value: str, code: str, message: str) -> uuid.UUID:

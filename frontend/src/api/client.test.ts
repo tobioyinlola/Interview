@@ -1,4 +1,4 @@
-import { ApiError, apiFetch } from "./client";
+import { ApiError, apiFetch, socketBase } from "./client";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -42,5 +42,21 @@ describe("apiFetch", () => {
     );
     expect(new Headers(get.headers).get("x-requested-with")).toBeNull();
     expect(put.credentials).toBe("include");
+  });
+});
+
+describe("socketBase", () => {
+  it("turns an API address into its WebSocket address", () => {
+    expect(socketBase("http://localhost:8000")).toBe("ws://localhost:8000");
+    expect(socketBase("https://api.example.com")).toBe("wss://api.example.com");
+  });
+
+  it("uses this page's own origin when the API is on the same origin (empty base)", () => {
+    expect(
+      socketBase("", { protocol: "https:", host: "app.example.com" }),
+    ).toBe("wss://app.example.com");
+    expect(socketBase("", { protocol: "http:", host: "localhost:5173" })).toBe(
+      "ws://localhost:5173",
+    );
   });
 });

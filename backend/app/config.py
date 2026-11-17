@@ -2,7 +2,7 @@
 
 from functools import lru_cache
 
-from pydantic import SecretStr
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -82,6 +82,10 @@ class Settings(BaseSettings):
     # Google's real endpoints. Only a local test with a fake Google may change them.
     google_auth_url: str = "https://accounts.google.com/o/oauth2/v2/auth"
     google_token_url: str = "https://oauth2.googleapis.com/token"  # noqa: S105
+    # Dev environments only: print sign-in links in the log instead of emailing them, so a dev
+    # deployment works before an email provider exists. Anyone who can read the log can sign in as
+    # anyone, so the API refuses to start with this on in production.
+    dev_log_email_links: bool = False
     resend_api_key: SecretStr = SecretStr("")  # sends the sign-in email
     email_from: str = ""  # e.g. "Meet Practice <login@yourdomain.com>", a Resend-verified domain
     admin_emails: str = ""  # comma-separated; may open the usage and cost view
@@ -100,6 +104,15 @@ class Settings(BaseSettings):
     price_llm_output_per_million: float = 1.60
 
     log_level: str = "INFO"
+
+    @field_validator("database_url")
+    @classmethod
+    def _async_driver(cls, v: str) -> str:
+        """Platforms hand out plain postgresql:// addresses; the app needs the async driver."""
+        for plain in ("postgresql://", "postgres://"):
+            if v.startswith(plain):
+                return "postgresql+asyncpg://" + v[len(plain) :]
+        return v
 
 
 @lru_cache

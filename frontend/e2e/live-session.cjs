@@ -280,7 +280,9 @@ const FAKE_MIC = () => {
   const href = await page
     .getByRole("link", { name: "Download transcript" })
     .getAttribute("href");
-  const txt = await (await page.request.get(href)).text();
+  const txt = await (
+    await page.request.get(new URL(href, page.url()).toString())
+  ).text();
   console.log(
     "   transcript download:\n" +
       txt

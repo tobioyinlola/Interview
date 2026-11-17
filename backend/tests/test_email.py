@@ -78,3 +78,31 @@ def test_production_refuses_to_boot_without_email_configuration() -> None:
     assert any("RESEND_API_KEY" in p for p in validate_settings(Settings(**base)))
     ok = Settings(**base, resend_api_key="re_x", email_from="a@b.com")
     assert validate_settings(ok) == []
+
+
+def test_a_plain_postgres_address_gets_the_async_driver() -> None:
+    for given in ("postgresql://u:p@db:5432/x", "postgres://u:p@db:5432/x"):
+        assert Settings(database_url=given).database_url == "postgresql+asyncpg://u:p@db:5432/x"  # type: ignore[arg-type]
+    already = "postgresql+asyncpg://u:p@db:5432/x"
+    assert Settings(database_url=already).database_url == already  # type: ignore[arg-type]
+
+
+def test_dev_email_links_work_in_staging_only_and_never_in_production() -> None:
+    staging = Settings(environment="staging", dev_log_email_links=True)  # type: ignore[arg-type]
+    assert type(get_email_sender(staging)).__name__ == "ConsoleEmailSender"
+    prod = Settings(environment="production", dev_log_email_links=True)  # type: ignore[arg-type]
+    assert type(get_email_sender(prod)).__name__ == "UnconfiguredEmailSender"
+    off = Settings(environment="staging")  # type: ignore[arg-type]
+    assert type(get_email_sender(off)).__name__ == "UnconfiguredEmailSender"
+    base = dict(
+        cookie_secret="x" * 40,
+        web_origin="https://app.example.com",
+        database_url="postgresql+asyncpg://u:p@db/x",
+        openai_api_key="sk-x",
+    )
+    ok = Settings(environment="staging", dev_log_email_links=True, **base)  # type: ignore[arg-type]
+    assert validate_settings(ok) == []  # no email provider needed for a dev deployment
+    bad = Settings(environment="production", dev_log_email_links=True, **base)  # type: ignore[arg-type]
+    assert any("DEV_LOG_EMAIL_LINKS" in p for p in validate_settings(bad))
+    no_flag = Settings(environment="staging", **base)  # type: ignore[arg-type]
+    assert any("RESEND_API_KEY" in p for p in validate_settings(no_flag))

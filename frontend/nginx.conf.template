@@ -1,19 +1,48 @@
 # Rendered at container start by the nginx image's envsubst (see Dockerfile). Variables:
-#   API_ORIGIN     the API's https origin, e.g. https://api.example.com
-#   API_WS_ORIGIN  the same host as a WebSocket origin, e.g. wss://api.example.com
+#   API_UPSTREAM   where /api is forwarded, host:port (private network address of the backend)
+#   DNS_RESOLVER   the DNS server nginx asks for that address (looked up per request, so the
+#                  backend may start after this container)
+#   API_ORIGIN, API_WS_ORIGIN  only when the API lives on a different origin (usually empty)
+# The browser talks to this one origin for pages and for /api, so the login cookie is first-party.
+map $http_upgrade $connection_upgrade {
+  default upgrade;
+  ""      close;
+}
+
 server {
   listen 8080;  # unprivileged image: no root, no port below 1024
   root /usr/share/nginx/html;
   index index.html;
 
   # Security headers on every response, including errors.
-  add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; media-src 'self'; worker-src 'self'; connect-src 'self' ${API_ORIGIN} ${API_WS_ORIGIN}; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'" always;
+  add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; media-src 'self'; worker-src 'self'; connect-src 'self' wss://$host ${API_ORIGIN} ${API_WS_ORIGIN}; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'" always;
   add_header X-Content-Type-Options "nosniff" always;
   add_header Referrer-Policy "no-referrer" always;
   add_header X-Frame-Options "DENY" always;
   add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
   # Tab capture and the microphone are the only powerful features the app uses.
   add_header Permissions-Policy "display-capture=(self), microphone=(self), camera=(), geolocation=(), payment=()" always;
+
+  # The API, on the same origin: JSON, server-sent events and the audio WebSocket.
+  location /api/ {
+    resolver ${DNS_RESOLVER} valid=10s ipv6=on;
+    set $upstream http://${API_UPSTREAM};
+    proxy_pass $upstream;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_buffering off;               # answer outlines stream as they are written
+    proxy_read_timeout 3600s;          # a practice session is a long-lived socket
+    proxy_send_timeout 3600s;
+    client_max_body_size 3m;           # the largest audio segment the API accepts
+    # One copy of each security header: this server's, not the backend's as well.
+    proxy_hide_header Content-Security-Policy;
+    proxy_hide_header X-Content-Type-Options;
+    proxy_hide_header Referrer-Policy;
+    proxy_hide_header X-Frame-Options;
+    proxy_hide_header Strict-Transport-Security;
+  }
 
   # Built files carry a content hash in their name, so they can be cached for good.
   location /assets/ {
@@ -26,7 +55,7 @@ server {
   # Single-page app: unknown paths serve index.html, which must never be cached.
   location / {
     add_header Cache-Control "no-cache" always;
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; media-src 'self'; worker-src 'self'; connect-src 'self' ${API_ORIGIN} ${API_WS_ORIGIN}; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; media-src 'self'; worker-src 'self'; connect-src 'self' wss://$host ${API_ORIGIN} ${API_WS_ORIGIN}; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "no-referrer" always;
     add_header X-Frame-Options "DENY" always;
