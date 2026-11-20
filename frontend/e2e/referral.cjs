@@ -26,6 +26,14 @@ const waitNewLink = async (before) => {
   throw new Error("no sign-in link");
 };
 const stamp = Date.now();
+const SHOTS = process.env.E2E_SHOTS || "/tmp";
+const snap = async (page, name) => {
+  await sleep(500);
+  await page.screenshot({
+    path: `${SHOTS}/referral-${name}.png`,
+    fullPage: true,
+  });
+};
 
 (async () => {
   const browser = await chromium.launch();
@@ -56,6 +64,7 @@ const stamp = Date.now();
     "the invite link has a code: " + link,
   );
   const path = new URL(link).pathname + new URL(link).search;
+  await snap(a, "1-new-account");
 
   // three friends sign up through it
   for (let i = 1; i <= 3; i++) {
@@ -79,7 +88,7 @@ const stamp = Date.now();
     await f.waitForURL("**/onboarding");
     await f.close();
     await a.reload();
-    // the third friend completes the set, so the bar starts over at 0 of 3 and the reward appears
+    // the third friend completes the set: the bar is full and the reward appears
     await a
       .getByText(
         i < 3
@@ -88,6 +97,7 @@ const stamp = Date.now();
       )
       .waitFor();
     if (i < 3) {
+      if (i === 2) await snap(a, "2-two-friends");
       ok(
         (await a
           .getByRole("button", { name: "Redeem free session" })
@@ -98,6 +108,7 @@ const stamp = Date.now();
   }
   await a.getByText(/You earned 1 free session/).waitFor();
   ok(true, "the third friend earns a free session");
+  await snap(a, "3-reward-earned");
 
   // the reward is only usable once redeemed
   await a.getByText("You can start 1 session now.").waitFor();
@@ -105,6 +116,10 @@ const stamp = Date.now();
   await a.getByText("1 from inviting friends").waitFor();
   await a.getByText("You can start 2 sessions now.").waitFor();
   ok(true, "redeeming adds a session to the account");
+  await snap(a, "4-redeemed");
+  await a.setViewportSize({ width: 390, height: 844 });
+  await snap(a, "5-phone");
+  await a.setViewportSize({ width: 1280, height: 900 });
 
   // use both sessions, then the third is refused
   await a.goto(BASE + "/notes");

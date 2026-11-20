@@ -58,6 +58,39 @@ describe("ReferralPage", () => {
     expect(screen.getByText(/friends have/)).toBeInTheDocument();
   });
 
+  it("shows a full bar while an earned reward waits to be redeemed, then starts over", async () => {
+    open(
+      billing({
+        referrals_qualified: 3,
+        rewards_earned: 1,
+        rewards_redeemable: 1,
+        referrals_to_next_reward: 3,
+      }),
+    );
+    const bar = await screen.findByRole("progressbar");
+    expect(bar).toHaveAttribute("aria-valuenow", "3");
+    expect(
+      screen.getByText(/3 of 3: you earned a free session/),
+    ).toBeInTheDocument();
+  });
+
+  it("starts the bar over once the reward has been redeemed", async () => {
+    open(
+      billing({
+        referrals_qualified: 3,
+        rewards_earned: 1,
+        rewards_redeemable: 0,
+        referral_credits_available: 1,
+        sessions_available: 2,
+      }),
+    );
+    const bar = await screen.findByRole("progressbar");
+    expect(bar).toHaveAttribute("aria-valuenow", "0");
+    expect(
+      screen.getByText(/0 of 3 toward your next free session/),
+    ).toBeInTheDocument();
+  });
+
   it("copies the link", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {

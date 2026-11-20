@@ -20,7 +20,10 @@ export function ReferralPage() {
       </main>
     );
   const b = billing.data;
-  const done = b.referrals_qualified % b.referrals_per_reward;
+  // A full set that is still waiting to be redeemed shows as full, not as a bar that started over.
+  const set = b.referrals_qualified % b.referrals_per_reward;
+  const waiting = b.rewards_redeemable > 0 && set === 0;
+  const done = waiting ? b.referrals_per_reward : set;
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(b.referral_link);
@@ -87,11 +90,13 @@ export function ReferralPage() {
           />
         </div>
         <p className="text-sm text-muted">
-          {done} of {b.referrals_per_reward} toward your next free session
-          {b.referrals_to_next_reward < b.referrals_per_reward
-            ? `: ${b.referrals_to_next_reward} more to go`
-            : ""}
-          .
+          {waiting
+            ? `${done} of ${b.referrals_per_reward}: you earned a free session.`
+            : `${done} of ${b.referrals_per_reward} toward your next free session${
+                b.referrals_to_next_reward < b.referrals_per_reward
+                  ? `: ${b.referrals_to_next_reward} more to go`
+                  : ""
+              }.`}
         </p>
 
         {b.rewards_redeemable > 0 ? (
