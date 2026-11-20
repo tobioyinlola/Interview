@@ -5,7 +5,7 @@ from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, Header, Query, Request
+from fastapi import APIRouter, Depends, Header, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -151,17 +151,103 @@ async def end_session(
     user: User = Depends(current_user),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008
     suggester: SuggestionService = Depends(get_suggester),  # noqa: B008
+    hub: LiveHub = Depends(get_hub),  # noqa: B008
 ) -> SessionEndOut:
     live = LiveRepo(db, user.id)
     row = await live.end_session(session_id)
     if row is None:
         raise ApiError(404, "session_not_found", "Session not found.")
     suggester.forget(session_id)
+    await hub.broadcast_desktop(session_id, {"type": "end"})
     return SessionEndOut(
         status=row.status,
         utterances=len(await live.utterances(session_id)),
         suggestions=len(await live.suggestions(session_id)),
     )
+
+
+@router.get("/sessions/{session_id}/pin")
+async def get_session_pin(
+    session_id: uuid.UUID,
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    hub: LiveHub = Depends(get_hub),  # noqa: B008
+) -> dict[str, Any]:
+    """Retrieve or generate a 6-digit sync PIN for the desktop stealth overlay."""
+    row = await _own_session(db, user, session_id)
+    if row.status != "active":
+        raise ApiError(409, "session_not_active", "This session has ended.")
+    pin = hub.get_or_create_pin(session_id)
+    return {
+        "session_id": str(session_id),
+        "pin": pin,
+        "formatted_pin": f"{pin[:3]}-{pin[3:]}",
+        "connected_clients": hub.desktop_client_count(session_id),
+    }
+
+
+@router.post("/sessions/{session_id}/test-desktop")
+async def test_desktop_stream(
+    session_id: uuid.UUID,
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    hub: LiveHub = Depends(get_hub),  # noqa: B008
+) -> dict[str, Any]:
+    """Send a test prompt/outline to any connected desktop stealth HUDs."""
+    await _own_session(db, user, session_id)
+    count = hub.desktop_client_count(session_id)
+    await hub.broadcast_desktop(
+        session_id,
+        {
+            "type": "test",
+            "question": "Tell me about a time you solved a complex engineering challenge.",
+            "text": "ANSWER:\nStructure your answer using STAR:\n1. Situation: High latency in distributed service.\n2. Task: Reduce p99 response times below 100ms.\n3. Action: Profiled system bottlenecks, implemented connection pooling and caching.\n4. Result: Decreased p99 latency by 70% and improved throughput.",
+        },
+    )
+    return {"status": "ok", "delivered_to": count}
+
+
+@router.websocket("/sessions/stream")
+@router.websocket("/stream")
+async def desktop_stream(
+    ws: WebSocket,
+    pin: str = Query(...),
+    hub: LiveHub = Depends(get_hub),  # noqa: B008
+) -> None:
+    """Real-time WebSocket stream for the desktop stealth client authenticated via PIN."""
+    await ws.accept()
+    clean_pin = pin.replace("-", "").strip()
+    session_id = hub.get_session_by_pin(clean_pin)
+    if session_id is None:
+        await ws.send_json({"type": "error", "message": "Invalid or expired PIN."})
+        await ws.close(code=4401)
+        return
+
+    hub.register_desktop(session_id, ws)
+    await ws.send_json(
+        {
+            "type": "connected",
+            "session_id": str(session_id),
+            "pin": clean_pin,
+        }
+    )
+    last = hub.last_events.get(session_id)
+    if last:
+        await ws.send_json(last)
+
+    try:
+        while True:
+            msg = await ws.receive_text()
+            try:
+                data = json.loads(msg)
+                if data.get("type") == "ping":
+                    await ws.send_json({"type": "pong"})
+            except Exception:
+                pass
+    except WebSocketDisconnect:
+        pass
+    finally:
+        hub.unregister_desktop(session_id, ws)
 
 
 @router.get("/sessions/{session_id}")
@@ -229,6 +315,7 @@ async def suggest(
     user: User = Depends(current_user),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008
     suggester: SuggestionService = Depends(get_suggester),  # noqa: B008
+    hub: LiveHub = Depends(get_hub),  # noqa: B008
 ) -> StreamingResponse:
     """Stream an answer outline as server-sent events: delta, skip, done or error. If the client
     disconnects, the stream (and the model call under it) is cancelled."""
@@ -237,6 +324,11 @@ async def suggest(
     await db.close()  # release the connection: the stream uses its own short sessions
 
     async def events() -> AsyncIterator[bytes]:
+        await hub.broadcast_desktop(
+            session_id,
+            {"type": "question", "question": body.question_text, "text": ""},
+        )
+        accumulated_text = ""
         async for event in suggester.stream(
             user_id=user_id,
             session_id=session_id,
@@ -244,6 +336,39 @@ async def suggest(
             utterance_ids=body.utterance_ids,
             regenerate=body.regenerate,
         ):
+            ev_name = event.get("event")
+            ev_data = event.get("data", {})
+            if ev_name == "delta":
+                delta_chunk = ev_data.get("text", "")
+                accumulated_text += delta_chunk
+                await hub.broadcast_desktop(
+                    session_id,
+                    {
+                        "type": "delta",
+                        "text": delta_chunk,
+                        "accumulated": accumulated_text,
+                        "question": body.question_text,
+                    },
+                )
+            elif ev_name == "done":
+                await hub.broadcast_desktop(
+                    session_id,
+                    {
+                        "type": "done",
+                        "text": accumulated_text,
+                        "question": body.question_text,
+                        "suggestion_id": ev_data.get("suggestion_id"),
+                        "first_token_ms": ev_data.get("first_token_ms"),
+                        "total_ms": ev_data.get("total_ms"),
+                    },
+                )
+            elif ev_name == "skip":
+                await hub.broadcast_desktop(session_id, {"type": "skip"})
+            elif ev_name == "error":
+                await hub.broadcast_desktop(
+                    session_id,
+                    {"type": "error", "message": ev_data.get("message", "Answer failed")},
+                )
             yield _sse(event)
 
     return StreamingResponse(
