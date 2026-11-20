@@ -31,7 +31,8 @@ const outline = (over = {}) => ({
   utterance_id: "u1",
   question_text: "Why us?",
   type: "company",
-  output_text: "TYPE: company\nPOINTS:\n- x",
+  output_text:
+    "TYPE: company\nANSWER: Acme sells payment software and I led a launch.\nSOURCES:\n- Acme sells POS [brief: Acme site]\n- Led launch [note: Launch]",
   first_token_ms: 1,
   total_ms: 2,
   grounding_flags: [],
@@ -101,10 +102,21 @@ describe("ReviewPage: transcript", () => {
     expect(
       await screen.findByRole("heading", { name: "Session review" }),
     ).toBeInTheDocument();
-    const t = within(screen.getByRole("region", { name: "Transcript" }));
-    const items = t.getAllByRole("listitem");
+    const region = screen.getByRole("region", { name: "Transcript" });
+    const items = Array.from(
+      region.querySelectorAll<HTMLElement>(":scope > ol > li"),
+    ); // not the source labels inside them
     expect(within(items[0]).getByText(/Why us\?/)).toBeInTheDocument();
-    expect(within(items[0]).getByText(/TYPE: company/)).toBeInTheDocument();
+    // the answer is shown as plain text, never the model's headings, and its sources as labels
+    expect(
+      within(items[0]).getByText(/Acme sells payment software and I led/),
+    ).toBeInTheDocument();
+    expect(items[0]).not.toHaveTextContent(/TYPE|ANSWER:|SOURCES/);
+    expect(
+      within(within(items[0]).getByRole("list", { name: "Sources" }))
+        .getAllByRole("listitem")
+        .map((li) => li.textContent),
+    ).toEqual(["brief: Acme site", "note: Launch"]);
     expect(within(items[0]).getByText("Marked useful")).toBeInTheDocument();
     expect(within(items[1]).getByText("You:")).toBeInTheDocument();
     expect(within(items[1]).queryByText(/TYPE/)).toBeNull();

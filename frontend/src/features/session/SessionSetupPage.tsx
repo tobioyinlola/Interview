@@ -65,7 +65,7 @@ export function SessionSetupPage() {
         next screen.
       </p>
 
-      <section aria-labelledby="co-h" className="space-y-2">
+      <section aria-labelledby="co-h" className="card space-y-2">
         <h2 id="co-h" className="text-lg font-semibold">
           Company
         </h2>
@@ -131,7 +131,7 @@ export function SessionSetupPage() {
         </p>
       </section>
 
-      <section aria-labelledby="ready-h">
+      <section aria-labelledby="ready-h" className="card">
         <h2 id="ready-h" className="mb-2 text-lg font-semibold">
           Readiness
         </h2>

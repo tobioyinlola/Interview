@@ -204,7 +204,7 @@ function Action({
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-medium">{title}</span>
         <span
-          className={`block truncate text-xs ${primary ? "text-surface/80" : "text-muted"}`}
+          className={`block text-xs leading-snug ${primary ? "text-surface/80" : "text-muted"}`}
         >
           {sub}
         </span>
@@ -254,7 +254,7 @@ export function DashboardPage() {
 
       <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
             <Stat
               label="Sessions"
               value={`${all.length}${more}`}

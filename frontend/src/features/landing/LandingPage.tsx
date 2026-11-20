@@ -12,7 +12,7 @@ const FEATURES = [
   {
     n: "02",
     title: "Live answer outlines",
-    body: "When your partner asks a question on Google Meet, an outline streams in seconds: opener, points, close.",
+    body: "When your partner asks a question on Google Meet, the question appears as it is spoken and a full answer streams in seconds. It stays put until the next real question.",
   },
   {
     n: "03",

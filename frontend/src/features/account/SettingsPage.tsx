@@ -5,7 +5,7 @@ import { useDeleteAccount, useMe, useSaveProfile } from "../../api/hooks";
 
 export function PrivacyNotice() {
   return (
-    <section aria-labelledby="privacy" className="space-y-2">
+    <section aria-labelledby="privacy" className="card space-y-2">
       <h2 id="privacy" className="text-lg font-semibold">
         Privacy and responsible use
       </h2>
@@ -87,7 +87,7 @@ function NameForm() {
   const [name, setName] = useState(me?.full_name ?? "");
   const changed = name.trim() !== (me?.full_name ?? "");
   return (
-    <section aria-labelledby="profile-h" className="space-y-2">
+    <section aria-labelledby="profile-h" className="card space-y-2">
       <h2 id="profile-h" className="text-lg font-semibold">
         Your name
       </h2>
@@ -143,7 +143,10 @@ export function SettingsPage() {
       <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
       <NameForm />
       <PrivacyNotice />
-      <section aria-labelledby="danger" className="space-y-2">
+      <section
+        aria-labelledby="danger"
+        className="card space-y-2 !border !border-red-200"
+      >
         <h2 id="danger" className="text-lg font-semibold">
           Delete my data
         </h2>

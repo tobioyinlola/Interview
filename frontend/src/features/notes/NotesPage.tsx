@@ -5,6 +5,7 @@ import { FileIcon } from "../../app/icons";
 import { formatWhen } from "../review/format";
 import { SaveIndicator } from "./SaveIndicator";
 import { useAutosave } from "./useAutosave";
+import { Loading } from "../../ui/Loading";
 
 export const MAX_CV_BYTES = 5 * 1024 * 1024;
 const ACCEPT =
@@ -39,7 +40,7 @@ export function NotesPage() {
 
   const { status, retry } = useAutosave(role, saveRole, { enabled: loaded });
 
-  if (isPending) return <p className="p-8">Loading…</p>;
+  if (isPending) return <Loading />;
   if (isError)
     return (
       <p className="p-8">Couldn&apos;t load your CV. Reload to try again.</p>
