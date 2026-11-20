@@ -1,7 +1,8 @@
-import asyncio
 import uuid
+
 import pytest
-from app.services.live import LiveHub, CLOSE_RESTART
+
+from app.services.live import CLOSE_RESTART, LiveHub
 
 
 class MockWebSocket:

@@ -1,7 +1,12 @@
 import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-import { useCompanies, useCreateSession, useNotes } from "../../api/hooks";
+import {
+  useCompanies,
+  useCreateSession,
+  useMe,
+  useNotes,
+} from "../../api/hooks";
 import { isActive } from "../../api/polling";
 import { daysSince } from "../companies/ResearchStatus";
 
@@ -25,7 +30,10 @@ export function SessionSetupPage() {
   const create = useCreateSession();
   const navigate = useNavigate();
   const [choice, setChoice] = useState("");
-  const [consent, setConsent] = useState(false);
+  const { data: me } = useMe();
+  const agreedBefore = me?.practice_consent === true;
+  const [ticked, setTicked] = useState(false);
+  const consent = agreedBefore || ticked;
   // One idempotency key per attempt, so a double click cannot start two sessions.
   const key = useRef(crypto.randomUUID());
 
@@ -107,29 +115,52 @@ export function SessionSetupPage() {
         )}
       </section>
 
-      <section aria-labelledby="consent-h" className="card space-y-2">
-        <h2 id="consent-h" className="text-lg font-semibold">
-          Consent
-        </h2>
-        <label className="flex items-start gap-3 py-1 text-sm leading-relaxed">
-          <input
-            type="checkbox"
-            checked={consent}
-            onChange={(e) => setConsent(e.target.checked)}
-            className="mt-0.5 h-6 w-6 shrink-0 accent-accent"
-          />
-          <span>
-            I confirm my practice partner knows this assistant is listening to
-            the call and transcribing it, and agrees. This is for practice only,
-            and I will follow local law on recording and transcribing calls.
-          </span>
-        </label>
-        <p className="text-xs text-muted">
-          Audio is relayed for transcription and discarded; only text is saved.
-          Audio and text are processed by OpenAI to transcribe and write
-          outlines.
-        </p>
-      </section>
+      {agreedBefore ? (
+        <section aria-labelledby="consent-h" className="card space-y-1">
+          <h2 id="consent-h" className="text-lg font-semibold">
+            Your practice partner
+          </h2>
+          <p className="text-sm leading-relaxed">
+            Your partner must know the assistant is listening to the call and
+            transcribing it. You agreed to this when you signed up.
+          </p>
+          <p className="text-xs text-muted">
+            Want to be asked before every session instead?{" "}
+            <Link to="/settings" className="text-accent-dark underline">
+              Change it in Settings
+            </Link>
+            .
+          </p>
+        </section>
+      ) : (
+        <section aria-labelledby="consent-h" className="card space-y-2">
+          <h2 id="consent-h" className="text-lg font-semibold">
+            Consent
+          </h2>
+          <label className="flex items-start gap-3 py-1 text-sm leading-relaxed">
+            <input
+              type="checkbox"
+              checked={ticked}
+              onChange={(e) => setTicked(e.target.checked)}
+              className="mt-0.5 h-6 w-6 shrink-0 accent-accent"
+            />
+            <span>
+              I confirm my practice partner knows this assistant is listening to
+              the call and transcribing it, and agrees. This is for practice
+              only, and I will follow local law on recording and transcribing
+              calls.
+            </span>
+          </label>
+          <p className="text-xs text-muted">
+            {me?.consent_each_time
+              ? "You asked to be asked before every session."
+              : "You will not be asked again; you can change that in Settings."}{" "}
+            Audio is relayed for transcription and discarded; only text is
+            saved. Audio and text are processed by OpenAI to transcribe and
+            write answers.
+          </p>
+        </section>
+      )}
 
       <section aria-labelledby="ready-h" className="card">
         <h2 id="ready-h" className="mb-2 text-lg font-semibold">
@@ -145,7 +176,11 @@ export function SessionSetupPage() {
             )}
           </Tick>
           <Tick ok={chosen}>Company chosen (or &quot;no company&quot;)</Tick>
-          <Tick ok={consent}>Partner consent confirmed</Tick>
+          <Tick ok={consent}>
+            {agreedBefore
+              ? "Partner consent: agreed at sign-up"
+              : "Partner consent confirmed"}
+          </Tick>
         </ul>
       </section>
 

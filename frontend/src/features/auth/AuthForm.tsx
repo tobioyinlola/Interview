@@ -89,6 +89,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           email: email.trim(),
           password,
           full_name: fullName.trim(),
+          // the box above says they will only practise with a partner who knows
+          partner_consent: true,
         });
     } else {
       login.mutate({ email: email.trim(), password });

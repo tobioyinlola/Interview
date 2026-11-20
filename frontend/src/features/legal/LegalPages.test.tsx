@@ -35,7 +35,7 @@ describe("terms and privacy", () => {
       screen.getByText(/no feature to hide the assistant/),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/get their agreement before each session/),
+      screen.getByText(/get their agreement\. You agree to this once/),
     ).toBeInTheDocument();
     expect(screen.getByText(/differ by country and state/)).toBeInTheDocument();
     expect(screen.getByText(/never signs in anywhere/)).toBeInTheDocument();

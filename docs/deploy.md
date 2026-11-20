@@ -145,7 +145,7 @@ Scrape `https://<api>/metrics` with `Authorization: Bearer <METRICS_TOKEN>` and 
 - [ ] Sign-in link arrives and signs in (needs the email provider)
 - [ ] "Continue with Google" signs in and lands on the dashboard (needs the Google client)
 - [ ] Add a company, research finishes, brief shows citations
-- [ ] Start a session with the consent box: tab audio captions appear, an outline streams
+- [ ] Start a session (consent agreed at sign-up, or ticked once): tab audio captions appear, an answer streams
 - [ ] Restart the api service mid-session: the page reconnects and marks the gap
 - [ ] `/metrics` rejects no token and accepts the bearer token
 - [ ] Response headers on the web page include the CSP; the browser console shows no violations

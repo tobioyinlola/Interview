@@ -66,6 +66,7 @@ class LiveHub:
         if session_id in self.session_pins:
             return self.session_pins[session_id]
         import random
+
         while True:
             pin = f"{random.randint(100000, 999999)}"
             if pin not in self.pin_to_session:

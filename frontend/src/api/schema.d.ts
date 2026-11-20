@@ -464,6 +464,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/practice-consent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Save Practice Consent
+         * @description Choose whether sessions ask for the partner's consent every time. Turning the question back
+         *     off (ask_every_time false) records the agreement now.
+         */
+        put: operations["save_practice_consent_api_practice_consent_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/profile": {
         parameters: {
             query?: never;
@@ -564,6 +585,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sessions/{session_id}/pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Session Pin
+         * @description Retrieve or generate a 6-digit sync PIN for the desktop stealth overlay.
+         */
+        get: operations["get_session_pin_api_sessions__session_id__pin_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sessions/{session_id}/score": {
         parameters: {
             query?: never;
@@ -620,6 +661,26 @@ export interface paths {
          *     disconnects, the stream (and the model call under it) is cancelled.
          */
         post: operations["suggest_api_sessions__session_id__suggest_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sessions/{session_id}/test-desktop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Desktop Stream
+         * @description Send a test prompt/outline to any connected desktop stealth HUDs.
+         */
+        post: operations["test_desktop_stream_api_sessions__session_id__test_desktop_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -969,6 +1030,11 @@ export interface components {
         };
         /** MeOut */
         MeOut: {
+            /**
+             * Consent Each Time
+             * @default false
+             */
+            consent_each_time: boolean;
             /** Email */
             email: string;
             /** Full Name */
@@ -989,6 +1055,11 @@ export interface components {
              */
             onboarded: boolean;
             onboarding?: components["schemas"]["OnboardingAnswers"] | null;
+            /**
+             * Practice Consent
+             * @default false
+             */
+            practice_consent: boolean;
         };
         /**
          * NotesIn
@@ -1058,6 +1129,11 @@ export interface components {
              * @default Pasted text
              */
             title: string;
+        };
+        /** PracticeConsentIn */
+        PracticeConsentIn: {
+            /** Ask Every Time */
+            ask_every_time: boolean;
         };
         /** ProfileIn */
         ProfileIn: {
@@ -1261,6 +1337,11 @@ export interface components {
             email: string;
             /** Full Name */
             full_name: string;
+            /**
+             * Partner Consent
+             * @default false
+             */
+            partner_consent: boolean;
             /** Password */
             password: string;
         };
@@ -2240,6 +2321,39 @@ export interface operations {
             };
         };
     };
+    save_practice_consent_api_practice_consent_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PracticeConsentIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     save_profile_api_profile_put: {
         parameters: {
             query?: never;
@@ -2466,6 +2580,39 @@ export interface operations {
             };
         };
     };
+    get_session_pin_api_sessions__session_id__pin_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     score_session_api_sessions__session_id__score_post: {
         parameters: {
             query?: never;
@@ -2553,6 +2700,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_desktop_stream_api_sessions__session_id__test_desktop_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

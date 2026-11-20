@@ -704,6 +704,11 @@
       },
       "MeOut": {
         "properties": {
+          "consent_each_time": {
+            "default": false,
+            "title": "Consent Each Time",
+            "type": "boolean"
+          },
           "email": {
             "title": "Email",
             "type": "string"
@@ -743,6 +748,11 @@
                 "type": "null"
               }
             ]
+          },
+          "practice_consent": {
+            "default": false,
+            "title": "Practice Consent",
+            "type": "boolean"
           }
         },
         "required": [
@@ -1032,6 +1042,19 @@
           "text"
         ],
         "title": "PasteIn",
+        "type": "object"
+      },
+      "PracticeConsentIn": {
+        "properties": {
+          "ask_every_time": {
+            "title": "Ask Every Time",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ask_every_time"
+        ],
+        "title": "PracticeConsentIn",
         "type": "object"
       },
       "ProfileIn": {
@@ -1574,6 +1597,11 @@
             "minLength": 1,
             "title": "Full Name",
             "type": "string"
+          },
+          "partner_consent": {
+            "default": false,
+            "title": "Partner Consent",
+            "type": "boolean"
           },
           "password": {
             "maxLength": 256,
@@ -3172,6 +3200,48 @@
         ]
       }
     },
+    "/api/practice-consent": {
+      "put": {
+        "description": "Choose whether sessions ask for the partner's consent every time. Turning the question back\noff (ask_every_time false) records the agreement now.",
+        "operationId": "save_practice_consent_api_practice_consent_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PracticeConsentIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Practice Consent",
+        "tags": [
+          "profile"
+        ]
+      }
+    },
     "/api/profile": {
       "put": {
         "operationId": "save_profile_api_profile_put",
@@ -3510,6 +3580,52 @@
         ]
       }
     },
+    "/api/sessions/{session_id}/pin": {
+      "get": {
+        "description": "Retrieve or generate a 6-digit sync PIN for the desktop stealth overlay.",
+        "operationId": "get_session_pin_api_sessions__session_id__pin_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Session Pin Api Sessions  Session Id  Pin Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Session Pin",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
     "/api/sessions/{session_id}/score": {
       "post": {
         "description": "Score the user's answers after the session. Poll GET /sessions/{id} for the result.",
@@ -3668,6 +3784,52 @@
           }
         },
         "summary": "Suggest",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/api/sessions/{session_id}/test-desktop": {
+      "post": {
+        "description": "Send a test prompt/outline to any connected desktop stealth HUDs.",
+        "operationId": "test_desktop_stream_api_sessions__session_id__test_desktop_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Test Desktop Stream Api Sessions  Session Id  Test Desktop Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Test Desktop Stream",
         "tags": [
           "sessions"
         ]

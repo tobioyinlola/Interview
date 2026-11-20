@@ -223,3 +223,51 @@ describe("SessionSetupPage", () => {
     expect(screen.getByText(/10 days old/)).toBeInTheDocument();
   });
 });
+
+describe("SessionSetupPage: consent agreed once", () => {
+  const agreed = { ...ME, practice_consent: true, consent_each_time: false };
+
+  it("does not ask again after the person agreed at sign-up, and Start only needs a company", async () => {
+    mockApi(base({ "GET /api/me": () => ({ json: agreed }) }));
+    open();
+    await screen.findByRole("option", { name: "Acme" });
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(
+      screen.getByText(/You agreed to this when you signed up/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Change it in Settings" }),
+    ).toHaveAttribute("href", "/settings");
+    expect(
+      screen.getByText("Partner consent: agreed at sign-up"),
+    ).toBeInTheDocument();
+    expect(start()).toBeDisabled(); // a company still has to be chosen
+    await userEvent.selectOptions(screen.getByLabelText(/Which company/), "c1");
+    expect(start()).toBeEnabled();
+  });
+
+  it("asks once, and says it will not ask again, for someone who has not agreed yet", async () => {
+    mockApi(base());
+    open();
+    await screen.findByRole("option", { name: "Acme" });
+    expect(screen.getByRole("checkbox")).toBeInTheDocument();
+    expect(screen.getByText(/You will not be asked again/)).toBeInTheDocument();
+  });
+
+  it("says so when they chose to be asked every time", async () => {
+    mockApi(
+      base({
+        "GET /api/me": () => ({
+          json: { ...ME, practice_consent: false, consent_each_time: true },
+        }),
+      }),
+    );
+    open();
+    await screen.findByRole("option", { name: "Acme" });
+    expect(screen.getByRole("checkbox")).toBeInTheDocument();
+    expect(
+      screen.getByText(/You asked to be asked before every session/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/will not be asked again/)).toBeNull();
+  });
+});

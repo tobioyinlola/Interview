@@ -21,6 +21,9 @@ class SignUpIn(BaseModel):
     email: EmailStr
     full_name: str = Field(min_length=1, max_length=400)  # the name rules give the message
     password: str = Field(min_length=1, max_length=256)  # the real rules are checked server-side
+    # The sign-up box: "I agree to the terms and will only practise with a partner who knows the
+    # assistant is on". When true, the new account starts with standing consent.
+    partner_consent: bool = False
 
 
 class LoginIn(BaseModel):
@@ -75,6 +78,12 @@ class MeOut(BaseModel):
     full_name: str | None = None
     onboarded: bool = True  # false until onboarding is finished or skipped
     onboarding: OnboardingAnswers | None = None
+    practice_consent: bool = False  # agreed once; sessions no longer ask each time
+    consent_each_time: bool = False  # they asked to be asked before every session
+
+
+class PracticeConsentIn(BaseModel):
+    ask_every_time: bool
 
 
 class NotesIn(BaseModel):

@@ -329,3 +329,17 @@ describe("DashboardPage: greeting and focus", () => {
     expect(screen.queryByRole("region", { name: "Your focus" })).toBeNull();
   });
 });
+
+describe("DashboardPage: consent in the readiness list", () => {
+  it("shows the partner consent as agreed once they have", async () => {
+    mockApi(
+      base({
+        "GET /api/me": () => ({ json: { ...ME, practice_consent: true } }),
+      }),
+    );
+    renderApp(<App />, "/dashboard");
+    expect(
+      await screen.findByText(/Partner consent: agreed/),
+    ).toBeInTheDocument();
+  });
+});

@@ -43,8 +43,10 @@ export function TermsPage() {
       <h2 className="text-lg font-semibold">Consent</h2>
       <p>
         You must tell your practice partner that the assistant listens to the
-        call and transcribes it, and get their agreement before each session.
-        The app records that you confirmed this, and the time.
+        call and transcribes it, and get their agreement. You agree to this
+        once, when you sign up (or the first time you start a session), and the
+        app records when. You can ask in Settings to be asked again before every
+        session.
       </p>
       <h2 className="text-lg font-semibold">The law</h2>
       <p>
@@ -89,7 +91,8 @@ export function PrivacyPage() {
           ratings.
         </li>
         <li>
-          The time you confirmed your partner&apos;s consent for each session.
+          The time you agreed that your partner knows the assistant is on, and
+          the start time of each session.
         </li>
         <li>
           Counts of audio seconds and tokens used (for limits and cost), never
@@ -116,7 +119,7 @@ export function PrivacyPage() {
       <h2 className="text-lg font-semibold">Your partner</h2>
       <p>
         Your partner&apos;s speech is transcribed during the call. Tell them, as
-        the consent step says, and delete the session if they ask you to.
+        you agreed to, and delete the session if they ask you to.
       </p>
     </Shell>
   );

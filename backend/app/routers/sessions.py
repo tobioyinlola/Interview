@@ -23,6 +23,7 @@ from app.repositories import (
     IdempotencyRepo,
     LiveRepo,
     NotesRepo,
+    ProfileRepo,
     SessionsRepo,
     UsageMeterRepo,
 )
@@ -75,12 +76,17 @@ async def create_session(
 ) -> SessionCreateOut:
     """Start a practice session. Refused unless the user confirmed the partner knows the assistant
     is on. The confirmation time is stored with the session."""
-    if body.consent is not True:
-        raise ApiError(
-            400,
-            "consent_required",
-            "Confirm that your practice partner knows the assistant is listening.",
-        )
+    # Agreed once already (at sign-up, or the first time), or confirmed now. Confirming now also
+    # remembers it, so the person is not asked again until they ask to be.
+    if user.practice_consent_at is None:
+        if body.consent is not True:
+            raise ApiError(
+                400,
+                "consent_required",
+                "Confirm that your practice partner knows the assistant is listening.",
+            )
+        if not user.consent_each_time:
+            await ProfileRepo(db, user).update(practice_consent_at=datetime.now(UTC))
 
     idem = IdempotencyRepo(db, user.id)
     if idempotency_key:

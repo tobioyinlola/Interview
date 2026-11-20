@@ -113,7 +113,11 @@ async def verify(
     email, password_hash = used.email, used.password_hash
     existed = await repo.find_user(email) is not None
     # The name chosen at sign-up goes only on a brand-new account, like the password below.
-    user = await repo.get_or_create_user(email, full_name=None if existed else used.full_name)
+    user = await repo.get_or_create_user(
+        email,
+        full_name=None if existed else used.full_name,
+        partner_consent=bool(used.partner_consent) and not existed,
+    )
     if password_hash and not existed:
         # Only a brand-new account takes the password chosen at sign-up. If the account already
         # exists (someone else registered this address meanwhile) the password is ignored, so a
@@ -180,6 +184,7 @@ async def signup(
             purpose="signup",
             password_hash=password_hash,
             full_name=full_name,
+            partner_consent=body.partner_consent,
         )
         link = f"{settings.web_origin}/login/verify?token={token}"
         await sender.send(emails.signup_confirmation(brand, email, full_name, link, ttl))

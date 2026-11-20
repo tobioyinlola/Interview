@@ -42,6 +42,8 @@ function Item({
 
 /** What to do next: CV uploaded, a fresh brief, a browser that can share tab audio. */
 function ReadinessCard() {
+  const { data: me } = useMe();
+  const agreed = me?.practice_consent === true;
   const notes = useNotes();
   const companies = useCompanies();
   const cvUploaded = (notes.data?.content ?? "").trim().length > 0;
@@ -86,8 +88,10 @@ function ReadinessCard() {
           )}
         </Item>
         <Item ok={canCapture}>Browser can share tab audio</Item>
-        <Item ok={false}>
-          Partner consent: you confirm it when you start a session
+        <Item ok={agreed}>
+          {agreed
+            ? "Partner consent: agreed (you can change this in Settings)"
+            : "Partner consent: you confirm it when you start a session"}
         </Item>
       </ul>
       <Link
@@ -341,7 +345,7 @@ export function DashboardPage() {
                 primary
                 to="/session/new"
                 title="New practice session"
-                sub="Confirm consent, then share your Meet tab"
+                sub="Pick a company, then share your Meet tab"
               />
               <Action
                 to="/companies"
