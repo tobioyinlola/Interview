@@ -86,3 +86,65 @@ describe("app shell", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("collapsible sidebar", () => {
+  beforeEach(() => localStorage.removeItem("meet-practice-sidebar-collapsed"));
+
+  it("collapses to icons and expands again, keeping every link reachable by name", async () => {
+    signedIn();
+    renderApp(<App />, "/dashboard");
+    const side = (
+      await screen.findByRole("navigation", { name: "Main" })
+    ).closest("aside") as HTMLElement;
+    expect(side.className).toMatch(/lg:w-64/);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Collapse sidebar" }),
+    );
+    expect(side.className).toMatch(/lg:w-\[84px\]/);
+    const expand = screen.getByRole("button", { name: "Expand sidebar" });
+    expect(expand).toHaveAttribute("aria-expanded", "false");
+    // the names are still there for screen readers and as tooltips
+    const nav = within(screen.getByRole("navigation", { name: "Main" }));
+    expect(nav.getByRole("link", { name: "Companies" })).toHaveAttribute(
+      "title",
+      "Companies",
+    );
+    expect(nav.getByRole("link", { name: "Overview" })).toBeInTheDocument();
+    await userEvent.click(expand);
+    expect(side.className).toMatch(/lg:w-64/);
+    expect(
+      screen.getByRole("button", { name: "Collapse sidebar" }),
+    ).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("remembers the choice for next time", async () => {
+    signedIn();
+    const { unmount } = renderApp(<App />, "/dashboard");
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Collapse sidebar" }),
+    );
+    expect(localStorage.getItem("meet-practice-sidebar-collapsed")).toBe("1");
+    unmount();
+    vi.restoreAllMocks();
+    stubSupportedBrowser();
+    signedIn();
+    renderApp(<App />, "/dashboard");
+    expect(
+      await screen.findByRole("button", { name: "Expand sidebar" }),
+    ).toBeInTheDocument();
+  });
+
+  it("still works when the browser will not store the choice", async () => {
+    signedIn();
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    renderApp(<App />, "/dashboard");
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Collapse sidebar" }),
+    );
+    expect(
+      screen.getByRole("button", { name: "Expand sidebar" }),
+    ).toBeInTheDocument();
+  });
+});

@@ -1,3 +1,4 @@
+import { GlobalSearch } from "../search/GlobalSearch";
 import { Link } from "react-router-dom";
 
 import { currentEnv, isSupported } from "../../app/browserSupport";
@@ -232,24 +233,27 @@ export function DashboardPage() {
 
   return (
     <main className="mx-auto max-w-6xl p-4 sm:p-6 lg:p-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="sr-only">Dashboard</h1>
-          <p className="break-words text-3xl font-semibold tracking-tight sm:text-4xl">
-            Hello
-            {firstName(me?.full_name)
-              ? `, ${firstName(me?.full_name)}`
-              : ""}{" "}
-            <span aria-hidden="true">👋</span>
-          </p>
-          <p className="mt-1 text-muted">Here&apos;s your practice overview.</p>
-        </div>
+      {/* Top bar: search on the left, the main action on the right. */}
+      <div className="sticky top-0 z-20 -mx-4 flex items-center justify-between gap-3 bg-canvas/85 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+        <GlobalSearch />
         <Link
           to="/session/new"
-          className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-medium text-surface shadow-card hover:bg-accent-dark"
+          className="inline-flex shrink-0 items-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-medium text-surface shadow-card hover:bg-accent-dark"
         >
-          <PlusIcon className="h-4 w-4" /> New practice
+          <PlusIcon className="h-4 w-4" />
+          <span className="hidden sm:inline">New practice</span>
+          <span className="sr-only sm:hidden">New practice</span>
         </Link>
+      </div>
+
+      <div className="mt-4 min-w-0">
+        <h1 className="sr-only">Dashboard</h1>
+        <p className="break-words text-3xl font-semibold tracking-tight sm:text-4xl">
+          Hello
+          {firstName(me?.full_name) ? `, ${firstName(me?.full_name)}` : ""}{" "}
+          <span aria-hidden="true">👋</span>
+        </p>
+        <p className="mt-1 text-muted">Here&apos;s your practice overview.</p>
       </div>
 
       <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
