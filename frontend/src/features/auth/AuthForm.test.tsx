@@ -548,3 +548,96 @@ describe("forgot and reset password", () => {
     expect(await screen.findByText(/didn't work/i)).toBeInTheDocument();
   });
 });
+
+describe("an invite link", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("sends the saved invite code with a password sign-up", async () => {
+    localStorage.setItem("meet-practice-invite", "abc23xyz");
+    const calls = api(false, {
+      "POST /api/auth/signup": () => ({
+        status: 202,
+        json: { status: "sent" },
+      }),
+    });
+    renderApp(<App />, "/signup");
+    await userEvent.type(
+      await screen.findByLabelText("Full name"),
+      "Jordan Reyes",
+    );
+    await typeEmail("new@example.com");
+    await userEvent.type(
+      screen.getByLabelText("Password", { exact: true }),
+      STRONG,
+    );
+    await userEvent.type(
+      screen.getByLabelText("Confirm password", { exact: true }),
+      STRONG,
+    );
+    await userEvent.click(screen.getByRole("checkbox", { name: /i agree/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Create account" }),
+    );
+    await screen.findByText(/confirm your address/i);
+    expect(
+      calls.find((c) => c.key === "POST /api/auth/signup")!.body,
+    ).toMatchObject({
+      email: "new@example.com",
+      ref: "abc23xyz",
+    });
+  });
+
+  it("sends it with Google too", async () => {
+    localStorage.setItem("meet-practice-invite", "abc23xyz");
+    api(true);
+    const assign = captureNavigation();
+    renderApp(<App />, "/signup");
+    await userEvent.click(
+      await screen.findByRole("checkbox", { name: /i agree/i }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /continue with google/i }),
+    );
+    expect(assign.mock.calls[0][0]).toMatch(
+      /\/api\/auth\/google\/start\?ref=abc23xyz$/,
+    );
+  });
+
+  it("sends it with an emailed sign-in link too", async () => {
+    localStorage.setItem("meet-practice-invite", "abc23xyz");
+    const calls = api(false, {
+      "POST /api/auth/request-link": () => ({
+        status: 202,
+        json: { status: "sent" },
+      }),
+    });
+    renderApp(<App />, "/login");
+    await typeEmail("me@example.com");
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Email me a sign-in link" }),
+    );
+    await screen.findByText(/check your email/i);
+    expect(
+      calls.find((c) => c.key === "POST /api/auth/request-link")!.body,
+    ).toEqual({ email: "me@example.com", ref: "abc23xyz" });
+  });
+
+  it("sends nothing extra when there is no invite", async () => {
+    const calls = api(false, {
+      "POST /api/auth/request-link": () => ({
+        status: 202,
+        json: { status: "sent" },
+      }),
+    });
+    renderApp(<App />, "/login");
+    await typeEmail("me@example.com");
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Email me a sign-in link" }),
+    );
+    await screen.findByText(/check your email/i);
+    const body = calls.find(
+      (c) => c.key === "POST /api/auth/request-link",
+    )!.body;
+    expect(body).toEqual({ email: "me@example.com" }); // undefined is not sent
+  });
+});

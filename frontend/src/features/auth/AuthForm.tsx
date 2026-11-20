@@ -9,6 +9,7 @@ import {
   useRequestLink,
   useSignUp,
 } from "../../api/hooks";
+import { savedInvite } from "../referral/invite";
 import { PasswordField } from "../../ui/PasswordField";
 import { AuthLayout } from "../../ui/AuthLayout";
 
@@ -98,7 +99,11 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     if (emailRef.current?.reportValidity()) link.mutate(email.trim());
   };
   const google = () =>
-    window.location.assign(`${API_BASE_URL}/api/auth/google/start`);
+    window.location.assign(
+      `${API_BASE_URL}/api/auth/google/start${
+        savedInvite() ? `?ref=${savedInvite()}` : ""
+      }`,
+    );
 
   return (
     <AuthLayout>

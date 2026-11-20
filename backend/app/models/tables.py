@@ -56,6 +56,8 @@ class User(Base):
     # When the person agreed, at sign-up, that they only practise with a partner who knows the
     # assistant is on. The app never asks again; every account has it from the moment it exists.
     practice_consent_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    # The code in this person's invite link. Every account has one.
+    referral_code: Mapped[str | None] = mapped_column(String(16), unique=True, nullable=True)
     created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
 
 
@@ -72,6 +74,8 @@ class LoginToken(Base):
     created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
     # login (sign in), signup (confirm a new account) or reset (choose a new password)
     purpose: Mapped[str] = mapped_column(String(10), server_default="login", default="login")
+    # The invite code the person arrived with; applied only if this creates a brand-new account.
+    referral_code: Mapped[str | None] = mapped_column(String(16), nullable=True)
     # signup only: the chosen password, hashed, applied only once the email address is proven
     password_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     full_name: Mapped[str | None] = mapped_column(String(120), nullable=True)  # signup only
@@ -301,3 +305,31 @@ class Score(Base):
     fixes: Mapped[list[Any]] = mapped_column(JSONB, default=list)
     question_text: Mapped[str] = mapped_column(Text, default="", server_default="")
     answer_text: Mapped[str] = mapped_column(Text, default="", server_default="")
+
+
+class Referral(Base):
+    """One person who signed up with another person's invite code. A person can be referred once."""
+
+    __tablename__ = "referrals"
+    id: Mapped[uuid.UUID] = _pk()
+    referrer_id: Mapped[uuid.UUID] = _fk("users.id", index=True)
+    referred_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), unique=True
+    )
+    created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+
+
+class SessionCredit(Base):
+    """The right to start one practice session. `trial` is the free first session everyone gets,
+    `referral` comes from redeeming a reward for inviting friends, `paid` is for when payments
+    exist. Unused while `used_at` is empty; using one records which session it started."""
+
+    __tablename__ = "session_credits"
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = _fk("users.id", index=True)
+    kind: Mapped[str] = mapped_column(String(10))  # trial | referral | paid
+    created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+    used_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    session_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sessions.id", ondelete="SET NULL"), nullable=True
+    )

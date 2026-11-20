@@ -1,5 +1,6 @@
 import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 
+import { ReferralPage } from "../features/referral/ReferralPage";
 import { SettingsPage } from "../features/account/SettingsPage";
 import { AuthGuard } from "../features/auth/AuthGuard";
 import { ForgotPasswordPage } from "../features/auth/ForgotPasswordPage";
@@ -59,6 +60,7 @@ export function App() {
             <Route path="/session/:id" element={<LiveSessionPage />} />
             <Route path="/sessions" element={<SessionsPage />} />
             <Route path="/sessions/:id" element={<ReviewPage />} />
+            <Route path="/referrals" element={<ReferralPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/admin/usage" element={<UsagePage />} />
           </Route>

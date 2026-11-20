@@ -1,7 +1,13 @@
 import { Link } from "react-router-dom";
 
 import { currentEnv, isSupported } from "../../app/browserSupport";
-import { useCompanies, useMe, useNotes, useSessions } from "../../api/hooks";
+import {
+  useBilling,
+  useCompanies,
+  useMe,
+  useNotes,
+  useSessions,
+} from "../../api/hooks";
 import {
   ArrowIcon,
   BuildingIcon,
@@ -98,6 +104,50 @@ function ReadinessCard() {
 }
 
 /** Their chosen focus areas, and a line of advice that matches how soon the interview is. */
+/** The free sessions left, and how far along the invite reward is. */
+function SessionsCard() {
+  const billing = useBilling();
+  const b = billing.data;
+  if (!b) return null;
+  const done = b.referrals_qualified % b.referrals_per_reward;
+  return (
+    <section
+      aria-labelledby="sessions-left-h"
+      className="space-y-3 rounded-2xl bg-surface p-5 shadow-card"
+    >
+      <div className="flex items-baseline justify-between">
+        <h2 id="sessions-left-h" className="text-lg font-semibold">
+          Your sessions
+        </h2>
+        <Link to="/referrals" className="text-sm text-accent-dark underline">
+          Invite friends
+        </Link>
+      </div>
+      <p>
+        <span className="text-3xl font-semibold">{b.sessions_available}</span>{" "}
+        <span className="text-muted">
+          {b.sessions_available === 1 ? "session" : "sessions"} available
+        </span>
+      </p>
+      {b.sessions_available === 0 && (
+        <p className="text-sm text-muted">
+          More sessions will be pay per session. Payments are coming soon.
+        </p>
+      )}
+      {b.rewards_redeemable > 0 ? (
+        <Link to="/referrals" className="btn-primary w-full">
+          Redeem your free session
+        </Link>
+      ) : (
+        <p className="text-sm text-muted">
+          {done} of {b.referrals_per_reward} friends invited toward a free
+          session.
+        </p>
+      )}
+    </section>
+  );
+}
+
 function FocusCard() {
   const { data: me } = useMe();
   const o = me?.onboarding;
@@ -326,6 +376,7 @@ export function DashboardPage() {
         </div>
 
         <div className="space-y-6">
+          <SessionsCard />
           <FocusCard />
 
           <section

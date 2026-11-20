@@ -172,6 +172,9 @@ const FAKE_MIC = () => {
     (await page.getByRole("checkbox").count()) === 0,
     "there is no consent box: it was agreed at sign-up",
   );
+  await startBtn.waitFor();
+  for (let i = 0; i < 30 && (await startBtn.isDisabled()); i++)
+    await sleep(100);
   check(
     await startBtn.isEnabled(),
     "Start is enabled once a CV and a company choice are in",

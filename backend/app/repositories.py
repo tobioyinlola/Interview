@@ -23,14 +23,17 @@ from app.models import (
     LoginToken,
     Note,
     PracticeSession,
+    Referral,
     ResearchJob,
     Score,
+    SessionCredit,
     Suggestion,
     Usage,
     User,
     Utterance,
 )
 from app.security import hash_token, new_token
+from app.services.referrals import canonical_email, clean_code, new_referral_code
 
 
 def _now() -> datetime:
@@ -42,6 +45,7 @@ class ConsumedToken(NamedTuple):
     password_hash: str | None
     purpose: str
     full_name: str | None
+    referral_code: str | None = None
 
 
 class AuthRepo:
@@ -67,6 +71,7 @@ class AuthRepo:
         purpose: str = "login",
         password_hash: str | None = None,
         full_name: str | None = None,
+        referral_code: str | None = None,
     ) -> str:
         token = new_token()
         self.db.add(
@@ -77,6 +82,7 @@ class AuthRepo:
                 purpose=purpose,
                 password_hash=password_hash,
                 full_name=full_name,
+                referral_code=referral_code,
             )
         )
         await self.db.commit()
@@ -100,11 +106,12 @@ class AuthRepo:
                 LoginToken.password_hash,
                 LoginToken.purpose,
                 LoginToken.full_name,
+                LoginToken.referral_code,
             )
         )
         row = (await self.db.execute(stmt)).one_or_none()
         await self.db.commit()
-        return ConsumedToken(row[0], row[1], row[2], row[3]) if row else None
+        return ConsumedToken(row[0], row[1], row[2], row[3], row[4]) if row else None
 
     async def peek_token_email(self, token: str, purposes: tuple[str, ...]) -> str | None:
         """The email a valid unused token belongs to, without using it up."""
@@ -152,7 +159,9 @@ class AuthRepo:
         await self.db.execute(delete(LoginFailure).where(LoginFailure.email == email))
         await self.db.commit()
 
-    async def get_or_create_user(self, email: str, *, full_name: str | None = None) -> User:
+    async def get_or_create_user(
+        self, email: str, *, full_name: str | None = None, referral_code: str | None = None
+    ) -> User:
         user = (await self.db.execute(select(User).where(User.email == email))).scalar_one_or_none()
         if user:
             return user
@@ -160,14 +169,34 @@ class AuthRepo:
             email=email,
             full_name=full_name,
             practice_consent_at=_now(),  # agreeing to the terms is part of making an account
+            referral_code=new_referral_code(),
         )
         self.db.add(user)
         try:
+            await self.db.flush()
+            # Everyone gets one free trial session, and whoever invited them gets the credit.
+            self.db.add(SessionCredit(user_id=user.id, kind="trial"))
+            await self._apply_referral(user, referral_code)
             await self.db.commit()
         except IntegrityError:  # created concurrently by another request
             await self.db.rollback()
             return (await self.db.execute(select(User).where(User.email == email))).scalar_one()
         return user
+
+    async def _apply_referral(self, user: User, code: str | None) -> None:
+        """Count this new account for the person whose code it arrived with. Unknown codes, your own
+        code, and your own mailbox under another spelling count for nothing."""
+        code = clean_code(code)
+        if code is None:
+            return
+        referrer = (
+            await self.db.execute(select(User).where(User.referral_code == code))
+        ).scalar_one_or_none()
+        if referrer is None or referrer.id == user.id:
+            return
+        if canonical_email(referrer.email) == canonical_email(user.email):
+            return
+        self.db.add(Referral(referrer_id=referrer.id, referred_id=user.id))
 
     async def create_session(self, user_id: uuid.UUID, *, ttl: timedelta) -> str:
         token = new_token()
@@ -787,3 +816,91 @@ class UsageMeterRepo:
         )
         await self.db.execute(stmt)
         await self.db.commit()
+
+
+class BillingSummary(NamedTuple):
+    trial_available: int
+    referral_available: int
+    paid_available: int
+    referrals_qualified: int
+    rewards_earned: int
+    rewards_redeemed: int
+
+
+class BillingRepo:
+    """Who may start a session, and the invite rewards that earn more of them."""
+
+    # Which credit is used first: the free trial, then rewards, then anything paid for.
+    ORDER = {"trial": 0, "referral": 1, "paid": 2}
+
+    def __init__(self, db: AsyncSession, user: User, *, per_reward: int) -> None:
+        self.db = db
+        self.user = user
+        self.per_reward = per_reward
+
+    async def summary(self) -> BillingSummary:
+        rows = (
+            await self.db.execute(
+                select(SessionCredit.kind, SessionCredit.used_at.is_(None), func.count())
+                .where(SessionCredit.user_id == self.user.id)
+                .group_by(SessionCredit.kind, SessionCredit.used_at.is_(None))
+            )
+        ).all()
+        free = {k: 0 for k in self.ORDER}
+        redeemed = 0
+        for kind, unused, n in rows:
+            if unused:
+                free[kind] = free.get(kind, 0) + n
+            if kind == "referral":
+                redeemed += n
+        qualified = int(
+            (
+                await self.db.execute(
+                    select(func.count())
+                    .select_from(Referral)
+                    .where(Referral.referrer_id == self.user.id)
+                )
+            ).scalar_one()
+        )
+        return BillingSummary(
+            trial_available=free["trial"],
+            referral_available=free["referral"],
+            paid_available=free["paid"],
+            referrals_qualified=qualified,
+            rewards_earned=qualified // self.per_reward,
+            rewards_redeemed=redeemed,
+        )
+
+    async def take_credit(self) -> SessionCredit | None:
+        """Use up one credit for a session about to start, or None when there is none. The row is
+        locked, so two sessions started at once cannot both spend the last credit. Nothing is
+        committed here: if the session is not created, the credit is not spent."""
+        rows = (
+            (
+                await self.db.execute(
+                    select(SessionCredit)
+                    .where(SessionCredit.user_id == self.user.id, SessionCredit.used_at.is_(None))
+                    .with_for_update(skip_locked=True)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        if not rows:
+            return None
+        credit = min(rows, key=lambda c: (self.ORDER.get(c.kind, 9), c.created_at))
+        credit.used_at = _now()
+        await self.db.flush()
+        return credit
+
+    async def redeem_reward(self) -> bool:
+        """Turn one earned invite reward into a session credit the person can use. False when there
+        is no unredeemed reward. The user's row is locked so a double click cannot redeem twice."""
+        await self.db.execute(select(User.id).where(User.id == self.user.id).with_for_update())
+        s = await self.summary()
+        if s.rewards_earned - s.rewards_redeemed < 1:
+            await self.db.rollback()
+            return False
+        self.db.add(SessionCredit(user_id=self.user.id, kind="referral"))
+        await self.db.commit()
+        return True

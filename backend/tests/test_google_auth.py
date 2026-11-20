@@ -444,3 +444,33 @@ async def test_signing_in_to_an_existing_account_with_google_changes_nothing_and
     async with new_client() as c2:
         me = await finish_sign_in(c2, google)
     assert me["full_name"] is None and sender.messages == []
+
+
+async def test_an_invite_code_survives_the_trip_to_google_and_back(
+    new_client, google, sign_in
+) -> None:
+    async with new_client() as owner:
+        await sign_in(owner, "owner@example.com")
+        code = (await owner.get("/api/billing")).json()["referral_code"]
+        async with new_client() as c:
+            r = await c.get("/api/auth/google/start", params={"ref": code})
+            cookies = r.headers.get_list("set-cookie")
+            assert any(x.startswith("invite_code=") and "httponly" in x.lower() for x in cookies)
+            q = {k: v[0] for k, v in parse_qs(urlparse(r.headers["location"]).query).items()}
+            google.nonce = q["nonce"]
+            done = await c.get(
+                "/api/auth/google/callback", params={"code": "abc", "state": q["state"]}
+            )
+            assert done.status_code == 303
+            # the invite cookie is used once and cleared
+            assert any(
+                x.startswith("invite_code=") and "max-age=0" in x.lower()
+                for x in done.headers.get_list("set-cookie")
+            )
+        assert (await owner.get("/api/billing")).json()["referrals_qualified"] == 1
+
+
+async def test_a_bad_invite_code_is_not_kept_for_the_trip(new_client, google) -> None:
+    async with new_client() as c:
+        r = await c.get("/api/auth/google/start", params={"ref": "<bad>"})
+        assert not any(x.startswith("invite_code=") for x in r.headers.get_list("set-cookie"))

@@ -26,6 +26,7 @@ const OUT = [
 const IN = [
   "/dashboard",
   "/onboarding",
+  "/referrals",
   "/notes",
   "/companies",
   "/session/new",

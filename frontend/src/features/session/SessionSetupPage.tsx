@@ -1,7 +1,12 @@
 import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-import { useCompanies, useCreateSession, useNotes } from "../../api/hooks";
+import {
+  useBilling,
+  useCompanies,
+  useCreateSession,
+  useNotes,
+} from "../../api/hooks";
 import { isActive } from "../../api/polling";
 import { daysSince } from "../companies/ResearchStatus";
 
@@ -28,9 +33,13 @@ export function SessionSetupPage() {
   // One idempotency key per attempt, so a double click cannot start two sessions.
   const key = useRef(crypto.randomUUID());
 
+  const billing = useBilling();
+  // Only a loaded answer of "none left" blocks; while it loads, or if it fails, the server decides.
+  const noCredit =
+    billing.data !== undefined && billing.data.sessions_available < 1;
   const cvUploaded = (notes.data?.content ?? "").trim().length > 0;
   const chosen = choice !== "";
-  const ready = cvUploaded && chosen;
+  const ready = cvUploaded && chosen && !noCredit;
   const company = companies.data?.find((c) => c.id === choice);
   const age = daysSince(company?.last_researched_at);
 
@@ -131,6 +140,31 @@ export function SessionSetupPage() {
         </ul>
       </section>
 
+      {noCredit && (
+        <section
+          aria-labelledby="pay-h"
+          className="card space-y-2 !border !border-amber-300 !bg-amber-50"
+        >
+          <h2 id="pay-h" className="text-lg font-semibold">
+            You have used your free session
+          </h2>
+          <p className="text-sm">
+            More sessions will be pay per session, and payments are coming soon.
+            Until then you can earn a free session by inviting{" "}
+            {billing.data?.referrals_per_reward ?? 3} friends.
+          </p>
+          <Link to="/referrals" className="btn-primary w-fit">
+            Invite friends
+          </Link>
+        </section>
+      )}
+      {billing.data && !noCredit && (
+        <p className="text-sm text-muted">
+          This uses one of your {billing.data.sessions_available} available{" "}
+          {billing.data.sessions_available === 1 ? "session" : "sessions"}
+          {billing.data.trial_available ? " (your free trial)" : ""}.
+        </p>
+      )}
       {create.isError && (
         <p role="alert" className="notice-error">
           {create.error.message}

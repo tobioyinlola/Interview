@@ -36,10 +36,12 @@ from app.services.passwords import (
     password_problem,
     verify_password_async,
 )
+from app.services.referrals import clean_code
 
 log = logging.getLogger("app.auth")
 
 router = APIRouter(prefix="/api", tags=["auth"])
+REF_COOKIE = "invite_code"
 
 
 LOGIN_FAILURE_LIMIT = 10  # wrong passwords per email in the window below
@@ -86,7 +88,9 @@ async def request_link(
     ):
         raise ApiError(429, "rate_limited", "Too many sign-in requests. Try again later.")
     ttl = settings.login_link_ttl_minutes
-    token = await repo.create_login_token(email, ttl=timedelta(minutes=ttl))
+    token = await repo.create_login_token(
+        email, ttl=timedelta(minutes=ttl), referral_code=clean_code(body.ref)
+    )
     known = await repo.find_user(email)
     link = f"{settings.web_origin}/login/verify?token={token}"
     message = emails.sign_in_link(
@@ -113,7 +117,11 @@ async def verify(
     email, password_hash = used.email, used.password_hash
     existed = await repo.find_user(email) is not None
     # The name chosen at sign-up goes only on a brand-new account, like the password below.
-    user = await repo.get_or_create_user(email, full_name=None if existed else used.full_name)
+    user = await repo.get_or_create_user(
+        email,
+        full_name=None if existed else used.full_name,
+        referral_code=None if existed else used.referral_code,
+    )
     if password_hash and not existed:
         # Only a brand-new account takes the password chosen at sign-up. If the account already
         # exists (someone else registered this address meanwhile) the password is ignored, so a
@@ -180,6 +188,7 @@ async def signup(
             purpose="signup",
             password_hash=password_hash,
             full_name=full_name,
+            referral_code=clean_code(body.ref),
         )
         link = f"{settings.web_origin}/login/verify?token={token}"
         await sender.send(emails.signup_confirmation(brand, email, full_name, link, ttl))
@@ -279,6 +288,7 @@ async def providers(google: GoogleOAuth = Depends(get_google)) -> ProvidersOut: 
 
 @router.get("/auth/google/start")
 async def google_start(
+    ref: str | None = None,
     settings: Settings = Depends(get_settings),  # noqa: B008
     google: GoogleOAuth = Depends(get_google),  # noqa: B008
 ) -> RedirectResponse:
@@ -295,6 +305,16 @@ async def google_start(
         samesite="lax",  # sent on the top-level redirect back from Google
         path=STATE_COOKIE_PATH,
     )
+    if code := clean_code(ref):  # remember the invite across the trip to Google and back
+        response.set_cookie(
+            REF_COOKIE,
+            code,
+            max_age=1800,
+            httponly=True,
+            secure=settings.environment != "local",
+            samesite="lax",
+            path=STATE_COOKIE_PATH,
+        )
     return response
 
 
@@ -315,6 +335,7 @@ async def google_callback(
     def back(path: str) -> RedirectResponse:
         r = RedirectResponse(f"{settings.web_origin}{path}", status_code=303)
         r.delete_cookie(STATE_COOKIE, path=STATE_COOKIE_PATH)
+        r.delete_cookie(REF_COOKIE, path=STATE_COOKIE_PATH)
         return r
 
     if not google.enabled:
@@ -330,7 +351,9 @@ async def google_callback(
     repo = AuthRepo(db, settings.cookie_secret.get_secret_value())
     existed = await repo.find_user(identity.email) is not None
     user = await repo.get_or_create_user(
-        identity.email, full_name=None if existed else clean_name(identity.name)
+        identity.email,
+        full_name=None if existed else clean_name(identity.name),
+        referral_code=None if existed else request.cookies.get(REF_COOKIE),
     )
     if not existed:
         await sender.send(emails.welcome(email_brand(settings), user.email, user.full_name))

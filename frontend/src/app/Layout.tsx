@@ -25,6 +25,7 @@ import {
   ChartIcon,
   ShieldIcon,
   ChevronIcon,
+  GiftIcon,
 } from "./icons";
 
 type Item = { to: string; label: string; icon: React.ReactNode; end?: boolean };
@@ -124,6 +125,7 @@ export function Layout() {
     item("/notes", "CV", <NoteIcon />),
     item("/companies", "Companies", <BuildingIcon />),
     item("/session/new", "Practice", <MicIcon />),
+    item("/referrals", "Invite friends", <GiftIcon />),
   ];
   const account = [
     item("/sessions", "Sessions", <ListIcon />),

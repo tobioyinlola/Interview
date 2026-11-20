@@ -1,6 +1,7 @@
 import type { components } from "./schema";
 
 export type Me = components["schemas"]["MeOut"];
+export type Billing = components["schemas"]["BillingOut"];
 export type Notes = components["schemas"]["NotesOut"];
 export type NotesInput = components["schemas"]["NotesIn"];
 export type CvUpload = components["schemas"]["CvUploadOut"];

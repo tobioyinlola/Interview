@@ -6,8 +6,10 @@ import {
 } from "@tanstack/react-query";
 
 import { ApiError, apiFetch } from "./client";
+import { savedInvite } from "../features/referral/invite";
 import { POLL_MS, isActive } from "./polling";
 import type {
+  Billing,
   BriefEdit,
   BriefEditResult,
   Company,
@@ -61,7 +63,7 @@ export function useRequestLink() {
     mutationFn: (email: string) =>
       apiFetch<{ status: string }>("/api/auth/request-link", {
         method: "POST",
-        body: json({ email }),
+        body: json({ email, ref: savedInvite() }),
       }),
   });
 }
@@ -71,7 +73,7 @@ export function useSignUp() {
     mutationFn: (v: { email: string; password: string; full_name: string }) =>
       apiFetch<{ status: string }>("/api/auth/signup", {
         method: "POST",
-        body: json(v),
+        body: json({ ...v, ref: savedInvite() }),
       }),
   });
 }
@@ -94,6 +96,23 @@ export function useSaveProfile() {
         body: json({ full_name }),
       }),
     onSuccess: (me) => qc.setQueryData(["me"], me),
+  });
+}
+
+export function useBilling() {
+  return useQuery<Billing>({
+    queryKey: ["billing"],
+    queryFn: () => apiFetch<Billing>("/api/billing"),
+  });
+}
+
+/** Turn an earned invite reward into a session the person can use. */
+export function useRedeemReward() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<Billing>("/api/billing/redeem", { method: "POST" }),
+    onSuccess: (b) => qc.setQueryData(["billing"], b),
   });
 }
 
@@ -307,7 +326,9 @@ export function useRemoveSource(id: string) {
 // ------------------------------------------------------------------ sessions
 
 export function useCreateSession() {
+  const qc = useQueryClient();
   return useMutation({
+    onSettled: () => void qc.invalidateQueries({ queryKey: ["billing"] }),
     mutationFn: ({
       companyId,
       role,

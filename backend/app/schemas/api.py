@@ -11,6 +11,7 @@ NOTES_MAX = 16_000
 
 class RequestLinkIn(BaseModel):
     email: EmailStr
+    ref: str | None = Field(default=None, max_length=40)  # an invite code from a link
 
 
 class StatusOut(BaseModel):
@@ -21,6 +22,7 @@ class SignUpIn(BaseModel):
     email: EmailStr
     full_name: str = Field(min_length=1, max_length=400)  # the name rules give the message
     password: str = Field(min_length=1, max_length=256)  # the real rules are checked server-side
+    ref: str | None = Field(default=None, max_length=40)  # an invite code from a link
 
 
 class LoginIn(BaseModel):
@@ -376,3 +378,20 @@ class UsageSummary(BaseModel):
     avg_cost_per_research_job_usd: float | None
     caps: dict[str, int]
     prices: dict[str, float]
+
+
+class BillingOut(BaseModel):
+    """How many sessions the person can start, and how far along their invite reward is."""
+
+    sessions_available: int
+    trial_available: bool  # the free first session, not yet used
+    referral_credits_available: int  # redeemed rewards, not yet used
+    paid_credits_available: int
+    payments_enabled: bool  # false until per-session payments exist
+    referral_code: str
+    referral_link: str
+    referrals_qualified: int  # people who signed up with their link
+    referrals_per_reward: int
+    referrals_to_next_reward: int
+    rewards_earned: int
+    rewards_redeemable: int  # earned and not yet redeemed

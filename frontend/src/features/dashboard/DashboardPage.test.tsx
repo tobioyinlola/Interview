@@ -327,3 +327,58 @@ describe("DashboardPage: greeting and focus", () => {
     expect(screen.queryByRole("region", { name: "Your focus" })).toBeNull();
   });
 });
+
+describe("DashboardPage: sessions card", () => {
+  const credits = (over: Record<string, unknown> = {}) => ({
+    sessions_available: 1,
+    trial_available: true,
+    referral_credits_available: 0,
+    paid_credits_available: 0,
+    payments_enabled: false,
+    referral_code: "abc23xyz",
+    referral_link: "x",
+    referrals_qualified: 1,
+    referrals_per_reward: 3,
+    referrals_to_next_reward: 2,
+    rewards_earned: 0,
+    rewards_redeemable: 0,
+    ...over,
+  });
+
+  it("shows the sessions available and progress toward a free one", async () => {
+    mockApi(base({ "GET /api/billing": () => ({ json: credits() }) }));
+    renderApp(<App />, "/dashboard");
+    const card = within(
+      await screen.findByRole("region", { name: "Your sessions" }),
+    );
+    expect(await card.findByText(/session available/)).toBeInTheDocument();
+    expect(card.getByText(/1 of 3 friends invited/)).toBeInTheDocument();
+    expect(card.getByRole("link", { name: "Invite friends" })).toHaveAttribute(
+      "href",
+      "/referrals",
+    );
+  });
+
+  it("offers to redeem an earned session, and says payments are coming when none are left", async () => {
+    mockApi(
+      base({
+        "GET /api/billing": () => ({
+          json: credits({
+            sessions_available: 0,
+            trial_available: false,
+            rewards_earned: 1,
+            rewards_redeemable: 1,
+          }),
+        }),
+      }),
+    );
+    renderApp(<App />, "/dashboard");
+    const card = within(
+      await screen.findByRole("region", { name: "Your sessions" }),
+    );
+    expect(
+      await card.findByRole("link", { name: "Redeem your free session" }),
+    ).toBeInTheDocument();
+    expect(card.getByText(/Payments are coming soon/)).toBeInTheDocument();
+  });
+});
