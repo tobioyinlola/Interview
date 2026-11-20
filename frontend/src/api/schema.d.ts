@@ -464,27 +464,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/practice-consent": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Save Practice Consent
-         * @description Choose whether sessions ask for the partner's consent every time. Turning the question back
-         *     off (ask_every_time false) records the agreement now.
-         */
-        put: operations["save_practice_consent_api_practice_consent_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/profile": {
         parameters: {
             query?: never;
@@ -517,8 +496,9 @@ export interface paths {
         put?: never;
         /**
          * Create Session
-         * @description Start a practice session. Refused unless the user confirmed the partner knows the assistant
-         *     is on. The confirmation time is stored with the session.
+         * @description Start a practice session. The person agreed at sign-up that their partner knows the assistant
+         *     is on; every account has that on record, and the session stores when. An account without it
+         *     cannot start a session.
          */
         post: operations["create_session_api_sessions_post"];
         delete?: never;
@@ -1030,11 +1010,6 @@ export interface components {
         };
         /** MeOut */
         MeOut: {
-            /**
-             * Consent Each Time
-             * @default false
-             */
-            consent_each_time: boolean;
             /** Email */
             email: string;
             /** Full Name */
@@ -1055,11 +1030,6 @@ export interface components {
              */
             onboarded: boolean;
             onboarding?: components["schemas"]["OnboardingAnswers"] | null;
-            /**
-             * Practice Consent
-             * @default false
-             */
-            practice_consent: boolean;
         };
         /**
          * NotesIn
@@ -1129,11 +1099,6 @@ export interface components {
              * @default Pasted text
              */
             title: string;
-        };
-        /** PracticeConsentIn */
-        PracticeConsentIn: {
-            /** Ask Every Time */
-            ask_every_time: boolean;
         };
         /** ProfileIn */
         ProfileIn: {
@@ -1219,11 +1184,8 @@ export interface components {
         SessionCreateIn: {
             /** Company Id */
             company_id?: string | null;
-            /**
-             * Consent
-             * @default false
-             */
-            consent: boolean;
+            /** Consent */
+            consent?: boolean | null;
             /** Role */
             role?: string | null;
         };
@@ -1337,11 +1299,6 @@ export interface components {
             email: string;
             /** Full Name */
             full_name: string;
-            /**
-             * Partner Consent
-             * @default false
-             */
-            partner_consent: boolean;
             /** Password */
             password: string;
         };
@@ -2298,39 +2255,6 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["OnboardingIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MeOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    save_practice_consent_api_practice_consent_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PracticeConsentIn"];
             };
         };
         responses: {

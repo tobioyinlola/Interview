@@ -42,7 +42,6 @@ class ConsumedToken(NamedTuple):
     password_hash: str | None
     purpose: str
     full_name: str | None
-    partner_consent: bool = False
 
 
 class AuthRepo:
@@ -68,7 +67,6 @@ class AuthRepo:
         purpose: str = "login",
         password_hash: str | None = None,
         full_name: str | None = None,
-        partner_consent: bool = False,
     ) -> str:
         token = new_token()
         self.db.add(
@@ -79,7 +77,6 @@ class AuthRepo:
                 purpose=purpose,
                 password_hash=password_hash,
                 full_name=full_name,
-                partner_consent=partner_consent,
             )
         )
         await self.db.commit()
@@ -103,12 +100,11 @@ class AuthRepo:
                 LoginToken.password_hash,
                 LoginToken.purpose,
                 LoginToken.full_name,
-                LoginToken.partner_consent,
             )
         )
         row = (await self.db.execute(stmt)).one_or_none()
         await self.db.commit()
-        return ConsumedToken(row[0], row[1], row[2], row[3], row[4]) if row else None
+        return ConsumedToken(row[0], row[1], row[2], row[3]) if row else None
 
     async def peek_token_email(self, token: str, purposes: tuple[str, ...]) -> str | None:
         """The email a valid unused token belongs to, without using it up."""
@@ -156,16 +152,14 @@ class AuthRepo:
         await self.db.execute(delete(LoginFailure).where(LoginFailure.email == email))
         await self.db.commit()
 
-    async def get_or_create_user(
-        self, email: str, *, full_name: str | None = None, partner_consent: bool = False
-    ) -> User:
+    async def get_or_create_user(self, email: str, *, full_name: str | None = None) -> User:
         user = (await self.db.execute(select(User).where(User.email == email))).scalar_one_or_none()
         if user:
             return user
         user = User(
             email=email,
             full_name=full_name,
-            practice_consent_at=_now() if partner_consent else None,
+            practice_consent_at=_now(),  # agreeing to the terms is part of making an account
         )
         self.db.add(user)
         try:

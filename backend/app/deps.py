@@ -75,8 +75,6 @@ def me_out(user: User, settings: Settings) -> MeOut:
         is_admin=is_admin(user, settings),
         full_name=user.full_name,
         onboarded=user.onboarded_at is not None,
-        practice_consent=user.practice_consent_at is not None,
-        consent_each_time=user.consent_each_time,
         onboarding=OnboardingAnswers(**user.onboarding) if user.onboarding else None,
     )
 

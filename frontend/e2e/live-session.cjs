@@ -160,7 +160,7 @@ const FAKE_MIC = () => {
   await sleep(2200); // the role autosaves
   step("signed in and CV uploaded");
 
-  // setup: Start stays disabled until the three conditions hold
+  // setup: Start stays disabled until a CV is in and a company is chosen
   await page.goto("http://localhost:5173/session/new");
   await page
     .getByRole("option", { name: /No company/ })
@@ -168,11 +168,13 @@ const FAKE_MIC = () => {
   const startBtn = page.getByRole("button", { name: "Start session" });
   check(await startBtn.isDisabled(), "Start is disabled initially");
   await page.selectOption("#company", "none");
-  check(await startBtn.isDisabled(), "Start is disabled without consent");
-  await page.getByRole("checkbox").check();
+  check(
+    (await page.getByRole("checkbox").count()) === 0,
+    "there is no consent box: it was agreed at sign-up",
+  );
   check(
     await startBtn.isEnabled(),
-    "Start is enabled once everything is ready",
+    "Start is enabled once a CV and a company choice are in",
   );
   await startBtn.click();
   await page.getByRole("heading", { name: "Capture" }).waitFor();

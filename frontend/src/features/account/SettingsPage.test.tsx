@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { App } from "../../app/App";
@@ -14,7 +14,7 @@ beforeEach(() => stubSupportedBrowser());
 afterEach(() => vi.restoreAllMocks());
 
 describe("SettingsPage", () => {
-  it("states the practice-only, consent and third-party terms", async () => {
+  it("states the practice-only and third-party terms", async () => {
     mockApi({ "GET /api/me": () => ({ json: ME }) });
     renderApp(<App />, "/settings");
     expect(
@@ -120,48 +120,5 @@ describe("SettingsPage: your name", () => {
     await userEvent.type(field, "1");
     await userEvent.click(screen.getByRole("button", { name: "Save name" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/full name/i);
-  });
-});
-
-describe("SettingsPage: practice partner consent", () => {
-  it("shows it is not asked every time once they agreed, and lets them switch to asking", async () => {
-    let me: object = {
-      ...ME,
-      practice_consent: true,
-      consent_each_time: false,
-    };
-    const calls = mockApi({
-      "GET /api/me": () => ({ json: me }),
-      "PUT /api/practice-consent": ({ body }) => {
-        const ask = (body as { ask_every_time: boolean }).ask_every_time;
-        me = { ...ME, practice_consent: !ask, consent_each_time: ask };
-        return { json: me };
-      },
-    });
-    renderApp(<App />, "/settings");
-    const box = await screen.findByRole("checkbox", {
-      name: "Ask me to confirm before every session",
-    });
-    expect(box).not.toBeChecked();
-    await userEvent.click(box);
-    await waitFor(() => expect(box).toBeChecked());
-    expect(
-      calls.find((c) => c.key === "PUT /api/practice-consent")!.body,
-    ).toEqual({ ask_every_time: true });
-    await userEvent.click(box);
-    await waitFor(() => expect(box).not.toBeChecked());
-    expect(
-      calls.filter((c) => c.key === "PUT /api/practice-consent")[1].body,
-    ).toEqual({ ask_every_time: false });
-  });
-
-  it("shows the box ticked for someone who has not agreed yet, since they are asked", async () => {
-    mockApi({ "GET /api/me": () => ({ json: ME }) });
-    renderApp(<App />, "/settings");
-    expect(
-      await screen.findByRole("checkbox", {
-        name: "Ask me to confirm before every session",
-      }),
-    ).toBeChecked();
   });
 });

@@ -31,7 +31,7 @@ describe("DashboardPage (FR-33)", () => {
     );
     renderApp(<App />, "/");
     const c = within(await card());
-    expect(c.getAllByText("Not done:").length).toBeGreaterThanOrEqual(3); // CV, brief and consent
+    expect(c.getAllByText("Not done:").length).toBeGreaterThanOrEqual(2); // CV and brief
     expect(c.getByRole("link", { name: "Upload your CV" })).toHaveAttribute(
       "href",
       "/notes",
@@ -44,7 +44,7 @@ describe("DashboardPage (FR-33)", () => {
     expect(await screen.findByText("No sessions yet.")).toBeInTheDocument();
   });
 
-  it("ticks the CV, a fresh brief and the browser, and reminds about consent", async () => {
+  it("ticks the CV, a fresh brief and the browser", async () => {
     mockApi(
       base({
         "GET /api/companies": () => ({
@@ -65,9 +65,7 @@ describe("DashboardPage (FR-33)", () => {
     expect(c.getByText(/CV uploaded/)).toBeInTheDocument();
     expect(c.queryByRole("link", { name: "Upload your CV" })).toBeNull();
     expect(c.getByText("Browser can share tab audio")).toBeInTheDocument();
-    expect(
-      c.getByText(/Partner consent: you confirm it when you start a session/),
-    ).toBeInTheDocument();
+    expect(c.queryByText(/Partner consent/)).toBeNull(); // agreed at sign-up, not a step
     expect(c.getByRole("link", { name: "Start practice" })).toHaveAttribute(
       "href",
       "/session/new",
@@ -327,19 +325,5 @@ describe("DashboardPage: greeting and focus", () => {
     renderApp(<App />, "/dashboard");
     await screen.findByText(/^Hello, Jordan/);
     expect(screen.queryByRole("region", { name: "Your focus" })).toBeNull();
-  });
-});
-
-describe("DashboardPage: consent in the readiness list", () => {
-  it("shows the partner consent as agreed once they have", async () => {
-    mockApi(
-      base({
-        "GET /api/me": () => ({ json: { ...ME, practice_consent: true } }),
-      }),
-    );
-    renderApp(<App />, "/dashboard");
-    expect(
-      await screen.findByText(/Partner consent: agreed/),
-    ).toBeInTheDocument();
   });
 });

@@ -9,7 +9,7 @@ from app.deps import current_user, me_out
 from app.errors import ApiError
 from app.models import User
 from app.repositories import NotesRepo, ProfileRepo
-from app.schemas.api import MeOut, OnboardingIn, PracticeConsentIn, ProfileIn
+from app.schemas.api import MeOut, OnboardingIn, ProfileIn
 from app.services.names import clean_name
 
 router = APIRouter(prefix="/api", tags=["profile"])
@@ -28,22 +28,6 @@ async def save_profile(
     if name is None:
         raise INVALID_NAME
     await ProfileRepo(db, user).update(full_name=name)
-    return me_out(user, settings)
-
-
-@router.put("/practice-consent")
-async def save_practice_consent(
-    body: PracticeConsentIn,
-    user: User = Depends(current_user),  # noqa: B008
-    db: AsyncSession = Depends(get_db),  # noqa: B008
-    settings: Settings = Depends(get_settings),  # noqa: B008
-) -> MeOut:
-    """Choose whether sessions ask for the partner's consent every time. Turning the question back
-    off (ask_every_time false) records the agreement now."""
-    await ProfileRepo(db, user).update(
-        practice_consent_at=None if body.ask_every_time else datetime.now(UTC),
-        consent_each_time=body.ask_every_time,
-    )
     return me_out(user, settings)
 
 

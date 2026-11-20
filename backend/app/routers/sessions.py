@@ -23,7 +23,6 @@ from app.repositories import (
     IdempotencyRepo,
     LiveRepo,
     NotesRepo,
-    ProfileRepo,
     SessionsRepo,
     UsageMeterRepo,
 )
@@ -74,19 +73,15 @@ async def create_session(
     settings: Settings = Depends(get_settings),  # noqa: B008
     idempotency_key: str | None = Header(default=None, max_length=200),
 ) -> SessionCreateOut:
-    """Start a practice session. Refused unless the user confirmed the partner knows the assistant
-    is on. The confirmation time is stored with the session."""
-    # Agreed once already (at sign-up, or the first time), or confirmed now. Confirming now also
-    # remembers it, so the person is not asked again until they ask to be.
+    """Start a practice session. The person agreed at sign-up that their partner knows the assistant
+    is on; every account has that on record, and the session stores when. An account without it
+    cannot start a session."""
     if user.practice_consent_at is None:
-        if body.consent is not True:
-            raise ApiError(
-                400,
-                "consent_required",
-                "Confirm that your practice partner knows the assistant is listening.",
-            )
-        if not user.consent_each_time:
-            await ProfileRepo(db, user).update(practice_consent_at=datetime.now(UTC))
+        raise ApiError(
+            400,
+            "consent_required",
+            "Agree to the terms about your practice partner before starting a session.",
+        )
 
     idem = IdempotencyRepo(db, user.id)
     if idempotency_key:
@@ -108,7 +103,7 @@ async def create_session(
 
     note = await NotesRepo(db, user.id).get()
     role = body.role if body.role is not None else (note.role if note else "")
-    confirmed_at = datetime.now(UTC)
+    confirmed_at = user.practice_consent_at
     row = await SessionsRepo(db, user.id).create(
         consent_confirmed_at=confirmed_at,
         company_id=company_id,

@@ -68,12 +68,7 @@ export function useRequestLink() {
 
 export function useSignUp() {
   return useMutation({
-    mutationFn: (v: {
-      email: string;
-      password: string;
-      full_name: string;
-      partner_consent?: boolean;
-    }) =>
+    mutationFn: (v: { email: string; password: string; full_name: string }) =>
       apiFetch<{ status: string }>("/api/auth/signup", {
         method: "POST",
         body: json(v),
@@ -97,19 +92,6 @@ export function useSaveProfile() {
       apiFetch<Me>("/api/profile", {
         method: "PUT",
         body: json({ full_name }),
-      }),
-    onSuccess: (me) => qc.setQueryData(["me"], me),
-  });
-}
-
-/** Choose whether sessions ask for the partner's consent every time. */
-export function useSavePracticeConsent() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (askEveryTime: boolean) =>
-      apiFetch<Me>("/api/practice-consent", {
-        method: "PUT",
-        body: json({ ask_every_time: askEveryTime }),
       }),
     onSuccess: (me) => qc.setQueryData(["me"], me),
   });
@@ -337,8 +319,8 @@ export function useCreateSession() {
     }) =>
       apiFetch<SessionCreated>("/api/sessions", {
         method: "POST",
-        // Consent is always explicit: the server refuses to start a session without it.
-        body: json({ consent: true, company_id: companyId, role }),
+        // Consent was agreed once, at sign-up; the server checks that it is on record.
+        body: json({ company_id: companyId, role }),
         headers: { "idempotency-key": key },
       }),
   });

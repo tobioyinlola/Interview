@@ -44,9 +44,8 @@ export function TermsPage() {
       <p>
         You must tell your practice partner that the assistant listens to the
         call and transcribes it, and get their agreement. You agree to this
-        once, when you sign up (or the first time you start a session), and the
-        app records when. You can ask in Settings to be asked again before every
-        session.
+        once, with the box you tick when you sign up, and the app records when.
+        It does not ask again.
       </p>
       <h2 className="text-lg font-semibold">The law</h2>
       <p>

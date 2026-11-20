@@ -704,11 +704,6 @@
       },
       "MeOut": {
         "properties": {
-          "consent_each_time": {
-            "default": false,
-            "title": "Consent Each Time",
-            "type": "boolean"
-          },
           "email": {
             "title": "Email",
             "type": "string"
@@ -748,11 +743,6 @@
                 "type": "null"
               }
             ]
-          },
-          "practice_consent": {
-            "default": false,
-            "title": "Practice Consent",
-            "type": "boolean"
           }
         },
         "required": [
@@ -1044,19 +1034,6 @@
         "title": "PasteIn",
         "type": "object"
       },
-      "PracticeConsentIn": {
-        "properties": {
-          "ask_every_time": {
-            "title": "Ask Every Time",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "ask_every_time"
-        ],
-        "title": "PracticeConsentIn",
-        "type": "object"
-      },
       "ProfileIn": {
         "properties": {
           "full_name": {
@@ -1282,9 +1259,15 @@
             "title": "Company Id"
           },
           "consent": {
-            "default": false,
-            "title": "Consent",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consent"
           },
           "role": {
             "anyOf": [
@@ -1597,11 +1580,6 @@
             "minLength": 1,
             "title": "Full Name",
             "type": "string"
-          },
-          "partner_consent": {
-            "default": false,
-            "title": "Partner Consent",
-            "type": "boolean"
           },
           "password": {
             "maxLength": 256,
@@ -3200,48 +3178,6 @@
         ]
       }
     },
-    "/api/practice-consent": {
-      "put": {
-        "description": "Choose whether sessions ask for the partner's consent every time. Turning the question back\noff (ask_every_time false) records the agreement now.",
-        "operationId": "save_practice_consent_api_practice_consent_put",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PracticeConsentIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MeOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Save Practice Consent",
-        "tags": [
-          "profile"
-        ]
-      }
-    },
     "/api/profile": {
       "put": {
         "operationId": "save_profile_api_profile_put",
@@ -3345,7 +3281,7 @@
         ]
       },
       "post": {
-        "description": "Start a practice session. Refused unless the user confirmed the partner knows the assistant\nis on. The confirmation time is stored with the session.",
+        "description": "Start a practice session. The person agreed at sign-up that their partner knows the assistant\nis on; every account has that on record, and the session stores when. An account without it\ncannot start a session.",
         "operationId": "create_session_api_sessions_post",
         "parameters": [
           {

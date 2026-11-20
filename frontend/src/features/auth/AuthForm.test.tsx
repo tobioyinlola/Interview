@@ -147,7 +147,6 @@ describe("sign up page", () => {
       email: "new@example.com",
       password: STRONG,
       full_name: "Jordan Reyes",
-      partner_consent: true, // the box they ticked says they will only practise with a partner who knows
     });
     expect(sent.headers.get("x-requested-with")).toBe("meet-practice");
   });

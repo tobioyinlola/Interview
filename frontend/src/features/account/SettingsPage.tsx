@@ -1,12 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import {
-  useDeleteAccount,
-  useMe,
-  useSavePracticeConsent,
-  useSaveProfile,
-} from "../../api/hooks";
+import { useDeleteAccount, useMe, useSaveProfile } from "../../api/hooks";
 
 export function PrivacyNotice() {
   return (
@@ -86,39 +81,6 @@ export function DeleteAccountButton() {
   );
 }
 
-function ConsentSetting() {
-  const { data: me } = useMe();
-  const save = useSavePracticeConsent();
-  const asked = me?.practice_consent !== true;
-  return (
-    <section aria-labelledby="consent-h" className="card space-y-2">
-      <h2 id="consent-h" className="text-lg font-semibold">
-        Practice partner consent
-      </h2>
-      <p className="text-sm">
-        InterviewMeet is for practice with a partner who knows the assistant is
-        listening to the call. You agree to that once, and sessions start
-        without asking again.
-      </p>
-      <label className="flex min-h-[44px] items-start gap-3 py-1 text-sm">
-        <input
-          type="checkbox"
-          className="mt-0.5 h-6 w-6 shrink-0 accent-accent"
-          checked={asked}
-          disabled={save.isPending}
-          onChange={(e) => save.mutate(e.target.checked)}
-        />
-        <span>Ask me to confirm before every session</span>
-      </label>
-      {save.isError && (
-        <p role="alert" className="notice-error">
-          {save.error.message}
-        </p>
-      )}
-    </section>
-  );
-}
-
 function NameForm() {
   const { data: me } = useMe();
   const save = useSaveProfile();
@@ -180,7 +142,6 @@ export function SettingsPage() {
     <main className="page-narrow">
       <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
       <NameForm />
-      <ConsentSetting />
       <PrivacyNotice />
       <section
         aria-labelledby="danger"
