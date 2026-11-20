@@ -97,7 +97,7 @@ describe("LiveSessionPage", () => {
   it("explains the empty panel, then shows only the question that was asked and the answer", () => {
     renderPage();
     expect(
-      screen.getByText(/it appears here with an answer/),
+      screen.getByText(/Listening for the interviewer's question/),
     ).toBeInTheDocument();
     set({ outline: outline({ firstWordsMs: 2400 }) });
     expect(screen.getByTestId("question")).toHaveTextContent(
@@ -117,6 +117,71 @@ describe("LiveSessionPage", () => {
       within(panel).queryByRole("button", { name: "Regenerate" }),
     ).toBeNull();
     expect(within(panel).queryByRole("checkbox")).toBeNull();
+  });
+
+  it("shows the question live, word by word, while it is being asked", () => {
+    renderPage();
+    set({
+      lines: [{ key: "a", speaker: "partner", text: "So tell me," }],
+      partial: "about a time you",
+    });
+    expect(screen.getByTestId("question")).toHaveTextContent(
+      "So tell me, about a time you…",
+    );
+    // once the answer exists the question is the one that was asked, frozen
+    set({
+      outline: outline({ question: "So tell me about a time you led." }),
+    });
+    expect(screen.getByTestId("question")).toHaveTextContent(
+      "So tell me about a time you led.",
+    );
+  });
+
+  it("lists what the interviewer says after the question without touching the answer", () => {
+    renderPage();
+    set({
+      lines: [
+        { key: "a", speaker: "partner", text: "Why do you want to work here?" },
+        {
+          key: "b",
+          speaker: "partner",
+          text: "Really focus on the data side.",
+        },
+      ],
+      lockedAt: 1,
+      partial: "and the team",
+      outline: outline({ question: "Why do you want to work here?" }),
+    });
+    const extra = screen.getByTestId("additions");
+    expect(extra).toHaveTextContent("The interviewer also said");
+    expect(extra).toHaveTextContent("Really focus on the data side.");
+    expect(extra).toHaveTextContent("and the team…");
+    expect(extra).not.toHaveTextContent("Why do you want to work here?");
+    expect(screen.getByTestId("outline")).toHaveTextContent(
+      "Acme sells point-of-sale software and I led a launch.",
+    );
+  });
+
+  it("has no additions box when nothing was said after the question", () => {
+    renderPage();
+    set({
+      lines: [{ key: "a", speaker: "partner", text: "Why us?" }],
+      lockedAt: 1,
+      outline: outline(),
+    });
+    expect(screen.queryByTestId("additions")).toBeNull();
+  });
+
+  it("offers Done, next question, which says the answer stays until it is pressed", () => {
+    renderPage();
+    expect(screen.queryByRole("button", { name: /Done/ })).toBeNull();
+    set({ outline: outline() });
+    expect(
+      screen.getByRole("button", { name: "Done, next question" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("This answer stays until you press Done."),
+    ).toBeInTheDocument();
   });
 
   it("streams the answer without ever showing the part after it", () => {

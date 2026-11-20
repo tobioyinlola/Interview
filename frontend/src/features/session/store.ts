@@ -58,6 +58,11 @@ export interface LiveState {
   lines: Line[];
   partial: string;
   outline: Outline | null;
+  /** Lines before this index belong to questions already dealt with. */
+  turnStart: number;
+  /** While an answer is up, the index in `lines` where it was asked. Whatever the interviewer says
+   *  after that is shown as an addition and never replaces the answer. Null: no answer is up. */
+  lockedAt: number | null;
   blur: boolean;
   set: (p: Partial<LiveState>) => void;
   addLine: (l: Line) => void;
@@ -79,6 +84,8 @@ const initial = {
   lines: [] as Line[],
   partial: "",
   outline: null as Outline | null,
+  turnStart: 0,
+  lockedAt: null as number | null,
 };
 
 /** Live-session state only. Server data stays in TanStack Query, so streaming text never triggers
