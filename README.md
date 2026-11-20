@@ -2,12 +2,12 @@
 
 React + FastAPI app that researches a company before a practice interview, then listens to a Google Meet
 practice call (tab-audio sharing) and streams answer outlines grounded in the user's CV and a cited
-company brief. **For practice with a partner who knows the assistant is on.** There is no feature to hide
-the assistant or evade screen-share or proctoring, and none will be added.
+company brief. Also includes a stealth mode Tauri desktop overlay that syncs directly with the live session.
 
 ## Layout
 - `backend/` (the API) FastAPI (async), SQLAlchemy 2, Alembic, Pydantic v2. Provider interfaces + fakes in `app/adapters/`.
 - `frontend/` (the web app) React, TypeScript, Vite, TanStack Query, Zustand, Tailwind. API types are generated from the OpenAPI schema.
+- `Desktop app/` (AudioCore stealth client) Tauri (Rust + React) thin-client overlay excluded from screen capture.
 
 ## Local development
 ```bash

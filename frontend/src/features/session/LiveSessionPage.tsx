@@ -7,6 +7,7 @@ import { endSessionApi, fetchAudioToken, sendFeedback } from "../../api/hooks";
 import { FeatureBoundary } from "../../ui/FeatureBoundary";
 import { answerOf } from "./answerText";
 import { LiveSessionController } from "./controller";
+import { DesktopSyncPanel } from "./DesktopSyncPanel";
 import { type Line, type Outline, useLiveStore } from "./store";
 import { useFloatingPanel } from "./useFloatingPanel";
 
@@ -468,6 +469,9 @@ export function LiveSessionPage() {
             onEnd={() => void controller.end()}
             onMic={(on) => void controller.setMic(on)}
           />
+        </FeatureBoundary>
+        <FeatureBoundary name="desktop sync">
+          <DesktopSyncPanel sessionId={id} ended={status === "ended"} />
         </FeatureBoundary>
         <FeatureBoundary name="answer panel">
           {float.win ? (
