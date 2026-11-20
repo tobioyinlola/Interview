@@ -109,8 +109,34 @@ def test_an_unlabelled_invented_claim_is_still_flagged():
     assert len(check_outline(outline("Grew the team to 12 people"), [NOTES])) == 1
 
 
-def test_the_sample_answer_section_is_not_mistaken_for_a_bullet():
+def test_the_answer_section_is_not_mistaken_for_a_bullet_but_its_numbers_are_checked():
     out = outline("Led the 2025 launch [note: Launch]") + (
         "\nSAMPLE ANSWER: For example, I grew a team to 50 people at Globex."
     )
-    assert check_outline(out, [NOTES]) == []
+    # "Globex" is a name, which is not checked outside labelled bullets; "50" is a number, which is.
+    assert check_outline(out, [NOTES]) == ["For example, I grew a team to 50 people at Globex."]
+
+
+NEW = (
+    "TYPE: behavioral\nANSWER: At Acme I led the 2025 launch with a team of 6. "
+    "Onboarding time fell by 30%. {extra}\nSOURCES:\n- Led the launch [note: Launch]\n"
+)
+
+
+def test_answer_text_is_what_sits_between_answer_and_sources():
+    from app.services.grounding import answer_text
+
+    assert answer_text(NEW.format(extra="")).startswith("At Acme I led the 2025 launch")
+    assert "SOURCES" not in answer_text(NEW.format(extra=""))
+    assert answer_text("TYPE: other\nOPENER: Hi\nPOINTS:\n- a") == ""
+
+
+def test_numbers_in_the_answer_must_come_from_the_cv_or_the_question():
+    assert check_outline(NEW.format(extra="That was nine years ago."), [NOTES]) == []
+    flagged = check_outline(NEW.format(extra="I managed 14 engineers."), [NOTES])
+    assert flagged == ["I managed 14 engineers."]
+
+
+def test_a_number_from_the_question_is_allowed_in_the_answer():
+    out = NEW.format(extra="Over the last 5 years I kept this up.")
+    assert check_outline(out, [NOTES, "Tell me about the last 5 years"]) == []

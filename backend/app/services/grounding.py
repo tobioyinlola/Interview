@@ -61,6 +61,19 @@ def _norm(text: str) -> str:
     return re.sub(r"[^a-z0-9%.]+", " ", text.lower())
 
 
+_ANSWER = re.compile(
+    r"^\s*(?:SAMPLE\s+)?ANSWER\s*:\s*(.*?)(?=^\s*(?:SOURCES|POINTS|CLOSE)\s*:|\Z)",
+    re.IGNORECASE | re.MULTILINE | re.DOTALL,
+)
+_SENTENCE = re.compile(r"(?<=[.!?])\s+")
+
+
+def answer_text(outline: str) -> str:
+    """The spoken answer: what follows ANSWER: up to the SOURCES list. Empty for the old format."""
+    m = _ANSWER.search(outline)
+    return " ".join(m.group(1).split()) if m else ""
+
+
 def check_outline(outline: str, allowed: list[str]) -> list[str]:
     """Return the bullets (shortened) that mention a number or name found in none of `allowed`."""
     corpus = _norm(" ".join(allowed))
@@ -77,6 +90,14 @@ def check_outline(outline: str, allowed: list[str]) -> list[str]:
         )
         if bad:
             flagged.append(bullet[:120])
+    # The answer itself has no labels, so only numbers are checked: every figure it states must be
+    # in the CV, the brief or the question. (Names are too common in general advice to check.)
+    for sentence in _SENTENCE.split(answer_text(outline)):
+        if any(
+            n not in corpus_nums and n.replace(",", "") not in corpus_nums
+            for n in {n.rstrip(",.") for n in _NUMBER.findall(sentence)}
+        ):
+            flagged.append(sentence[:120])
     return flagged
 
 

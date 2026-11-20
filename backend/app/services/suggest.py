@@ -23,7 +23,7 @@ from app.models import CompanyBrief, CompanySource, PracticeSession, Suggestion,
 from app.prompts import load_prompt
 from app.repositories import LiveRepo, UsageMeterRepo
 from app.schemas.brief import BriefContent
-from app.services import grounding
+from app.services import grounding, vocab
 from app.services.breaker import CircuitBreaker
 
 log = logging.getLogger("app.suggest")
@@ -42,6 +42,9 @@ class Context:
     notes: str
     brief: str  # rendered brief text, pinned facts first; "" when there is none
     allowed: list[str]
+    company: str = ""
+    seniority: str = vocab.DEFAULT_LEVEL
+    terms: str = ""  # role vocabulary to draw on
 
 
 def render_brief(
@@ -113,6 +116,9 @@ class SuggestionService:
         notes = (session.notes_snapshot or "")[:NOTES_CHARS]
         ctx = Context(
             role=session.role,
+            company=vocab.clean(await vocab.session_company(db, session), 80),
+            seniority=await vocab.user_level(db, session.user_id),
+            terms=vocab.role_terms(session.role),
             notes=notes,
             brief=brief_text,
             allowed=[notes, brief_text, titles_text, session.role],
@@ -130,7 +136,11 @@ class SuggestionService:
         brief = ctx.brief or "No company brief is available."
         convo = "\n".join(history) if history else "(nothing earlier)"
         return (
-            f"Target role: {ctx.role or 'not specified'}\n\n"
+            f"Target role: {ctx.role or 'not specified'}\n"
+            f"Company: {ctx.company or 'not specified'}\n"
+            f"Seniority: {ctx.seniority}\n"
+            f"<vocabulary>\n{ctx.terms or 'Use the standard terminology of the target role.'}"
+            f"\n</vocabulary>\n\n"
             f"<notes>\n{ctx.notes or 'The candidate has not written any notes.'}\n</notes>\n\n"
             f"<brief>\n{brief}\n</brief>\n\n"
             f"<conversation>\n{convo}\n</conversation>\n\n"

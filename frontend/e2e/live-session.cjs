@@ -195,7 +195,11 @@ const FAKE_MIC = () => {
     .waitFor({ timeout: 15000 });
   step("caption appeared in the transcript");
   await page.getByText(/First words in/).waitFor({ timeout: 15000 });
-  await page.getByText(/Led a team to ship a launch/).waitFor();
+  await page.getByText(/led a team to ship a launch/i).waitFor();
+  check(
+    !(await page.getByText(/SOURCES|\[note:/).count()),
+    "the panel shows no source list or labels, only the question and answer",
+  );
   const first = await page.getByText(/First words in/).innerText();
   console.log("   ", first);
   await page.screenshot({

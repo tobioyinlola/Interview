@@ -46,6 +46,7 @@ from app.schemas.api import (
 from app.services.gaps import find_gaps
 from app.services.live import LiveHub
 from app.services.suggest import SuggestionService
+from app.services.vocab import session_stt_prompt
 from app.workers.scoring_worker import ScoringRunner
 
 router = APIRouter(prefix="/api", tags=["sessions"])
@@ -369,7 +370,8 @@ async def transcribe_segment(
     if not pcm or len(pcm) > MAX_SEGMENT_BYTES:
         raise ApiError(413, "segment_too_large", "That audio segment is empty or too long.")
     live = LiveRepo(db, user.id)
-    if await live.active_session(session_id) is None:
+    session = await live.active_session(session_id)
+    if session is None:
         raise ApiError(409, "session_not_active", "This session has ended.")
 
     meter = UsageMeterRepo(db, user.id)
@@ -377,7 +379,8 @@ async def transcribe_segment(
     if await meter.stt_seconds_today() + seconds > settings.cap_stt_seconds_daily:
         raise ApiError(429, "daily_cap", "You've reached today's transcription limit.")
     try:
-        text = (await stt.transcribe_segment(pcm, sample_rate=sample_rate)).strip()
+        hint = await session_stt_prompt(db, session)
+        text = (await stt.transcribe_segment(pcm, sample_rate=sample_rate, prompt=hint)).strip()
     except ProviderNotConfigured as exc:
         raise ApiError(503, "not_configured", exc.message) from None
     except ProviderError as exc:

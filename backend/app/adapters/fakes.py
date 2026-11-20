@@ -43,13 +43,18 @@ class FakeSttProvider:
         self.script = script or []
         self.segment_text = segment_text
         self.streams: list[FakeSttStream] = []
+        self.prompts: list[str] = []
 
-    async def open_stream(self, *, sample_rate: int = 16000) -> FakeSttStream:
+    async def open_stream(self, *, sample_rate: int = 16000, prompt: str = "") -> FakeSttStream:
+        self.prompts.append(prompt)
         stream = FakeSttStream(list(self.script))
         self.streams.append(stream)
         return stream
 
-    async def transcribe_segment(self, pcm16: bytes, *, sample_rate: int = 16000) -> str:
+    async def transcribe_segment(
+        self, pcm16: bytes, *, sample_rate: int = 16000, prompt: str = ""
+    ) -> str:
+        self.prompts.append(prompt)
         return self.segment_text
 
 
@@ -95,11 +100,15 @@ class ScriptedStt:
         self.bytes_per_line = int(seconds_per_line * rate * 2)
         self.opened = 0
 
-    async def open_stream(self, *, sample_rate: int = 24000) -> "ScriptedSttStream":
+    async def open_stream(
+        self, *, sample_rate: int = 24000, prompt: str = ""
+    ) -> "ScriptedSttStream":
         self.opened += 1
         return ScriptedSttStream(self.lines, self.bytes_per_line)
 
-    async def transcribe_segment(self, pcm16: bytes, *, sample_rate: int = 24000) -> str:
+    async def transcribe_segment(
+        self, pcm16: bytes, *, sample_rate: int = 24000, prompt: str = ""
+    ) -> str:
         return self.lines[0] if self.lines else ""
 
 
@@ -147,10 +156,10 @@ class ScriptedAnswerLlm:
         self, *, system: str, user: str, model: str | None = None
     ) -> AsyncIterator[LlmDelta]:
         text = (
-            "TYPE: behavioral\nOPENER: Here's a project where I took the lead.\n"
-            "POINTS:\n- Led a team to ship a launch on time [note: Led launch]\n"
-            "- Cut onboarding time by 30% [note: Led launch]\n"
-            "CLOSE: That experience taught me how to align people quickly."
+            "TYPE: behavioral\nANSWER: Here is a project where I took the lead. I led a team to "
+            "ship a launch on time, and we cut onboarding time by 30%. That taught me how to "
+            "align people quickly.\nSOURCES:\n- Led a team to ship a launch [note: Led launch]\n"
+            "- Cut onboarding time by 30% [note: Led launch]"
         )
         for word in text.split(" "):
             await asyncio.sleep(self.delay)
