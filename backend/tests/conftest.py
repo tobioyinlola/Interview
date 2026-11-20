@@ -69,7 +69,12 @@ def sender() -> CapturingSender:
 
 @pytest.fixture
 def settings() -> Settings:
-    return Settings(environment="local", database_url=TEST_DB, cookie_secret="test-secret")  # type: ignore[arg-type]
+    return Settings(  # type: ignore[arg-type]
+        environment="local",
+        database_url=TEST_DB,
+        cookie_secret="test-secret",
+        enforce_session_credits=False,  # billing tests turn it on
+    )
 
 
 @pytest.fixture

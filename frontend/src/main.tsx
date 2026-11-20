@@ -6,7 +6,10 @@ import { BrowserRouter } from "react-router-dom";
 import "@fontsource-variable/inter/wght.css";
 import "@fontsource-variable/inter/wght-italic.css";
 import { App } from "./app/App";
+import { captureInvite } from "./features/referral/invite";
 import "./index.css";
+
+captureInvite(); // remember an invite code from the link, before anything navigates away
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },

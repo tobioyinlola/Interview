@@ -21,6 +21,11 @@ const PAGES: { label: string; to: string; words: string }[] = [
   },
   { label: "Sessions", to: "/sessions", words: "history review past calls" },
   {
+    label: "Invite friends",
+    to: "/referrals",
+    words: "referral refer free session reward link redeem",
+  },
+  {
     label: "Onboarding answers",
     to: "/onboarding",
     words: "focus goal level timeline update preferences",

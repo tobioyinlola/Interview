@@ -19,6 +19,7 @@ from app.errors import ApiError
 from app.models import PracticeSession, User
 from app.repositories import (
     AudioTokenRepo,
+    BillingRepo,
     CompaniesRepo,
     IdempotencyRepo,
     LiveRepo,
@@ -101,6 +102,22 @@ async def create_session(
         brief = await companies.current_brief(company_id)
         brief_id = brief.id if brief else None
 
+    # A session costs one credit: the free trial, a redeemed invite reward, or (later) a paid one.
+    # Taken before anything is written; if nothing goes wrong below it is saved with the session,
+    # and if anything does, it is not spent.
+    credit = None
+    if settings.enforce_session_credits:
+        credit = await BillingRepo(
+            db, user, per_reward=max(1, settings.referrals_per_free_session)
+        ).take_credit()
+    if credit is None and settings.enforce_session_credits:
+        raise ApiError(
+            402,
+            "payment_required",
+            "You have used your free session. Paying for more sessions is coming soon. "
+            "Invite friends to earn a free one.",
+        )
+
     note = await NotesRepo(db, user.id).get()
     role = body.role if body.role is not None else (note.role if note else "")
     confirmed_at = user.practice_consent_at
@@ -111,6 +128,8 @@ async def create_session(
         role=role,
         notes_snapshot=note.content if note else "",
     )
+    if credit is not None:
+        credit.session_id = row.id
     out = SessionCreateOut(session_id=row.id, status=row.status, consent_confirmed_at=confirmed_at)
     if idempotency_key:
         payload: dict[str, Any] = out.model_dump(mode="json")

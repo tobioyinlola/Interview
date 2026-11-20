@@ -243,6 +243,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/billing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Billing */
+        get: operations["get_billing_api_billing_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/redeem": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Redeem Reward
+         * @description Turn an earned invite reward into a free session the person can use.
+         */
+        post: operations["redeem_reward_api_billing_redeem_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/companies": {
         parameters: {
             query?: never;
@@ -760,6 +797,36 @@ export interface components {
             /** Sample Rate */
             sample_rate: number;
         };
+        /**
+         * BillingOut
+         * @description How many sessions the person can start, and how far along their invite reward is.
+         */
+        BillingOut: {
+            /** Paid Credits Available */
+            paid_credits_available: number;
+            /** Payments Enabled */
+            payments_enabled: boolean;
+            /** Referral Code */
+            referral_code: string;
+            /** Referral Credits Available */
+            referral_credits_available: number;
+            /** Referral Link */
+            referral_link: string;
+            /** Referrals Per Reward */
+            referrals_per_reward: number;
+            /** Referrals Qualified */
+            referrals_qualified: number;
+            /** Referrals To Next Reward */
+            referrals_to_next_reward: number;
+            /** Rewards Earned */
+            rewards_earned: number;
+            /** Rewards Redeemable */
+            rewards_redeemable: number;
+            /** Sessions Available */
+            sessions_available: number;
+            /** Trial Available */
+            trial_available: boolean;
+        };
         /** BriefContent */
         BriefContent: {
             /** Assumed Company */
@@ -1117,6 +1184,8 @@ export interface components {
              * Format: email
              */
             email: string;
+            /** Ref */
+            ref?: string | null;
         };
         /** ResearchStartedOut */
         ResearchStartedOut: {
@@ -1301,6 +1370,8 @@ export interface components {
             full_name: string;
             /** Password */
             password: string;
+            /** Ref */
+            ref?: string | null;
         };
         /** SourceOut */
         SourceOut: {
@@ -1560,7 +1631,9 @@ export interface operations {
     };
     google_start_api_auth_google_start_get: {
         parameters: {
-            query?: never;
+            query?: {
+                ref?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1574,6 +1647,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -1812,6 +1894,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_billing_api_billing_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingOut"];
+                };
+            };
+        };
+    };
+    redeem_reward_api_billing_redeem_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingOut"];
                 };
             };
         };

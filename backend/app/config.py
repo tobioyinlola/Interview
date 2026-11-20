@@ -87,6 +87,10 @@ class Settings(BaseSettings):
     # anyone, so the API refuses to start with this on in production.
     # Shown in email footers and used as the Reply-To, so people can write back. Optional.
     support_email: str = ""
+    # Inviting this many people who sign up earns one free session, which the person redeems.
+    referrals_per_free_session: int = 3
+    # Off only in tests that start many sessions without caring about credits.
+    enforce_session_credits: bool = True
     dev_log_email_links: bool = False
     resend_api_key: SecretStr = SecretStr("")  # sends the sign-in email
     email_from: str = ""  # e.g. "Meet Practice <login@yourdomain.com>", a Resend-verified domain

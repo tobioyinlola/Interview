@@ -24,6 +24,75 @@
         "title": "AudioTokenOut",
         "type": "object"
       },
+      "BillingOut": {
+        "description": "How many sessions the person can start, and how far along their invite reward is.",
+        "properties": {
+          "paid_credits_available": {
+            "title": "Paid Credits Available",
+            "type": "integer"
+          },
+          "payments_enabled": {
+            "title": "Payments Enabled",
+            "type": "boolean"
+          },
+          "referral_code": {
+            "title": "Referral Code",
+            "type": "string"
+          },
+          "referral_credits_available": {
+            "title": "Referral Credits Available",
+            "type": "integer"
+          },
+          "referral_link": {
+            "title": "Referral Link",
+            "type": "string"
+          },
+          "referrals_per_reward": {
+            "title": "Referrals Per Reward",
+            "type": "integer"
+          },
+          "referrals_qualified": {
+            "title": "Referrals Qualified",
+            "type": "integer"
+          },
+          "referrals_to_next_reward": {
+            "title": "Referrals To Next Reward",
+            "type": "integer"
+          },
+          "rewards_earned": {
+            "title": "Rewards Earned",
+            "type": "integer"
+          },
+          "rewards_redeemable": {
+            "title": "Rewards Redeemable",
+            "type": "integer"
+          },
+          "sessions_available": {
+            "title": "Sessions Available",
+            "type": "integer"
+          },
+          "trial_available": {
+            "title": "Trial Available",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "sessions_available",
+          "trial_available",
+          "referral_credits_available",
+          "paid_credits_available",
+          "payments_enabled",
+          "referral_code",
+          "referral_link",
+          "referrals_qualified",
+          "referrals_per_reward",
+          "referrals_to_next_reward",
+          "rewards_earned",
+          "rewards_redeemable"
+        ],
+        "title": "BillingOut",
+        "type": "object"
+      },
       "BriefContent": {
         "properties": {
           "assumed_company": {
@@ -1068,6 +1137,18 @@
             "format": "email",
             "title": "Email",
             "type": "string"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref"
           }
         },
         "required": [
@@ -1586,6 +1667,18 @@
             "minLength": 1,
             "title": "Password",
             "type": "string"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref"
           }
         },
         "required": [
@@ -2235,6 +2328,24 @@
     "/api/auth/google/start": {
       "get": {
         "operationId": "google_start_api_auth_google_start_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "ref",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ref"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -2243,6 +2354,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Google Start",
@@ -2542,6 +2663,49 @@
         "summary": "Verify",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/billing": {
+      "get": {
+        "operationId": "get_billing_api_billing_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Billing",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/billing/redeem": {
+      "post": {
+        "description": "Turn an earned invite reward into a free session the person can use.",
+        "operationId": "redeem_reward_api_billing_redeem_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Redeem Reward",
+        "tags": [
+          "billing"
         ]
       }
     },

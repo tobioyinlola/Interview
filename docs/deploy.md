@@ -25,6 +25,7 @@ Variables:
 | `METRICS_TOKEN` | random string; the scraper sends it as a bearer token |
 | `ADMIN_EMAILS` | comma-separated emails allowed to see the cost view |
 | `RESEND_API_KEY`, `EMAIL_FROM` | required; see below |
+| `REFERRALS_PER_FREE_SESSION` | optional, default 3: signed-up friends needed to earn one free session |
 | `SUPPORT_EMAIL` | optional; the contact address in every email footer; the line is left out when empty |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `API_PUBLIC_URL` | optional; see "Sign in with Google" |
 | `SENTRY_DSN` | optional |

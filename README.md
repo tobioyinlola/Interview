@@ -69,6 +69,15 @@ Facts with no valid source are dropped and empty sections say "Not found". Pages
   sources the job actually collected.
 - Needs `OPENAI_API_KEY` to research. Without it a job fails with a clear message.
 
+## Sessions, the free trial and invites
+Every account gets one free practice session. Each session after that will be pay per session; **payments
+are not built yet**, so a person with no session left is told so (HTTP 402, `payment_required`) and pointed to
+the invite page. Invite three people who sign up with your link (`/signup?ref=CODE`, and who confirm their
+email) and you earn a free session, which you **redeem** on the Invite friends page before you can use it.
+The code survives email-link, password and Google sign-up. Inviting yourself (including `+tag` and Gmail dot
+variants of your own address) does not count. Settings: `REFERRALS_PER_FREE_SESSION` (default 3) and
+`ENFORCE_SESSION_CREDITS` (default true; only tests turn it off).
+
 ## Live practice session
 Sign in, upload your CV, optionally add a company, then **Practice**: start a
 session (the partner-consent agreement is the box ticked once, at sign-up; the app does not ask again), join Google Meet in another tab, and press **Share Meet tab** (pick the Meet tab and tick *Also

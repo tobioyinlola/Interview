@@ -47,6 +47,16 @@ export function TermsPage() {
         once, with the box you tick when you sign up, and the app records when.
         It does not ask again.
       </p>
+      <h2 className="text-lg font-semibold">Sessions and invites</h2>
+      <p>
+        Every account gets one free practice session. More sessions will be paid
+        for one at a time; payments are not available yet. If three people sign
+        up with your invite link and confirm their email, you earn one free
+        session, which you redeem yourself and can use whenever you like.
+        Inviting yourself, a second address of your own, or accounts made only
+        to collect rewards does not count, and we may take back rewards earned
+        that way.
+      </p>
       <h2 className="text-lg font-semibold">The law</h2>
       <p>
         Rules on recording and transcribing calls differ by country and state.

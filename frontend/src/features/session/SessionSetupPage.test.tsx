@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { App } from "../../app/App";
@@ -211,5 +211,91 @@ describe("SessionSetupPage", () => {
     expect(screen.getByText(/No brief yet/)).toBeInTheDocument();
     await userEvent.selectOptions(pick, "c");
     expect(screen.getByText(/10 days old/)).toBeInTheDocument();
+  });
+});
+
+describe("SessionSetupPage: session credits", () => {
+  const credits = (over: Record<string, unknown> = {}) => ({
+    sessions_available: 1,
+    trial_available: true,
+    referral_credits_available: 0,
+    paid_credits_available: 0,
+    payments_enabled: false,
+    referral_code: "abc23xyz",
+    referral_link: "https://app.example.com/signup?ref=abc23xyz",
+    referrals_qualified: 0,
+    referrals_per_reward: 3,
+    referrals_to_next_reward: 3,
+    rewards_earned: 0,
+    rewards_redeemable: 0,
+    ...over,
+  });
+
+  it("says a session uses the free trial", async () => {
+    mockApi(base({ "GET /api/billing": () => ({ json: credits() }) }));
+    open();
+    await screen.findByRole("option", { name: "Acme" });
+    expect(
+      await screen.findByText(
+        /This uses one of your 1 available session \(your free trial\)/,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("blocks Start once the free session is used, and points to inviting friends", async () => {
+    mockApi(
+      base({
+        "GET /api/billing": () => ({
+          json: credits({ sessions_available: 0, trial_available: false }),
+        }),
+      }),
+    );
+    open();
+    await screen.findByRole("option", { name: "Acme" });
+    await userEvent.selectOptions(screen.getByLabelText(/Which company/), "c1");
+    expect(
+      await screen.findByText("You have used your free session"),
+    ).toBeInTheDocument();
+    expect(start()).toBeDisabled();
+    expect(screen.getByText(/pay per session/)).toBeInTheDocument();
+    const notice = within(
+      screen.getByRole("region", { name: "You have used your free session" }),
+    );
+    expect(
+      notice.getByRole("link", { name: "Invite friends" }),
+    ).toHaveAttribute("href", "/referrals");
+  });
+
+  it("does not block while the count is loading or if it cannot be loaded; the server decides", async () => {
+    mockApi(base()); // no billing route: the request fails
+    open();
+    await screen.findByRole("option", { name: "Acme" });
+    await userEvent.selectOptions(screen.getByLabelText(/Which company/), "c1");
+    expect(start()).toBeEnabled();
+  });
+
+  it("shows the server's message if it says payment is needed anyway", async () => {
+    mockApi(
+      base({
+        "GET /api/billing": () => ({ json: credits() }),
+        "POST /api/sessions": () => ({
+          status: 402,
+          json: {
+            error: {
+              code: "payment_required",
+              message: "You have used your free session.",
+              request_id: "r",
+            },
+          },
+        }),
+      }),
+    );
+    open();
+    await screen.findByRole("option", { name: "Acme" });
+    await userEvent.selectOptions(screen.getByLabelText(/Which company/), "c1");
+    await userEvent.click(start());
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "You have used your free session.",
+    );
   });
 });
