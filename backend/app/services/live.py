@@ -57,12 +57,58 @@ class LiveHub:
     def __init__(self) -> None:
         self.seq = SeqCounters()
         self.sockets: set[WebSocket] = set()
+        self.desktop_sockets: dict[uuid.UUID, set[WebSocket]] = {}
+        self.session_pins: dict[uuid.UUID, str] = {}
+        self.pin_to_session: dict[str, uuid.UUID] = {}
+        self.last_events: dict[uuid.UUID, dict[str, Any]] = {}
+
+    def get_or_create_pin(self, session_id: uuid.UUID) -> str:
+        if session_id in self.session_pins:
+            return self.session_pins[session_id]
+        import random
+        while True:
+            pin = f"{random.randint(100000, 999999)}"
+            if pin not in self.pin_to_session:
+                break
+        self.session_pins[session_id] = pin
+        self.pin_to_session[pin] = session_id
+        return pin
+
+    def get_session_by_pin(self, pin: str) -> uuid.UUID | None:
+        clean_pin = pin.replace("-", "").strip()
+        return self.pin_to_session.get(clean_pin)
+
+    def register_desktop(self, session_id: uuid.UUID, ws: WebSocket) -> None:
+        self.desktop_sockets.setdefault(session_id, set()).add(ws)
+
+    def unregister_desktop(self, session_id: uuid.UUID, ws: WebSocket) -> None:
+        if session_id in self.desktop_sockets:
+            self.desktop_sockets[session_id].discard(ws)
+            if not self.desktop_sockets[session_id]:
+                self.desktop_sockets.pop(session_id, None)
+
+    def desktop_client_count(self, session_id: uuid.UUID) -> int:
+        return len(self.desktop_sockets.get(session_id, ()))
+
+    async def broadcast_desktop(self, session_id: uuid.UUID, event: dict[str, Any]) -> None:
+        self.last_events[session_id] = event
+        sockets = list(self.desktop_sockets.get(session_id, ()))
+        for ws in sockets:
+            try:
+                await ws.send_json(event)
+            except Exception:
+                self.unregister_desktop(session_id, ws)
 
     async def shutdown(self) -> None:
         for ws in list(self.sockets):
             with contextlib.suppress(Exception):
                 await ws.close(code=CLOSE_RESTART)
         self.sockets.clear()
+        for session_id, sock_set in list(self.desktop_sockets.items()):
+            for ws in list(sock_set):
+                with contextlib.suppress(Exception):
+                    await ws.close(code=CLOSE_RESTART)
+        self.desktop_sockets.clear()
 
 
 class AudioRelay:
