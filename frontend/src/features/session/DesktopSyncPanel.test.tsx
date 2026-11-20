@@ -34,13 +34,17 @@ describe("DesktopSyncPanel", () => {
 
     render(<DesktopSyncPanel sessionId="sid-123" ended={false} />);
 
-    const getPinBtn = screen.getByRole("button", { name: /get desktop sync pin/i });
+    const getPinBtn = screen.getByRole("button", {
+      name: /get desktop sync pin/i,
+    });
     await userEvent.click(getPinBtn);
 
     expect(await screen.findByText("123-456")).toBeInTheDocument();
     expect(screen.getByText(/Connected \(1 active\)/i)).toBeInTheDocument();
 
-    const copyBtn = screen.getByRole("button", { name: /copy desktop sync pin/i });
+    const copyBtn = screen.getByRole("button", {
+      name: /copy desktop sync pin/i,
+    });
     await userEvent.click(copyBtn);
 
     expect(writeText).toHaveBeenCalledWith("123-456");

@@ -26,7 +26,9 @@ export function DesktopSyncPanel({
     if (!sessionId || loading) return;
     setLoading(true);
     try {
-      const res = await apiFetch<SessionPinInfo>(`/api/sessions/${sessionId}/pin`);
+      const res = await apiFetch<SessionPinInfo>(
+        `/api/sessions/${sessionId}/pin`,
+      );
       setData(res);
     } catch {
       /* failed to load pin */
@@ -48,9 +50,12 @@ export function DesktopSyncPanel({
 
   const handleTest = async () => {
     try {
-      await apiFetch<{ status: string }>(`/api/sessions/${sessionId}/test-desktop`, {
-        method: "POST",
-      });
+      await apiFetch<{ status: string }>(
+        `/api/sessions/${sessionId}/test-desktop`,
+        {
+          method: "POST",
+        },
+      );
       setTestSent(true);
       setTimeout(() => setTestSent(false), 2500);
     } catch {
@@ -63,7 +68,10 @@ export function DesktopSyncPanel({
   return (
     <section aria-labelledby="desktop-sync-h" className="card space-y-3">
       <div className="flex items-center justify-between">
-        <h2 id="desktop-sync-h" className="text-base font-semibold flex items-center gap-2">
+        <h2
+          id="desktop-sync-h"
+          className="text-base font-semibold flex items-center gap-2"
+        >
           <span>Desktop Stealth HUD</span>
           {data && (
             <span
@@ -82,7 +90,8 @@ export function DesktopSyncPanel({
       </div>
 
       <p className="text-xs text-muted">
-        Connect the <strong>AudioCore</strong> desktop app to project live AI outlines directly onto your screen, invisible to screen share.
+        Connect the <strong>AudioCore</strong> desktop app to project live AI
+        outlines directly onto your screen, invisible to screen share.
       </p>
 
       {!data ? (

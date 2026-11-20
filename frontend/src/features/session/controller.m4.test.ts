@@ -149,10 +149,10 @@ describe("microphone (FR-17)", () => {
     x.mic().ev.onFinal(final("y1", "Sure, last year I led a launch.", "you"));
     expect(x.streams).toHaveLength(1); // not answered
     expect(x.s().lines.map((l) => l.speaker)).toEqual(["partner", "you"]);
-    x.partner().ev.onFinal(final("p2", "And how did it go?"));
+    x.partner().ev.onFinal(final("p2", "That sounds like it went well."));
     expect(x.streams).toHaveLength(1); // the first answer stays until Done
     x.c.markDone();
-    expect(x.streams[1].req.question).toBe("And how did it go?"); // the old question is not repeated
+    expect(x.streams[1].req.question).toBe("That sounds like it went well."); // the old question is not repeated
     expect(x.streams[1].req.utteranceIds).toEqual(["p2"]);
   });
 

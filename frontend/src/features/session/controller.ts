@@ -18,6 +18,7 @@ import {
   type OutlineRequest,
   streamOutline,
 } from "../../audio/suggestStream";
+import { looksLikeQuestion } from "./looksLikeQuestion";
 import { assembleTurn, useLiveStore } from "./store";
 
 /** How long the interviewer must be quiet before a question that does not end in "?" is answered. */
@@ -57,6 +58,9 @@ export class LiveSessionController {
   /** Consecutive streaming failures; two in a row switch to the fallback mode. */
   private streamFailures = 0;
   private abort: AbortController | null = null;
+  /** A request made while an answer is up, to find out whether the interviewer asked something new.
+   *  It is invisible until the server says it is a question; only then does it replace the answer. */
+  private probe: AbortController | null = null;
   private readonly detector = new SpeechEndDetector();
   private readonly silence = new SilenceWatch();
   private noteSeq = 0;
@@ -325,10 +329,15 @@ export class LiveSessionController {
       text: f.text,
     });
     this.state.set({ partial: "" });
-    // While an answer is up, more interviewer speech is shown beside it and never answered. An
-    // answer that failed is not worth keeping, so the next question may replace it.
-    if (this.state.lockedAt !== null && this.state.outline?.state !== "error")
-      return;
+    // While an answer is up it stays exactly as it is. Whatever else the interviewer says is only
+    // looked at if it sounds like a new question, and then only a real question (the server decides)
+    // replaces the answer. An answer that failed is not worth keeping, so anything may replace it.
+    if (this.isLocked()) {
+      const said = assembleTurn(
+        this.state.lines.slice(this.state.lockedAt ?? 0),
+      ).text;
+      if (!looksLikeQuestion(said)) return;
+    }
     this.scheduleAsk(f.text);
   }
 
@@ -352,13 +361,19 @@ export class LiveSessionController {
     this.settleTimer = null;
   }
 
+  /** An answer is up and worth keeping (a failed one is not). */
+  private isLocked(): boolean {
+    return (
+      this.state.lockedAt !== null && this.state.outline?.state !== "error"
+    );
+  }
+
   private askAboutTurn(): void {
     if (this.ended) return;
-    if (this.state.lockedAt !== null && this.state.outline?.state !== "error")
-      return;
-    const lines = this.state.lines;
-    const turn = assembleTurn(lines.slice(this.state.turnStart));
-    void this.ask(turn.text, turn.ids, false, this.detector.takeEnd());
+    const locked = this.isLocked();
+    const from = locked ? (this.state.lockedAt ?? 0) : this.state.turnStart;
+    const turn = assembleTurn(this.state.lines.slice(from));
+    void this.ask(turn.text, turn.ids, false, this.detector.takeEnd(), locked);
   }
 
   /** "Done, next question": release the answer. What the interviewer said meanwhile becomes the next
@@ -366,6 +381,8 @@ export class LiveSessionController {
   markDone(): void {
     if (this.ended || !this.state.outline) return;
     this.abort?.abort(); // an answer still streaming is cancelled, the server stops the model
+    this.probe?.abort();
+    this.probe = null;
     this.clearSettle();
     const from = this.state.lockedAt ?? this.state.lines.length;
     this.state.setOutline(null);
@@ -397,28 +414,48 @@ export class LiveSessionController {
     utteranceIds: string[],
     regenerate: boolean,
     speechEndedAt: number | null,
+    probe = false,
   ): Promise<void> {
     if (!question.trim()) return;
-    // The newest question wins: cancel any outline still streaming (the server cancels the model).
-    this.abort?.abort();
     const ctl = new AbortController();
-    this.abort = ctl;
+    if (probe) {
+      // The answer on screen is not touched, not even cancelled, until this proves to be a question.
+      this.probe?.abort();
+      this.probe = ctl;
+    } else {
+      // The newest question wins: cancel any answer still streaming (the server cancels the model).
+      this.abort?.abort();
+      this.probe?.abort();
+      this.probe = null;
+      this.abort = ctl;
+    }
+    let adopted = !probe;
     const previous = this.state.outline;
     const previousLock = this.state.lockedAt;
     const askedAt = this.state.lines.length;
     const startedAt = speechEndedAt ?? this.now();
-    // From here the answer is locked: it stays until the person presses Done.
-    this.state.set({
-      lockedAt: regenerate && previousLock !== null ? previousLock : askedAt,
-    });
-    this.state.setOutline({
-      question,
-      text: "",
-      state: "streaming",
-      flags: [],
-      revealed: false,
-    });
-    const current = () => this.abort === ctl; // ignore events from a replaced stream
+    const begin = () => {
+      // From here the answer is locked: it stays until a real new question or the person's Done.
+      this.state.set({
+        lockedAt: regenerate && previousLock !== null ? previousLock : askedAt,
+      });
+      this.state.setOutline({
+        question,
+        text: "",
+        state: "streaming",
+        flags: [],
+        revealed: false,
+      });
+    };
+    if (!probe) begin();
+    const current = () => (adopted ? this.abort === ctl : this.probe === ctl); // ignore replaced streams
+    const adopt = () => {
+      this.abort?.abort(); // the old answer is finished with: the interviewer moved on
+      this.abort = ctl;
+      this.probe = null;
+      adopted = true;
+      begin();
+    };
     const req: OutlineRequest = {
       sessionId: this.d.sessionId,
       question,
@@ -429,6 +466,7 @@ export class LiveSessionController {
     await (this.d.stream ?? streamOutline)(req, {
       onDelta: (text) => {
         if (!current()) return;
+        if (!adopted) adopt(); // the first words of an answer: it was a question
         const o = this.state.outline;
         if (!o) return;
         this.state.patchOutline({
@@ -439,7 +477,12 @@ export class LiveSessionController {
       },
       onSkip: () => {
         if (!current()) return;
-        // Not a question: nothing new to show, and it is not part of the next question either.
+        if (!adopted) {
+          // Not a question: nothing on screen changes, and it will not be part of the next one.
+          this.probe = null;
+          this.state.set({ lockedAt: askedAt });
+          return;
+        }
         this.state.setOutline(previous);
         this.state.set({
           lockedAt: previousLock,
@@ -447,7 +490,7 @@ export class LiveSessionController {
         });
       },
       onDone: (info: DoneInfo) => {
-        if (current())
+        if (current() && adopted)
           this.state.patchOutline({
             state: "done",
             suggestionId: info.suggestion_id,
@@ -455,7 +498,10 @@ export class LiveSessionController {
           });
       },
       onError: (error) => {
-        if (current()) this.state.patchOutline({ state: "error", error });
+        // A failed look at something that may not even be a question must never disturb the answer.
+        if (current() && adopted)
+          this.state.patchOutline({ state: "error", error });
+        else if (current()) this.probe = null;
       },
     });
   }
@@ -489,6 +535,7 @@ export class LiveSessionController {
     this.stopMic();
     this.recorder = null;
     this.abort?.abort();
+    this.probe?.abort();
     this.state.set({
       level: 0,
       notice: null,
