@@ -1,5 +1,6 @@
 import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 
+import { HelpPage } from "../features/help/HelpPage";
 import { ReferralPage } from "../features/referral/ReferralPage";
 import { SettingsPage } from "../features/account/SettingsPage";
 import { AuthGuard } from "../features/auth/AuthGuard";
@@ -61,6 +62,7 @@ export function App() {
             <Route path="/sessions" element={<SessionsPage />} />
             <Route path="/sessions/:id" element={<ReviewPage />} />
             <Route path="/referrals" element={<ReferralPage />} />
+            <Route path="/help" element={<HelpPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/admin/usage" element={<UsagePage />} />
           </Route>

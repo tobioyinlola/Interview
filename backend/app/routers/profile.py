@@ -9,7 +9,7 @@ from app.deps import current_user, me_out
 from app.errors import ApiError
 from app.models import User
 from app.repositories import NotesRepo, ProfileRepo
-from app.schemas.api import MeOut, OnboardingIn, ProfileIn
+from app.schemas.api import MeOut, OnboardingIn, ProfileIn, TourIn
 from app.services.names import clean_name
 
 router = APIRouter(prefix="/api", tags=["profile"])
@@ -28,6 +28,19 @@ async def save_profile(
     if name is None:
         raise INVALID_NAME
     await ProfileRepo(db, user).update(full_name=name)
+    return me_out(user, settings)
+
+
+@router.put("/tour")
+async def save_tour(
+    body: TourIn,
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    settings: Settings = Depends(get_settings),  # noqa: B008
+) -> MeOut:
+    """Remember that the first-time tour was finished or skipped, so it is not shown again. Asking
+    for done=false shows it again the next time the dashboard opens."""
+    await ProfileRepo(db, user).update(tour_done_at=datetime.now(UTC) if body.done else None)
     return me_out(user, settings)
 
 

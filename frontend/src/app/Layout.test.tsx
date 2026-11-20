@@ -218,8 +218,10 @@ describe("top bar on every page", () => {
     const names = [
       "Settings",
       "Update my focus",
+      "Help",
       "Privacy",
       "Terms",
+      "Take the tour",
       "Sign out",
     ];
     for (const n of names.slice(1)) {

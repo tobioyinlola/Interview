@@ -30,6 +30,11 @@ const PAGES: { label: string; to: string; words: string }[] = [
     to: "/onboarding",
     words: "focus goal level timeline update preferences",
   },
+  {
+    label: "Help",
+    to: "/help",
+    words: "guide tour how to faq support start question",
+  },
   { label: "Settings", to: "/settings", words: "name account delete data" },
   { label: "Privacy", to: "/privacy", words: "data policy" },
   { label: "Terms", to: "/terms", words: "legal use" },

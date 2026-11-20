@@ -116,6 +116,16 @@ export function useRedeemReward() {
   });
 }
 
+/** Remember that the first-time tour was finished or skipped. */
+export function useSaveTour() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (done: boolean) =>
+      apiFetch<Me>("/api/tour", { method: "PUT", body: json({ done }) }),
+    onSuccess: (me) => qc.setQueryData(["me"], me),
+  });
+}
+
 export function useSaveOnboarding() {
   const qc = useQueryClient();
   return useMutation({

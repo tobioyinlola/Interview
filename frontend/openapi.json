@@ -817,6 +817,11 @@
                 "type": "null"
               }
             ]
+          },
+          "tour_done": {
+            "default": true,
+            "title": "Tour Done",
+            "type": "boolean"
           }
         },
         "required": [
@@ -1897,6 +1902,17 @@
           "created_at"
         ],
         "title": "SuggestionOut",
+        "type": "object"
+      },
+      "TourIn": {
+        "properties": {
+          "done": {
+            "default": true,
+            "title": "Done",
+            "type": "boolean"
+          }
+        },
+        "title": "TourIn",
         "type": "object"
       },
       "UsageDay": {
@@ -4039,6 +4055,48 @@
         "summary": "Suggestion Feedback",
         "tags": [
           "sessions"
+        ]
+      }
+    },
+    "/api/tour": {
+      "put": {
+        "description": "Remember that the first-time tour was finished or skipped, so it is not shown again. Asking\nfor done=false shows it again the next time the dashboard opens.",
+        "operationId": "save_tour_api_tour_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TourIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Tour",
+        "tags": [
+          "profile"
         ]
       }
     },

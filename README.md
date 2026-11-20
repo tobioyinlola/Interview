@@ -69,6 +69,14 @@ Facts with no valid source are dropped and empty sections say "Not found". Pages
   sources the job actually collected.
 - Needs `OPENAI_API_KEY` to research. Without it a job fails with a clear message.
 
+## Tour and Help
+The first time the dashboard opens, a nine-step tour rings the real sidebar items, the search box and the
+account button, and explains the live panel. It can be skipped (Escape or Skip tour) and is remembered on the
+account (`users.tour_done_at`, `PUT /api/tour`). Take it again from the account menu or the Help page. On a
+phone, where the menu is a drawer, a step whose item is hidden is shown in the middle of the screen with the
+same words. `/help` has a quick start, how the live panel works, and common questions. The steps are in
+`frontend/src/features/tour/steps.ts`; each target is a `data-tour` attribute.
+
 ## Sessions, the free trial and invites
 Every account gets one free practice session. Each session after that will be pay per session; **payments
 are not built yet**, so a person with no session left is told so (HTTP 402, `payment_required`) and pointed to

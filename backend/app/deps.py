@@ -75,6 +75,7 @@ def me_out(user: User, settings: Settings) -> MeOut:
         is_admin=is_admin(user, settings),
         full_name=user.full_name,
         onboarded=user.onboarded_at is not None,
+        tour_done=user.tour_done_at is not None,
         onboarding=OnboardingAnswers(**user.onboarding) if user.onboarding else None,
     )
 

@@ -3,7 +3,16 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { useLogout, useMe } from "../api/hooks";
 import { firstName } from "../features/account/names";
-import { GearIcon, LogoutIcon, ShieldIcon, FileIcon, HomeIcon } from "./icons";
+import { useTour } from "../features/tour/TourProvider";
+import {
+  FileIcon,
+  GearIcon,
+  HelpIcon,
+  HomeIcon,
+  LogoutIcon,
+  ShieldIcon,
+  CompassIcon,
+} from "./icons";
 
 /** "JR" for Jordan Reyes; the first letter of the email when there is no name yet. */
 export function initials(
@@ -28,6 +37,7 @@ const ITEMS = [
     label: "Update my focus",
     icon: <HomeIcon className="h-4 w-4" />,
   },
+  { to: "/help", label: "Help", icon: <HelpIcon className="h-4 w-4" /> },
   {
     to: "/privacy",
     label: "Privacy",
@@ -42,6 +52,7 @@ export function ProfileMenu() {
   const logout = useLogout();
   const navigate = useNavigate();
   const location = useLocation();
+  const tour = useTour();
   const menuId = useId();
   const boxRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -104,6 +115,7 @@ export function ProfileMenu() {
       <button
         ref={buttonRef}
         type="button"
+        data-tour="profile"
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
@@ -157,6 +169,21 @@ export function ProfileMenu() {
               {i.label}
             </Link>
           ))}
+          <button
+            type="button"
+            role="menuitem"
+            tabIndex={-1}
+            className={row}
+            onClick={() => {
+              setOpen(false);
+              tour.start();
+            }}
+          >
+            <span className="text-muted">
+              <CompassIcon className="h-4 w-4" />
+            </span>
+            Take the tour
+          </button>
           <hr className="my-1 border-line" />
           <button
             type="button"

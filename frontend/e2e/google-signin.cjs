@@ -1,5 +1,6 @@
 // Real-browser test of "Continue with Google" against the fake Google in fake-google.cjs.
 const { chromium } = require("playwright");
+const { skipTour } = require("./helpers.cjs");
 const BASE = "http://localhost:5173";
 const ok = (cond, msg) => {
   if (!cond) {
@@ -32,6 +33,7 @@ const mode = (m) => fetch(`http://localhost:9099/control?mode=${m}`);
   await page.getByRole("button", { name: "Skip for now" }).click();
   await page.waitForURL("**/dashboard");
   await page.getByText(/^Hello/).waitFor();
+  await skipTour(page);
   ok(
     await page.getByText("google.user@example.com").isVisible(),
     "signed in through Google; the email was normalised to lower case",

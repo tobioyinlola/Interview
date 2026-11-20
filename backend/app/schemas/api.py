@@ -77,6 +77,11 @@ class MeOut(BaseModel):
     full_name: str | None = None
     onboarded: bool = True  # false until onboarding is finished or skipped
     onboarding: OnboardingAnswers | None = None
+    tour_done: bool = True  # false until the first-time tour was finished or skipped
+
+
+class TourIn(BaseModel):
+    done: bool = True  # false asks for the tour to be shown again
 
 
 class NotesIn(BaseModel):

@@ -1,6 +1,7 @@
 // Real-browser test of the free trial and the invite reward: three friends sign up through one
 // person's link, the reward is redeemed, and sessions run out as they should.
 const { chromium } = require("playwright");
+const { skipTour } = require("./helpers.cjs");
 const fs = require("fs");
 const BASE = "http://localhost:5173";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -51,6 +52,7 @@ const snap = async (page, name) => {
   await a.goto(await waitNewLink(before));
   await a.getByRole("button", { name: "Skip for now" }).click();
   await a.waitForURL("**/dashboard");
+  await skipTour(a);
   await a
     .getByRole("region", { name: "Your sessions" })
     .getByText(/1\s+session available/)
@@ -139,6 +141,7 @@ const snap = async (page, name) => {
   await a.waitForURL("**/onboarding");
   await a.getByRole("button", { name: "Skip for now" }).click();
   await a.waitForURL("**/dashboard");
+  await skipTour(a);
   await a.getByRole("button", { name: "Sign out" }).click();
   await a.getByRole("heading", { name: "Sign in" }).waitFor();
   await a.getByLabel("Email address").fill(`owner${stamp}@example.com`);

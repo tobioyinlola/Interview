@@ -744,6 +744,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tour": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Save Tour
+         * @description Remember that the first-time tour was finished or skipped, so it is not shown again. Asking
+         *     for done=false shows it again the next time the dashboard opens.
+         */
+        put: operations["save_tour_api_tour_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -1099,6 +1120,11 @@ export interface components {
              */
             onboarded: boolean;
             onboarding?: components["schemas"]["OnboardingAnswers"] | null;
+            /**
+             * Tour Done
+             * @default true
+             */
+            tour_done: boolean;
         };
         /**
          * NotesIn
@@ -1442,6 +1468,14 @@ export interface components {
             type: string;
             /** Utterance Id */
             utterance_id: string | null;
+        };
+        /** TourIn */
+        TourIn: {
+            /**
+             * Done
+             * @default true
+             */
+            done: boolean;
         };
         /** UsageDay */
         UsageDay: {
@@ -2849,6 +2883,39 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_tour_api_tour_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TourIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeOut"];
                 };
             };
             /** @description Validation Error */

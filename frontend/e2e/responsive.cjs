@@ -2,6 +2,7 @@
 // tablet sizes. Fails on sideways scrolling, controls under 44px tall, and form text under 16px
 // (iPhones zoom the page when you focus a smaller field).
 const { chromium } = require("playwright");
+const { skipTour } = require("./helpers.cjs");
 const fs = require("fs");
 const B = "http://localhost:5173";
 const SIZES = [
@@ -27,6 +28,7 @@ const IN = [
   "/dashboard",
   "/onboarding",
   "/referrals",
+  "/help",
   "/notes",
   "/companies",
   "/session/new",
@@ -107,6 +109,7 @@ const probe = () => {
   await seed.goto(link);
   await seed.getByRole("button", { name: "Skip for now" }).click();
   await seed.waitForURL("**/dashboard");
+  await skipTour(seed);
   const state = await seed.context().storageState();
   let checks = 0,
     bad = 0;

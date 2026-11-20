@@ -56,6 +56,8 @@ class User(Base):
     # When the person agreed, at sign-up, that they only practise with a partner who knows the
     # assistant is on. The app never asks again; every account has it from the moment it exists.
     practice_consent_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    # When the person finished or skipped the first-time tour of the app. Null: not yet shown.
+    tour_done_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
     # The code in this person's invite link. Every account has one.
     referral_code: Mapped[str | None] = mapped_column(String(16), unique=True, nullable=True)
     created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
