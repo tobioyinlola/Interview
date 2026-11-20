@@ -20,6 +20,9 @@ import {
 } from "../../audio/suggestStream";
 import { assembleTurn, useLiveStore } from "./store";
 
+/** How long the interviewer must be quiet before a question that does not end in "?" is answered. */
+const SETTLE_MS = 1200;
+
 type Store = typeof useLiveStore;
 
 export interface ControllerDeps {
@@ -58,6 +61,7 @@ export class LiveSessionController {
   private readonly silence = new SilenceWatch();
   private noteSeq = 0;
   private ended = false;
+  private settleTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private readonly d: ControllerDeps) {
     this.s = d.store ?? useLiveStore;
@@ -84,7 +88,10 @@ export class LiveSessionController {
             this.state.set({ status: "reconnecting", notice: "Reconnecting…" });
         },
         onReady: () => this.state.set({ notice: null }),
-        onPartial: (text) => this.state.set({ partial: text }),
+        onPartial: (text) => {
+          this.state.set({ partial: text });
+          if (text) this.clearSettle(); // still talking: the question is not finished
+        },
         onFinal: (f) => this.onFinal(f),
         onError: (e) => this.fail(e.message || "Transcription failed.", e.code),
         onCap: () => {
@@ -318,12 +325,52 @@ export class LiveSessionController {
       text: f.text,
     });
     this.state.set({ partial: "" });
-    this.askAboutTurn();
+    // While an answer is up, more interviewer speech is shown beside it and never answered. An
+    // answer that failed is not worth keeping, so the next question may replace it.
+    if (this.state.lockedAt !== null && this.state.outline?.state !== "error")
+      return;
+    this.scheduleAsk(f.text);
+  }
+
+  /** A question is answered once the interviewer has finished: at once when it ends in a question
+   *  mark, otherwise after a short pause with no more speech, so a question asked in pieces is
+   *  answered once, as a whole, and not locked in half-heard. */
+  private scheduleAsk(lastText: string): void {
+    this.clearSettle();
+    if (/\?\s*$/.test(lastText)) {
+      this.askAboutTurn();
+      return;
+    }
+    this.settleTimer = setTimeout(() => {
+      this.settleTimer = null;
+      this.askAboutTurn();
+    }, SETTLE_MS);
+  }
+
+  private clearSettle(): void {
+    if (this.settleTimer !== null) clearTimeout(this.settleTimer);
+    this.settleTimer = null;
   }
 
   private askAboutTurn(): void {
-    const turn = assembleTurn(this.state.lines);
+    if (this.ended) return;
+    if (this.state.lockedAt !== null && this.state.outline?.state !== "error")
+      return;
+    const lines = this.state.lines;
+    const turn = assembleTurn(lines.slice(this.state.turnStart));
     void this.ask(turn.text, turn.ids, false, this.detector.takeEnd());
+  }
+
+  /** "Done, next question": release the answer. What the interviewer said meanwhile becomes the next
+   *  question (the server skips it if it is not a question). */
+  markDone(): void {
+    if (this.ended || !this.state.outline) return;
+    this.abort?.abort(); // an answer still streaming is cancelled, the server stops the model
+    this.clearSettle();
+    const from = this.state.lockedAt ?? this.state.lines.length;
+    this.state.setOutline(null);
+    this.state.set({ lockedAt: null, turnStart: from });
+    if (assembleTurn(this.state.lines.slice(from)).text) this.askAboutTurn();
   }
 
   /** The user typed a question (to try the app alone, or when transcription is unavailable). */
@@ -357,7 +404,13 @@ export class LiveSessionController {
     const ctl = new AbortController();
     this.abort = ctl;
     const previous = this.state.outline;
+    const previousLock = this.state.lockedAt;
+    const askedAt = this.state.lines.length;
     const startedAt = speechEndedAt ?? this.now();
+    // From here the answer is locked: it stays until the person presses Done.
+    this.state.set({
+      lockedAt: regenerate && previousLock !== null ? previousLock : askedAt,
+    });
     this.state.setOutline({
       question,
       text: "",
@@ -385,7 +438,13 @@ export class LiveSessionController {
         });
       },
       onSkip: () => {
-        if (current()) this.state.setOutline(previous); // not a question: nothing new to show
+        if (!current()) return;
+        // Not a question: nothing new to show, and it is not part of the next question either.
+        this.state.setOutline(previous);
+        this.state.set({
+          lockedAt: previousLock,
+          turnStart: previous ? this.state.turnStart : askedAt,
+        });
       },
       onDone: (info: DoneInfo) => {
         if (current())
@@ -422,6 +481,7 @@ export class LiveSessionController {
   }
 
   private stopAudio(): void {
+    this.clearSettle();
     this.capture?.stop();
     this.capture = null;
     this.socket?.stop();

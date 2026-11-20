@@ -290,19 +290,84 @@ function AnswerControls({ onRegenerate }: { onRegenerate: () => void }) {
   );
 }
 
-function AnswerPanel() {
+/** The question being asked right now, as it is transcribed: finished sentences, then the words still
+ *  being spoken. Shown while no answer is up. */
+function ListeningNow() {
+  const lines = useLiveStore((s) => s.lines);
+  const turnStart = useLiveStore((s) => s.turnStart);
+  const partial = useLiveStore((s) => s.partial);
+  const said = lines
+    .slice(turnStart)
+    .filter((l) => l.speaker === "partner" || l.speaker === "typed")
+    .map((l) => l.text)
+    .join(" ");
+  return (
+    <div className="space-y-1" aria-live="polite">
+      <h3 className="text-sm font-semibold text-muted">Question</h3>
+      {said || partial ? (
+        <p data-testid="question">
+          {said}
+          {partial && (
+            <span className="italic text-muted">
+              {said ? " " : ""}
+              {partial}…
+            </span>
+          )}
+        </p>
+      ) : (
+        <p className="text-muted">Listening for the interviewer's question…</p>
+      )}
+    </div>
+  );
+}
+
+/** What the interviewer said after the question that is being answered. It is shown, and never
+ *  changes the answer. */
+function Additions() {
+  const lines = useLiveStore((s) => s.lines);
+  const lockedAt = useLiveStore((s) => s.lockedAt);
+  const partial = useLiveStore((s) => s.partial);
+  const more = lines
+    .slice(lockedAt ?? lines.length)
+    .filter((l) => l.speaker === "partner");
+  if (more.length === 0 && !partial) return null;
+  return (
+    <div aria-live="polite" className="space-y-1" data-testid="additions">
+      <h3 className="text-sm font-semibold text-muted">
+        The interviewer also said
+      </h3>
+      <ul className="space-y-1 text-sm">
+        {more.map((l) => (
+          <li key={l.key}>{l.text}</li>
+        ))}
+        {partial && <li className="italic text-muted">{partial}…</li>}
+      </ul>
+    </div>
+  );
+}
+
+function AnswerPanel({ onDone }: { onDone: () => void }) {
   const outline = useLiveStore((s) => s.outline);
   return (
-    <section aria-labelledby="ans-h" className="card space-y-2">
+    <section aria-labelledby="ans-h" className="card space-y-3">
       <h2 id="ans-h" className="text-lg font-semibold">
         Question and answer
       </h2>
       {outline ? (
-        <QuestionAnswer outline={outline} />
+        <>
+          <QuestionAnswer outline={outline} />
+          <Additions />
+          <div className="space-y-1">
+            <button className="btn-primary w-full" onClick={onDone}>
+              Done, next question
+            </button>
+            <p className="text-xs text-muted">
+              This answer stays until you press Done.
+            </p>
+          </div>
+        </>
       ) : (
-        <p className="text-muted">
-          When your partner asks a question, it appears here with an answer.
-        </p>
+        <ListeningNow />
       )}
     </section>
   );
@@ -392,7 +457,7 @@ export function LiveSessionPage() {
     return () => controller.dispose(); // leaving the page stops capture; the session is ended explicitly
   }, [controller]);
 
-  const answer = <AnswerPanel />;
+  const answer = <AnswerPanel onDone={() => controller.markDone()} />;
 
   return (
     <main className="mx-auto grid max-w-5xl gap-4 p-6 md:grid-cols-2">
