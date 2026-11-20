@@ -96,17 +96,17 @@ def test_only_a_well_formed_fingerprint_is_used() -> None:
 
 
 def test_the_address_is_used_only_when_forwarded_addresses_are_trusted() -> None:
-    trusted = observe_device(req(ip="203.0.113.7, 10.0.0.1"), Response(), S)
+    trusted = observe_device(req(ip="8.8.4.4, 10.0.0.1"), Response(), S)
     assert trusted.ip_hash is not None
     untrusted = Settings(environment="local", cookie_secret="test-secret")  # type: ignore[call-overload]
-    assert observe_device(req(ip="203.0.113.7"), Response(), untrusted).ip_hash is None
+    assert observe_device(req(ip="8.8.4.4"), Response(), untrusted).ip_hash is None
 
 
 def test_what_is_kept_is_a_hash_not_the_value() -> None:
-    d = observe_device(req(cookie="x" * 30, fp=FP, ip="203.0.113.7"), Response(), S)
+    d = observe_device(req(cookie="x" * 30, fp=FP, ip="8.8.4.4"), Response(), S)
     for h in (d.cookie_hash, d.print_hash, d.ip_hash):
         assert h and len(h) == 64
-        assert "203.0.113.7" not in h and "x" * 30 not in h and FP not in h
+        assert "8.8.4.4" not in h and "x" * 30 not in h and FP not in h
 
 
 # ------------------------------------------------------------------ the whole flow
@@ -170,7 +170,7 @@ async def test_a_real_friend_on_their_own_device_still_counts(new_client, sender
 async def test_a_private_window_on_the_same_machine_is_caught_by_fingerprint_and_address(
     new_client, sender, engine
 ) -> None:
-    same = {"x-device-fp": FP, "x-forwarded-for": "203.0.113.7"}
+    same = {"x-device-fp": FP, "x-forwarded-for": "8.8.4.4"}
     async with new_client() as me, new_client() as private_window:
         await ask_and_open(me, sender, "me@example.com", headers=same)
         await ask_and_open(
@@ -183,21 +183,21 @@ async def test_a_private_window_on_the_same_machine_is_caught_by_fingerprint_and
     ("friend_headers", "why"),
     [
         (
-            {"x-device-fp": FP, "x-forwarded-for": "198.51.100.9"},
+            {"x-device-fp": FP, "x-forwarded-for": "1.1.1.1"},
             "same laptop model, another place",
         ),
         (
-            {"x-device-fp": OTHER_FP, "x-forwarded-for": "203.0.113.7"},
+            {"x-device-fp": OTHER_FP, "x-forwarded-for": "8.8.4.4"},
             "same house, another machine",
         ),
-        ({"x-forwarded-for": "203.0.113.7"}, "no fingerprint"),
+        ({"x-forwarded-for": "8.8.4.4"}, "no fingerprint"),
         ({"x-device-fp": FP}, "no address"),
     ],
 )
 async def test_a_look_alike_that_is_not_the_same_machine_still_counts(
     new_client, sender, engine, friend_headers, why
 ) -> None:
-    mine = {"x-device-fp": FP, "x-forwarded-for": "203.0.113.7"}
+    mine = {"x-device-fp": FP, "x-forwarded-for": "8.8.4.4"}
     async with new_client() as me, new_client() as friend:
         await ask_and_open(me, sender, "me@example.com", headers=mine)
         await ask_and_open(
@@ -277,13 +277,13 @@ async def test_the_database_holds_no_raw_device_values(new_client, sender, engin
             me,
             sender,
             "me@example.com",
-            headers={"x-device-fp": FP, "x-forwarded-for": "203.0.113.7"},
+            headers={"x-device-fp": FP, "x-forwarded-for": "8.8.4.4"},
         )
         raw_cookie = me.cookies.get(DEVICE_COOKIE)
     assert raw_cookie
     (device,) = await rows(engine, UserDevice)
     stored = " ".join(str(v) for v in (device.cookie_hash, device.print_hash, device.ip_hash))
-    assert raw_cookie not in stored and FP not in stored and "203.0.113.7" not in stored
+    assert raw_cookie not in stored and FP not in stored and "8.8.4.4" not in stored
 
 
 async def test_devices_go_when_the_account_is_deleted(new_client, sender, engine) -> None:

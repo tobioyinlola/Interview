@@ -16,6 +16,7 @@ from fastapi import Request, Response
 
 from app.config import Settings
 from app.security import hash_token
+from app.services.clientip import forwarded_client_ip
 
 DEVICE_COOKIE = "device_id"
 PRINT_HEADER = "x-device-fp"
@@ -49,8 +50,7 @@ def _client_ip(request: Request, settings: Settings) -> str | None:
     fingerprints look alike."""
     if not settings.trust_proxy_headers:
         return None
-    fwd = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
-    return fwd or None
+    return forwarded_client_ip(request.headers.get("x-forwarded-for", ""))
 
 
 def observe_device(request: Request, response: Response | None, settings: Settings) -> DeviceInfo:
