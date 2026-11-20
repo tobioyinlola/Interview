@@ -391,6 +391,7 @@ class BillingOut(BaseModel):
     referral_code: str
     referral_link: str
     referrals_qualified: int  # people who signed up with their link
+    referrals_held: int  # sign-ups that looked like the same device as the inviter, not counted
     referrals_per_reward: int
     referrals_to_next_reward: int
     rewards_earned: int

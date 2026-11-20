@@ -16,6 +16,7 @@ from app.models.tables import (
     Suggestion,
     Usage,
     User,
+    UserDevice,
     Utterance,
 )
 
@@ -37,5 +38,6 @@ __all__ = [
     "Suggestion",
     "Usage",
     "User",
+    "UserDevice",
     "Utterance",
 ]

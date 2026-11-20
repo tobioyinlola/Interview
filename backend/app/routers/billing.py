@@ -29,6 +29,7 @@ async def billing_out(db: AsyncSession, user: User, settings: Settings) -> Billi
         referral_code=user.referral_code or "",
         referral_link=f"{settings.web_origin}/signup?ref={user.referral_code}",
         referrals_qualified=s.referrals_qualified,
+        referrals_held=s.referrals_held,
         referrals_per_reward=per,
         referrals_to_next_reward=per - (s.referrals_qualified % per),
         rewards_earned=s.rewards_earned,

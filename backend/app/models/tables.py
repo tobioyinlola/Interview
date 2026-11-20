@@ -76,6 +76,10 @@ class LoginToken(Base):
     purpose: Mapped[str] = mapped_column(String(10), server_default="login", default="login")
     # The invite code the person arrived with; applied only if this creates a brand-new account.
     referral_code: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    # The device that asked for the link (hashes only), compared with the inviter's devices.
+    device_cookie_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    device_print_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    device_ip_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     # signup only: the chosen password, hashed, applied only once the email address is proven
     password_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     full_name: Mapped[str | None] = mapped_column(String(120), nullable=True)  # signup only
@@ -316,6 +320,10 @@ class Referral(Base):
     referred_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), unique=True
     )
+    # counted: it earns toward a reward. held: it looks like the inviter's own device, so it
+    # does not.
+    status: Mapped[str] = mapped_column(String(10), default="counted", server_default="counted")
+    held_reason: Mapped[str | None] = mapped_column(String(30), nullable=True)
     created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
 
 
@@ -333,3 +341,16 @@ class SessionCredit(Base):
     session_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("sessions.id", ondelete="SET NULL"), nullable=True
     )
+
+
+class UserDevice(Base):
+    """A device an account has signed in from, as hashes. Used only to tell when an invite comes
+    from the inviter's own device; deleted with the account."""
+
+    __tablename__ = "user_devices"
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = _fk("users.id", index=True)
+    cookie_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    print_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    ip_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    first_seen_at: Mapped[datetime] = mapped_column(_TS, default=_now)

@@ -53,9 +53,9 @@ export function TermsPage() {
         for one at a time; payments are not available yet. If three people sign
         up with your invite link and confirm their email, you earn one free
         session, which you redeem yourself and can use whenever you like.
-        Inviting yourself, a second address of your own, or accounts made only
-        to collect rewards does not count, and we may take back rewards earned
-        that way.
+        Inviting yourself, a second address of your own, accounts made on your
+        own device, or accounts made only to collect rewards does not count, and
+        we may take back rewards earned that way.
       </p>
       <h2 className="text-lg font-semibold">The law</h2>
       <p>
@@ -106,6 +106,14 @@ export function PrivacyPage() {
         <li>
           Counts of audio seconds and tokens used (for limits and cost), never
           content.
+        </li>
+        <li>
+          To stop people inviting themselves, a random device id in a cookie and
+          a coarse description of your device (screen size, time zone, language
+          and processor count) and your network address, each kept only as a
+          scrambled value, not readable back. They are used only to see whether
+          an invite came from the inviter&apos;s own device, and are deleted
+          with your account.
         </li>
       </ul>
       <h2 className="text-lg font-semibold">What is not stored</h2>

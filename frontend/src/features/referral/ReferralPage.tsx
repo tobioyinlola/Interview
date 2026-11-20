@@ -99,6 +99,20 @@ export function ReferralPage() {
               }.`}
         </p>
 
+        {b.referrals_held > 0 && (
+          <p
+            role="note"
+            className="rounded-xl bg-canvas p-3 text-sm text-muted"
+          >
+            {b.referrals_held === 1
+              ? "1 sign-up didn't count"
+              : `${b.referrals_held} sign-ups didn't count`}{" "}
+            because {b.referrals_held === 1 ? "it looked" : "they looked"} like
+            the same device or person as you. If that's a mistake, for example
+            you share a computer with a friend, contact support.
+          </p>
+        )}
+
         {b.rewards_redeemable > 0 ? (
           <div className="rounded-xl bg-accent-soft p-4">
             <p className="font-medium">
@@ -157,8 +171,8 @@ export function ReferralPage() {
 
       <p className="text-xs text-muted">
         A friend counts once they have signed up with your link and confirmed
-        their email. Inviting yourself, or a second address of your own, does
-        not count. See the{" "}
+        their email. Inviting yourself, a second address of your own, or an
+        account made on your own device does not count. See the{" "}
         <Link to="/terms" className="underline">
           terms
         </Link>

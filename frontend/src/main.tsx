@@ -6,9 +6,11 @@ import { BrowserRouter } from "react-router-dom";
 import "@fontsource-variable/inter/wght.css";
 import "@fontsource-variable/inter/wght-italic.css";
 import { App } from "./app/App";
+import { initFingerprint } from "./api/fingerprint";
 import { captureInvite } from "./features/referral/invite";
 import "./index.css";
 
+void initFingerprint(); // a coarse device hash, sent with requests so self-invites do not count
 captureInvite(); // remember an invite code from the link, before anything navigates away
 
 const queryClient = new QueryClient({

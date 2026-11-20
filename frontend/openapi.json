@@ -47,6 +47,10 @@
             "title": "Referral Link",
             "type": "string"
           },
+          "referrals_held": {
+            "title": "Referrals Held",
+            "type": "integer"
+          },
           "referrals_per_reward": {
             "title": "Referrals Per Reward",
             "type": "integer"
@@ -85,6 +89,7 @@
           "referral_code",
           "referral_link",
           "referrals_qualified",
+          "referrals_held",
           "referrals_per_reward",
           "referrals_to_next_reward",
           "rewards_earned",

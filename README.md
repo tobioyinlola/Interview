@@ -75,7 +75,10 @@ are not built yet**, so a person with no session left is told so (HTTP 402, `pay
 the invite page. Invite three people who sign up with your link (`/signup?ref=CODE`, and who confirm their
 email) and you earn a free session, which you **redeem** on the Invite friends page before you can use it.
 The code survives email-link, password and Google sign-up. Inviting yourself (including `+tag` and Gmail dot
-variants of your own address) does not count. Settings: `REFERRALS_PER_FREE_SESSION` (default 3) and
+variants of your own address) does not count, and neither does a sign-up from the inviter's own device
+(a device-id cookie; or the same coarse device fingerprint from the same network address, in another
+browser or a private window), nor a second account made on the same device as another invited one. Those
+are recorded as "held" and the inviter is told. Only keyed hashes are kept, deleted with the account. Settings: `REFERRALS_PER_FREE_SESSION` (default 3) and
 `ENFORCE_SESSION_CREDITS` (default true; only tests turn it off).
 
 ## Live practice session

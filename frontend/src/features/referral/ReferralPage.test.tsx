@@ -16,6 +16,7 @@ const billing = (over: Record<string, unknown> = {}) => ({
   referral_code: "abc23xyz",
   referral_link: "https://app.example.com/signup?ref=abc23xyz",
   referrals_qualified: 0,
+  referrals_held: 0,
   referrals_per_reward: 3,
   referrals_to_next_reward: 3,
   rewards_earned: 0,
@@ -89,6 +90,27 @@ describe("ReferralPage", () => {
     expect(
       screen.getByText(/0 of 3 toward your next free session/),
     ).toBeInTheDocument();
+  });
+
+  it("tells the inviter, kindly, when a sign-up did not count", async () => {
+    open(billing({ referrals_held: 1 }));
+    const note = await screen.findByRole("note");
+    expect(note).toHaveTextContent("1 sign-up didn't count");
+    expect(note).toHaveTextContent("the same device or person as you");
+    expect(note).toHaveTextContent("contact support");
+  });
+
+  it("says how many when several did not count", async () => {
+    open(billing({ referrals_held: 3, referrals_qualified: 0 }));
+    expect(await screen.findByRole("note")).toHaveTextContent(
+      "3 sign-ups didn't count because they looked like",
+    );
+  });
+
+  it("shows no such note when nothing was held", async () => {
+    open(billing());
+    await screen.findByRole("heading", { name: "Invite friends" });
+    expect(screen.queryByRole("note")).toBeNull();
   });
 
   it("copies the link", async () => {

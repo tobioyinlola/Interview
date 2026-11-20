@@ -121,6 +121,38 @@ const snap = async (page, name) => {
   await snap(a, "5-phone");
   await a.setViewportSize({ width: 1280, height: 900 });
 
+  // the same person, on their own browser, with a second email: it does not count
+  await a.getByRole("button", { name: "Sign out" }).click();
+  await a.getByRole("heading", { name: "Sign in" }).waitFor();
+  await a.goto(BASE + path);
+  await a.getByLabel("Full name").fill("Second Address");
+  await a.getByLabel("Email address").fill(`second-${stamp}@example.org`);
+  await a.getByLabel("Password", { exact: true }).fill("correct horse battery");
+  await a
+    .getByLabel("Confirm password", { exact: true })
+    .fill("correct horse battery");
+  await a.getByRole("checkbox", { name: /i agree/i }).check();
+  const m = links().length;
+  await a.getByRole("button", { name: "Create account" }).click();
+  await a.getByText(/confirm your address/i).waitFor();
+  await a.goto(await waitNewLink(m));
+  await a.waitForURL("**/onboarding");
+  await a.getByRole("button", { name: "Skip for now" }).click();
+  await a.waitForURL("**/dashboard");
+  await a.getByRole("button", { name: "Sign out" }).click();
+  await a.getByRole("heading", { name: "Sign in" }).waitFor();
+  await a.getByLabel("Email address").fill(`owner${stamp}@example.com`);
+  const k = links().length;
+  await a.getByRole("button", { name: "Email me a sign-in link" }).click();
+  await a.goto(await waitNewLink(k));
+  await a.waitForURL("**/dashboard");
+  await a.goto(BASE + "/referrals");
+  await a.getByText(/1 sign-up didn't count/).waitFor();
+  ok(true, "a second email on the inviter's own browser did not count");
+  await a.getByText("3 friends have signed up").waitFor();
+  ok(true, "and the three real friends still do");
+  await snap(a, "6-held");
+
   // use both sessions, then the third is refused
   await a.goto(BASE + "/notes");
   await a.fill("#role", "Product Manager");

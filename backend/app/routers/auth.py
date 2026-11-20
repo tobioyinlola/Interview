@@ -24,6 +24,7 @@ from app.schemas.api import (
 )
 from app.security import COOKIE_NAME
 from app.services import email_templates as emails
+from app.services.devices import observe_device
 from app.services.google_oauth import (
     STATE_COOKIE,
     STATE_COOKIE_PATH,
@@ -75,6 +76,8 @@ async def _check_link_rate(repo: AuthRepo, email: str, settings: Settings) -> No
 @router.post("/auth/request-link", status_code=202)
 async def request_link(
     body: RequestLinkIn,
+    request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),  # noqa: B008
     settings: Settings = Depends(get_settings),  # noqa: B008
     sender: EmailSender = Depends(get_email_sender),  # noqa: B008
@@ -89,7 +92,10 @@ async def request_link(
         raise ApiError(429, "rate_limited", "Too many sign-in requests. Try again later.")
     ttl = settings.login_link_ttl_minutes
     token = await repo.create_login_token(
-        email, ttl=timedelta(minutes=ttl), referral_code=clean_code(body.ref)
+        email,
+        ttl=timedelta(minutes=ttl),
+        referral_code=clean_code(body.ref),
+        device=observe_device(request, response, settings),
     )
     known = await repo.find_user(email)
     link = f"{settings.web_origin}/login/verify?token={token}"
@@ -103,6 +109,7 @@ async def request_link(
 @router.post("/auth/verify")
 async def verify(
     body: VerifyIn,
+    request: Request,
     response: Response,
     db: AsyncSession = Depends(get_db),  # noqa: B008
     settings: Settings = Depends(get_settings),  # noqa: B008
@@ -117,11 +124,16 @@ async def verify(
     email, password_hash = used.email, used.password_hash
     existed = await repo.find_user(email) is not None
     # The name chosen at sign-up goes only on a brand-new account, like the password below.
+    here = observe_device(request, response, settings)
     user = await repo.get_or_create_user(
         email,
         full_name=None if existed else used.full_name,
         referral_code=None if existed else used.referral_code,
+        # where the link was asked for and where it was opened: both are checked against the inviter
+        devices=(used.device, here),
     )
+    if existed:
+        await repo.record_device(user.id, here)
     if password_hash and not existed:
         # Only a brand-new account takes the password chosen at sign-up. If the account already
         # exists (someone else registered this address meanwhile) the password is ignored, so a
@@ -161,6 +173,8 @@ async def me(
 @router.post("/auth/signup", status_code=202)
 async def signup(
     body: SignUpIn,
+    request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),  # noqa: B008
     settings: Settings = Depends(get_settings),  # noqa: B008
     sender: EmailSender = Depends(get_email_sender),  # noqa: B008
@@ -189,6 +203,7 @@ async def signup(
             password_hash=password_hash,
             full_name=full_name,
             referral_code=clean_code(body.ref),
+            device=observe_device(request, response, settings),
         )
         link = f"{settings.web_origin}/login/verify?token={token}"
         await sender.send(emails.signup_confirmation(brand, email, full_name, link, ttl))
@@ -202,6 +217,7 @@ async def signup(
 @router.post("/auth/login")
 async def login(
     body: LoginIn,
+    request: Request,
     response: Response,
     db: AsyncSession = Depends(get_db),  # noqa: B008
     settings: Settings = Depends(get_settings),  # noqa: B008
@@ -218,6 +234,7 @@ async def login(
         await repo.record_login_failure(email)
         raise INVALID_LOGIN  # the same answer for a wrong password, no password and no account
     await repo.clear_login_failures(email)
+    await repo.record_device(user.id, observe_device(request, response, settings))
     _open_session(response, await repo.create_session(user.id, ttl=_ttl(settings)), settings)
     return me_out(user, settings)
 
@@ -288,6 +305,7 @@ async def providers(google: GoogleOAuth = Depends(get_google)) -> ProvidersOut: 
 
 @router.get("/auth/google/start")
 async def google_start(
+    request: Request,
     ref: str | None = None,
     settings: Settings = Depends(get_settings),  # noqa: B008
     google: GoogleOAuth = Depends(get_google),  # noqa: B008
@@ -296,6 +314,7 @@ async def google_start(
         raise ApiError(404, "google_not_configured", "Google sign-in is not available.")
     url, cookie = google.begin()
     response = RedirectResponse(url, status_code=302)
+    observe_device(request, response, settings)  # gives the browser its device id if it has none
     response.set_cookie(
         STATE_COOKIE,
         cookie,
@@ -350,11 +369,15 @@ async def google_callback(
         return back("/login?error=google_failed")
     repo = AuthRepo(db, settings.cookie_secret.get_secret_value())
     existed = await repo.find_user(identity.email) is not None
+    here = observe_device(request, None, settings)  # the cookie was given at the start
     user = await repo.get_or_create_user(
         identity.email,
         full_name=None if existed else clean_name(identity.name),
         referral_code=None if existed else request.cookies.get(REF_COOKIE),
+        devices=(here,),
     )
+    if existed:
+        await repo.record_device(user.id, here)
     if not existed:
         await sender.send(emails.welcome(email_brand(settings), user.email, user.full_name))
     ttl = timedelta(days=settings.session_ttl_days)

@@ -812,6 +812,8 @@ export interface components {
             referral_credits_available: number;
             /** Referral Link */
             referral_link: string;
+            /** Referrals Held */
+            referrals_held: number;
             /** Referrals Per Reward */
             referrals_per_reward: number;
             /** Referrals Qualified */
