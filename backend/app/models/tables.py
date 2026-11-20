@@ -53,6 +53,9 @@ class User(Base):
     # skipped. A null onboarded_at means the person has not been through it yet.
     onboarding: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     onboarded_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    # When the person agreed, at sign-up, that they only practise with a partner who knows the
+    # assistant is on. The app never asks again; every account has it from the moment it exists.
+    practice_consent_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
     created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
 
 

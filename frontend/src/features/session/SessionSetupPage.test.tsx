@@ -30,7 +30,7 @@ beforeEach(() => stubSupportedBrowser());
 afterEach(() => vi.restoreAllMocks());
 
 describe("SessionSetupPage", () => {
-  it("keeps Start disabled until a CV is uploaded, a company is chosen and consent is ticked", async () => {
+  it("keeps Start disabled until a CV is uploaded and a company is chosen", async () => {
     mockApi(base());
     open();
     await screen.findByRole("heading", { name: "Start a practice call" });
@@ -38,11 +38,8 @@ describe("SessionSetupPage", () => {
     expect(start()).toBeDisabled();
 
     await userEvent.selectOptions(screen.getByLabelText(/Which company/), "c1");
-    expect(start()).toBeDisabled(); // consent still missing
-    await userEvent.click(screen.getByRole("checkbox"));
     expect(start()).toBeEnabled();
-    await userEvent.click(screen.getByRole("checkbox"));
-    expect(start()).toBeDisabled(); // un-ticking consent turns the gate back on
+    expect(screen.queryByRole("checkbox")).toBeNull(); // consent was agreed at sign-up
   });
 
   it("an explicit 'no company' choice counts", async () => {
@@ -53,7 +50,6 @@ describe("SessionSetupPage", () => {
       screen.getByLabelText(/Which company/),
       "none",
     );
-    await userEvent.click(screen.getByRole("checkbox"));
     expect(start()).toBeEnabled();
   });
 
@@ -65,25 +61,24 @@ describe("SessionSetupPage", () => {
       screen.getByLabelText(/Which company/),
       "none",
     );
-    await userEvent.click(screen.getByRole("checkbox"));
     expect(start()).toBeDisabled();
     expect(
       screen.getByRole("link", { name: "Upload your CV" }),
     ).toHaveAttribute("href", "/notes");
   });
 
-  it("states the practice-only, consent and third-party terms", async () => {
+  it("tells the person the practice-only rule and where their data goes, without asking for consent again", async () => {
     mockApi(base());
     open();
     expect(
-      await screen.findByText(/knows this assistant is listening/),
+      await screen.findByText(/must know this assistant is listening/),
     ).toBeInTheDocument();
     expect(screen.getByText(/practice only/i)).toBeInTheDocument();
     expect(screen.getByText(/follow local law/i)).toBeInTheDocument();
     expect(screen.getByText(/processed by OpenAI/)).toBeInTheDocument();
   });
 
-  it("creates the session with consent, the company and an idempotency key, then opens the live page", async () => {
+  it("creates the session with the company and an idempotency key, and no consent box, then opens the live page", async () => {
     const calls = mockApi(
       base({
         "POST /api/sessions": () => ({
@@ -101,7 +96,6 @@ describe("SessionSetupPage", () => {
     open();
     await screen.findByRole("option", { name: "Acme" });
     await userEvent.selectOptions(screen.getByLabelText(/Which company/), "c1");
-    await userEvent.click(screen.getByRole("checkbox"));
     await userEvent.click(start());
 
     expect(
@@ -109,7 +103,6 @@ describe("SessionSetupPage", () => {
     ).toBeInTheDocument();
     const post = calls.find((c) => c.key === "POST /api/sessions")!;
     expect(post.body).toEqual({
-      consent: true,
       company_id: "c1",
       role: "Product Manager",
     });
@@ -137,7 +130,6 @@ describe("SessionSetupPage", () => {
       screen.getByLabelText(/Which company/),
       "none",
     );
-    await userEvent.click(screen.getByRole("checkbox"));
     await userEvent.click(start());
     await waitFor(() =>
       expect(calls.some((c) => c.key === "POST /api/sessions")).toBe(true),
@@ -145,7 +137,6 @@ describe("SessionSetupPage", () => {
     expect(
       calls.find((c) => c.key === "POST /api/sessions")!.body,
     ).toMatchObject({
-      consent: true,
       company_id: null,
     });
   });
@@ -168,7 +159,6 @@ describe("SessionSetupPage", () => {
     open();
     await screen.findByRole("option", { name: "Acme" });
     await userEvent.selectOptions(screen.getByLabelText(/Which company/), "c1");
-    await userEvent.click(screen.getByRole("checkbox"));
     await userEvent.click(start());
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Company not found.",

@@ -98,8 +98,8 @@ class CvUploadOut(NotesOut):
 
 
 class SessionCreateIn(BaseModel):
-    # Defaults to False so a missing field is refused by the explicit consent check, not by luck.
-    consent: bool = False
+    # Older clients still send this. Consent is agreed once, at sign-up, and is not asked for here.
+    consent: bool | None = None
     company_id: uuid.UUID | None = None
     role: str | None = Field(default=None, max_length=200)
 

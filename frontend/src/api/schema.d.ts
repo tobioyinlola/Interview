@@ -496,8 +496,9 @@ export interface paths {
         put?: never;
         /**
          * Create Session
-         * @description Start a practice session. Refused unless the user confirmed the partner knows the assistant
-         *     is on. The confirmation time is stored with the session.
+         * @description Start a practice session. The person agreed at sign-up that their partner knows the assistant
+         *     is on; every account has that on record, and the session stores when. An account without it
+         *     cannot start a session.
          */
         post: operations["create_session_api_sessions_post"];
         delete?: never;
@@ -564,6 +565,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sessions/{session_id}/pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Session Pin
+         * @description Retrieve or generate a 6-digit sync PIN for the desktop stealth overlay.
+         */
+        get: operations["get_session_pin_api_sessions__session_id__pin_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sessions/{session_id}/score": {
         parameters: {
             query?: never;
@@ -620,6 +641,26 @@ export interface paths {
          *     disconnects, the stream (and the model call under it) is cancelled.
          */
         post: operations["suggest_api_sessions__session_id__suggest_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sessions/{session_id}/test-desktop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Desktop Stream
+         * @description Send a test prompt/outline to any connected desktop stealth HUDs.
+         */
+        post: operations["test_desktop_stream_api_sessions__session_id__test_desktop_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1143,11 +1184,8 @@ export interface components {
         SessionCreateIn: {
             /** Company Id */
             company_id?: string | null;
-            /**
-             * Consent
-             * @default false
-             */
-            consent: boolean;
+            /** Consent */
+            consent?: boolean | null;
             /** Role */
             role?: string | null;
         };
@@ -2466,6 +2504,39 @@ export interface operations {
             };
         };
     };
+    get_session_pin_api_sessions__session_id__pin_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     score_session_api_sessions__session_id__score_post: {
         parameters: {
             query?: never;
@@ -2553,6 +2624,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_desktop_stream_api_sessions__session_id__test_desktop_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

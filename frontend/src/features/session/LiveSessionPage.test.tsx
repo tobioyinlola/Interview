@@ -137,7 +137,7 @@ describe("LiveSessionPage", () => {
     );
   });
 
-  it("lists what the interviewer says after the question without touching the answer", () => {
+  it("shows nothing new for talk after the question: the panel is only the question and its answer", () => {
     renderPage();
     set({
       lines: [
@@ -152,24 +152,14 @@ describe("LiveSessionPage", () => {
       partial: "and the team",
       outline: outline({ question: "Why do you want to work here?" }),
     });
-    const extra = screen.getByTestId("additions");
-    expect(extra).toHaveTextContent("The interviewer also said");
-    expect(extra).toHaveTextContent("Really focus on the data side.");
-    expect(extra).toHaveTextContent("and the team…");
-    expect(extra).not.toHaveTextContent("Why do you want to work here?");
+    const panel = screen.getByRole("region", { name: "Question and answer" });
+    expect(panel).not.toHaveTextContent(/data side|and the team|also said/);
+    expect(screen.getByTestId("question")).toHaveTextContent(
+      "Why do you want to work here?",
+    );
     expect(screen.getByTestId("outline")).toHaveTextContent(
       "Acme sells point-of-sale software and I led a launch.",
     );
-  });
-
-  it("has no additions box when nothing was said after the question", () => {
-    renderPage();
-    set({
-      lines: [{ key: "a", speaker: "partner", text: "Why us?" }],
-      lockedAt: 1,
-      outline: outline(),
-    });
-    expect(screen.queryByTestId("additions")).toBeNull();
   });
 
   it("offers Done, next question, which says the answer stays until it is pressed", () => {

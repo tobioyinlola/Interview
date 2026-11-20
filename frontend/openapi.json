@@ -1259,9 +1259,15 @@
             "title": "Company Id"
           },
           "consent": {
-            "default": false,
-            "title": "Consent",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consent"
           },
           "role": {
             "anyOf": [
@@ -3275,7 +3281,7 @@
         ]
       },
       "post": {
-        "description": "Start a practice session. Refused unless the user confirmed the partner knows the assistant\nis on. The confirmation time is stored with the session.",
+        "description": "Start a practice session. The person agreed at sign-up that their partner knows the assistant\nis on; every account has that on record, and the session stores when. An account without it\ncannot start a session.",
         "operationId": "create_session_api_sessions_post",
         "parameters": [
           {
@@ -3510,6 +3516,52 @@
         ]
       }
     },
+    "/api/sessions/{session_id}/pin": {
+      "get": {
+        "description": "Retrieve or generate a 6-digit sync PIN for the desktop stealth overlay.",
+        "operationId": "get_session_pin_api_sessions__session_id__pin_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Session Pin Api Sessions  Session Id  Pin Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Session Pin",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
     "/api/sessions/{session_id}/score": {
       "post": {
         "description": "Score the user's answers after the session. Poll GET /sessions/{id} for the result.",
@@ -3668,6 +3720,52 @@
           }
         },
         "summary": "Suggest",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/api/sessions/{session_id}/test-desktop": {
+      "post": {
+        "description": "Send a test prompt/outline to any connected desktop stealth HUDs.",
+        "operationId": "test_desktop_stream_api_sessions__session_id__test_desktop_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Test Desktop Stream Api Sessions  Session Id  Test Desktop Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Test Desktop Stream",
         "tags": [
           "sessions"
         ]

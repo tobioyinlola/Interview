@@ -6,6 +6,7 @@ import { isActive } from "../../api/polling";
 import type { CompanyInput } from "../../api/types";
 import { CompanyForm } from "./CompanyForm";
 import { daysSince } from "./ResearchStatus";
+import { LoadingRows } from "../../ui/Loading";
 
 function statusText(status: string | null, last: string | null): string {
   if (isActive(status)) return "Researching…";
@@ -71,7 +72,7 @@ export function CompaniesPage() {
         </section>
       )}
 
-      {companies.isPending && <p>Loading…</p>}
+      {companies.isPending && <LoadingRows />}
       {companies.isError && (
         <p>Couldn&apos;t load your companies. Reload to try again.</p>
       )}

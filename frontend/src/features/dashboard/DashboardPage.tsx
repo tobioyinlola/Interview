@@ -8,9 +8,10 @@ import {
   ClockIcon,
   MicIcon,
   NoteIcon,
-  PlusIcon,
 } from "../../app/icons";
 import { FOCUS, PLAN } from "../onboarding/content";
+export { firstName } from "../account/names";
+import { firstName } from "../account/names";
 import { PracticeChart } from "./PracticeChart";
 import { daysSince } from "../companies/ResearchStatus";
 import { formatDuration, formatWhen } from "../review/format";
@@ -85,9 +86,6 @@ function ReadinessCard() {
           )}
         </Item>
         <Item ok={canCapture}>Browser can share tab audio</Item>
-        <Item ok={false}>
-          Partner consent: you confirm it when you start a session
-        </Item>
       </ul>
       <Link
         to="/session/new"
@@ -98,13 +96,6 @@ function ReadinessCard() {
     </section>
   );
 }
-
-/** The first word of the person's name, for the greeting. */
-export const firstName = (fullName?: string | null) =>
-  (fullName ?? "")
-    .trim()
-    .split(/\s+/)[0]
-    ?.replace(/[,.]+$/, "") ?? "";
 
 /** Their chosen focus areas, and a line of advice that matches how soon the interview is. */
 function FocusCard() {
@@ -204,7 +195,7 @@ function Action({
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-medium">{title}</span>
         <span
-          className={`block truncate text-xs ${primary ? "text-surface/80" : "text-muted"}`}
+          className={`block text-xs leading-snug ${primary ? "text-surface/80" : "text-muted"}`}
         >
           {sub}
         </span>
@@ -232,29 +223,19 @@ export function DashboardPage() {
 
   return (
     <main className="mx-auto max-w-6xl p-4 sm:p-6 lg:p-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="sr-only">Dashboard</h1>
-          <p className="break-words text-3xl font-semibold tracking-tight sm:text-4xl">
-            Hello
-            {firstName(me?.full_name)
-              ? `, ${firstName(me?.full_name)}`
-              : ""}{" "}
-            <span aria-hidden="true">👋</span>
-          </p>
-          <p className="mt-1 text-muted">Here&apos;s your practice overview.</p>
-        </div>
-        <Link
-          to="/session/new"
-          className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-medium text-surface shadow-card hover:bg-accent-dark"
-        >
-          <PlusIcon className="h-4 w-4" /> New practice
-        </Link>
+      <div className="min-w-0">
+        <h1 className="sr-only">Dashboard</h1>
+        <p className="break-words text-3xl font-semibold tracking-tight sm:text-4xl">
+          Hello
+          {firstName(me?.full_name) ? `, ${firstName(me?.full_name)}` : ""}{" "}
+          <span aria-hidden="true">👋</span>
+        </p>
+        <p className="mt-1 text-muted">Here&apos;s your practice overview.</p>
       </div>
 
       <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
             <Stat
               label="Sessions"
               value={`${all.length}${more}`}
@@ -357,7 +338,7 @@ export function DashboardPage() {
                 primary
                 to="/session/new"
                 title="New practice session"
-                sub="Confirm consent, then share your Meet tab"
+                sub="Pick a company, then share your Meet tab"
               />
               <Action
                 to="/companies"

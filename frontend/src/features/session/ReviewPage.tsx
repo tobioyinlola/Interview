@@ -10,11 +10,51 @@ import {
 import { GapList } from "../review/GapList";
 import { ScoreCards } from "../review/ScoreCards";
 import { formatWhen } from "../review/format";
+import { answerOf } from "./answerText";
+import { Loading } from "../../ui/Loading";
 
 const RATING = { up: "Marked useful", down: "Marked not useful" } as const;
 
 /** Replay a finished session: transcript with each outline beside its question, answer scores
  *  with fixes, the gap finder, and a download. */
+const SOURCE = /\[((?:note|brief)\s*:[^\]]*)\]/gi;
+
+/** The answer that was shown for a question: the spoken answer in plain type, and where its facts
+ *  came from as small labels. The model's own headings are never shown. */
+function SavedAnswer({ text }: { text: string }) {
+  const sources = [
+    ...new Set(
+      [...text.matchAll(SOURCE)].map((m) => m[1].replace(/\s+/g, " ").trim()),
+    ),
+  ];
+  const answer = answerOf(text)
+    .replace(SOURCE, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .trim();
+  return (
+    <div className="mt-3 rounded-xl bg-canvas p-3.5">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+        Suggested answer
+      </p>
+      <p className="mt-1 whitespace-pre-wrap text-[15px] leading-relaxed">
+        {answer || "No answer was written for this."}
+      </p>
+      {sources.length > 0 && (
+        <ul aria-label="Sources" className="mt-2 flex flex-wrap gap-1.5">
+          {sources.map((src) => (
+            <li
+              key={src}
+              className="rounded-full bg-accent-soft px-2.5 py-0.5 text-xs text-accent-dark"
+            >
+              {src}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export function ReviewPage() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
@@ -23,7 +63,7 @@ export function ReviewPage() {
   const del = useDeleteSession();
   const [confirming, setConfirming] = useState(false);
 
-  if (isPending) return <p className="p-8">Loading…</p>;
+  if (isPending) return <Loading />;
   if (error) {
     const missing = error instanceof ApiError && error.status === 404;
     return (
@@ -144,11 +184,9 @@ export function ReviewPage() {
                 </p>
                 {s && (
                   <>
-                    <pre className="mt-2 whitespace-pre-wrap rounded bg-canvas p-2 text-sm">
-                      {s.output_text}
-                    </pre>
+                    <SavedAnswer text={s.output_text} />
                     {s.feedback && (
-                      <p className="text-xs text-muted">
+                      <p className="mt-2 text-xs text-muted">
                         {RATING[s.feedback as keyof typeof RATING]}
                       </p>
                     )}
@@ -162,9 +200,7 @@ export function ReviewPage() {
               <p>
                 <strong>Typed:</strong> {s.question_text}
               </p>
-              <pre className="mt-2 whitespace-pre-wrap rounded bg-canvas p-2 text-sm">
-                {s.output_text}
-              </pre>
+              <SavedAnswer text={s.output_text} />
             </li>
           ))}
         </ol>

@@ -160,7 +160,7 @@ const FAKE_MIC = () => {
   await sleep(2200); // the role autosaves
   step("signed in and CV uploaded");
 
-  // setup: Start stays disabled until the three conditions hold
+  // setup: Start stays disabled until a CV is in and a company is chosen
   await page.goto("http://localhost:5173/session/new");
   await page
     .getByRole("option", { name: /No company/ })
@@ -168,11 +168,13 @@ const FAKE_MIC = () => {
   const startBtn = page.getByRole("button", { name: "Start session" });
   check(await startBtn.isDisabled(), "Start is disabled initially");
   await page.selectOption("#company", "none");
-  check(await startBtn.isDisabled(), "Start is disabled without consent");
-  await page.getByRole("checkbox").check();
+  check(
+    (await page.getByRole("checkbox").count()) === 0,
+    "there is no consent box: it was agreed at sign-up",
+  );
   check(
     await startBtn.isEnabled(),
-    "Start is enabled once everything is ready",
+    "Start is enabled once a CV and a company choice are in",
   );
   await startBtn.click();
   await page.getByRole("heading", { name: "Capture" }).waitFor();
@@ -214,34 +216,20 @@ const FAKE_MIC = () => {
     .first()
     .waitFor({ timeout: 15000 });
   step("second caption arrived");
-  // The first answer is locked: the second question is listed beside it and changes nothing.
-  check(
-    (await page.getByTestId("question").first().innerText()).includes(
-      "led a project",
-    ),
-    "the panel still shows the first question",
-  );
-  check(
-    (await page.getByTestId("additions").innerText()).includes(
-      "Why do you want to work here",
-    ),
-    "what was said next is listed as an addition",
-  );
-  check(
-    /led a team to ship a launch/i.test(
-      await page.getByTestId("outline").innerText(),
-    ),
-    "the first answer did not change",
-  );
-  step("the answer stayed while the interviewer kept talking");
-  await page.getByRole("button", { name: "Done, next question" }).click();
+  // The second caption is a real question, so it replaces the first answer by itself; the panel
+  // shows only the question and its answer, never the transcript or anything else.
   await page
     .getByTestId("question")
     .first()
     .getByText(/Why do you want to work here/)
     .waitFor({ timeout: 10000 });
-  await page.getByTestId("outline").waitFor();
-  step("Done released it; the follow-up became the next question");
+  await page.getByText(/led a team to ship a launch/i).waitFor();
+  step("a genuine new question replaced the answer on its own");
+  await page.getByRole("button", { name: "Done, next question" }).click();
+  await page
+    .getByText(/Listening for the interviewer's question/)
+    .waitFor({ timeout: 10000 });
+  step("Done cleared the panel for the next question");
 
   // typed question + blur mode
   await page.getByRole("checkbox", { name: /Answer-first/ }).check();

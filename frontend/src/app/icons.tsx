@@ -49,3 +49,14 @@ export const EyeIcon = make(
 export const EyeOffIcon = make(
   "M3 3l18 18M10.6 10.6a3 3 0 0 0 4.2 4.2M9.9 5.2A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4M6.6 6.6A17 17 0 0 0 2 12s3.5 7 10 7a9.7 9.7 0 0 0 4.2-.9",
 );
+
+export function ChevronIcon({
+  className = "h-5 w-5",
+  direction = "left",
+}: P & { direction?: "left" | "right" }) {
+  return (
+    <svg {...base} className={className}>
+      <path d={direction === "left" ? "M15 6l-6 6 6 6" : "M9 6l6 6-6 6"} />
+    </svg>
+  );
+}

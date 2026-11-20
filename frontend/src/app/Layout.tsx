@@ -9,6 +9,8 @@ import {
 
 import { useLogout, useMe } from "../api/hooks";
 import { LogoMark } from "../features/landing/Logo";
+import { GlobalSearch } from "../features/search/GlobalSearch";
+import { ProfileMenu } from "./ProfileMenu";
 import {
   BuildingIcon,
   CloseIcon,
@@ -22,6 +24,7 @@ import {
   NoteIcon,
   ChartIcon,
   ShieldIcon,
+  ChevronIcon,
 } from "./icons";
 
 type Item = { to: string; label: string; icon: React.ReactNode; end?: boolean };
@@ -38,23 +41,58 @@ const item = (
   end,
 });
 
-const link = ({ isActive }: { isActive: boolean }) =>
-  `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
-    isActive
-      ? "bg-surface font-medium text-ink shadow-card"
-      : "text-surface/75 hover:bg-surface/10 hover:text-surface"
-  }`;
+const COLLAPSE_KEY = "meet-practice-sidebar-collapsed";
+const readCollapsed = (): boolean => {
+  try {
+    return localStorage.getItem(COLLAPSE_KEY) === "1";
+  } catch {
+    return false; // storage can be unavailable: the choice just is not remembered
+  }
+};
 
-function Group({ title, items }: { title: string; items: Item[] }) {
+/** The collapsed sidebar (large screens only) shows icons; the names stay available to screen
+ *  readers and as tooltips. On a phone the menu is a drawer and is never collapsed. */
+const linkClass =
+  (collapsed: boolean) =>
+  ({ isActive }: { isActive: boolean }) =>
+    `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
+      collapsed ? "lg:justify-center lg:px-0" : ""
+    } ${
+      isActive
+        ? "bg-surface font-medium text-ink shadow-card"
+        : "text-surface/75 hover:bg-surface/10 hover:text-surface"
+    }`;
+
+function Group({
+  title,
+  items,
+  collapsed,
+}: {
+  title: string;
+  items: Item[];
+  collapsed: boolean;
+}) {
   return (
     <div className="mt-6">
-      <p className="px-3 pb-2 text-xs text-surface/50">{title}</p>
+      <p
+        className={`px-3 pb-2 text-xs text-surface/50 ${collapsed ? "lg:sr-only" : ""}`}
+      >
+        {title}
+      </p>
+      {collapsed && (
+        <hr className="mx-3 mb-2 hidden border-surface/15 lg:block" />
+      )}
       <ul className="space-y-1">
         {items.map((i) => (
           <li key={i.to}>
-            <NavLink to={i.to} end={i.end} className={link}>
+            <NavLink
+              to={i.to}
+              end={i.end}
+              className={linkClass(collapsed)}
+              title={collapsed ? i.label : undefined}
+            >
               {i.icon}
-              {i.label}
+              <span className={collapsed ? "lg:sr-only" : ""}>{i.label}</span>
             </NavLink>
           </li>
         ))}
@@ -69,6 +107,16 @@ export function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(readCollapsed);
+  const toggleCollapsed = () =>
+    setCollapsed((c) => {
+      try {
+        localStorage.setItem(COLLAPSE_KEY, c ? "0" : "1");
+      } catch {
+        /* not remembered */
+      }
+      return !c;
+    });
   useEffect(() => setOpen(false), [location.pathname]); // close the drawer after navigating
 
   const menu = [
@@ -88,7 +136,7 @@ export function Layout() {
   ];
 
   return (
-    <div className="min-h-screen bg-ink lg:flex">
+    <div className="flex min-h-screen flex-col bg-ink lg:flex-row">
       {/* Mobile top bar */}
       <div className="flex items-center justify-between bg-ink px-4 py-3 text-surface lg:hidden">
         <Link to="/dashboard" className="flex items-center gap-2 font-semibold">
@@ -110,34 +158,85 @@ export function Layout() {
         id="sidebar"
         className={`${
           open ? "flex" : "hidden"
-        } flex-col bg-ink px-4 py-5 text-surface lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:shrink-0`}
+        } flex-col bg-ink px-4 py-5 text-surface transition-[width] duration-200 lg:sticky lg:top-0 lg:flex lg:h-screen lg:shrink-0 ${
+          collapsed ? "lg:w-[84px] lg:px-3" : "lg:w-64"
+        }`}
       >
-        <Link
-          to="/dashboard"
-          className="hidden items-center gap-2 px-3 text-lg font-semibold lg:flex"
+        <div
+          className={`hidden items-center lg:flex ${
+            collapsed ? "justify-center" : "justify-between"
+          }`}
         >
-          <LogoMark className="h-8 w-8" /> InterviewMeet
-        </Link>
-        <nav aria-label="Main" className="lg:mt-4 lg:flex-1 lg:overflow-y-auto">
-          <Group title="Menu" items={menu} />
-          <Group title="Account" items={account} />
-          <Group title="Support" items={support} />
-        </nav>
-        <div className="mt-6 border-t border-surface/15 pt-4">
-          <p className="truncate px-3 text-xs text-surface/60">{me?.email}</p>
+          <Link
+            to="/dashboard"
+            title={collapsed ? "InterviewMeet" : undefined}
+            className="flex items-center gap-2 px-1 text-lg font-semibold"
+          >
+            <LogoMark className="h-8 w-8" />
+            <span className={collapsed ? "sr-only" : ""}>InterviewMeet</span>
+          </Link>
+          {!collapsed && (
+            <button
+              type="button"
+              aria-label="Collapse sidebar"
+              aria-expanded={true}
+              aria-controls="sidebar-nav"
+              onClick={toggleCollapsed}
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-surface/70 hover:bg-surface/10 hover:text-surface"
+            >
+              <ChevronIcon className="h-5 w-5" direction="left" />
+            </button>
+          )}
+        </div>
+        {collapsed && (
           <button
             type="button"
-            className="mt-2 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-surface/75 hover:bg-surface/10 hover:text-surface"
+            aria-label="Expand sidebar"
+            aria-expanded={false}
+            aria-controls="sidebar-nav"
+            onClick={toggleCollapsed}
+            className="mx-auto mt-3 hidden h-9 w-9 items-center justify-center rounded-lg text-surface/70 hover:bg-surface/10 hover:text-surface lg:flex"
+          >
+            <ChevronIcon className="h-5 w-5" direction="right" />
+          </button>
+        )}
+        <nav
+          id="sidebar-nav"
+          aria-label="Main"
+          className="lg:mt-2 lg:flex-1 lg:overflow-y-auto"
+        >
+          <Group title="Menu" items={menu} collapsed={collapsed} />
+          <Group title="Account" items={account} collapsed={collapsed} />
+          <Group title="Support" items={support} collapsed={collapsed} />
+        </nav>
+        <div className="mt-6 border-t border-surface/15 pt-4">
+          <p
+            className={`truncate px-3 text-xs text-surface/60 ${collapsed ? "lg:sr-only" : ""}`}
+          >
+            {me?.email}
+          </p>
+          <button
+            type="button"
+            title={collapsed ? "Sign out" : undefined}
+            className={`mt-2 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-surface/75 hover:bg-surface/10 hover:text-surface ${
+              collapsed ? "lg:justify-center lg:px-0" : ""
+            }`}
             onClick={() =>
               logout.mutate(undefined, { onSuccess: () => navigate("/login") })
             }
           >
-            <LogoutIcon /> Sign out
+            <LogoutIcon />
+            <span className={collapsed ? "lg:sr-only" : ""}>Sign out</span>
           </button>
         </div>
       </aside>
 
       <div className="min-w-0 flex-1 bg-canvas lg:min-h-screen lg:rounded-l-[2rem]">
+        {/* The top bar on every page: search on the left, the person's account on the right. */}
+        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 bg-canvas/85 px-4 py-3 backdrop-blur sm:px-6 lg:rounded-tl-[2rem] lg:px-8">
+          <GlobalSearch />
+          <ProfileMenu />
+        </header>
         <Outlet />
       </div>
     </div>

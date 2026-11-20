@@ -80,6 +80,21 @@
       transform: scaleY(1);
     }
   }
+  /* Moving between pages fades the new page in instead of snapping, so the app feels continuous. */
+  @keyframes page-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  .page,
+  .page-narrow {
+    animation: page-in 0.22s ease-out both;
+  }
   .wave-bar {
     transform-origin: center;
     animation: bar-bounce 1.2s ease-in-out infinite;

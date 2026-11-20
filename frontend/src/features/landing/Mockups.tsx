@@ -103,21 +103,18 @@ export function HeroDevice() {
             </div>
             <div className="rounded-xl border border-line bg-surface p-4 text-left">
               <p className="font-mono text-[10px] uppercase tracking-wider text-accent-dark">
-                Answer outline
+                Answer
               </p>
-              <ul className="mt-2 space-y-1.5 text-xs text-ink/90">
-                <li>
-                  <b>Open:</b> the migration with a hard launch date{" "}
-                  <Cite>note: Acme migration</Cite>
-                </li>
-                <li>
-                  <b>Do:</b> split the work, cut scope, daily check-ins{" "}
-                  <Cite>note: led team of 4</Cite>
-                </li>
-                <li>
-                  <b>Close:</b> shipped on time; what I would repeat
-                </li>
-              </ul>
+              <p className="mt-2 text-xs leading-relaxed text-ink/90">
+                At Acme I led a migration against a hard launch date. I split
+                the work, cut scope to what mattered most, and ran daily
+                check-ins with the four engineers on it. We shipped on time, and
+                I would repeat the early scope cut.
+              </p>
+              <p className="mt-2">
+                <Cite>note: Acme migration</Cite>
+                <Cite>note: led team of 4</Cite>
+              </p>
             </div>
           </div>
         </div>

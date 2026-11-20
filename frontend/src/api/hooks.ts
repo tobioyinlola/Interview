@@ -319,8 +319,8 @@ export function useCreateSession() {
     }) =>
       apiFetch<SessionCreated>("/api/sessions", {
         method: "POST",
-        // Consent is always explicit: the server refuses to start a session without it.
-        body: json({ consent: true, company_id: companyId, role }),
+        // Consent was agreed once, at sign-up; the server checks that it is on record.
+        body: json({ company_id: companyId, role }),
         headers: { "idempotency-key": key },
       }),
   });

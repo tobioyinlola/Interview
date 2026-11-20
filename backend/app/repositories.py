@@ -156,7 +156,11 @@ class AuthRepo:
         user = (await self.db.execute(select(User).where(User.email == email))).scalar_one_or_none()
         if user:
             return user
-        user = User(email=email, full_name=full_name)
+        user = User(
+            email=email,
+            full_name=full_name,
+            practice_consent_at=_now(),  # agreeing to the terms is part of making an account
+        )
         self.db.add(user)
         try:
             await self.db.commit()

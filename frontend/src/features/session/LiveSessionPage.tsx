@@ -322,31 +322,6 @@ function ListeningNow() {
   );
 }
 
-/** What the interviewer said after the question that is being answered. It is shown, and never
- *  changes the answer. */
-function Additions() {
-  const lines = useLiveStore((s) => s.lines);
-  const lockedAt = useLiveStore((s) => s.lockedAt);
-  const partial = useLiveStore((s) => s.partial);
-  const more = lines
-    .slice(lockedAt ?? lines.length)
-    .filter((l) => l.speaker === "partner");
-  if (more.length === 0 && !partial) return null;
-  return (
-    <div aria-live="polite" className="space-y-1" data-testid="additions">
-      <h3 className="text-sm font-semibold text-muted">
-        The interviewer also said
-      </h3>
-      <ul className="space-y-1 text-sm">
-        {more.map((l) => (
-          <li key={l.key}>{l.text}</li>
-        ))}
-        {partial && <li className="italic text-muted">{partial}…</li>}
-      </ul>
-    </div>
-  );
-}
-
 function AnswerPanel({ onDone }: { onDone: () => void }) {
   const outline = useLiveStore((s) => s.outline);
   return (
@@ -357,7 +332,6 @@ function AnswerPanel({ onDone }: { onDone: () => void }) {
       {outline ? (
         <>
           <QuestionAnswer outline={outline} />
-          <Additions />
           <div className="space-y-1">
             <button className="btn-primary w-full" onClick={onDone}>
               Done, next question

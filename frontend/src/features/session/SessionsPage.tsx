@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import { useDeleteSession, useSessions } from "../../api/hooks";
 import { formatDuration, formatWhen } from "../review/format";
+import { LoadingRows } from "../../ui/Loading";
 
 /** Past sessions, newest first: date, length, company and number of questions. */
 export function SessionsPage() {
@@ -19,7 +20,7 @@ export function SessionsPage() {
           Start practice
         </Link>
       </div>
-      {q.isPending && <p>Loading…</p>}
+      {q.isPending && <LoadingRows />}
       {q.isError && (
         <p>Couldn&apos;t load your sessions. Reload to try again.</p>
       )}

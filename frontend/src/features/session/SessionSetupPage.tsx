@@ -25,13 +25,12 @@ export function SessionSetupPage() {
   const create = useCreateSession();
   const navigate = useNavigate();
   const [choice, setChoice] = useState("");
-  const [consent, setConsent] = useState(false);
   // One idempotency key per attempt, so a double click cannot start two sessions.
   const key = useRef(crypto.randomUUID());
 
   const cvUploaded = (notes.data?.content ?? "").trim().length > 0;
   const chosen = choice !== "";
-  const ready = cvUploaded && chosen && consent;
+  const ready = cvUploaded && chosen;
   const company = companies.data?.find((c) => c.id === choice);
   const age = daysSince(company?.last_researched_at);
 
@@ -65,7 +64,7 @@ export function SessionSetupPage() {
         next screen.
       </p>
 
-      <section aria-labelledby="co-h" className="space-y-2">
+      <section aria-labelledby="co-h" className="card space-y-2">
         <h2 id="co-h" className="text-lg font-semibold">
           Company
         </h2>
@@ -107,31 +106,15 @@ export function SessionSetupPage() {
         )}
       </section>
 
-      <section aria-labelledby="consent-h" className="card space-y-2">
-        <h2 id="consent-h" className="text-lg font-semibold">
-          Consent
-        </h2>
-        <label className="flex items-start gap-3 py-1 text-sm leading-relaxed">
-          <input
-            type="checkbox"
-            checked={consent}
-            onChange={(e) => setConsent(e.target.checked)}
-            className="mt-0.5 h-6 w-6 shrink-0 accent-accent"
-          />
-          <span>
-            I confirm my practice partner knows this assistant is listening to
-            the call and transcribing it, and agrees. This is for practice only,
-            and I will follow local law on recording and transcribing calls.
-          </span>
-        </label>
-        <p className="text-xs text-muted">
-          Audio is relayed for transcription and discarded; only text is saved.
-          Audio and text are processed by OpenAI to transcribe and write
-          outlines.
-        </p>
-      </section>
+      <p className="text-xs leading-relaxed text-muted">
+        Your practice partner must know this assistant is listening to the call
+        and transcribing it. This is for practice only, so follow local law on
+        recording and transcribing calls. Audio is relayed for transcription and
+        discarded; only text is saved. Audio and text are processed by OpenAI to
+        transcribe and write answers.
+      </p>
 
-      <section aria-labelledby="ready-h">
+      <section aria-labelledby="ready-h" className="card">
         <h2 id="ready-h" className="mb-2 text-lg font-semibold">
           Readiness
         </h2>
@@ -145,7 +128,6 @@ export function SessionSetupPage() {
             )}
           </Tick>
           <Tick ok={chosen}>Company chosen (or &quot;no company&quot;)</Tick>
-          <Tick ok={consent}>Partner consent confirmed</Tick>
         </ul>
       </section>
 

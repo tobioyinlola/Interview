@@ -70,8 +70,8 @@ Facts with no valid source are dropped and empty sections say "Not found". Pages
 - Needs `OPENAI_API_KEY` to research. Without it a job fails with a clear message.
 
 ## Live practice session
-Sign in, upload your CV, optionally add a company, then **Practice**: tick the partner-consent box, start a
-session, join Google Meet in another tab, and press **Share Meet tab** (pick the Meet tab and tick *Also
+Sign in, upload your CV, optionally add a company, then **Practice**: start a
+session (the partner-consent agreement is the box ticked once, at sign-up; the app does not ask again), join Google Meet in another tab, and press **Share Meet tab** (pick the Meet tab and tick *Also
 share tab audio*). The app transcribes the partner and streams an answer outline for each question.
 
 - **Audio path:** browser AudioWorklet (1,024-sample frames) -> WebSocket -> API relay -> speech-to-text.

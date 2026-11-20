@@ -1,11 +1,12 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 
 import { useMe } from "../../api/hooks";
+import { Loading } from "../../ui/Loading";
 
 export function AuthGuard() {
   const { data: me, isPending, isError } = useMe();
   const { pathname } = useLocation();
-  if (isPending) return <p className="p-8 text-muted">Loading…</p>;
+  if (isPending) return <Loading />;
   if (isError)
     return (
       <p className="p-8 text-muted">

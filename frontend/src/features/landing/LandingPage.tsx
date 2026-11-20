@@ -12,7 +12,7 @@ const FEATURES = [
   {
     n: "02",
     title: "Live answer outlines",
-    body: "When your partner asks a question on Google Meet, an outline streams in seconds: opener, points, close.",
+    body: "When your partner asks a question on Google Meet, the question appears as it is spoken and a full answer streams in seconds. It stays put until the next real question.",
   },
   {
     n: "03",
@@ -67,7 +67,7 @@ const PRINCIPLES = [
   {
     big: "1",
     label:
-      "rule: your partner knows the assistant is on, and you confirm it each session.",
+      "rule: your partner knows the assistant is on, and you agree to that when you sign up.",
   },
 ];
 
@@ -312,9 +312,9 @@ export function LandingPage() {
           />
           <p className="mt-6 text-muted">
             InterviewMeet is for practising with a friend who knows the
-            assistant is on, and you confirm that before every session. There is
-            no feature to hide it, and none will be added. Use it to prepare,
-            then walk into the real interview on your own words.
+            assistant is on, and you agree to that when you sign up. There is no
+            feature to hide it, and none will be added. Use it to prepare, then
+            walk into the real interview on your own words.
           </p>
         </section>
 

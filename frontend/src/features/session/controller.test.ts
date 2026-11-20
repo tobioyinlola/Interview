@@ -260,36 +260,110 @@ describe("LiveSessionController: questions and outlines", () => {
     expect(x.s().outline!.firstWordsMs).toBe(700);
   });
 
-  it("once an answer is up it never changes: more from the interviewer is shown beside it", async () => {
+  const done = (id = "a") => ({
+    suggestion_id: id,
+    first_token_ms: 1,
+    total_ms: 1,
+    grounding_flags: [],
+  });
+
+  it("once an answer is up, talk that is not a question changes nothing at all", async () => {
     const x = setup();
     await x.c.share();
     x.sock.ev.onFinal(final("u1", "First question about teamwork?"));
     x.streams[0].h.onDelta("the answer");
-    x.sock.ev.onFinal(final("u2", "Second question about leadership?"));
-    x.sock.ev.onFinal(final("u3", "Give me one concrete example."));
-    expect(x.streams).toHaveLength(1); // nothing new was asked of the model
-    expect(x.streams[0].req.signal.aborted).toBe(false); // and the answer is not cancelled
+    x.streams[0].h.onDone(done());
+    const before = x.s().outline;
+    vi.useFakeTimers();
+    try {
+      x.sock.ev.onPartial("Right, okay");
+      x.sock.ev.onFinal(final("u2", "Right, okay."));
+      x.sock.ev.onFinal(final("u3", "I'll just add that this team is small."));
+      vi.advanceTimersByTime(10_000); // plenty of time for any pause to have ended
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(x.streams).toHaveLength(1); // nothing was even asked of the server
+    expect(x.s().outline).toEqual(before); // same question, same answer, same state
+    expect(x.s().lockedAt).toBe(1);
+  });
+
+  it("a new question is checked in the background and the answer on screen is not touched until it is confirmed", async () => {
+    const x = setup();
+    await x.c.share();
+    x.sock.ev.onFinal(final("u1", "First question about teamwork?"));
+    x.streams[0].h.onDelta("the answer");
+    x.streams[0].h.onDone(done());
+    x.sock.ev.onFinal(final("u2", "Now tell me about leadership?"));
+    expect(x.streams).toHaveLength(2);
+    expect(x.streams[0].req.signal.aborted).toBe(false);
     expect(x.s().outline).toMatchObject({
       question: "First question about teamwork?",
       text: "the answer",
+      state: "done",
     });
-    x.streams[0].h.onDone({
-      suggestion_id: "a",
-      first_token_ms: 1,
-      total_ms: 1,
-      grounding_flags: [],
+    x.streams[1].h.onDelta("TYPE: behavioral"); // the server says: yes, a question
+    expect(x.streams[0].req.signal.aborted).toBe(true);
+    expect(x.s().outline).toMatchObject({
+      question: "Now tell me about leadership?",
+      text: "TYPE: behavioral",
+      state: "streaming",
     });
-    expect(x.s().outline!.text).toBe("the answer"); // still the same after it finishes
-    expect(x.s().lockedAt).toBe(1);
-    expect(
-      x
-        .s()
-        .lines.slice(x.s().lockedAt!)
-        .map((l) => l.text),
-    ).toEqual([
-      "Second question about leadership?",
-      "Give me one concrete example.",
-    ]);
+    x.streams[1].h.onDone(done("b"));
+    expect(x.s().outline).toMatchObject({ state: "done", suggestionId: "b" });
+  });
+
+  it("if the server says it was not a question, nothing changes and it is not counted toward the next question", async () => {
+    const x = setup();
+    await x.c.share();
+    x.sock.ev.onFinal(final("u1", "First question about teamwork?"));
+    x.streams[0].h.onDelta("the answer");
+    x.streams[0].h.onDone(done());
+    const before = x.s().outline;
+    x.sock.ev.onFinal(final("u2", "Mm, sorry, what was I saying?"));
+    expect(x.streams).toHaveLength(2);
+    x.streams[1].h.onSkip();
+    expect(x.s().outline).toEqual(before);
+    expect(x.s().lockedAt).toBe(2); // that chatter is now behind us
+    x.sock.ev.onFinal(final("u3", "How did you measure success?"));
+    expect(x.streams[2].req.question).toBe("How did you measure success?");
+  });
+
+  it("a failed look at a possible question never disturbs the answer", async () => {
+    const x = setup();
+    await x.c.share();
+    x.sock.ev.onFinal(final("u1", "First question about teamwork?"));
+    x.streams[0].h.onDelta("the answer");
+    x.streams[0].h.onDone(done());
+    const before = x.s().outline;
+    x.sock.ev.onFinal(final("u2", "Why did you leave your last job?"));
+    x.streams[1].h.onError({
+      code: "answer_unavailable",
+      message: "The answer couldn't be written.",
+      next_step: "Ask again.",
+    });
+    expect(x.s().outline).toEqual(before);
+  });
+
+  it("a question asked in two pieces while an answer is up is judged as a whole", async () => {
+    const x = setup();
+    await x.c.share();
+    x.sock.ev.onFinal(final("u1", "First question about teamwork?"));
+    x.streams[0].h.onDone(done());
+    vi.useFakeTimers();
+    try {
+      x.sock.ev.onFinal(final("u2", "Tell me about a time you led"));
+      vi.advanceTimersByTime(500);
+      x.sock.ev.onPartial("a team through");
+      x.sock.ev.onFinal(final("u3", "a team through a reorganisation."));
+      vi.advanceTimersByTime(1200);
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(x.streams).toHaveLength(2);
+    expect(x.streams[1].req.question).toBe(
+      "Tell me about a time you led a team through a reorganisation.",
+    );
   });
 
   it("Done releases the answer, and what was said meanwhile becomes the next question", async () => {
@@ -297,23 +371,19 @@ describe("LiveSessionController: questions and outlines", () => {
     await x.c.share();
     x.sock.ev.onFinal(final("u1", "First question about teamwork?"));
     x.streams[0].h.onDelta("the answer");
-    x.streams[0].h.onDone({
-      suggestion_id: "a",
-      first_token_ms: 1,
-      total_ms: 1,
-      grounding_flags: [],
-    });
-    x.sock.ev.onFinal(final("u2", "Second question about leadership?"));
-    x.sock.ev.onFinal(final("u3", "Give me one concrete example?"));
+    x.streams[0].h.onDone(done());
+    x.sock.ev.onFinal(
+      final("u2", "Chatter that sounds nothing like a question."),
+    );
     expect(x.streams).toHaveLength(1);
     x.c.markDone();
     expect(x.streams).toHaveLength(2);
     expect(x.streams[1].req.question).toBe(
-      "Second question about leadership? Give me one concrete example?",
+      "Chatter that sounds nothing like a question.",
     );
     expect(x.streams[1].req.regenerate).toBe(false);
     expect(x.s().outline).toMatchObject({ state: "streaming", text: "" });
-    expect(x.s().lockedAt).toBe(3);
+    expect(x.s().lockedAt).toBe(2);
   });
 
   it("Done with nothing said meanwhile just clears the panel for the next question", async () => {

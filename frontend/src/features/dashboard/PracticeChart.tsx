@@ -16,7 +16,7 @@ export function PracticeChart({ sessions }: { sessions: SessionSummary[] }) {
   const points = [...sessions].reverse().slice(-12);
   if (points.length < 2) {
     return (
-      <p className="flex h-48 items-center justify-center rounded-xl bg-canvas text-center text-sm text-muted">
+      <p className="rounded-xl border border-dashed border-line-strong bg-canvas px-4 py-6 text-center text-sm text-muted">
         Your practice history will appear here after two sessions.
       </p>
     );

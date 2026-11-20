@@ -14,7 +14,7 @@ beforeEach(() => stubSupportedBrowser());
 afterEach(() => vi.restoreAllMocks());
 
 describe("SettingsPage", () => {
-  it("states the practice-only, consent and third-party terms", async () => {
+  it("states the practice-only and third-party terms", async () => {
     mockApi({ "GET /api/me": () => ({ json: ME }) });
     renderApp(<App />, "/settings");
     expect(

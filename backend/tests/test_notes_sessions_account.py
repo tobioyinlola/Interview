@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from app.models import (
     AuthSession,
@@ -66,14 +66,28 @@ async def _session_count(db) -> int:
     return int((await db.execute(select(func.count()).select_from(PracticeSession))).scalar_one())
 
 
-async def test_session_refused_without_consent_every_time(new_client, sign_in, db):
+async def test_a_session_needs_no_consent_box_because_it_was_agreed_at_sign_up(
+    new_client, sign_in, db
+):
     async with new_client() as c:
         await sign_in(c, "c@example.com")
-        attempts = [{}, {"consent": False}, {"consent": None}, {"company_id": None}]
-        results = [await c.post("/api/sessions", json=body) for body in attempts]
-    for r in results:
-        assert r.status_code in (400, 422)
-    assert results[0].json()["error"]["code"] == "consent_required"
+        results = [
+            await c.post("/api/sessions", json=body)
+            for body in [{}, {"consent": False}, {"consent": None}, {"company_id": None}]
+        ]
+    assert [r.status_code for r in results] == [201, 201, 201, 201]
+    assert await _session_count(db) == 4
+
+
+async def test_an_account_with_no_agreement_on_record_cannot_start_a_session(
+    new_client, sign_in, db
+):
+    async with new_client() as c:
+        await sign_in(c, "n@example.com")
+        await db.execute(update(User).values(practice_consent_at=None))
+        await db.commit()
+        r = await c.post("/api/sessions", json={"consent": True})  # a box in the request is no help
+    assert r.status_code == 400 and r.json()["error"]["code"] == "consent_required"
     assert await _session_count(db) == 0
 
 

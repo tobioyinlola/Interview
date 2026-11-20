@@ -16,6 +16,7 @@ import { CompanyForm } from "./CompanyForm";
 import { PasteTextDialog } from "./PasteTextDialog";
 import { ResearchStatus } from "./ResearchStatus";
 import { SourceList } from "./SourceList";
+import { Loading } from "../../ui/Loading";
 
 export function CompanyPage() {
   const { id = "" } = useParams();
@@ -33,7 +34,7 @@ export function CompanyPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pasteTitle, setPasteTitle] = useState<string | null>(null);
 
-  if (isPending) return <p className="p-8">Loading…</p>;
+  if (isPending) return <Loading />;
   if (error) {
     const missing = error instanceof ApiError && error.status === 404;
     return (

@@ -55,4 +55,5 @@ PGPASSWORD=postgres psql -h localhost -U postgres meetpractice -qc "DELETE FROM 
 NODE_PATH="$(npm root -g)" node "$ROOT/frontend/e2e/google-signin.cjs"
 NODE_PATH="$(npm root -g)" node "$ROOT/frontend/e2e/password-auth.cjs"
 NODE_PATH="$(npm root -g)" node "$ROOT/frontend/e2e/responsive.cjs"
+if [ "${E2E_TOUR:-0}" = "1" ]; then NODE_PATH="$(npm root -g)" node "$ROOT/frontend/e2e/tour.cjs"; fi
 echo "screenshots and logs in $OUT"
