@@ -295,7 +295,7 @@ def welcome(brand: Brand, to: str, name: str | None) -> EmailMessage:
                 [
                     (
                         "Upload your CV",
-                        "Answer outlines use only what's in it, so every point can be traced back.",
+                        "Your own stories in an answer come only from it, so every point can be traced back.",
                     ),
                     (
                         "Add the company you're interviewing with",

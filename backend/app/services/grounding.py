@@ -4,7 +4,11 @@ capitalised name that is absent from the candidate's CV, the company brief or th
 import re
 
 _BULLET = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s+(.*\S)\s*$")
-_LABEL = re.compile(r"\[(?:note|brief)\s*:[^\]]*\]", re.IGNORECASE)
+_LABEL = re.compile(r"\[(?:(?:note|brief)\s*:[^\]]*|general|sample)\]", re.IGNORECASE)
+# Bullets labelled like this are general advice or an illustrative example, not claims about the
+# candidate or the company, so they are not checked against the CV and the brief.
+_CITES = re.compile(r"\[(?:note|brief)\s*:", re.IGNORECASE)
+_UNCHECKED = re.compile(r"\[(?:general|sample)\]", re.IGNORECASE)
 _NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?%?")
 _NAME = re.compile(r"\b[A-Z][a-zA-Z0-9&'’-]*(?:\s+[A-Z][a-zA-Z0-9&'’-]*)*")
 NO_STORY_PHRASES = ("no matching story in your cv", "no matching story in your notes")
@@ -21,14 +25,24 @@ _STOP = {
 }  # fmt: skip
 
 
-def bullets(outline: str) -> list[str]:
-    """The text of each bullet in the POINTS section, source labels removed."""
+def _raw_bullets(outline: str) -> list[str]:
+    """Each bullet of the outline as written, labels included."""
     out: list[str] = []
     for line in outline.splitlines():
         m = _BULLET.match(line)
         if m:
-            out.append(_LABEL.sub("", m.group(1)).strip())
+            out.append(m.group(1).strip())
     return out
+
+
+def bullets(outline: str) -> list[str]:
+    """The text of each bullet in the POINTS section, source labels removed."""
+    return [_LABEL.sub("", b).strip() for b in _raw_bullets(outline)]
+
+
+def _is_unchecked(raw: str) -> bool:
+    """General advice or an illustrative example, with no claim about the CV or the brief."""
+    return bool(_UNCHECKED.search(raw)) and not _CITES.search(raw)
 
 
 def _claims(bullet: str) -> tuple[set[str], set[str]]:
@@ -52,8 +66,9 @@ def check_outline(outline: str, allowed: list[str]) -> list[str]:
     corpus = _norm(" ".join(allowed))
     corpus_nums = {n.rstrip(",.") for n in _NUMBER.findall(" ".join(allowed))}
     flagged: list[str] = []
-    for bullet in bullets(outline):
-        if any(p in bullet.lower() for p in NO_STORY_PHRASES):
+    for raw in _raw_bullets(outline):
+        bullet = _LABEL.sub("", raw).strip()
+        if any(p in bullet.lower() for p in NO_STORY_PHRASES) or _is_unchecked(raw):
             continue
         numbers, names = _claims(bullet)
         bad = any(n not in corpus_nums and n.replace(",", "") not in corpus_nums for n in numbers)

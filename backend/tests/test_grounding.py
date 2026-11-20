@@ -88,3 +88,29 @@ def test_cited_sources_and_type():
     assert cited_sources(out) == ["note: Launch", "brief: Acme blog"]
     assert outline_type(out) == "behavioral"
     assert outline_type("no type here") == ""
+
+
+def test_general_advice_and_samples_may_name_things_not_in_the_cv():
+    out = outline(
+        "Explain the CAP theorem: with a partition you trade consistency for availability [general]",
+        "Say the project cut costs by 20% for a retailer [sample]",
+    )
+    assert check_outline(out, [NOTES]) == []
+    assert bullets(out)[0].endswith("availability")  # labels are still stripped
+
+
+def test_a_cv_citation_is_still_checked_even_if_it_also_says_general():
+    # Calling a claim "general" must not let an invented CV fact through.
+    out = outline("Cut onboarding time by 45% [note: Launch] [general]")
+    assert len(check_outline(out, [NOTES])) == 1
+
+
+def test_an_unlabelled_invented_claim_is_still_flagged():
+    assert len(check_outline(outline("Grew the team to 12 people"), [NOTES])) == 1
+
+
+def test_the_sample_answer_section_is_not_mistaken_for_a_bullet():
+    out = outline("Led the 2025 launch [note: Launch]") + (
+        "\nSAMPLE ANSWER: For example, I grew a team to 50 people at Globex."
+    )
+    assert check_outline(out, [NOTES]) == []

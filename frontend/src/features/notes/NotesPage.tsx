@@ -67,9 +67,10 @@ export function NotesPage() {
     <main className="page-narrow">
       <h1 className="text-3xl font-semibold tracking-tight">Your CV</h1>
       <p className="text-sm text-muted">
-        Upload your CV. Answer outlines use only what is in it (and any company
-        brief), so every point can be traced back. We keep the text we read, not
-        the file.
+        Upload your CV. Your own stories and numbers come only from it (and any
+        company brief), and each is labelled with where it came from. Everything
+        else is general interview knowledge. We keep the text we read, not the
+        file.
       </p>
 
       <div>
@@ -170,7 +171,8 @@ export function NotesPage() {
               See what we read
             </summary>
             <p className="mt-2 text-xs text-muted">
-              Check this looks right. Outlines can only use this text.
+              Check this looks right. Your own experience in an answer can only
+              come from this text.
             </p>
             <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm">
               {data.content.slice(0, PREVIEW_CHARS)}

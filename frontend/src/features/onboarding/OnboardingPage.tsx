@@ -160,7 +160,7 @@ export function OnboardingPage() {
         )}
         <ul className="mt-6 space-y-3">
           {[
-            ["/notes", "Upload your CV", "Outlines use only what's in it."],
+            ["/notes", "Upload your CV", "Your stories come from it."],
             [
               "/companies",
               "Add a company",

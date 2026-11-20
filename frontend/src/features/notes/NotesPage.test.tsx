@@ -107,7 +107,9 @@ describe("uploading", () => {
       within(details).getByText(/Led the payments migration at Northfield/),
     ).toBeInTheDocument();
     expect(
-      within(details).getByText(/Outlines can only use this text/),
+      within(details).getByText(
+        /Your own experience in an answer can only come from this text/,
+      ),
     ).toBeInTheDocument();
   });
 

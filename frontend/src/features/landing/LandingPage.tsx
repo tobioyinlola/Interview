@@ -17,7 +17,7 @@ const FEATURES = [
   {
     n: "03",
     title: "Grounded in your CV",
-    body: "Outlines use only your CV and the brief. A check flags any number or name that is in neither.",
+    body: "Your own stories come only from your CV, company facts only from the brief, and a full sample answer fills the rest. A check flags any number or name that is in neither.",
   },
   {
     n: "04",
