@@ -40,7 +40,13 @@ const confirm = () => screen.getByLabelText("Confirm password");
 const agree = () => screen.getByRole("checkbox", { name: /i agree/i });
 const create = () => screen.getByRole("button", { name: "Create account" });
 
+const fullName = () => screen.getByLabelText("Full name");
+
 async function fillSignup() {
+  await userEvent.type(
+    await screen.findByLabelText("Full name"),
+    "Jordan Reyes",
+  );
   await typeEmail();
   await userEvent.type(password(), STRONG);
   await userEvent.type(confirm(), STRONG);
@@ -100,6 +106,10 @@ describe("sign up page", () => {
   it("enables Create account only with a long enough, matching password and the terms accepted", async () => {
     api(false);
     renderApp(<App />, "/signup");
+    await userEvent.type(
+      await screen.findByLabelText("Full name"),
+      "Jordan Reyes",
+    );
     await typeEmail();
     expect(create()).toBeDisabled();
     await userEvent.type(password(), "short");
@@ -133,7 +143,11 @@ describe("sign up page", () => {
       await screen.findByText(/confirm your address and finish creating/i),
     ).toBeInTheDocument();
     const sent = calls.find((c) => c.key === "POST /api/auth/signup")!;
-    expect(sent.body).toEqual({ email: "new@example.com", password: STRONG });
+    expect(sent.body).toEqual({
+      email: "new@example.com",
+      password: STRONG,
+      full_name: "Jordan Reyes",
+    });
     expect(sent.headers.get("x-requested-with")).toBe("meet-practice");
   });
 
@@ -154,6 +168,68 @@ describe("sign up page", () => {
     await typeEmail();
     await userEvent.type(password(), "short{enter}");
     expect(calls.some((c) => c.key === "POST /api/auth/signup")).toBe(false);
+  });
+});
+
+describe("sign up page: full name", () => {
+  it("asks for the full name first, with the right autofill", async () => {
+    api(false);
+    renderApp(<App />, "/signup");
+    const field = await screen.findByLabelText("Full name");
+    expect(field).toHaveAttribute("autocomplete", "name");
+    expect(field).toHaveAttribute("autocapitalize", "words");
+    const inputs = screen.getAllByRole("textbox").map((e) => e.id);
+    expect(inputs[0]).toBe("full-name"); // before the email address
+  });
+
+  it("will not create an account without a real name", async () => {
+    const calls = api(false);
+    renderApp(<App />, "/signup");
+    await typeEmail();
+    await userEvent.type(password(), STRONG);
+    await userEvent.type(confirm(), STRONG);
+    await userEvent.click(agree());
+    expect(create()).toBeDisabled(); // no name yet
+    await userEvent.type(fullName(), "J");
+    expect(create()).toBeDisabled(); // one letter is not a full name
+    await userEvent.clear(fullName());
+    await userEvent.type(fullName(), "  Jo  ");
+    expect(create()).toBeEnabled();
+    expect(calls.some((c) => c.key === "POST /api/auth/signup")).toBe(false);
+  });
+
+  it("sends the name trimmed, and shows the server's message if it is refused", async () => {
+    const calls = api(false, {
+      "POST /api/auth/signup": () =>
+        apiError(
+          422,
+          "invalid_name",
+          "Please enter your full name, using letters only.",
+        ),
+    });
+    renderApp(<App />, "/signup");
+    await userEvent.type(
+      await screen.findByLabelText("Full name"),
+      "  Ada  Lovelace ",
+    );
+    await typeEmail();
+    await userEvent.type(password(), STRONG);
+    await userEvent.type(confirm(), STRONG);
+    await userEvent.click(agree());
+    await userEvent.click(create());
+    expect(await screen.findByRole("alert")).toHaveTextContent(/full name/i);
+    expect(
+      calls.find((c) => c.key === "POST /api/auth/signup")!.body,
+    ).toMatchObject({
+      full_name: "Ada  Lovelace",
+    });
+  });
+
+  it("does not ask for a name when logging in", async () => {
+    api(false);
+    renderApp(<App />, "/login");
+    await screen.findByRole("heading", { name: "Sign in" });
+    expect(screen.queryByLabelText("Full name")).toBeNull();
   });
 });
 

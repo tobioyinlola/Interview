@@ -3,7 +3,7 @@ the owner's id, so every query is filtered by owner by construction (routers nev
 
 import uuid
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, NamedTuple
 
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import distinct_on
@@ -37,6 +37,13 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
+class ConsumedToken(NamedTuple):
+    email: str
+    password_hash: str | None
+    purpose: str
+    full_name: str | None
+
+
 class AuthRepo:
     """Pre-authentication data (login tokens, cookie sessions). Not user-scoped by nature."""
 
@@ -59,6 +66,7 @@ class AuthRepo:
         ttl: timedelta,
         purpose: str = "login",
         password_hash: str | None = None,
+        full_name: str | None = None,
     ) -> str:
         token = new_token()
         self.db.add(
@@ -68,6 +76,7 @@ class AuthRepo:
                 expires_at=_now() + ttl,
                 purpose=purpose,
                 password_hash=password_hash,
+                full_name=full_name,
             )
         )
         await self.db.commit()
@@ -75,8 +84,8 @@ class AuthRepo:
 
     async def consume_token(
         self, token: str, purposes: tuple[str, ...] = ("login", "signup")
-    ) -> tuple[str, str | None, str] | None:
-        """Atomically use a valid unused token. Returns (email, password_hash, purpose) or None."""
+    ) -> "ConsumedToken | None":
+        """Atomically use a valid unused token, or return None."""
         stmt = (
             update(LoginToken)
             .where(
@@ -86,11 +95,16 @@ class AuthRepo:
                 LoginToken.purpose.in_(purposes),
             )
             .values(used_at=_now())
-            .returning(LoginToken.email, LoginToken.password_hash, LoginToken.purpose)
+            .returning(
+                LoginToken.email,
+                LoginToken.password_hash,
+                LoginToken.purpose,
+                LoginToken.full_name,
+            )
         )
         row = (await self.db.execute(stmt)).one_or_none()
         await self.db.commit()
-        return (row[0], row[1], row[2]) if row else None
+        return ConsumedToken(row[0], row[1], row[2], row[3]) if row else None
 
     async def peek_token_email(self, token: str, purposes: tuple[str, ...]) -> str | None:
         """The email a valid unused token belongs to, without using it up."""
@@ -104,7 +118,7 @@ class AuthRepo:
 
     async def consume_login_token(self, token: str) -> str | None:
         used = await self.consume_token(token)
-        return used[0] if used else None
+        return used.email if used else None
 
     async def find_user(self, email: str) -> User | None:
         return (await self.db.execute(select(User).where(User.email == email))).scalar_one_or_none()
@@ -138,11 +152,11 @@ class AuthRepo:
         await self.db.execute(delete(LoginFailure).where(LoginFailure.email == email))
         await self.db.commit()
 
-    async def get_or_create_user(self, email: str) -> User:
+    async def get_or_create_user(self, email: str, *, full_name: str | None = None) -> User:
         user = (await self.db.execute(select(User).where(User.email == email))).scalar_one_or_none()
         if user:
             return user
-        user = User(email=email)
+        user = User(email=email, full_name=full_name)
         self.db.add(user)
         try:
             await self.db.commit()
@@ -179,6 +193,20 @@ class AuthRepo:
         await self.db.commit()
 
 
+class ProfileRepo:
+    """The person's own name and onboarding answers."""
+
+    def __init__(self, db: AsyncSession, user: User) -> None:
+        self.db = db
+        self.user = user
+
+    async def update(self, **values: Any) -> User:
+        await self.db.execute(update(User).where(User.id == self.user.id).values(**values))
+        await self.db.commit()
+        await self.db.refresh(self.user)
+        return self.user
+
+
 class AccountRepo:
     def __init__(self, db: AsyncSession, user_id: uuid.UUID) -> None:
         self.db = db
@@ -199,17 +227,47 @@ class NotesRepo:
         stmt = select(Note).where(Note.user_id == self.user_id)
         return (await self.db.execute(stmt)).scalar_one_or_none()
 
-    async def upsert(self, *, role: str, content: str) -> Note:
+    async def upsert(self, *, role: str | None = None, content: str | None = None) -> Note:
+        """Set the fields given. Setting the text directly means it is no longer from a CV file."""
         note = await self.get()
         if note is None:
-            note = Note(user_id=self.user_id, role=role, content=content)
+            note = Note(user_id=self.user_id, role=role or "", content=content or "")
             self.db.add(note)
         else:
-            note.role = role
-            note.content = content
+            if role is not None:
+                note.role = role
+            if content is not None:
+                note.content = content
+                note.cv_filename = None
+                note.cv_uploaded_at = None
             note.updated_at = _now()
         await self.db.commit()
         await self.db.refresh(note)
+        return note
+
+    async def set_cv(self, *, text: str, filename: str) -> Note:
+        note = await self.get()
+        if note is None:
+            note = Note(user_id=self.user_id, role="", content=text)
+            self.db.add(note)
+        else:
+            note.content = text
+        note.cv_filename = filename
+        note.cv_uploaded_at = _now()
+        note.updated_at = _now()
+        await self.db.commit()
+        await self.db.refresh(note)
+        return note
+
+    async def clear_cv(self) -> Note | None:
+        note = await self.get()
+        if note is not None:
+            note.content = ""
+            note.cv_filename = None
+            note.cv_uploaded_at = None
+            note.updated_at = _now()
+            await self.db.commit()
+            await self.db.refresh(note)
         return note
 
 

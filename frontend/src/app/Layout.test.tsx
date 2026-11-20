@@ -24,7 +24,7 @@ describe("app shell", () => {
     const nav = within(await screen.findByRole("navigation", { name: "Main" }));
     for (const name of [
       "Overview",
-      "Notes",
+      "CV",
       "Companies",
       "Practice",
       "Sessions",
@@ -40,7 +40,7 @@ describe("app shell", () => {
       "aria-current",
       "page",
     );
-    expect(nav.getByRole("link", { name: "Notes" })).not.toHaveAttribute(
+    expect(nav.getByRole("link", { name: "CV" })).not.toHaveAttribute(
       "aria-current",
     );
   });
@@ -71,7 +71,7 @@ describe("app shell", () => {
       "aria-expanded",
       "true",
     );
-    await userEvent.click(screen.getByRole("link", { name: "Notes" }));
+    await userEvent.click(screen.getByRole("link", { name: "CV" }));
     expect(
       await screen.findByRole("button", { name: "Open menu" }),
     ).toBeInTheDocument(); // closed on navigation

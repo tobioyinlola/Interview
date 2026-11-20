@@ -16,8 +16,8 @@ const FEATURES = [
   },
   {
     n: "03",
-    title: "Grounded in your notes",
-    body: "Outlines use only your notes and the brief. A check flags any number or name that is in neither.",
+    title: "Grounded in your CV",
+    body: "Your own stories come only from your CV, company facts only from the brief, and a full sample answer fills the rest. A check flags any number or name that is in neither.",
   },
   {
     n: "04",
@@ -32,7 +32,7 @@ const FEATURES = [
   {
     n: "06",
     title: "Gap finder",
-    body: "See which questions your notes could not answer, so you know what to add before the real interview.",
+    body: "See which questions your CV could not answer, so you know what to add before the real interview.",
   },
 ];
 
@@ -40,7 +40,7 @@ const STEPS = [
   {
     n: "01",
     title: "Prepare",
-    body: "Write your notes and add the company and role you are interviewing for. We build the brief.",
+    body: "Upload your CV and add the company and role you are interviewing for. We build the brief.",
   },
   {
     n: "02",
@@ -142,8 +142,8 @@ export function LandingPage() {
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-muted">
             Rehearse on a real Meet call with a friend. InterviewMeet listens to
-            the questions and drafts answer outlines from your own notes and a
-            cited company brief, then scores the session so you walk in calm,
+            the questions and drafts answer outlines from your CV and a cited
+            company brief, then scores the session so you walk in calm,
             rehearsed and ready.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -326,8 +326,8 @@ export function LandingPage() {
               <em className="text-[#A98BFF]">starts here.</em>
             </h2>
             <p className="mx-auto mt-5 max-w-xl text-surface/80">
-              Create your account, add your notes and a company, and run your
-              first practice session.
+              Create your account, upload your CV and add a company, and run
+              your first practice session.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link

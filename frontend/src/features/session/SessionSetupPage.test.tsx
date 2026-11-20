@@ -30,7 +30,7 @@ beforeEach(() => stubSupportedBrowser());
 afterEach(() => vi.restoreAllMocks());
 
 describe("SessionSetupPage", () => {
-  it("keeps Start disabled until notes are saved, a company is chosen and consent is ticked", async () => {
+  it("keeps Start disabled until a CV is uploaded, a company is chosen and consent is ticked", async () => {
     mockApi(base());
     open();
     await screen.findByRole("heading", { name: "Start a practice call" });
@@ -57,7 +57,7 @@ describe("SessionSetupPage", () => {
     expect(start()).toBeEnabled();
   });
 
-  it("blocks Start and links to the notes when none are saved", async () => {
+  it("blocks Start and links to the CV page when none is uploaded", async () => {
     mockApi(base({ "GET /api/notes": () => notes("   ") }));
     open();
     await screen.findByRole("option", { name: "Acme" });
@@ -68,7 +68,7 @@ describe("SessionSetupPage", () => {
     await userEvent.click(screen.getByRole("checkbox"));
     expect(start()).toBeDisabled();
     expect(
-      screen.getByRole("link", { name: "Add your notes" }),
+      screen.getByRole("link", { name: "Upload your CV" }),
     ).toHaveAttribute("href", "/notes");
   });
 

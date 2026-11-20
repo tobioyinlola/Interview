@@ -1,10 +1,11 @@
-"""Gap finder: where the notes or the brief had nothing to offer, so the user knows what to add."""
+"""Gap finder: where the CV or the brief had nothing to offer, so the user knows what to add."""
 
 from dataclasses import dataclass, field
 
 from app.models import Suggestion
 
-NO_STORY = "no matching story in your notes"
+# The model is told to write the first; sessions saved before CV uploads used the second.
+NO_STORY_PHRASES = ("no matching story in your cv", "no matching story in your notes")
 
 
 @dataclass
@@ -22,7 +23,7 @@ def find_gaps(suggestions: list[Suggestion]) -> list[Gap]:
     for s in suggestions:
         text = (s.output_text or "").lower()
         kind: str | None = None
-        if NO_STORY in text:
+        if any(p in text for p in NO_STORY_PHRASES):
             kind = "experience"
         elif s.type == "company" and not any(
             str(src).lower().startswith("brief") for src in (s.sources_used or [])
@@ -37,7 +38,7 @@ def find_gaps(suggestions: list[Suggestion]) -> list[Gap]:
                 kind=kind,
                 type=typ,
                 hint=(
-                    f"Add a {typ} story to your notes: the situation, what you did, and the result."
+                    f"Add a {typ} story to your CV: the situation, what you did, and the result."
                     if kind == "experience"
                     else "Add facts about the company: research it, or paste text from its pages."
                 ),

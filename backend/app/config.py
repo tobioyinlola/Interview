@@ -2,7 +2,7 @@
 
 from functools import lru_cache
 
-from pydantic import SecretStr
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -60,7 +60,7 @@ class Settings(BaseSettings):
     suggest_total_timeout_seconds: float = 20.0
     suggest_prefilter_min_words: int = 3
     openai_answer_fallback_model: str = "gpt-4o-mini"
-    openai_realtime_protocol: str = "beta"  # "beta" or "ga"; confirm on the first live run
+    openai_realtime_protocol: str = "ga"  # "ga" verified live 2026-11-17; "beta" kept as a fallback
     openai_realtime_url: str = "wss://api.openai.com/v1/realtime?intent=transcription"
 
     # Run the whole live path with scripted fakes (no OpenAI). Refused in production.
@@ -82,6 +82,12 @@ class Settings(BaseSettings):
     # Google's real endpoints. Only a local test with a fake Google may change them.
     google_auth_url: str = "https://accounts.google.com/o/oauth2/v2/auth"
     google_token_url: str = "https://oauth2.googleapis.com/token"  # noqa: S105
+    # Dev environments only: print sign-in links in the log instead of emailing them, so a dev
+    # deployment works before an email provider exists. Anyone who can read the log can sign in as
+    # anyone, so the API refuses to start with this on in production.
+    # Shown in email footers and used as the Reply-To, so people can write back. Optional.
+    support_email: str = ""
+    dev_log_email_links: bool = False
     resend_api_key: SecretStr = SecretStr("")  # sends the sign-in email
     email_from: str = ""  # e.g. "Meet Practice <login@yourdomain.com>", a Resend-verified domain
     admin_emails: str = ""  # comma-separated; may open the usage and cost view
@@ -90,6 +96,8 @@ class Settings(BaseSettings):
     rate_limit_auth_per_minute: int = 30  # sign-in endpoints, stricter
     max_body_bytes: int = 1_000_000
     max_audio_body_bytes: int = 2 * 1024 * 1024 + 4096  # POST .../segment
+    max_cv_body_bytes: int = 5 * 1024 * 1024 + 4096  # POST /api/notes/cv
+    rate_limit_upload_per_minute: int = 10  # CV uploads per client: parsing a file costs real CPU
     db_statement_timeout_ms: int = 3000
     db_pool_size: int = 10
     db_max_overflow: int = 10
@@ -100,6 +108,15 @@ class Settings(BaseSettings):
     price_llm_output_per_million: float = 1.60
 
     log_level: str = "INFO"
+
+    @field_validator("database_url")
+    @classmethod
+    def _async_driver(cls, v: str) -> str:
+        """Platforms hand out plain postgresql:// addresses; the app needs the async driver."""
+        for plain in ("postgresql://", "postgres://"):
+            if v.startswith(plain):
+                return "postgresql+asyncpg://" + v[len(plain) :]
+        return v
 
 
 @lru_cache

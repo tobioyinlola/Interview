@@ -25,6 +25,12 @@ STATE_COOKIE_PATH = "/api/auth/google"
 HANDSHAKE_TTL = 600  # seconds the user has to finish at Google
 
 
+@dataclass(frozen=True)
+class GoogleIdentity:
+    email: str  # lower-cased and verified by Google
+    name: str | None  # the display name Google holds, if it shares one
+
+
 class GoogleAuthError(Exception):
     """Any reason the Google sign-in cannot continue. The message is for logs, never for users."""
 
@@ -76,7 +82,7 @@ class GoogleOAuth:
                 "client_id": self.s.google_client_id,
                 "redirect_uri": self.redirect_uri,
                 "response_type": "code",
-                "scope": "openid email",
+                "scope": "openid email profile",
                 "state": hs.state,
                 "nonce": hs.nonce,
                 "code_challenge": challenge,
@@ -112,8 +118,8 @@ class GoogleOAuth:
 
     # ------------------------------------------------------------ the callback
 
-    async def finish(self, *, code: str, state: str, handshake: Handshake | None) -> str:
-        """Check the callback and return Google's verified, lower-cased email address."""
+    async def finish(self, *, code: str, state: str, handshake: Handshake | None) -> GoogleIdentity:
+        """Check the callback; returns who Google says this is (verified email, maybe a name)."""
         if handshake is None or not hmac.compare_digest(state, handshake.state):
             raise GoogleAuthError("state does not match this browser")
         try:
@@ -138,9 +144,9 @@ class GoogleOAuth:
             claims = json.loads(_unb64(id_token.split(".")[1]))
         except (ValueError, KeyError, IndexError, TypeError) as exc:
             raise GoogleAuthError("no readable id_token") from exc
-        return self._email_from(claims, handshake)
+        return self._identity_from(claims, handshake)
 
-    def _email_from(self, claims: dict[str, object], hs: Handshake) -> str:
+    def _identity_from(self, claims: dict[str, object], hs: Handshake) -> GoogleIdentity:
         aud = claims.get("aud")
         audiences = aud if isinstance(aud, list) else [aud]
         exp = claims.get("exp")
@@ -156,4 +162,7 @@ class GoogleOAuth:
         email = claims.get("email")
         if claims.get("email_verified") not in (True, "true") or not isinstance(email, str):
             raise GoogleAuthError("email missing or not verified by Google")
-        return email.lower().strip()
+        name = claims.get("name")
+        return GoogleIdentity(
+            email=email.lower().strip(), name=name if isinstance(name, str) else None
+        )

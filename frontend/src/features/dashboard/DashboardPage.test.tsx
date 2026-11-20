@@ -1,6 +1,8 @@
 import { screen, waitFor, within } from "@testing-library/react";
 
 import { App } from "../../app/App";
+import { PLAN } from "../onboarding/content";
+import { firstName } from "./DashboardPage";
 import { ME, mockApi, renderApp, stubSupportedBrowser } from "../../test-utils";
 
 beforeEach(() => stubSupportedBrowser());
@@ -29,8 +31,8 @@ describe("DashboardPage (FR-33)", () => {
     );
     renderApp(<App />, "/");
     const c = within(await card());
-    expect(c.getAllByText("Not done:").length).toBeGreaterThanOrEqual(3); // notes, brief and consent
-    expect(c.getByRole("link", { name: "Add your notes" })).toHaveAttribute(
+    expect(c.getAllByText("Not done:").length).toBeGreaterThanOrEqual(3); // CV, brief and consent
+    expect(c.getByRole("link", { name: "Upload your CV" })).toHaveAttribute(
       "href",
       "/notes",
     );
@@ -42,7 +44,7 @@ describe("DashboardPage (FR-33)", () => {
     expect(await screen.findByText("No sessions yet.")).toBeInTheDocument();
   });
 
-  it("ticks notes, a fresh brief and the browser, and reminds about consent", async () => {
+  it("ticks the CV, a fresh brief and the browser, and reminds about consent", async () => {
     mockApi(
       base({
         "GET /api/companies": () => ({
@@ -60,8 +62,8 @@ describe("DashboardPage (FR-33)", () => {
     renderApp(<App />, "/");
     const c = within(await card());
     await screen.findByText("Company brief ready and fresh");
-    expect(c.getByText(/Notes saved/)).toBeInTheDocument();
-    expect(c.queryByRole("link", { name: "Add your notes" })).toBeNull();
+    expect(c.getByText(/CV uploaded/)).toBeInTheDocument();
+    expect(c.queryByRole("link", { name: "Upload your CV" })).toBeNull();
     expect(c.getByText("Browser can share tab audio")).toBeInTheDocument();
     expect(
       c.getByText(/Partner consent: you confirm it when you start a session/),
@@ -250,5 +252,80 @@ describe("DashboardPage (FR-33)", () => {
     const sessions = (await screen.findByText("Practice calls")).parentElement!;
     expect(within(sessions).getByText("0")).toBeInTheDocument();
     expect(screen.getByText(/after two sessions/i)).toBeInTheDocument();
+  });
+});
+
+describe("DashboardPage: greeting and focus", () => {
+  const asJordan = {
+    ...ME,
+    full_name: "Jordan Reyes",
+    onboarded: true,
+    onboarding: {
+      goal: "new_job",
+      level: "senior",
+      timeline: "this_week",
+      focus: ["structure", "company"],
+    },
+  };
+
+  it("greets the person by first name with a wave", async () => {
+    mockApi(base({ "GET /api/me": () => ({ json: asJordan }) }));
+    renderApp(<App />, "/dashboard");
+    const hello = await screen.findByText(/^Hello, Jordan/);
+    expect(hello).toHaveTextContent("Hello, Jordan 👋");
+    expect(hello.querySelector("[aria-hidden=true]")).toHaveTextContent("👋");
+    expect(screen.queryByText(/Good (morning|afternoon|evening)/)).toBeNull();
+  });
+
+  it("just says hello when there is no name yet, never guessing one from the email", async () => {
+    mockApi(
+      base({
+        "GET /api/me": () => ({
+          json: { ...ME, onboarded: true, full_name: null },
+        }),
+      }),
+    );
+    renderApp(<App />, "/dashboard");
+    const hello = await screen.findByText(/^Hello/);
+    expect(hello).toHaveTextContent(/^Hello 👋$/);
+    expect(hello.textContent).not.toMatch(/me@|example/i);
+  });
+
+  it.each([
+    ["Jordan Reyes", "Jordan"],
+    ["  ada   lovelace ", "ada"],
+    ["Madonna", "Madonna"],
+    ["O\u2019Neil Smith", "O\u2019Neil"],
+    ["李小龍", "李小龍"],
+    [null, ""],
+    ["", ""],
+  ])("takes the first word of %j as the first name", (full, first) => {
+    expect(firstName(full)).toBe(first);
+  });
+
+  it("shows the chosen focus areas and advice for the timeline, with a way to change them", async () => {
+    mockApi(base({ "GET /api/me": () => ({ json: asJordan }) }));
+    renderApp(<App />, "/dashboard");
+    const card = within(
+      await screen.findByRole("region", { name: "Your focus" }),
+    );
+    expect(card.getByText(/Structuring my answers/)).toBeInTheDocument();
+    expect(card.getByText(/Company questions/)).toBeInTheDocument();
+    expect(card.getByText(PLAN.this_week)).toBeInTheDocument();
+    expect(card.getByRole("link", { name: "Update" })).toHaveAttribute(
+      "href",
+      "/onboarding",
+    );
+  });
+
+  it("has no focus card for someone who skipped onboarding", async () => {
+    mockApi(
+      base({
+        "GET /api/me": () => ({ json: { ...asJordan, onboarding: null } }),
+      }),
+    );
+    renderApp(<App />, "/dashboard");
+    await screen.findByText(/^Hello, Jordan/);
+    expect(screen.queryByRole("region", { name: "Your focus" })).toBeNull();
   });
 });

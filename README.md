@@ -1,7 +1,7 @@
 # InterviewMeet
 
 React + FastAPI app that researches a company before a practice interview, then listens to a Google Meet
-practice call (tab-audio sharing) and streams answer outlines grounded in the user's notes and a cited
+practice call (tab-audio sharing) and streams answer outlines grounded in the user's CV and a cited
 company brief. **For practice with a partner who knows the assistant is on.** There is no feature to hide
 the assistant or evade screen-share or proctoring, and none will be added.
 
@@ -37,8 +37,24 @@ emailed single-use sign-in link, or "Continue with Google" when
 `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` are set (see docs/deploy.md). Email-link sign-in. With `ENVIRONMENT=local` the API logs the sign-in link to its console instead of
 emailing it. Other environments send it through Resend (`RESEND_API_KEY`, `EMAIL_FROM`).
 
+Sign-up asks for a full name (the dashboard greets the first name: "Hello, Jordan 👋"). A new account then
+goes through four onboarding questions (goal, experience, timeline, what to work on); they can be skipped and
+are changed later from the dashboard. Answers are stored on the user (`users.onboarding`).
+
+Emails (sign-up confirmation, sign-in link, password reset, welcome, password-changed and account-deleted
+notices) come from `backend/app/services/email_templates.py`: one HTML layout with a plain-text twin, dark-mode
+styles and a fallback link. They use `SUPPORT_EMAIL` as the reply/contact address and the logo at
+`frontend/public/email-logo.png` (served from `WEB_ORIGIN`).
+
 Tests need Postgres: `TEST_DATABASE_URL` (default `postgresql+asyncpg://postgres:postgres@localhost:5432/meetpractice_test`).
 Create the database once with `createdb meetpractice_test`.
+
+## CV upload
+The Notes page is a CV upload: PDF, Word (.docx) or plain text, up to 5 MB, 20 pages for a PDF. The server reads the
+text (`backend/app/services/cv.py`), keeps that text and the file name, and discards the file. The type is decided from
+the file's bytes, not its name; password-protected PDFs, scans with no text, old `.doc` files, oversized files, and
+zip or XML bombs are refused with a plain-language reason. A CV longer than 16,000 characters is cut at a word and the
+page says so. Outlines, the grounding check, scoring and the gap finder all work from this text. There is no OCR.
 
 ## Company research
 Add a company (name, website, job posting link, up to 3 extra links, role, "what I already know"). A
@@ -54,7 +70,7 @@ Facts with no valid source are dropped and empty sections say "Not found". Pages
 - Needs `OPENAI_API_KEY` to research. Without it a job fails with a clear message.
 
 ## Live practice session
-Sign in, save notes, optionally add a company, then **Practice**: tick the partner-consent box, start a
+Sign in, upload your CV, optionally add a company, then **Practice**: tick the partner-consent box, start a
 session, join Google Meet in another tab, and press **Share Meet tab** (pick the Meet tab and tick *Also
 share tab audio*). The app transcribes the partner and streams an answer outline for each question.
 
@@ -65,7 +81,7 @@ share tab audio*). The app transcribes the partner and streams an answer outline
   while the outage stays within 10 s).
 - **Answers:** `POST /api/sessions/{id}/suggest` streams server-sent events. One model call decides
   whether the turn is a question (`NO_QUESTION`) and writes the outline (TYPE/OPENER/POINTS/CLOSE) from the
-  notes snapshot and the company brief. Each bullet cites `[note: ...]` or `[brief: ...]`; a grounding
+  CV snapshot and the company brief. Each bullet cites `[note: ...]` or `[brief: ...]`; a grounding
   check flags numbers or names that are in neither. A newer question cancels an unfinished one.
 - **Limits:** daily caps on transcription seconds and tokens (`CAP_*`), enforced mid-session.
 
@@ -100,9 +116,11 @@ Re-run whenever a prompt or model changes. `--model` picks the live answer model
 - M0 scaffolding, M1 foundation: done.
 - M2 company research, M3 live session, M4 beta features: done in code and tests, and the live path is
   verified in a real browser with scripted providers (`scripts/e2e-live.sh`).
-- **Not yet verified against OpenAI:** the research adapters, the realtime transcription protocol
-  (`backend/app/adapters/openai_realtime.py`), the fallback transcription call, answer scoring quality, real
-  latency, and the evaluation scores. These need a valid key and a real Meet call.
+- **Verified live (Railway dev deployment, 2026-11-17):** the realtime transcription protocol
+  (`backend/app/adapters/openai_realtime.py`, protocol `ga`): synthesized speech streamed through the deployed
+  stack came back word for word, and the answer outline streamed from the answer model.
+- **Not yet verified against OpenAI:** the research adapters, the fallback transcription call, answer scoring
+  quality, real latency under a real Meet call, and the evaluation scores.
 - Not done: release hardening (observability, load test, staging, runbooks, legal review of the consent
   wording), the Railway deploy, and a sign-in email provider.
 
@@ -138,7 +156,9 @@ sideways scrolling and undersized controls, and runs with the other browser test
 - **Deploying:** [docs/deploy.md](docs/deploy.md).
 
 ## Status
-Built and tested: sign-in, notes, company research, live sessions, review and scoring, hardening.
-**Not yet verified against the real world** (needs a key, a call, or a deployment): OpenAI realtime
-transcription protocol and answer quality (evals above), Docker builds, the GitHub Actions workflow,
-Railway. **Open decisions:** transcript retention policy, daily budget figure.
+Built and tested: sign-in, CV upload, company research, live sessions, review and scoring, hardening.
+**Deployed:** a Railway dev environment (Postgres, backend, frontend) runs this branch; sign-up, password
+login, CV upload, consent, the live audio socket and OpenAI transcription were checked on it.
+**Not yet verified against the real world:** answer quality and the evaluation scores (evals above),
+research adapters, a real Google Meet call, the GitHub Actions workflow, Google sign-in against real Google.
+**Open decisions:** transcript retention policy, daily budget figure.

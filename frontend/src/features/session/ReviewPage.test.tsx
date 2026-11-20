@@ -341,7 +341,7 @@ describe("ReviewPage: gap finder (FR-37)", () => {
     open();
     const g = within(
       await screen.findByRole("region", {
-        name: "Gaps in your notes and brief",
+        name: "Gaps in your CV and brief",
       }),
     );
     expect(

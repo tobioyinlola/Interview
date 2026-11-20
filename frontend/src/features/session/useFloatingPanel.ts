@@ -55,7 +55,7 @@ export function useFloatingPanel() {
         height: 560,
       });
       copyStyles(document, w.document);
-      w.document.title = "Answer outline";
+      w.document.title = "Question and answer";
       w.addEventListener("pagehide", () => setWin(null)); // closed by the user: panel returns
       setWin(w);
     } catch {

@@ -29,6 +29,7 @@ from app.routers import (
     health,
     metrics_route,
     notes,
+    profile,
     sessions,
 )
 from app.services.google_oauth import GoogleOAuth
@@ -103,6 +104,7 @@ def create_app() -> FastAPI:
         auth.router,
         account.router,
         notes.router,
+        profile.router,
         companies.router,
         sessions.router,
         audio_ws.router,

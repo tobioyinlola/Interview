@@ -10,6 +10,7 @@ import {
   NoteIcon,
   PlusIcon,
 } from "../../app/icons";
+import { FOCUS, PLAN } from "../onboarding/content";
 import { PracticeChart } from "./PracticeChart";
 import { daysSince } from "../companies/ResearchStatus";
 import { formatDuration, formatWhen } from "../review/format";
@@ -38,11 +39,11 @@ function Item({
   );
 }
 
-/** What to do next: notes saved, a fresh brief, a browser that can share tab audio. */
+/** What to do next: CV uploaded, a fresh brief, a browser that can share tab audio. */
 function ReadinessCard() {
   const notes = useNotes();
   const companies = useCompanies();
-  const notesSaved = (notes.data?.content ?? "").trim().length > 0;
+  const cvUploaded = (notes.data?.content ?? "").trim().length > 0;
   const researched = (companies.data ?? []).filter(
     (c) => c.job_status === "ready" && c.last_researched_at,
   );
@@ -52,7 +53,7 @@ function ReadinessCard() {
   const hasBrief = researched.length > 0;
   const stale = hasBrief && newest > STALE_DAYS;
   const canCapture = isSupported(currentEnv());
-  const ready = notesSaved && canCapture;
+  const ready = cvUploaded && canCapture;
 
   return (
     <section
@@ -63,11 +64,11 @@ function ReadinessCard() {
         Readiness
       </h2>
       <ul className="space-y-1 text-sm">
-        <Item ok={notesSaved}>
-          Notes saved{" "}
-          {!notesSaved && (
+        <Item ok={cvUploaded}>
+          CV uploaded{" "}
+          {!cvUploaded && (
             <Link to="/notes" className="text-accent-dark underline">
-              Add your notes
+              Upload your CV
             </Link>
           )}
         </Item>
@@ -98,14 +99,49 @@ function ReadinessCard() {
   );
 }
 
-const greeting = () => {
-  const h = new Date().getHours();
-  return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
-};
-const firstName = (email?: string) => {
-  const n = (email ?? "").split("@")[0].split(/[._+-]/)[0];
-  return n ? n[0].toUpperCase() + n.slice(1) : "";
-};
+/** The first word of the person's name, for the greeting. */
+export const firstName = (fullName?: string | null) =>
+  (fullName ?? "")
+    .trim()
+    .split(/\s+/)[0]
+    ?.replace(/[,.]+$/, "") ?? "";
+
+/** Their chosen focus areas, and a line of advice that matches how soon the interview is. */
+function FocusCard() {
+  const { data: me } = useMe();
+  const o = me?.onboarding;
+  if (!o || !(o.focus?.length || o.timeline)) return null;
+  return (
+    <section
+      aria-labelledby="focus-h"
+      className="rounded-2xl bg-surface p-5 shadow-card"
+    >
+      <div className="flex items-baseline justify-between">
+        <h2 id="focus-h" className="text-lg font-semibold">
+          Your focus
+        </h2>
+        <Link to="/onboarding" className="text-sm text-accent-dark underline">
+          Update
+        </Link>
+      </div>
+      {o.focus && o.focus.length > 0 && (
+        <ul className="mt-3 flex flex-wrap gap-2">
+          {o.focus.map((f) => (
+            <li
+              key={f}
+              className="rounded-full bg-accent-soft px-3 py-1.5 text-sm font-medium text-accent-dark"
+            >
+              <span aria-hidden="true">{FOCUS[f].emoji}</span> {FOCUS[f].label}
+            </li>
+          ))}
+        </ul>
+      )}
+      {o.timeline && (
+        <p className="mt-3 text-sm text-muted">{PLAN[o.timeline]}</p>
+      )}
+    </section>
+  );
+}
 
 function Stat({
   label,
@@ -200,8 +236,11 @@ export function DashboardPage() {
         <div className="min-w-0">
           <h1 className="sr-only">Dashboard</h1>
           <p className="break-words text-3xl font-semibold tracking-tight sm:text-4xl">
-            {greeting()}
-            {firstName(me?.email) ? `, ${firstName(me?.email)}` : ""}
+            Hello
+            {firstName(me?.full_name)
+              ? `, ${firstName(me?.full_name)}`
+              : ""}{" "}
+            <span aria-hidden="true">👋</span>
           </p>
           <p className="mt-1 text-muted">Here&apos;s your practice overview.</p>
         </div>
@@ -306,6 +345,8 @@ export function DashboardPage() {
         </div>
 
         <div className="space-y-6">
+          <FocusCard />
+
           <section
             aria-label="Quick actions"
             className="rounded-2xl bg-surface p-5 shadow-card"
@@ -325,7 +366,7 @@ export function DashboardPage() {
               />
               <Action
                 to="/notes"
-                title="Edit your notes"
+                title="Upload your CV"
                 sub="What outlines are built from"
               />
             </div>

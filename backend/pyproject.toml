@@ -17,6 +17,7 @@ dependencies = [
   "trafilatura>=1.12,<3",
   "websockets>=13,<17",
   "prometheus-client>=0.20,<1",
+  "pypdf>=5,<7",
 ]
 
 [project.optional-dependencies]
@@ -49,6 +50,7 @@ ignore = ["S101"]
 "tests/*" = ["S", "ASYNC", "E501"]
 "alembic/versions/*" = ["E501", "I001", "Q"]
 "evals/*" = ["E501", "S311"]  # long data strings; a seeded shuffle for sampling, not security
+"app/services/email_templates.py" = ["E501"]  # HTML and email copy read better unwrapped
 "loadtest/*" = ["S", "ASYNC", "BLE"]  # a test client run by hand, not served code
 
 [tool.mypy]

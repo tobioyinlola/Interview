@@ -92,7 +92,7 @@ export class LiveSessionController {
           this.state.set({
             status: "stopped",
             problem:
-              "Daily limit reached. Your notes and past sessions are still available.",
+              "Daily limit reached. Your CV and past sessions are still available.",
           });
         },
         onResumed: (gapMs) => {
@@ -196,7 +196,7 @@ export class LiveSessionController {
         this.state.set({
           status: "stopped",
           problem:
-            "Daily limit reached. Your notes and past sessions are still available.",
+            "Daily limit reached. Your CV and past sessions are still available.",
         });
       } else if (e instanceof ApiError && e.code === "not_configured") {
         this.stopAudio();

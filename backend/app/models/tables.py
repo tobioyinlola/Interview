@@ -48,6 +48,11 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(320), unique=True)
     # scrypt hash; null for people who only use email links or Google. Never leaves the server.
     password_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    full_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    # The four onboarding answers (goal, level, timeline, focus) and when onboarding was finished or
+    # skipped. A null onboarded_at means the person has not been through it yet.
+    onboarding: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    onboarded_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
     created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
 
 
@@ -66,6 +71,7 @@ class LoginToken(Base):
     purpose: Mapped[str] = mapped_column(String(10), server_default="login", default="login")
     # signup only: the chosen password, hashed, applied only once the email address is proven
     password_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    full_name: Mapped[str | None] = mapped_column(String(120), nullable=True)  # signup only
 
 
 class LoginFailure(Base):
@@ -123,7 +129,9 @@ class Note(Base):
     id: Mapped[uuid.UUID] = _pk()
     user_id: Mapped[uuid.UUID] = _fk("users.id", unique=True)  # one row per user in v1
     role: Mapped[str] = mapped_column(String(200), default="")
-    content: Mapped[str] = mapped_column(Text, default="")  # up to 16,000 characters
+    content: Mapped[str] = mapped_column(Text, default="")  # the CV's text, up to 16,000 characters
+    cv_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)  # name only
+    cv_uploaded_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(_TS, default=_now, onupdate=_now)
 
 

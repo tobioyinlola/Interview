@@ -1,6 +1,18 @@
 /** Typed REST client. Cookie auth, CSRF header on mutations, one error shape. */
+// An empty value means "the API is on this same origin" (the web server forwards /api to it); only
+// an unset value falls back to the local development address.
 export const API_BASE_URL: string =
   import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+
+/** The WebSocket origin for an API base. An empty base is this page's own origin. */
+export function socketBase(
+  base: string,
+  loc: Pick<Location, "protocol" | "host"> = window.location,
+): string {
+  if (base === "")
+    return `${loc.protocol === "https:" ? "wss:" : "ws:"}//${loc.host}`;
+  return base.replace(/^http/i, "ws");
+}
 
 export class ApiError extends Error {
   constructor(
@@ -19,7 +31,9 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const method = (init.method ?? "GET").toUpperCase();
   const headers = new Headers(init.headers);
-  if (init.body) headers.set("content-type", "application/json");
+  // JSON unless the caller sends something else (a file upload sets its own content type)
+  if (init.body && !headers.has("content-type"))
+    headers.set("content-type", "application/json");
   if (method !== "GET") headers.set("x-requested-with", "meet-practice"); // CSRF header
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...init,

@@ -22,7 +22,7 @@ vi.mock("./controller", () => ({
 
 const outline = (over: Partial<Outline> = {}): Outline => ({
   question: "Why do you want to work here?",
-  text: "TYPE: motivation\nPOINTS:\n- Acme sells POS [brief: Acme blog]",
+  text: "TYPE: motivation\nANSWER: Acme sells point-of-sale software and I led a launch.\nSOURCES:\n- Acme sells POS [brief: Acme blog]",
   state: "done",
   flags: [],
   revealed: false,
@@ -94,19 +94,42 @@ describe("LiveSessionPage", () => {
     expect(screen.getByText(/Nothing heard yet/)).toBeInTheDocument();
   });
 
-  it("explains the empty answer panel, then shows the heard question and outline", () => {
+  it("explains the empty panel, then shows only the question that was asked and the answer", () => {
     renderPage();
     expect(
-      screen.getByText(/an outline built from your notes appears here/),
+      screen.getByText(/it appears here with an answer/),
     ).toBeInTheDocument();
     set({ outline: outline({ firstWordsMs: 2400 }) });
-    expect(
-      screen.getByText(/Why do you want to work here\?/),
-    ).toBeInTheDocument();
-    expect(screen.getByTestId("outline")).toHaveTextContent(
-      "Acme sells POS [brief: Acme blog]",
+    expect(screen.getByTestId("question")).toHaveTextContent(
+      "Why do you want to work here?",
     );
+    const answer = screen.getByTestId("outline");
+    expect(answer).toHaveTextContent(
+      "Acme sells point-of-sale software and I led a launch.",
+    );
+    // none of the model's scaffolding reaches the panel
+    const panel = screen.getByRole("region", { name: "Question and answer" });
+    expect(panel).not.toHaveTextContent(/TYPE|SOURCES|\[brief|Acme blog/);
     expect(screen.getByText("First words in 2.4 s")).toBeInTheDocument();
+    // the timing and the options sit outside the panel
+    expect(panel).not.toHaveTextContent(/First words/);
+    expect(
+      within(panel).queryByRole("button", { name: "Regenerate" }),
+    ).toBeNull();
+    expect(within(panel).queryByRole("checkbox")).toBeNull();
+  });
+
+  it("streams the answer without ever showing the part after it", () => {
+    renderPage();
+    set({
+      outline: outline({
+        state: "streaming",
+        text: "TYPE: motivation\nANSWER: Acme sells software.\nSOU",
+      }),
+    });
+    expect(screen.getByTestId("outline")).toHaveTextContent(
+      /^Acme sells software\.$/,
+    );
   });
 
   it("shows Thinking while an outline has no text yet, and is a polite, busy live region", () => {
@@ -166,12 +189,10 @@ describe("LiveSessionPage", () => {
     expect(ctl.regenerate).toHaveBeenCalled();
   });
 
-  it("warns about points that may not come from the notes", () => {
+  it("warns about points that may not come from the CV", () => {
     renderPage();
     set({ outline: outline({ flags: ["Cut onboarding time by 45%"] }) });
-    expect(
-      screen.getByText(/They may not be in your notes/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/They may not be in your CV/)).toBeInTheDocument();
     expect(screen.getByText("Cut onboarding time by 45%")).toBeInTheDocument();
   });
 

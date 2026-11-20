@@ -27,8 +27,10 @@ log = logging.getLogger("app.stt")
 Connect = Callable[..., Awaitable[Any]]
 
 
-def session_config(protocol: str, model: str, sample_rate: int) -> dict[str, Any]:
-    """The event that configures a transcription-only session."""
+def session_config(protocol: str, model: str, sample_rate: int, prompt: str = "") -> dict[str, Any]:
+    """The event that configures a transcription-only session. `prompt` names the role, company
+    and jargon so they are spelled correctly."""
+    hint = {"prompt": prompt} if prompt else {}
     if protocol == "ga":
         return {
             "type": "session.update",
@@ -37,7 +39,7 @@ def session_config(protocol: str, model: str, sample_rate: int) -> dict[str, Any
                 "audio": {
                     "input": {
                         "format": {"type": "audio/pcm", "rate": sample_rate},
-                        "transcription": {"model": model, "language": "en"},
+                        "transcription": {"model": model, "language": "en", **hint},
                         "turn_detection": {"type": "server_vad", "silence_duration_ms": 500},
                     }
                 },
@@ -47,7 +49,7 @@ def session_config(protocol: str, model: str, sample_rate: int) -> dict[str, Any
         "type": "transcription_session.update",
         "session": {
             "input_audio_format": "pcm16",
-            "input_audio_transcription": {"model": model, "language": "en"},
+            "input_audio_transcription": {"model": model, "language": "en", **hint},
             "turn_detection": {"type": "server_vad", "silence_duration_ms": 500},
         },
     }
@@ -78,12 +80,14 @@ class EventParser:
 
 
 class RealtimeStream:
-    def __init__(self, ws: Any, protocol: str, model: str, sample_rate: int) -> None:
+    def __init__(
+        self, ws: Any, protocol: str, model: str, sample_rate: int, prompt: str = ""
+    ) -> None:
         self._ws = ws
         self._parser = EventParser()
         self._queue: asyncio.Queue[SttEvent | None] = asyncio.Queue()
         self._closed = False
-        self._config = session_config(protocol, model, sample_rate)
+        self._config = session_config(protocol, model, sample_rate, prompt)
         self._reader: asyncio.Task[None] | None = None
 
     async def start(self) -> None:
@@ -153,7 +157,7 @@ class OpenAIRealtimeStt:
         self._http = http
         self._api_base = api_base
 
-    async def open_stream(self, *, sample_rate: int = 24000) -> SttStream:
+    async def open_stream(self, *, sample_rate: int = 24000, prompt: str = "") -> SttStream:
         if not self.api_key:
             raise ProviderNotConfigured("The OpenAI key is not configured on the server.")
         headers = {"Authorization": f"Bearer {self.api_key}"}
@@ -161,7 +165,7 @@ class OpenAIRealtimeStt:
             headers["OpenAI-Beta"] = "realtime=v1"
         try:
             ws = await self._connect(self.url, additional_headers=headers, open_timeout=5)
-            stream = RealtimeStream(ws, self.protocol, self.model, sample_rate)
+            stream = RealtimeStream(ws, self.protocol, self.model, sample_rate, prompt)
             await stream.start()
             return stream
         except ProviderError:
@@ -170,7 +174,9 @@ class OpenAIRealtimeStt:
             log.warning("stt connect failed", extra={"fields": {"error": type(exc).__name__}})
             raise ProviderError("Couldn't reach the transcription service.") from None
 
-    async def transcribe_segment(self, pcm16: bytes, *, sample_rate: int = 24000) -> str:
+    async def transcribe_segment(
+        self, pcm16: bytes, *, sample_rate: int = 24000, prompt: str = ""
+    ) -> str:
         """Per-utterance fallback (FR-20): transcribe one finished speech segment as a file.
         UNVERIFIED against the live service, like the streaming path."""
         if not self.api_key:
@@ -186,7 +192,12 @@ class OpenAIRealtimeStt:
             resp = await client.post(
                 f"{self._api_base}/v1/audio/transcriptions",
                 headers={"Authorization": f"Bearer {self.api_key}"},
-                data={"model": self.fallback_model, "language": "en", "response_format": "json"},
+                data={
+                    "model": self.fallback_model,
+                    "language": "en",
+                    "response_format": "json",
+                    **({"prompt": prompt} if prompt else {}),
+                },
                 files={"file": ("segment.wav", buf.getvalue(), "audio/wav")},
             )
         except httpx.HTTPError as exc:
@@ -211,8 +222,10 @@ class OpenAIRealtimeStt:
 
 
 class UnconfiguredStt:
-    async def open_stream(self, *, sample_rate: int = 24000) -> SttStream:
+    async def open_stream(self, *, sample_rate: int = 24000, prompt: str = "") -> SttStream:
         raise ProviderNotConfigured("The OpenAI key is not configured on the server.")
 
-    async def transcribe_segment(self, pcm16: bytes, *, sample_rate: int = 24000) -> str:
+    async def transcribe_segment(
+        self, pcm16: bytes, *, sample_rate: int = 24000, prompt: str = ""
+    ) -> str:
         raise ProviderNotConfigured("The OpenAI key is not configured on the server.")

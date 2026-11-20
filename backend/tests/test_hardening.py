@@ -236,6 +236,20 @@ async def test_the_providers_read_does_not_use_up_the_strict_sign_in_budget(monk
     assert (first.status_code, second.status_code, third.status_code) == (202, 202, 429)
 
 
+async def test_cv_uploads_have_their_own_small_limit(monkeypatch):
+    """Reading a file costs real CPU, so uploads are limited separately from ordinary requests."""
+    async with make_client(monkeypatch, rate_limit_upload_per_minute=2) as c:
+        codes = [
+            (
+                await c.post("/api/notes/cv", content=b"x", headers={"x-filename": "a.txt"})
+            ).status_code
+            for _ in range(4)
+        ]
+        other = await c.get("/api/me")
+    assert codes == [401, 401, 429, 429]  # counted before sign-in is even checked
+    assert other.status_code == 401  # the rest of the API is not affected
+
+
 async def test_the_general_limit_applies_to_the_rest_of_the_api(monkeypatch):
     async with make_client(monkeypatch, rate_limit_per_minute=4) as c:
         codes = [(await c.get("/api/me")).status_code for _ in range(6)]

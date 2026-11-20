@@ -74,7 +74,9 @@ def validate_settings(s: Settings) -> list[str]:
             "and api.example.com). On separate platform subdomains such as *.up.railway.app "
             "browsers drop the login cookie, so nobody could stay signed in. Use custom domains."
         )
-    if not s.resend_api_key.get_secret_value() or not s.email_from:
+    if s.dev_log_email_links and s.environment == "production":
+        problems.append("DEV_LOG_EMAIL_LINKS must be off in production (it prints sign-in links).")
+    if not s.dev_log_email_links and (not s.resend_api_key.get_secret_value() or not s.email_from):
         problems.append("RESEND_API_KEY and EMAIL_FROM must be set (sign-in links are emailed).")
     if s.environment == "production" and not s.openai_api_key.get_secret_value():
         problems.append("OPENAI_API_KEY is not set (research, transcription and answers need it).")
@@ -152,8 +154,11 @@ class BodyLimitMiddleware:
         self.app = app
         self.default = settings.max_body_bytes
         self.audio = settings.max_audio_body_bytes
+        self.cv = settings.max_cv_body_bytes
 
     def limit_for(self, path: str) -> int:
+        if path.endswith("/notes/cv"):
+            return self.cv
         return self.audio if path.endswith("/segment") else self.default
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
@@ -244,7 +249,9 @@ class RateLimitMiddleware:
             await self.app(scope, receive, send)
             return
         key = self.client_key(scope)
-        if path.startswith("/api/auth/") and path != "/api/auth/providers":
+        if path == "/api/notes/cv":
+            wait = self.limiter.check(f"cv:{key}", self.s.rate_limit_upload_per_minute)
+        elif path.startswith("/api/auth/") and path != "/api/auth/providers":
             wait = self.limiter.check(f"auth:{key}", self.s.rate_limit_auth_per_minute)
         else:
             wait = self.limiter.check(f"api:{key}", self.s.rate_limit_per_minute)

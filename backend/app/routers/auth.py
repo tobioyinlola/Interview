@@ -1,5 +1,5 @@
 import logging
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import RedirectResponse
@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.adapters.email import EmailSender
 from app.config import Settings, get_settings
 from app.db import get_db
-from app.deps import current_user, get_email_sender, get_google, is_admin
+from app.deps import current_user, email_brand, get_email_sender, get_google, me_out
 from app.errors import ApiError
 from app.models import User
 from app.repositories import AuthRepo
@@ -23,12 +23,14 @@ from app.schemas.api import (
     VerifyIn,
 )
 from app.security import COOKIE_NAME
+from app.services import email_templates as emails
 from app.services.google_oauth import (
     STATE_COOKIE,
     STATE_COOKIE_PATH,
     GoogleAuthError,
     GoogleOAuth,
 )
+from app.services.names import clean_name
 from app.services.passwords import (
     hash_password_async,
     password_problem,
@@ -83,10 +85,14 @@ async def request_link(
         settings.login_requests_per_hour
     ):
         raise ApiError(429, "rate_limited", "Too many sign-in requests. Try again later.")
-    token = await repo.create_login_token(
-        email, ttl=timedelta(minutes=settings.login_link_ttl_minutes)
+    ttl = settings.login_link_ttl_minutes
+    token = await repo.create_login_token(email, ttl=timedelta(minutes=ttl))
+    known = await repo.find_user(email)
+    link = f"{settings.web_origin}/login/verify?token={token}"
+    message = emails.sign_in_link(
+        email_brand(settings), email, known.full_name if known else None, link, ttl
     )
-    await sender.send_login_link(email, f"{settings.web_origin}/login/verify?token={token}")
+    await sender.send(message)
     return StatusOut(status="sent")
 
 
@@ -96,6 +102,7 @@ async def verify(
     response: Response,
     db: AsyncSession = Depends(get_db),  # noqa: B008
     settings: Settings = Depends(get_settings),  # noqa: B008
+    sender: EmailSender = Depends(get_email_sender),  # noqa: B008
 ) -> MeOut:
     """Exchange the emailed token for a session cookie. POST (not GET) so a mail scanner that
     prefetches the link cannot burn the token."""
@@ -103,16 +110,19 @@ async def verify(
     used = await repo.consume_token(body.token, ("login", "signup"))
     if used is None:
         raise ApiError(400, "invalid_link", "This sign-in link is invalid or has expired.")
-    email, password_hash, _purpose = used
+    email, password_hash = used.email, used.password_hash
     existed = await repo.find_user(email) is not None
-    user = await repo.get_or_create_user(email)
+    # The name chosen at sign-up goes only on a brand-new account, like the password below.
+    user = await repo.get_or_create_user(email, full_name=None if existed else used.full_name)
     if password_hash and not existed:
         # Only a brand-new account takes the password chosen at sign-up. If the account already
         # exists (someone else registered this address meanwhile) the password is ignored, so a
         # sign-up started by a stranger can never set the password on a real person's account.
         await repo.set_password(user.id, password_hash)
     _open_session(response, await repo.create_session(user.id, ttl=_ttl(settings)), settings)
-    return MeOut(id=user.id, email=user.email, is_admin=is_admin(user, settings))
+    if not existed:
+        await sender.send(emails.welcome(email_brand(settings), user.email, user.full_name))
+    return me_out(user, settings)
 
 
 @router.post("/auth/logout")
@@ -134,7 +144,7 @@ async def me(
     user: User = Depends(current_user),  # noqa: B008
     settings: Settings = Depends(get_settings),  # noqa: B008
 ) -> MeOut:
-    return MeOut(id=user.id, email=user.email, is_admin=is_admin(user, settings))
+    return me_out(user, settings)
 
 
 # ------------------------------------------------------------------ Passwords
@@ -151,21 +161,32 @@ async def signup(
     opened, which proves the address. The answer is the same whether or not the email already has
     an account; an existing account just gets an ordinary sign-in link."""
     email = body.email.lower().strip()
+    full_name = clean_name(body.full_name)
+    if full_name is None:
+        raise ApiError(422, "invalid_name", "Please enter your full name, using letters only.")
     problem = password_problem(body.password, email)
     if problem:
         raise ApiError(422, "weak_password", problem)
     repo = AuthRepo(db, settings.cookie_secret.get_secret_value())
     await _check_link_rate(repo, email, settings)
     password_hash = await hash_password_async(body.password)  # always, so timing is the same
-    ttl = timedelta(minutes=settings.login_link_ttl_minutes)
-    if await repo.find_user(email) is None:
+    ttl = settings.login_link_ttl_minutes
+    brand = email_brand(settings)
+    existing = await repo.find_user(email)
+    if existing is None:
         token = await repo.create_login_token(
-            email, ttl=ttl, purpose="signup", password_hash=password_hash
+            email,
+            ttl=timedelta(minutes=ttl),
+            purpose="signup",
+            password_hash=password_hash,
+            full_name=full_name,
         )
-        await sender.send_signup_link(email, f"{settings.web_origin}/login/verify?token={token}")
+        link = f"{settings.web_origin}/login/verify?token={token}"
+        await sender.send(emails.signup_confirmation(brand, email, full_name, link, ttl))
     else:
-        token = await repo.create_login_token(email, ttl=ttl)
-        await sender.send_login_link(email, f"{settings.web_origin}/login/verify?token={token}")
+        token = await repo.create_login_token(email, ttl=timedelta(minutes=ttl))
+        link = f"{settings.web_origin}/login/verify?token={token}"
+        await sender.send(emails.sign_in_link(brand, email, existing.full_name, link, ttl))
     return StatusOut(status="sent")
 
 
@@ -189,7 +210,7 @@ async def login(
         raise INVALID_LOGIN  # the same answer for a wrong password, no password and no account
     await repo.clear_login_failures(email)
     _open_session(response, await repo.create_session(user.id, ttl=_ttl(settings)), settings)
-    return MeOut(id=user.id, email=user.email, is_admin=is_admin(user, settings))
+    return me_out(user, settings)
 
 
 @router.post("/auth/request-reset", status_code=202)
@@ -203,11 +224,14 @@ async def request_reset(
     email = body.email.lower().strip()
     repo = AuthRepo(db, settings.cookie_secret.get_secret_value())
     await _check_link_rate(repo, email, settings)
-    if await repo.find_user(email) is not None:
-        token = await repo.create_login_token(
-            email, ttl=timedelta(minutes=settings.login_link_ttl_minutes), purpose="reset"
+    known = await repo.find_user(email)
+    if known is not None:
+        ttl = settings.login_link_ttl_minutes
+        token = await repo.create_login_token(email, ttl=timedelta(minutes=ttl), purpose="reset")
+        link = f"{settings.web_origin}/reset-password?token={token}"
+        await sender.send(
+            emails.password_reset(email_brand(settings), email, known.full_name, link, ttl)
         )
-        await sender.send_reset_link(email, f"{settings.web_origin}/reset-password?token={token}")
     return StatusOut(status="sent")
 
 
@@ -217,6 +241,7 @@ async def reset_password(
     response: Response,
     db: AsyncSession = Depends(get_db),  # noqa: B008
     settings: Settings = Depends(get_settings),  # noqa: B008
+    sender: EmailSender = Depends(get_email_sender),  # noqa: B008
 ) -> MeOut:
     """Choose a new password with the emailed link. Every other session is signed out."""
     repo = AuthRepo(db, settings.cookie_secret.get_secret_value())
@@ -235,7 +260,12 @@ async def reset_password(
     await repo.revoke_sessions(user.id)
     await repo.clear_login_failures(user.email)
     _open_session(response, await repo.create_session(user.id, ttl=_ttl(settings)), settings)
-    return MeOut(id=user.id, email=user.email, is_admin=is_admin(user, settings))
+    await sender.send(
+        emails.password_changed(
+            email_brand(settings), user.email, user.full_name, datetime.now(UTC)
+        )
+    )
+    return me_out(user, settings)
 
 
 # ------------------------------------------------------------------ Sign in with Google
@@ -277,6 +307,7 @@ async def google_callback(
     db: AsyncSession = Depends(get_db),  # noqa: B008
     settings: Settings = Depends(get_settings),  # noqa: B008
     google: GoogleOAuth = Depends(get_google),  # noqa: B008
+    sender: EmailSender = Depends(get_email_sender),  # noqa: B008
 ) -> RedirectResponse:
     """Google sends the browser here. Whatever happens, the browser lands back on the web app, and
     the state cookie is used once."""
@@ -292,12 +323,17 @@ async def google_callback(
         return back("/login?error=google_cancelled")
     try:
         handshake = google.read_cookie(request.cookies.get(STATE_COOKIE))
-        email = await google.finish(code=code, state=state, handshake=handshake)
+        identity = await google.finish(code=code, state=state, handshake=handshake)
     except GoogleAuthError as exc:
         log.warning("google sign-in refused", extra={"fields": {"reason": str(exc)}})
         return back("/login?error=google_failed")
     repo = AuthRepo(db, settings.cookie_secret.get_secret_value())
-    user = await repo.get_or_create_user(email)
+    existed = await repo.find_user(identity.email) is not None
+    user = await repo.get_or_create_user(
+        identity.email, full_name=None if existed else clean_name(identity.name)
+    )
+    if not existed:
+        await sender.send(emails.welcome(email_brand(settings), user.email, user.full_name))
     ttl = timedelta(days=settings.session_ttl_days)
     cookie = await repo.create_session(user.id, ttl=ttl)
     response = back("/dashboard")

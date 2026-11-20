@@ -9,6 +9,7 @@ from app.adapters.email import (
     ConsoleEmailSender,
     EmailSender,
     ResendEmailSender,
+    TeeEmailSender,
     UnconfiguredEmailSender,
 )
 from app.adapters.interfaces import SttProvider
@@ -17,7 +18,9 @@ from app.db import get_db, get_sessionmaker
 from app.errors import ApiError
 from app.models import User
 from app.repositories import AuthRepo
+from app.schemas.api import MeOut, OnboardingAnswers
 from app.security import COOKIE_NAME
+from app.services.email_templates import Brand
 from app.services.google_oauth import GoogleOAuth
 from app.services.live import LiveHub
 from app.services.providers import build_answer_llm, build_runner, build_stt
@@ -51,11 +54,29 @@ def get_email_sender(
     settings: Settings = Depends(get_settings),  # noqa: B008
 ) -> EmailSender:
     key = settings.resend_api_key.get_secret_value()
+    dev_log = settings.dev_log_email_links and settings.environment == "staging"
     if key and settings.email_from:
-        return ResendEmailSender(
-            key, settings.email_from, ttl_minutes=settings.login_link_ttl_minutes
-        )
-    return ConsoleEmailSender() if settings.environment == "local" else UnconfiguredEmailSender()
+        resend = ResendEmailSender(key, settings.email_from)
+        return TeeEmailSender(resend, ConsoleEmailSender()) if dev_log else resend
+    if settings.environment == "local" or dev_log:
+        return ConsoleEmailSender()
+    return UnconfiguredEmailSender()
+
+
+def email_brand(settings: Settings) -> Brand:
+    return Brand(web_origin=settings.web_origin, support_email=settings.support_email)
+
+
+def me_out(user: User, settings: Settings) -> MeOut:
+    """The signed-in person as the web app sees them."""
+    return MeOut(
+        id=user.id,
+        email=user.email,
+        is_admin=is_admin(user, settings),
+        full_name=user.full_name,
+        onboarded=user.onboarded_at is not None,
+        onboarding=OnboardingAnswers(**user.onboarding) if user.onboarding else None,
+    )
 
 
 def parse_uuid(value: str, code: str, message: str) -> uuid.UUID:

@@ -16,7 +16,8 @@ export interface paths {
         post?: never;
         /**
          * Delete Account
-         * @description Delete the user and everything they own at once. Backups age out within 30 days.
+         * @description Delete the user and everything they own at once. Backups age out within 30 days. One
+         *     confirmation email goes out afterwards, and the address is kept for nothing else.
          */
         delete: operations["delete_account_api_account_delete"];
         options?: never;
@@ -410,6 +411,69 @@ export interface paths {
         get: operations["get_notes_api_notes_get"];
         /** Put Notes */
         put: operations["put_notes_api_notes_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notes/cv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Cv
+         * @description Upload a CV as the raw request body (PDF, Word .docx or text), with its name in the
+         *     `x-filename` header. Only the text it holds is kept, never the file. Replaces any earlier CV.
+         */
+        post: operations["upload_cv_api_notes_cv_post"];
+        /**
+         * Remove Cv
+         * @description Remove the CV text. The target role stays.
+         */
+        delete: operations["remove_cv_api_notes_cv_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/onboarding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Save Onboarding
+         * @description Finish onboarding with all four answers, or skip it. Either way the person is not asked
+         *     again. The target role, if given, goes to the CV page.
+         */
+        put: operations["save_onboarding_api_onboarding_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Save Profile */
+        put: operations["save_profile_api_profile_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -833,6 +897,24 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** CvUploadOut */
+        CvUploadOut: {
+            /** Content */
+            content: string;
+            /** Cv Filename */
+            cv_filename?: string | null;
+            /** Cv Uploaded At */
+            cv_uploaded_at?: string | null;
+            /** Role */
+            role: string;
+            /**
+             * Truncated
+             * @default false
+             */
+            truncated: boolean;
+            /** Updated At */
+            updated_at: string | null;
+        };
         /** FeedbackIn */
         FeedbackIn: {
             /** Value */
@@ -889,6 +971,8 @@ export interface components {
         MeOut: {
             /** Email */
             email: string;
+            /** Full Name */
+            full_name?: string | null;
             /**
              * Id
              * Format: uuid
@@ -899,28 +983,71 @@ export interface components {
              * @default false
              */
             is_admin: boolean;
+            /**
+             * Onboarded
+             * @default true
+             */
+            onboarded: boolean;
+            onboarding?: components["schemas"]["OnboardingAnswers"] | null;
         };
-        /** NotesIn */
+        /**
+         * NotesIn
+         * @description A field left out is left as it is. The web app sends only the role; the text comes from the
+         *     CV upload.
+         */
         NotesIn: {
-            /**
-             * Content
-             * @default
-             */
-            content: string;
-            /**
-             * Role
-             * @default
-             */
-            role: string;
+            /** Content */
+            content?: string | null;
+            /** Role */
+            role?: string | null;
         };
         /** NotesOut */
         NotesOut: {
             /** Content */
             content: string;
+            /** Cv Filename */
+            cv_filename?: string | null;
+            /** Cv Uploaded At */
+            cv_uploaded_at?: string | null;
             /** Role */
             role: string;
             /** Updated At */
             updated_at: string | null;
+        };
+        /** OnboardingAnswers */
+        OnboardingAnswers: {
+            /** Focus */
+            focus?: ("structure" | "results" | "confidence" | "technical" | "company" | "curveballs")[];
+            /** Goal */
+            goal?: ("new_job" | "promotion" | "career_change" | "practice") | null;
+            /** Level */
+            level?: ("entry" | "mid" | "senior" | "lead") | null;
+            /** Timeline */
+            timeline?: ("this_week" | "few_weeks" | "few_months" | "not_scheduled") | null;
+        };
+        /**
+         * OnboardingIn
+         * @description Finish onboarding with all four answers, or skip it. `role` is the CV page's target role;
+         *     `full_name` is only asked for when the account has none.
+         */
+        OnboardingIn: {
+            /** Focus */
+            focus?: ("structure" | "results" | "confidence" | "technical" | "company" | "curveballs")[];
+            /** Full Name */
+            full_name?: string | null;
+            /** Goal */
+            goal?: ("new_job" | "promotion" | "career_change" | "practice") | null;
+            /** Level */
+            level?: ("entry" | "mid" | "senior" | "lead") | null;
+            /** Role */
+            role?: string | null;
+            /**
+             * Skipped
+             * @default false
+             */
+            skipped: boolean;
+            /** Timeline */
+            timeline?: ("this_week" | "few_weeks" | "few_months" | "not_scheduled") | null;
         };
         /** PasteIn */
         PasteIn: {
@@ -931,6 +1058,11 @@ export interface components {
              * @default Pasted text
              */
             title: string;
+        };
+        /** ProfileIn */
+        ProfileIn: {
+            /** Full Name */
+            full_name: string;
         };
         /** ProvidersOut */
         ProvidersOut: {
@@ -1127,6 +1259,8 @@ export interface components {
              * Format: email
              */
             email: string;
+            /** Full Name */
+            full_name: string;
             /** Password */
             password: string;
         };
@@ -2020,6 +2154,112 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NotesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_cv_api_notes_cv_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CvUploadOut"];
+                };
+            };
+        };
+    };
+    remove_cv_api_notes_cv_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotesOut"];
+                };
+            };
+        };
+    };
+    save_onboarding_api_onboarding_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnboardingIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_profile_api_profile_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeOut"];
                 };
             };
             /** @description Validation Error */

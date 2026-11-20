@@ -36,9 +36,13 @@ class SttStream(Protocol):
 
 
 class SttProvider(Protocol):
-    async def open_stream(self, *, sample_rate: int = 16000) -> SttStream: ...
+    async def open_stream(self, *, sample_rate: int = 16000, prompt: str = "") -> SttStream:
+        """`prompt` is a hint (role, company, jargon) that helps the transcriber spell them."""
+        ...
 
-    async def transcribe_segment(self, pcm16: bytes, *, sample_rate: int = 16000) -> str:
+    async def transcribe_segment(
+        self, pcm16: bytes, *, sample_rate: int = 16000, prompt: str = ""
+    ) -> str:
         """Per-utterance fallback transcription (FR-20)."""
         ...
 

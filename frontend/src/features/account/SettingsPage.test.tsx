@@ -63,3 +63,62 @@ describe("SettingsPage", () => {
     expect(calls.some((c) => c.key === "DELETE /api/account")).toBe(false);
   });
 });
+
+describe("SettingsPage: your name", () => {
+  it("shows the saved name and only lets it be saved once it has changed", async () => {
+    mockApi({
+      "GET /api/me": () => ({ json: { ...ME, full_name: "Jordan Reyes" } }),
+    });
+    renderApp(<App />, "/settings");
+    const field = await screen.findByLabelText("Full name");
+    expect(field).toHaveValue("Jordan Reyes");
+    expect(screen.getByRole("button", { name: "Save name" })).toBeDisabled();
+    await userEvent.type(field, "x");
+    expect(screen.getByRole("button", { name: "Save name" })).toBeEnabled();
+    await userEvent.clear(field);
+    await userEvent.type(field, "J");
+    expect(screen.getByRole("button", { name: "Save name" })).toBeDisabled(); // too short
+  });
+
+  it("saves the trimmed name and the greeting follows", async () => {
+    let me: object = { ...ME, full_name: "Jordan Reyes" };
+    const calls = mockApi({
+      "GET /api/me": () => ({ json: me }),
+      "PUT /api/profile": ({ body }) => {
+        me = { ...ME, full_name: (body as { full_name: string }).full_name };
+        return { json: me };
+      },
+    });
+    renderApp(<App />, "/settings");
+    const field = await screen.findByLabelText("Full name");
+    await userEvent.clear(field);
+    await userEvent.type(field, "  Ada Lovelace ");
+    await userEvent.click(screen.getByRole("button", { name: "Save name" }));
+    expect(await screen.findByText("Saved.")).toBeInTheDocument();
+    expect(calls.find((c) => c.key === "PUT /api/profile")!.body).toEqual({
+      full_name: "Ada Lovelace",
+    });
+    expect(screen.getByLabelText("Full name")).toHaveValue("Ada Lovelace");
+  });
+
+  it("shows the server's message when the name is refused", async () => {
+    mockApi({
+      "GET /api/me": () => ({ json: { ...ME, full_name: "Jordan Reyes" } }),
+      "PUT /api/profile": () => ({
+        status: 422,
+        json: {
+          error: {
+            code: "invalid_name",
+            message: "Please enter your full name, using letters only.",
+            request_id: "r",
+          },
+        },
+      }),
+    });
+    renderApp(<App />, "/settings");
+    const field = await screen.findByLabelText("Full name");
+    await userEvent.type(field, "1");
+    await userEvent.click(screen.getByRole("button", { name: "Save name" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/full name/i);
+  });
+});

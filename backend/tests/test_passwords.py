@@ -61,7 +61,9 @@ def test_password_rules(pw: str, email: str, expected: str | None) -> None:
 
 
 async def signup(c, email=EMAIL, password=GOOD):  # type: ignore[no-untyped-def]
-    return await c.post("/api/auth/signup", json={"email": email, "password": password})
+    return await c.post(
+        "/api/auth/signup", json={"email": email, "password": password, "full_name": "Pat Rivera"}
+    )
 
 
 async def confirm(c, sender, email=EMAIL):  # type: ignore[no-untyped-def]

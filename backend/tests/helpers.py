@@ -104,8 +104,10 @@ class ControlledStt:
         self.segment_text = "a fallback caption"
         self.segment_error: Exception | None = None
         self.segments: list[tuple[int, int]] = []  # (bytes, sample_rate) received
+        self.prompts: list[str] = []  # the vocabulary hint each call carried
 
-    async def open_stream(self, *, sample_rate: int = 24000) -> ControlledStream:
+    async def open_stream(self, *, sample_rate: int = 24000, prompt: str = "") -> ControlledStream:
+        self.prompts.append(prompt)
         if self.error is not None:
             raise self.error
         if self.fail_opens > 0:
@@ -115,7 +117,10 @@ class ControlledStt:
         self.streams.append(stream)
         return stream
 
-    async def transcribe_segment(self, pcm16: bytes, *, sample_rate: int = 24000) -> str:
+    async def transcribe_segment(
+        self, pcm16: bytes, *, sample_rate: int = 24000, prompt: str = ""
+    ) -> str:
+        self.prompts.append(prompt)
         self.segments.append((len(pcm16), sample_rate))
         if self.segment_error is not None:
             raise self.segment_error

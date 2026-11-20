@@ -60,6 +60,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const { data: me } = useMe();
   const providers = useProviders();
   const [params] = useSearchParams();
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -75,14 +76,20 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const urlError = GOOGLE_ERRORS[params.get("error") ?? ""];
   const longEnough = password.length >= MIN_PASSWORD;
   const mismatch = confirm.length > 0 && confirm !== password;
-  const canCreate = longEnough && confirm === password && agreed;
+  const nameOk = fullName.trim().length >= 2;
+  const canCreate = nameOk && longEnough && confirm === password && agreed;
   const sent = create.isSuccess || link.isSuccess;
   const failure = (signup ? create.error : login.error) ?? link.error;
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (signup) {
-      if (canCreate) create.mutate({ email: email.trim(), password });
+      if (canCreate)
+        create.mutate({
+          email: email.trim(),
+          password,
+          full_name: fullName.trim(),
+        });
     } else {
       login.mutate({ email: email.trim(), password });
     }
@@ -125,6 +132,26 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         ) : (
           <>
             <form onSubmit={submit} className="mt-6 space-y-4">
+              {signup && (
+                <div>
+                  <label
+                    className="block text-sm font-medium"
+                    htmlFor="full-name"
+                  >
+                    Full name
+                  </label>
+                  <input
+                    id="full-name"
+                    required
+                    autoComplete="name"
+                    autoCapitalize="words"
+                    maxLength={120}
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="input mt-1 w-full"
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium" htmlFor="email">
                   Email address

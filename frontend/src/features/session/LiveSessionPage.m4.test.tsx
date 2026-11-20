@@ -25,7 +25,7 @@ vi.mock("./controller", () => ({
 const set = (p: Partial<LiveState>) => act(() => useLiveStore.setState(p));
 const outline = (over: Partial<Outline> = {}): Outline => ({
   question: "Why us?",
-  text: "TYPE: company\nPOINTS:\n- Acme sells POS [brief: Acme site]",
+  text: "TYPE: company\nANSWER: Acme sells point-of-sale software.\nSOURCES:\n- Acme sells POS [brief: Acme site]",
   state: "done",
   suggestionId: "sg1",
   flags: [],
@@ -220,10 +220,10 @@ describe("floating panel (FR-29)", () => {
     expect(pip.requestWindow).toHaveBeenCalledWith({ width: 420, height: 560 });
     const inPip = within(pip.doc.body);
     expect(
-      inPip.getByRole("heading", { name: "Answer outline" }),
+      inPip.getByRole("heading", { name: "Question and answer" }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("heading", { name: "Answer outline" }),
+      screen.queryByRole("heading", { name: "Question and answer" }),
     ).toBeNull(); // not duplicated in the page
     // the controls still work from the floating window (they use the shared store)
     expect(inPip.getByTestId("outline").className).toMatch(/blur-sm/);
@@ -256,7 +256,7 @@ describe("floating panel (FR-29)", () => {
     );
     expect(pip.win.close).toHaveBeenCalled();
     expect(
-      await screen.findByRole("heading", { name: "Answer outline" }),
+      await screen.findByRole("heading", { name: "Question and answer" }),
     ).toBeInTheDocument();
   });
 
@@ -269,7 +269,7 @@ describe("floating panel (FR-29)", () => {
     await screen.findByText(/in its own window/);
     act(() => pip.closeByUser());
     expect(
-      await screen.findByRole("heading", { name: "Answer outline" }),
+      await screen.findByRole("heading", { name: "Question and answer" }),
     ).toBeInTheDocument();
   });
 
@@ -287,7 +287,7 @@ describe("floating panel (FR-29)", () => {
     );
     await waitFor(() =>
       expect(
-        screen.getByRole("heading", { name: "Answer outline" }),
+        screen.getByRole("heading", { name: "Question and answer" }),
       ).toBeInTheDocument(),
     );
     expect(screen.queryByText(/in its own window/)).toBeNull();

@@ -54,10 +54,12 @@ export function TermsPage() {
       </p>
       <h2 className="text-lg font-semibold">Accuracy</h2>
       <p>
-        Outlines are suggestions built only from your notes and your company
-        brief, with the source of each point. They can still be wrong or
-        incomplete. Check company facts before you rely on them, and never claim
-        experience you do not have.
+        Answers are suggestions. Your own experience in them comes only from
+        your CV, company facts only from your company brief, each labelled with
+        its source; the rest is general interview advice, and any example marked
+        as a sample is illustrative, not your history. They can still be wrong
+        or incomplete. Check company facts before you rely on them, and never
+        claim experience you do not have.
       </p>
       <h2 className="text-lg font-semibold">Company research</h2>
       <p>
@@ -74,7 +76,11 @@ export function PrivacyPage() {
     <Shell title="Privacy">
       <h2 className="text-lg font-semibold">What is stored</h2>
       <ul className="list-disc pl-5">
-        <li>Your email address, your notes and target role.</li>
+        <li>
+          Your email address, target role and the text of your CV. The CV file
+          you upload is read and then discarded: only the text we read from it
+          is saved.
+        </li>
         <li>
           Companies you add, the pages and search results used, and the brief.
         </li>

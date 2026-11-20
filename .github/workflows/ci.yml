@@ -97,7 +97,9 @@ jobs:
       - run: npm ci
         working-directory: frontend
       - run: npm install -g playwright@1 && playwright install --with-deps chromium
-      - run: E2E_PROD=1 ./scripts/e2e-live.sh
+      # The deployed topology: real nginx serves the pages and forwards /api to the API.
+      - run: sudo apt-get update && sudo apt-get install -y nginx-light gettext-base && sudo systemctl stop nginx || true
+      - run: E2E_PROD=1 E2E_PROXY=1 ./scripts/e2e-live.sh
       - uses: actions/upload-artifact@v4
         if: failure()
         with: { name: e2e-output, path: "${{ runner.temp }}/e2e", if-no-files-found: ignore }

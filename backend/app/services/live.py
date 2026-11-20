@@ -21,6 +21,7 @@ from app import metrics
 from app.adapters.interfaces import ProviderError, ProviderNotConfigured, SttProvider, SttStream
 from app.config import Settings
 from app.repositories import AudioTokenRepo, LiveRepo, UsageMeterRepo
+from app.services.vocab import session_stt_prompt
 
 log = logging.getLogger("app.live")
 
@@ -94,6 +95,7 @@ class AudioRelay:
         self._saves: set[asyncio.Task[None]] = set()
         self._utt_started: datetime | None = None
         self._stream: SttStream | None = None
+        self._stt_prompt = ""
 
     # ------------------------------------------------------------------ helpers
 
@@ -153,9 +155,11 @@ class AudioRelay:
             if user_id is None:
                 self._close_code = CLOSE_BAD_TOKEN
                 return False
-            if await LiveRepo(db, user_id).active_session(self.session_id) is None:
+            session = await LiveRepo(db, user_id).active_session(self.session_id)
+            if session is None:
                 await self._fail(CLOSE_BAD_TOKEN, "session_not_active", "This session has ended.")
                 return False
+            self._stt_prompt = await session_stt_prompt(db, session)
             self._base_seconds = await UsageMeterRepo(db, user_id).stt_seconds_today()
         self.user_id = user_id
         if self._base_seconds >= self.cfg.cap_stt_seconds_daily:
@@ -168,7 +172,9 @@ class AudioRelay:
         for attempt in (1, 2):
             try:
                 async with asyncio.timeout(5):
-                    self._stream = await self.stt.open_stream(sample_rate=self.cfg.stt_sample_rate)
+                    self._stream = await self.stt.open_stream(
+                        sample_rate=self.cfg.stt_sample_rate, prompt=self._stt_prompt
+                    )
                 metrics.provider_calls.labels("stt", "open", "ok").inc()
                 return True
             except ProviderNotConfigured as exc:

@@ -5,6 +5,7 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import { API_BASE_URL } from "../../api/client";
 import { endSessionApi, fetchAudioToken, sendFeedback } from "../../api/hooks";
 import { FeatureBoundary } from "../../ui/FeatureBoundary";
+import { answerOf } from "./answerText";
 import { LiveSessionController } from "./controller";
 import { type Line, type Outline, useLiveStore } from "./store";
 import { useFloatingPanel } from "./useFloatingPanel";
@@ -196,35 +197,37 @@ function FeedbackButtons({ outline }: { outline: Outline }) {
   );
 }
 
-function OutlineView({
-  outline,
-  onRegenerate,
-}: {
-  outline: Outline;
-  onRegenerate: () => void;
-}) {
-  const { blur, setBlur, patchOutline } = useLiveStore();
+/** What the floating panel shows: the question that was asked and the answer, nothing else. */
+function QuestionAnswer({ outline }: { outline: Outline }) {
+  const { blur, patchOutline } = useLiveStore();
   const hidden = blur && !outline.revealed && outline.state !== "error";
+  const answer = answerOf(outline.text, outline.state === "streaming");
   return (
-    <div className="space-y-2">
-      <p className="text-sm text-muted">
-        Heard: <q>{outline.question}</q>
-      </p>
-      {/* aria-busy holds announcements until the outline is complete, so a screen reader is not
-          interrupted on every token. */}
-      <div
-        aria-live="polite"
-        aria-busy={outline.state === "streaming"}
-        onClick={() => hidden && patchOutline({ revealed: true })}
-        className={`whitespace-pre-wrap card !p-4 ${hidden ? "cursor-pointer select-none blur-sm" : ""}`}
-        data-testid="outline"
-      >
-        {outline.text ||
-          (outline.state === "streaming" ? (
-            <span className="text-muted">Thinking…</span>
-          ) : (
-            ""
-          ))}
+    <div className="space-y-3">
+      <div>
+        <h3 className="text-sm font-semibold text-muted">Question</h3>
+        <p className="mt-1" data-testid="question">
+          {outline.question}
+        </p>
+      </div>
+      <div>
+        <h3 className="text-sm font-semibold text-muted">Answer</h3>
+        {/* aria-busy holds announcements until the answer is complete, so a screen reader is not
+            interrupted on every token. */}
+        <div
+          aria-live="polite"
+          aria-busy={outline.state === "streaming"}
+          onClick={() => hidden && patchOutline({ revealed: true })}
+          className={`mt-1 whitespace-pre-wrap card !p-4 ${hidden ? "cursor-pointer select-none blur-sm" : ""}`}
+          data-testid="outline"
+        >
+          {answer ||
+            (outline.state === "streaming" ? (
+              <span className="text-muted">Thinking…</span>
+            ) : (
+              ""
+            ))}
+        </div>
       </div>
       {hidden && (
         <button
@@ -234,14 +237,9 @@ function OutlineView({
           Reveal
         </button>
       )}
-      {outline.firstWordsMs !== undefined && (
-        <p className="text-xs text-muted">
-          First words in {(outline.firstWordsMs / 1000).toFixed(1)} s
-        </p>
-      )}
       {outline.flags.length > 0 && (
         <div className="notice-warn">
-          Check these points. They may not be in your notes or the brief:
+          Check these points. They may not be in your CV or the brief:
           <ul className="list-disc pl-5">
             {outline.flags.map((f) => (
               <li key={f}>{f}</li>
@@ -254,7 +252,17 @@ function OutlineView({
           {outline.error.message} {outline.error.next_step}
         </p>
       )}
-      <div className="flex items-center gap-3">
+    </div>
+  );
+}
+
+/** Options for the answer. They stay on the page, outside the panel, so the panel stays clean. */
+function AnswerControls({ onRegenerate }: { onRegenerate: () => void }) {
+  const outline = useLiveStore((s) => s.outline);
+  const { blur, setBlur } = useLiveStore();
+  return (
+    <section aria-label="Answer options" className="space-y-1">
+      <div className="flex flex-wrap items-center gap-3">
         <label className="flex min-h-[44px] items-center gap-3 text-sm">
           <input
             className="h-5 w-5 accent-accent"
@@ -262,34 +270,38 @@ function OutlineView({
             checked={blur}
             onChange={(e) => setBlur(e.target.checked)}
           />
-          Answer-first (blur outlines)
+          Answer-first (blur answers)
         </label>
-        {outline.state === "done" && outline.suggestionId && (
+        {outline?.state === "done" && outline.suggestionId && (
           <FeedbackButtons outline={outline} />
         )}
-        {outline.state !== "streaming" && (
+        {outline && outline.state !== "streaming" && (
           <button className="btn-secondary btn-sm" onClick={onRegenerate}>
             Regenerate
           </button>
         )}
       </div>
-    </div>
+      {outline?.firstWordsMs !== undefined && (
+        <p className="text-xs text-muted">
+          First words in {(outline.firstWordsMs / 1000).toFixed(1)} s
+        </p>
+      )}
+    </section>
   );
 }
 
-function AnswerPanel({ onRegenerate }: { onRegenerate: () => void }) {
+function AnswerPanel() {
   const outline = useLiveStore((s) => s.outline);
   return (
     <section aria-labelledby="ans-h" className="card space-y-2">
       <h2 id="ans-h" className="text-lg font-semibold">
-        Answer outline
+        Question and answer
       </h2>
       {outline ? (
-        <OutlineView outline={outline} onRegenerate={onRegenerate} />
+        <QuestionAnswer outline={outline} />
       ) : (
         <p className="text-muted">
-          When your partner asks a question, an outline built from your notes
-          appears here.
+          When your partner asks a question, it appears here with an answer.
         </p>
       )}
     </section>
@@ -380,7 +392,7 @@ export function LiveSessionPage() {
     return () => controller.dispose(); // leaving the page stops capture; the session is ended explicitly
   }, [controller]);
 
-  const answer = <AnswerPanel onRegenerate={() => controller.regenerate()} />;
+  const answer = <AnswerPanel />;
 
   return (
     <main className="mx-auto grid max-w-5xl gap-4 p-6 md:grid-cols-2">
@@ -417,6 +429,9 @@ export function LiveSessionPage() {
               )}
             </>
           )}
+        </FeatureBoundary>
+        <FeatureBoundary name="answer options">
+          <AnswerControls onRegenerate={() => controller.regenerate()} />
         </FeatureBoundary>
         {status !== "ended" && (
           <ManualQuestion onSubmit={(q) => controller.submitManual(q)} />
