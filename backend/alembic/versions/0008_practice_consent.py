@@ -15,7 +15,9 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("users", sa.Column("practice_consent_at", sa.DateTime(timezone=True), nullable=True))
+    op.add_column(
+        "users", sa.Column("practice_consent_at", sa.DateTime(timezone=True), nullable=True)
+    )
     op.add_column(
         "users",
         sa.Column("consent_each_time", sa.Boolean(), nullable=False, server_default=sa.false()),
