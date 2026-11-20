@@ -148,3 +148,146 @@ describe("collapsible sidebar", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("top bar on every page", () => {
+  const withName = { ...ME, full_name: "Jordan Reyes", onboarded: true };
+
+  it.each(["/dashboard", "/notes", "/companies", "/sessions", "/settings"])(
+    "has the search box and the account button on %s",
+    async (path) => {
+      signedIn(withName);
+      renderApp(<App />, path);
+      expect(await screen.findByRole("combobox")).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Account menu for Jordan Reyes" }),
+      ).toBeInTheDocument();
+    },
+  );
+
+  it("no longer has a New practice button on the dashboard", async () => {
+    signedIn(withName);
+    renderApp(<App />, "/dashboard");
+    await screen.findByRole("combobox");
+    expect(screen.queryByRole("link", { name: "New practice" })).toBeNull();
+  });
+
+  it("shows the person's initials and first name on the button", async () => {
+    signedIn(withName);
+    renderApp(<App />, "/dashboard");
+    const btn = await screen.findByRole("button", {
+      name: /Account menu for Jordan Reyes/,
+    });
+    expect(btn).toHaveTextContent("JR");
+    expect(btn).toHaveTextContent("Jordan");
+  });
+
+  it("opens a menu with the account links, and closes it with Escape, returning focus", async () => {
+    signedIn(withName);
+    renderApp(<App />, "/dashboard");
+    const btn = await screen.findByRole("button", {
+      name: /Account menu/,
+    });
+    expect(btn).toHaveAttribute("aria-expanded", "false");
+    await userEvent.click(btn);
+    expect(btn).toHaveAttribute("aria-expanded", "true");
+    const menu = within(screen.getByRole("menu", { name: "Account" }));
+    expect(menu.getByText("Jordan Reyes")).toBeInTheDocument();
+    expect(menu.getByText("me@example.com")).toBeInTheDocument();
+    expect(menu.getByRole("menuitem", { name: "Settings" })).toHaveAttribute(
+      "href",
+      "/settings",
+    );
+    expect(
+      menu.getByRole("menuitem", { name: "Update my focus" }),
+    ).toHaveAttribute("href", "/onboarding");
+    expect(
+      menu.getByRole("menuitem", { name: "Sign out" }),
+    ).toBeInTheDocument();
+    expect(menu.getByRole("menuitem", { name: "Settings" })).toHaveFocus();
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(btn).toHaveFocus();
+  });
+
+  it("moves through the menu with the arrow keys and wraps around", async () => {
+    signedIn(withName);
+    renderApp(<App />, "/dashboard");
+    await userEvent.click(
+      await screen.findByRole("button", { name: /Account menu/ }),
+    );
+    const names = [
+      "Settings",
+      "Update my focus",
+      "Privacy",
+      "Terms",
+      "Sign out",
+    ];
+    for (const n of names.slice(1)) {
+      await userEvent.keyboard("{ArrowDown}");
+      expect(screen.getByRole("menuitem", { name: n })).toHaveFocus();
+    }
+    await userEvent.keyboard("{ArrowDown}");
+    expect(screen.getByRole("menuitem", { name: "Settings" })).toHaveFocus();
+    await userEvent.keyboard("{ArrowUp}");
+    expect(screen.getByRole("menuitem", { name: "Sign out" })).toHaveFocus();
+  });
+
+  it("closes when you click elsewhere", async () => {
+    signedIn(withName);
+    renderApp(<App />, "/dashboard");
+    await userEvent.click(
+      await screen.findByRole("button", { name: /Account menu/ }),
+    );
+    await userEvent.click(document.body);
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("signs out from the menu and goes to the sign-in page", async () => {
+    let out = false;
+    mockApi({
+      "GET /api/me": () =>
+        out
+          ? {
+              status: 401,
+              json: {
+                error: {
+                  code: "unauthenticated",
+                  message: "x",
+                  request_id: "r",
+                },
+              },
+            }
+          : { json: withName },
+      "POST /api/auth/logout": () => {
+        out = true;
+        return { json: { status: "ok" } };
+      },
+      "GET /api/notes": () => ({
+        json: { role: "", content: "", updated_at: null },
+      }),
+      "GET /api/companies": () => ({ json: [] }),
+      "GET /api/sessions": () => ({ json: { items: [], next_cursor: null } }),
+    });
+    renderApp(<App />, "/dashboard");
+    await userEvent.click(
+      await screen.findByRole("button", { name: /Account menu/ }),
+    );
+    await userEvent.click(screen.getByRole("menuitem", { name: "Sign out" }));
+    expect(
+      await screen.findByRole("heading", { name: "Sign in" }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("initials", () => {
+  it.each([
+    ["Jordan Reyes", "x@y.z", "JR"],
+    ["  ada   king lovelace ", "", "AL"],
+    ["Madonna", "", "MA"],
+    [null, "tia@example.com", "T"],
+    ["", "", "?"],
+  ])("%j with %j is %j", async (name, email, expected) => {
+    const { initials } = await import("./ProfileMenu");
+    expect(initials(name, email)).toBe(expected);
+  });
+});

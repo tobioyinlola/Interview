@@ -114,7 +114,7 @@ export function GlobalSearch() {
         }
         autoComplete="off"
         value={query}
-        placeholder="Search pages, companies, sessions…"
+        placeholder="Search…"
         onChange={(e) => {
           setQuery(e.target.value);
           setOpen(true);

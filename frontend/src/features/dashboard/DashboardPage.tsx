@@ -1,4 +1,3 @@
-import { GlobalSearch } from "../search/GlobalSearch";
 import { Link } from "react-router-dom";
 
 import { currentEnv, isSupported } from "../../app/browserSupport";
@@ -9,9 +8,10 @@ import {
   ClockIcon,
   MicIcon,
   NoteIcon,
-  PlusIcon,
 } from "../../app/icons";
 import { FOCUS, PLAN } from "../onboarding/content";
+export { firstName } from "../account/names";
+import { firstName } from "../account/names";
 import { PracticeChart } from "./PracticeChart";
 import { daysSince } from "../companies/ResearchStatus";
 import { formatDuration, formatWhen } from "../review/format";
@@ -99,13 +99,6 @@ function ReadinessCard() {
     </section>
   );
 }
-
-/** The first word of the person's name, for the greeting. */
-export const firstName = (fullName?: string | null) =>
-  (fullName ?? "")
-    .trim()
-    .split(/\s+/)[0]
-    ?.replace(/[,.]+$/, "") ?? "";
 
 /** Their chosen focus areas, and a line of advice that matches how soon the interview is. */
 function FocusCard() {
@@ -233,20 +226,7 @@ export function DashboardPage() {
 
   return (
     <main className="mx-auto max-w-6xl p-4 sm:p-6 lg:p-8">
-      {/* Top bar: search on the left, the main action on the right. */}
-      <div className="sticky top-0 z-20 -mx-4 flex items-center justify-between gap-3 bg-canvas/85 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-        <GlobalSearch />
-        <Link
-          to="/session/new"
-          className="inline-flex shrink-0 items-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-medium text-surface shadow-card hover:bg-accent-dark"
-        >
-          <PlusIcon className="h-4 w-4" />
-          <span className="hidden sm:inline">New practice</span>
-          <span className="sr-only sm:hidden">New practice</span>
-        </Link>
-      </div>
-
-      <div className="mt-4 min-w-0">
+      <div className="min-w-0">
         <h1 className="sr-only">Dashboard</h1>
         <p className="break-words text-3xl font-semibold tracking-tight sm:text-4xl">
           Hello

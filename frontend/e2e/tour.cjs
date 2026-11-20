@@ -109,6 +109,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await shot("16-practice-setup");
   await page.goto(B + "/dashboard");
   await shot("17-dashboard");
+  await page.getByRole("button", { name: /Account menu/ }).click();
+  await page.getByRole("menu").waitFor();
+  await shot("17a-dashboard-profile-menu", false);
+  await page.keyboard.press("Escape");
   await page.getByRole("combobox").fill("set");
   await page.getByRole("listbox").waitFor();
   await shot("17b-dashboard-search", false);
@@ -123,6 +127,16 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await shot("19-settings");
   await page.goto(B + "/terms");
   await shot("20-terms");
+  // phone: the top bar and the menu on a small screen
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(B + "/dashboard");
+  await shot("21-phone-dashboard", false);
+  await page.getByRole("button", { name: /Account menu/ }).click();
+  await page.getByRole("menu").waitFor();
+  await shot("22-phone-profile-menu", false);
+  await page.keyboard.press("Escape");
+  await page.goto(B + "/companies");
+  await shot("23-phone-companies", false);
   // phone
   await ctx.close();
   const state = await (async () => null)();

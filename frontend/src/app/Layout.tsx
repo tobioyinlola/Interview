@@ -9,6 +9,8 @@ import {
 
 import { useLogout, useMe } from "../api/hooks";
 import { LogoMark } from "../features/landing/Logo";
+import { GlobalSearch } from "../features/search/GlobalSearch";
+import { ProfileMenu } from "./ProfileMenu";
 import {
   BuildingIcon,
   CloseIcon,
@@ -134,7 +136,7 @@ export function Layout() {
   ];
 
   return (
-    <div className="min-h-screen bg-ink lg:flex">
+    <div className="flex min-h-screen flex-col bg-ink lg:flex-row">
       {/* Mobile top bar */}
       <div className="flex items-center justify-between bg-ink px-4 py-3 text-surface lg:hidden">
         <Link to="/dashboard" className="flex items-center gap-2 font-semibold">
@@ -230,6 +232,11 @@ export function Layout() {
       </aside>
 
       <div className="min-w-0 flex-1 bg-canvas lg:min-h-screen lg:rounded-l-[2rem]">
+        {/* The top bar on every page: search on the left, the person's account on the right. */}
+        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 bg-canvas/85 px-4 py-3 backdrop-blur sm:px-6 lg:rounded-tl-[2rem] lg:px-8">
+          <GlobalSearch />
+          <ProfileMenu />
+        </header>
         <Outlet />
       </div>
     </div>
