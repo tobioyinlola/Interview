@@ -49,6 +49,7 @@ class ConsumedToken(NamedTuple):
     full_name: str | None
     referral_code: str | None = None
     device: DeviceInfo = DeviceInfo()
+    attribution: dict[str, Any] | None = None
 
 
 class AuthRepo:
@@ -57,6 +58,9 @@ class AuthRepo:
     def __init__(self, db: AsyncSession, secret: str) -> None:
         self.db = db
         self.secret = secret
+        # Set by get_or_create_user when a new account was counted (or held) for an inviter:
+        # (inviter id, "counted" | "held"). The route reads it to log and to tell the inviter.
+        self.last_referral: tuple[uuid.UUID, str] | None = None
 
     async def recent_login_requests(self, email: str, *, within: timedelta) -> int:
         stmt = (
@@ -76,6 +80,7 @@ class AuthRepo:
         full_name: str | None = None,
         referral_code: str | None = None,
         device: DeviceInfo | None = None,
+        attribution: dict[str, Any] | None = None,
     ) -> str:
         token = new_token()
         device = device or DeviceInfo()
@@ -88,6 +93,7 @@ class AuthRepo:
                 password_hash=password_hash,
                 full_name=full_name,
                 referral_code=referral_code,
+                attribution=attribution,
                 device_cookie_hash=device.cookie_hash,
                 device_print_hash=device.print_hash,
                 device_ip_hash=device.ip_hash,
@@ -118,13 +124,14 @@ class AuthRepo:
                 LoginToken.device_cookie_hash,
                 LoginToken.device_print_hash,
                 LoginToken.device_ip_hash,
+                LoginToken.attribution,
             )
         )
         row = (await self.db.execute(stmt)).one_or_none()
         await self.db.commit()
         return (
             ConsumedToken(
-                row[0], row[1], row[2], row[3], row[4], DeviceInfo(row[5], row[6], row[7])
+                row[0], row[1], row[2], row[3], row[4], DeviceInfo(row[5], row[6], row[7]), row[8]
             )
             if row
             else None
@@ -183,6 +190,7 @@ class AuthRepo:
         full_name: str | None = None,
         referral_code: str | None = None,
         devices: tuple[DeviceInfo, ...] = (),
+        attribution: dict[str, Any] | None = None,
     ) -> User:
         user = (await self.db.execute(select(User).where(User.email == email))).scalar_one_or_none()
         if user:
@@ -192,6 +200,7 @@ class AuthRepo:
             full_name=full_name,
             practice_consent_at=_now(),  # agreeing to the terms is part of making an account
             referral_code=new_referral_code(),
+            attribution=attribution,
         )
         self.db.add(user)
         try:
@@ -199,6 +208,7 @@ class AuthRepo:
             # Everyone gets one free trial session, and whoever invited them gets the credit.
             self.db.add(SessionCredit(user_id=user.id, kind="trial"))
             await self._apply_referral(user, referral_code, devices)
+            user.attribution = {**(attribution or {}), "referred": self.last_referral is not None}
             for d in dict.fromkeys(devices):  # once each, and after the check so the new account
                 # is not compared with itself
                 self._remember_device(user.id, d)
@@ -276,6 +286,7 @@ class AuthRepo:
                 held_reason="same_device" if held else None,
             )
         )
+        self.last_referral = (referrer.id, "held" if held else "counted")
 
     async def create_session(self, user_id: uuid.UUID, *, ttl: timedelta) -> str:
         token = new_token()
@@ -901,6 +912,7 @@ class BillingSummary(NamedTuple):
     trial_available: int
     referral_available: int
     paid_available: int
+    granted_available: int
     referrals_qualified: int
     rewards_earned: int
     rewards_redeemed: int
@@ -911,7 +923,7 @@ class BillingRepo:
     """Who may start a session, and the invite rewards that earn more of them."""
 
     # Which credit is used first: the free trial, then rewards, then anything paid for.
-    ORDER = {"trial": 0, "referral": 1, "paid": 2}
+    ORDER = {"trial": 0, "grant": 1, "referral": 2, "paid": 3}
 
     def __init__(self, db: AsyncSession, user: User, *, per_reward: int) -> None:
         self.db = db
@@ -926,7 +938,7 @@ class BillingRepo:
                 .group_by(SessionCredit.kind, SessionCredit.used_at.is_(None))
             )
         ).all()
-        free = {k: 0 for k in self.ORDER}
+        free = {k: 0 for k in self.ORDER}  # trial | grant (given by the team) | referral | paid
         redeemed = 0
         for kind, unused, n in rows:
             if unused:
@@ -955,6 +967,7 @@ class BillingRepo:
             trial_available=free["trial"],
             referral_available=free["referral"],
             paid_available=free["paid"],
+            granted_available=free["grant"],
             referrals_qualified=qualified,
             rewards_earned=qualified // self.per_reward,
             rewards_redeemed=redeemed,

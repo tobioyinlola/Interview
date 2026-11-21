@@ -17,6 +17,8 @@ from app.config import Settings
 from app.models import PracticeSession, Score, Utterance
 from app.prompts import load_prompt
 from app.repositories import UsageMeterRepo
+from app.services.events import record_event
+from app.services.notify import Notifier
 from app.services.scoring import ScoreResult, build_user_prompt, group_answers, pace_from_timing
 
 log = logging.getLogger("app.scoring")
@@ -34,6 +36,7 @@ class ScoringRunner:
         self.settings = settings
         self.sf = session_factory
         self._tasks: set[asyncio.Task[None]] = set()
+        self.notifier: Notifier | None = None  # set at start-up; emails the person when done
 
     def start(self, session_id: uuid.UUID, user_id: uuid.UUID) -> None:
         task = asyncio.create_task(self._guarded(session_id, user_id))
@@ -66,6 +69,16 @@ class ScoringRunner:
                 .values(scoring_status=status, scoring_error=error)
             )
             await db.commit()
+        await self._announce(session_id, "scoring.failed" if status != "ready" else "scoring.ready")
+
+    async def _announce(self, session_id: uuid.UUID, kind: str) -> None:
+        async with self.sf() as db:
+            session = await db.get(PracticeSession, session_id)
+        if session is None:
+            return
+        await record_event(self.sf, kind, user_id=session.user_id, session_id=session_id)
+        if kind == "scoring.ready" and self.notifier is not None:
+            await self.notifier.review_ready(session_id)
 
     async def _guarded(self, session_id: uuid.UUID, user_id: uuid.UUID) -> None:
         try:
@@ -156,3 +169,4 @@ class ScoringRunner:
                 .values(scoring_status="ready", scoring_error=None)
             )
             await db.commit()
+        await self._announce(session_id, "scoring.ready")

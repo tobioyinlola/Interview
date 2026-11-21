@@ -7,13 +7,20 @@ from dataclasses import dataclass
 from typing import Protocol
 
 import httpx
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from app.models import User
+from app.services.events import record_event
 
 log = logging.getLogger("app.email")
 
 
 @dataclass(frozen=True)
 class EmailMessage:
-    kind: str  # signup | login | reset | welcome | password_changed | account_deleted
+    # signup | login | reset | welcome | password_changed | account_deleted | brief_ready |
+    # review_ready | friend_joined | reward_earned | trial_used | credit_granted
+    kind: str
     to: str
     subject: str
     html: str
@@ -25,13 +32,15 @@ class EmailMessage:
 
 
 class EmailSender(Protocol):
-    async def send(self, message: EmailMessage) -> None: ...
+    async def send(self, message: EmailMessage) -> bool | None:
+        """True when handed to the provider, False when delivery failed, None when unknown."""
+        ...
 
 
 class ConsoleEmailSender:
     """Local development only: prints the link instead of emailing it."""
 
-    async def send(self, message: EmailMessage) -> None:
+    async def send(self, message: EmailMessage) -> bool | None:
         if message.link:
             log.info(
                 "login link (local only)",
@@ -39,14 +48,16 @@ class ConsoleEmailSender:
             )
         else:
             log.info("email (local only, not sent)", extra={"fields": {"kind": message.kind}})
+        return True
 
 
 class UnconfiguredEmailSender:
-    async def send(self, message: EmailMessage) -> None:
+    async def send(self, message: EmailMessage) -> bool | None:
         log.error(
             "no email provider configured; email was not delivered",
             extra={"fields": {"kind": message.kind}},
         )
+        return False
 
 
 def _reason(resp: httpx.Response) -> str:
@@ -77,7 +88,7 @@ class ResendEmailSender:
         self._from = from_address
         self._transport = transport
 
-    async def send(self, message: EmailMessage) -> None:
+    async def send(self, message: EmailMessage) -> bool | None:
         body: dict[str, object] = {
             "from": self._from,
             "to": [message.to],
@@ -103,8 +114,11 @@ class ResendEmailSender:
                         }
                     },
                 )
+                return False
+            return True
         except httpx.HTTPError as exc:
             log.error("resend request failed", extra={"fields": {"error": type(exc).__name__}})
+            return False
 
 
 class TeeEmailSender:
@@ -114,6 +128,33 @@ class TeeEmailSender:
     def __init__(self, primary: EmailSender, console: EmailSender) -> None:
         self._senders = (primary, console)
 
-    async def send(self, message: EmailMessage) -> None:
-        for sender in self._senders:
-            await sender.send(message)
+    async def send(self, message: EmailMessage) -> bool | None:
+        results = [await sender.send(message) for sender in self._senders]
+        return results[0]  # the real provider's outcome; the console copy is only for developers
+
+
+class AuditedEmailSender:
+    """Wraps the real sender and writes each outcome to the admin event log: which kind of email, to
+    whom, and whether the provider took it. Never changes what the caller sees."""
+
+    def __init__(self, inner: EmailSender, sf: "async_sessionmaker[AsyncSession]") -> None:
+        self._inner = inner
+        self._sf = sf
+
+    async def send(self, message: EmailMessage) -> bool | None:
+        ok = await self._inner.send(message)
+        try:
+            async with self._sf() as db:
+                uid = (
+                    await db.execute(select(User.id).where(User.email == message.to.lower()))
+                ).scalar_one_or_none()
+            await record_event(
+                self._sf,
+                "email.failed" if ok is False else "email.sent",
+                user_id=uid,
+                email_kind=message.kind,
+                to=message.to.lower(),
+            )
+        except Exception as exc:  # the log must never stop a message
+            log.warning("email not logged", extra={"fields": {"error": type(exc).__name__}})
+        return ok

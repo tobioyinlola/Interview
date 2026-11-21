@@ -56,6 +56,9 @@ class User(Base):
     # When the person agreed, at sign-up, that they only practise with a partner who knows the
     # assistant is on. The app never asks again; every account has it from the moment it exists.
     practice_consent_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    # Where the account came from, for the admin marketing view: how they signed up (password,
+    # email_link, google), whether an invite brought them, and the campaign tags on the link.
+    attribution: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     # When the person finished or skipped the first-time tour of the app. Null: not yet shown.
     tour_done_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
     # The code in this person's invite link. Every account has one.
@@ -78,6 +81,8 @@ class LoginToken(Base):
     purpose: Mapped[str] = mapped_column(String(10), server_default="login", default="login")
     # The invite code the person arrived with; applied only if this creates a brand-new account.
     referral_code: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    # Campaign tags (utm_source, utm_medium, utm_campaign) from the link they arrived on.
+    attribution: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     # The device that asked for the link (hashes only), compared with the inviter's devices.
     device_cookie_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     device_print_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -337,7 +342,7 @@ class SessionCredit(Base):
     __tablename__ = "session_credits"
     id: Mapped[uuid.UUID] = _pk()
     user_id: Mapped[uuid.UUID] = _fk("users.id", index=True)
-    kind: Mapped[str] = mapped_column(String(10))  # trial | referral | paid
+    kind: Mapped[str] = mapped_column(String(10))  # trial | referral | paid | grant
     created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
     used_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
     session_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -356,3 +361,21 @@ class UserDevice(Base):
     print_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     ip_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     first_seen_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+
+
+class Event(Base):
+    """One thing that happened on the platform, for the admin log. Holds who, what and a few plain
+    facts; never CV text, transcripts or answers. Removed with the account it belongs to."""
+
+    __tablename__ = "events"
+    id: Mapped[uuid.UUID] = _pk()
+    created_at: Mapped[datetime] = mapped_column(_TS, default=_now, index=True)
+    kind: Mapped[str] = mapped_column(String(40), index=True)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    # The admin who did it, for admin actions. Not a foreign key: the log outlives an admin account.
+    actor_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    data: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb")
+    )

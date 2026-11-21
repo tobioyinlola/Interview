@@ -10,6 +10,7 @@ from app.repositories import AccountRepo
 from app.schemas.api import StatusOut
 from app.security import COOKIE_NAME
 from app.services import email_templates as emails
+from app.services.events import record_from
 
 router = APIRouter(prefix="/api", tags=["account"])
 
@@ -25,6 +26,8 @@ async def delete_account(
     """Delete the user and everything they own at once. Backups age out within 30 days. One
     confirmation email goes out afterwards, and the address is kept for nothing else."""
     email, name = user.email, user.full_name
+    # recorded first and without the person attached: their own events go with the account
+    await record_from(db, "user.deleted")
     await AccountRepo(db, user.id).delete_everything()
     response.delete_cookie(COOKIE_NAME, path="/")
     await sender.send(emails.account_deleted(email_brand(settings), email, name))

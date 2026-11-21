@@ -444,3 +444,35 @@ async def test_a_job_that_never_got_a_heartbeat_is_recovered_by_start_time(db, b
     await runner.wait_idle()
     await reload(db, job)
     assert job.status == "ready"
+
+
+async def test_a_finished_brief_is_logged_and_the_person_is_emailed(
+    db, build, company, maker, settings, sender
+):
+    from app.models import Event
+    from app.services.notify import Notifier
+
+    runner = build()
+    runner.notifier = Notifier(maker, settings, sender)
+    job = await new_job(db, company)
+    await run(runner, job)
+    kinds = [e.kind for e in (await db.execute(select(Event))).scalars()]
+    assert "research.ready" in kinds
+    (mail,) = [m for m in sender.messages if m.kind == "brief_ready"]
+    assert mail.to == "r@example.com" and "Acme" in mail.subject
+    assert f"/companies/{company.id}" in mail.html
+
+
+async def test_a_failed_research_job_is_logged_and_nobody_is_emailed(
+    db, build, company, maker, settings, sender
+):
+    from app.models import Event
+    from app.services.notify import Notifier
+
+    runner = build(llm=ScriptedLlm(lambda u: (_ for _ in ()).throw(ProviderError("down"))))
+    runner.notifier = Notifier(maker, settings, sender)
+    job = await new_job(db, company)
+    await run(runner, job)
+    kinds = [e.kind for e in (await db.execute(select(Event))).scalars()]
+    assert "research.failed" in kinds and "research.ready" not in kinds
+    assert "brief_ready" not in sender.kinds()

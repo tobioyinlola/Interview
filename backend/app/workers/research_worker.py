@@ -28,7 +28,9 @@ from app.models import Company, CompanyBrief, CompanySource, ResearchJob
 from app.prompts import load_prompt
 from app.schemas.brief import BriefContent, LlmBrief, SourceRef, build_brief, fact_count
 from app.services.brief_edit import carry_over, protected_source_ids
+from app.services.events import record_event
 from app.services.fetcher import Fetcher
+from app.services.notify import Notifier
 from app.services.url_guard import UrlRejected, normalize_url, validate_url_syntax
 
 log = logging.getLogger("app.research")
@@ -76,6 +78,7 @@ class ResearchRunner:
         self._now = now
         self._tasks: set[asyncio.Task[None]] = set()
         self._sem = asyncio.Semaphore(settings.research_concurrency)
+        self.notifier: Notifier | None = None  # set at start-up; emails the person when done
 
     # ------------------------------------------------------------ scheduling
 
@@ -154,6 +157,12 @@ class ResearchRunner:
                 .values(status="failed", error=message, finished_at=self._now())
             )
             await db.commit()
+            job = await db.get(ResearchJob, job_id)
+            company = await db.get(Company, job.company_id) if job else None
+        if company is not None:
+            await record_event(
+                self.sf, "research.failed", user_id=company.user_id, company_id=company.id
+            )
 
     async def _set(self, db: AsyncSession, job: ResearchJob, status: str, detail: str) -> None:
         job.status = status
@@ -195,6 +204,9 @@ class ResearchRunner:
                 )
                 job.finished_at = self._now()
                 await db.commit()
+                await record_event(
+                    self.sf, "research.failed", user_id=company.user_id, company_id=company.id
+                )
                 return
 
             raw = await self._write(db, job, company, sources, bool(links))
@@ -216,6 +228,9 @@ class ResearchRunner:
                 )
                 job.finished_at = self._now()
                 await db.commit()
+                await record_event(
+                    self.sf, "research.failed", user_id=company.user_id, company_id=company.id
+                )
                 return
 
             # ---- 4. save (keeping what the user pinned, edited or added) ---------------
@@ -255,6 +270,12 @@ class ResearchRunner:
             job.error = None
             job.finished_at = self._now()
             await db.commit()
+        await self._announce("research.ready", company.id, company.user_id)
+
+    async def _announce(self, kind: str, company_id: uuid.UUID, user_id: uuid.UUID) -> None:
+        await record_event(self.sf, kind, user_id=user_id, company_id=company_id)
+        if kind == "research.ready" and self.notifier is not None:
+            await self.notifier.brief_ready(company_id)
 
     # ------------------------------------------------------------------ steps
 

@@ -2,10 +2,11 @@ import uuid
 from collections.abc import Callable
 
 from fastapi import Depends, Request
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from starlette.requests import HTTPConnection
 
 from app.adapters.email import (
+    AuditedEmailSender,
     ConsoleEmailSender,
     EmailSender,
     ResendEmailSender,
@@ -23,6 +24,7 @@ from app.security import COOKIE_NAME
 from app.services.email_templates import Brand
 from app.services.google_oauth import GoogleOAuth
 from app.services.live import LiveHub
+from app.services.notify import Notifier
 from app.services.providers import build_answer_llm, build_runner, build_stt
 from app.services.suggest import SuggestionService
 from app.services.url_guard import Resolver, system_resolver
@@ -50,17 +52,34 @@ def get_google(
     return GoogleOAuth(settings)
 
 
+def build_email_sender(settings: Settings) -> EmailSender:
+    """The sender for this environment, wrapped so every outcome reaches the admin event log."""
+    key = settings.resend_api_key.get_secret_value()
+    dev_log = settings.dev_log_email_links and settings.environment == "staging"
+    inner: EmailSender
+    if key and settings.email_from:
+        resend = ResendEmailSender(key, settings.email_from)
+        inner = TeeEmailSender(resend, ConsoleEmailSender()) if dev_log else resend
+    elif settings.environment == "local" or dev_log:
+        inner = ConsoleEmailSender()
+    else:
+        inner = UnconfiguredEmailSender()
+    return AuditedEmailSender(inner, get_sessionmaker())
+
+
 def get_email_sender(
     settings: Settings = Depends(get_settings),  # noqa: B008
 ) -> EmailSender:
-    key = settings.resend_api_key.get_secret_value()
-    dev_log = settings.dev_log_email_links and settings.environment == "staging"
-    if key and settings.email_from:
-        resend = ResendEmailSender(key, settings.email_from)
-        return TeeEmailSender(resend, ConsoleEmailSender()) if dev_log else resend
-    if settings.environment == "local" or dev_log:
-        return ConsoleEmailSender()
-    return UnconfiguredEmailSender()
+    return build_email_sender(settings)
+
+
+def get_notifier(
+    settings: Settings = Depends(get_settings),  # noqa: B008
+    sender: EmailSender = Depends(get_email_sender),  # noqa: B008
+    maker: async_sessionmaker[AsyncSession] = Depends(get_sessionmaker),  # noqa: B008
+) -> Notifier:
+    """Emails the platform sends on its own (a friend joined, a free interview was added)."""
+    return Notifier(maker, settings, sender)
 
 
 def email_brand(settings: Settings) -> Brand:

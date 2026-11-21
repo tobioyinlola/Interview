@@ -89,6 +89,8 @@ class Settings(BaseSettings):
     support_email: str = ""
     # Inviting this many people who sign up earns one free session, which the person redeems.
     referrals_per_free_session: int = 3
+    # How long the admin event log is kept. Older events are deleted when the server starts.
+    event_retention_days: int = 180
     # Off only in tests that start many sessions without caring about credits.
     enforce_session_credits: bool = True
     dev_log_email_links: bool = False
