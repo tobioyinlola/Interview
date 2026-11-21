@@ -11,7 +11,16 @@ import { SignUpForm } from "../features/auth/SignUpForm";
 import { VerifyPage } from "../features/auth/VerifyPage";
 import { CompaniesPage } from "../features/companies/CompaniesPage";
 import { CompanyPage } from "../features/companies/CompanyPage";
+import { ActivityPage } from "../features/admin/ActivityPage";
+import { AdminLayout } from "../features/admin/AdminLayout";
+import { EmailsAdminPage } from "../features/admin/EmailsAdminPage";
+import { MarketingPage } from "../features/admin/MarketingPage";
+import { OverviewPage } from "../features/admin/OverviewPage";
+import { QualityPage } from "../features/admin/QualityPage";
+import { ReferralsAdminPage } from "../features/admin/ReferralsAdminPage";
 import { UsagePage } from "../features/admin/UsagePage";
+import { UserPage } from "../features/admin/UserPage";
+import { UsersPage } from "../features/admin/UsersPage";
 import { PrivacyPage, TermsPage } from "../features/legal/LegalPages";
 import { useMe } from "../api/hooks";
 import { LandingPage } from "../features/landing/LandingPage";
@@ -64,7 +73,17 @@ export function App() {
             <Route path="/referrals" element={<ReferralPage />} />
             <Route path="/help" element={<HelpPage />} />
             <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/admin/usage" element={<UsagePage />} />
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<OverviewPage />} />
+              <Route path="users" element={<UsersPage />} />
+              <Route path="users/:id" element={<UserPage />} />
+              <Route path="activity" element={<ActivityPage />} />
+              <Route path="referrals" element={<ReferralsAdminPage />} />
+              <Route path="marketing" element={<MarketingPage />} />
+              <Route path="quality" element={<QualityPage />} />
+              <Route path="emails" element={<EmailsAdminPage />} />
+              <Route path="usage" element={<UsagePage />} />
+            </Route>
           </Route>
         </Route>
       </Route>

@@ -45,20 +45,19 @@ describe("app shell", () => {
     );
   });
 
-  it("shows the Usage link to administrators only", async () => {
+  it("shows the Admin console link to administrators only", async () => {
     signedIn();
     const { unmount } = renderApp(<App />, "/dashboard");
     await screen.findByRole("navigation", { name: "Main" });
-    expect(screen.queryByRole("link", { name: "Usage" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Admin console" })).toBeNull();
     unmount();
     vi.restoreAllMocks();
     stubSupportedBrowser();
     signedIn({ ...ME, is_admin: true });
     renderApp(<App />, "/dashboard");
-    expect(await screen.findByRole("link", { name: "Usage" })).toHaveAttribute(
-      "href",
-      "/admin/usage",
-    );
+    expect(
+      await screen.findByRole("link", { name: "Admin console" }),
+    ).toHaveAttribute("href", "/admin");
   });
 
   it("opens and closes the menu on small screens", async () => {

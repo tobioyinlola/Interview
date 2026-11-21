@@ -25,6 +25,200 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Activity
+         * @description The log of everything happening on the platform, newest first.
+         */
+        get: operations["activity_api_admin_activity_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/activity/export.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Activity
+         * @description The same log as a spreadsheet (up to 5,000 rows). Exporting is itself logged.
+         */
+        get: operations["export_activity_api_admin_activity_export_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/emails": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Email Log
+         * @description Which emails went out and whether the provider took them. Never the body of a message.
+         */
+        get: operations["email_log_api_admin_emails_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/emails/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Email Templates */
+        get: operations["email_templates_api_admin_emails_templates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/emails/templates/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Email Template Preview
+         * @description A template filled with obviously fake data, to look at before it goes to anyone.
+         */
+        get: operations["email_template_preview_api_admin_emails_templates__kind__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/marketing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Marketing
+         * @description Where sign-ups come from and how far each channel gets, plus the signals for pricing.
+         */
+        get: operations["marketing_api_admin_marketing_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Overview
+         * @description Product health at a glance: growth, activity, the funnel, and what is going wrong.
+         */
+        get: operations["overview_api_admin_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/quality": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Quality
+         * @description How good and how fast the product is: ratings, speed, scores, and failures.
+         */
+        get: operations["quality_api_admin_quality_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/referrals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Referrals */
+        get: operations["referrals_api_admin_referrals_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/referrals/{referral_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve Referral
+         * @description A held sign-up turned out to be a real, different person (say, a housemate): count it.
+         */
+        post: operations["approve_referral_api_admin_referrals__referral_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/usage": {
         parameters: {
             query?: never;
@@ -41,6 +235,65 @@ export interface paths {
         get: operations["usage_api_admin_usage_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Users */
+        get: operations["users_api_admin_users_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * User Detail
+         * @description One account: who they are, what they have done, and their activity. No CV text, transcripts
+         *     or answers: an admin sees what is happening, not what anyone said.
+         */
+        get: operations["user_detail_api_admin_users__user_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users/{user_id}/credits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Grant Credits
+         * @description Give someone free interviews, for support or goodwill. Logged against the admin, and the
+         *     person is told by email unless `notify` is off.
+         */
+        post: operations["grant_credits_api_admin_users__user_id__credits_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -533,9 +786,9 @@ export interface paths {
         put?: never;
         /**
          * Create Session
-         * @description Start a practice session. The person agreed at sign-up that their partner knows the assistant
-         *     is on; every account has that on record, and the session stores when. An account without it
-         *     cannot start a session.
+         * @description Start an interview session. The person agreed at sign-up that their partner knows the
+         *     assistant is on; every account has that on record, and the session stores when. An account
+         *     without it cannot start a session.
          */
         post: operations["create_session_api_sessions_post"];
         delete?: never;
@@ -809,6 +1062,38 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ActivityItem */
+        ActivityItem: {
+            /** Actor Email */
+            actor_email: string | null;
+            /** At */
+            at: string;
+            /** Category */
+            category: string;
+            /** Detail */
+            detail: string;
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string;
+            /** User Email */
+            user_email: string | null;
+            /** User Id */
+            user_id: string | null;
+        };
+        /** ActivityOut */
+        ActivityOut: {
+            /** Categories */
+            categories: {
+                [key: string]: string[];
+            };
+            /** Items */
+            items: components["schemas"]["ActivityItem"][];
+            /** Next Before */
+            next_before: string | null;
+        };
         /** AudioTokenOut */
         AudioTokenOut: {
             /** Audio Token */
@@ -823,6 +1108,11 @@ export interface components {
          * @description How many sessions the person can start, and how far along their invite reward is.
          */
         BillingOut: {
+            /**
+             * Gifted Credits Available
+             * @default 0
+             */
+            gifted_credits_available: number;
             /** Paid Credits Available */
             paid_credits_available: number;
             /** Payments Enabled */
@@ -945,6 +1235,19 @@ export interface components {
             /** Title */
             title: string;
         };
+        /** ChannelRow */
+        ChannelRow: {
+            /** Activated */
+            activated: number;
+            /** Activation Pct */
+            activation_pct: number;
+            /** Channel */
+            channel: string;
+            /** Second Session */
+            second_session: number;
+            /** Signups */
+            signups: number;
+        };
         /** CompanyCreatedOut */
         CompanyCreatedOut: {
             company: components["schemas"]["CompanyOut"];
@@ -1028,6 +1331,19 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** CreditBreakdown */
+        CreditBreakdown: {
+            /** Gifted */
+            gifted: number;
+            /** Paid */
+            paid: number;
+            /** Referral */
+            referral: number;
+            /** Trial */
+            trial: number;
+            /** Used */
+            used: number;
+        };
         /** CvUploadOut */
         CvUploadOut: {
             /** Content */
@@ -1046,10 +1362,58 @@ export interface components {
             /** Updated At */
             updated_at: string | null;
         };
+        /** EmailKindRow */
+        EmailKindRow: {
+            /** Failed 30D */
+            failed_30d: number;
+            /** Failed 7D */
+            failed_7d: number;
+            /** Kind */
+            kind: string;
+            /** Sent 30D */
+            sent_30d: number;
+            /** Sent 7D */
+            sent_7d: number;
+        };
+        /** EmailLogItem */
+        EmailLogItem: {
+            /** At */
+            at: string;
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Status */
+            status: string;
+            /** To */
+            to: string;
+            /** User Id */
+            user_id: string | null;
+        };
+        /** EmailsOut */
+        EmailsOut: {
+            /** Items */
+            items: components["schemas"]["EmailLogItem"][];
+            /** Kinds */
+            kinds: components["schemas"]["EmailKindRow"][];
+        };
         /** FeedbackIn */
         FeedbackIn: {
             /** Value */
             value: string;
+        };
+        /** FunnelStep */
+        FunnelStep: {
+            /** From Previous Pct */
+            from_previous_pct: number | null;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Of Signups Pct */
+            of_signups_pct: number;
+            /** Users */
+            users: number;
         };
         /** GapOut */
         GapOut: {
@@ -1062,10 +1426,48 @@ export interface components {
             /** Type */
             type: string;
         };
+        /** GrantIn */
+        GrantIn: {
+            /** Count */
+            count: number;
+            /**
+             * Notify
+             * @default true
+             */
+            notify: boolean;
+            /** Reason */
+            reason?: string | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HealthCounts */
+        HealthCounts: {
+            /** Blocked No Credit 7D */
+            blocked_no_credit_7d: number;
+            /** Emails Failed 24H */
+            emails_failed_24h: number;
+            /** Research Failed 24H */
+            research_failed_24h: number;
+            /** Scoring Failed 24H */
+            scoring_failed_24h: number;
+            /** Wrong Passwords 24H */
+            wrong_passwords_24h: number;
+        };
+        /** HeldRow */
+        HeldRow: {
+            /** At */
+            at: string;
+            /** Id */
+            id: string;
+            /** Reason */
+            reason: string | null;
+            /** Referred Email */
+            referred_email: string;
+            /** Referrer Email */
+            referrer_email: string;
         };
         /** JobOut */
         JobOut: {
@@ -1088,6 +1490,17 @@ export interface components {
             /** Step Detail */
             step_detail: string;
         };
+        /** LatencyOut */
+        LatencyOut: {
+            /** P50 First Token Ms */
+            p50_first_token_ms: number | null;
+            /** P50 Total Ms */
+            p50_total_ms: number | null;
+            /** P95 First Token Ms */
+            p95_first_token_ms: number | null;
+            /** P95 Total Ms */
+            p95_total_ms: number | null;
+        };
         /** LoginIn */
         LoginIn: {
             /**
@@ -1097,6 +1510,33 @@ export interface components {
             email: string;
             /** Password */
             password: string;
+        };
+        /** MarketingOut */
+        MarketingOut: {
+            /** By Campaign */
+            by_campaign: components["schemas"]["ChannelRow"][];
+            /** By Method */
+            by_method: components["schemas"]["ChannelRow"][];
+            /** By Source */
+            by_source: components["schemas"]["ChannelRow"][];
+            /** Days */
+            days: number;
+            /** Hit Paywall Users */
+            hit_paywall_users: number;
+            /** K Factor */
+            k_factor: number;
+            /** Median Hours To First Session */
+            median_hours_to_first_session: number | null;
+            /** Redeemed Rewards */
+            redeemed_rewards: number;
+            /** Referred Pct */
+            referred_pct: number;
+            /** Second Session Users */
+            second_session_users: number;
+            /** Signups */
+            signups: number;
+            /** Trial Used Users */
+            trial_used_users: number;
         };
         /** MeOut */
         MeOut: {
@@ -1185,6 +1625,42 @@ export interface components {
             /** Timeline */
             timeline?: ("this_week" | "few_weeks" | "few_months" | "not_scheduled") | null;
         };
+        /** OverviewOut */
+        OverviewOut: {
+            /** Avg Questions Per Session */
+            avg_questions_per_session: number | null;
+            /** Avg Session Seconds */
+            avg_session_seconds: number | null;
+            /** Dau */
+            dau: number;
+            /** Days */
+            days: number;
+            /** Funnel */
+            funnel: components["schemas"]["FunnelStep"][];
+            health: components["schemas"]["HealthCounts"];
+            /** Mau */
+            mau: number;
+            /** New Users */
+            new_users: number;
+            /** New Users Prev */
+            new_users_prev: number;
+            /** Referrals Counted */
+            referrals_counted: number;
+            /** Referrals Held */
+            referrals_held: number;
+            /** Rewards Redeemed */
+            rewards_redeemed: number;
+            /** Series */
+            series: components["schemas"]["SeriesPoint"][];
+            /** Sessions */
+            sessions: number;
+            /** Sessions Prev */
+            sessions_prev: number;
+            /** Total Users */
+            total_users: number;
+            /** Wau */
+            wau: number;
+        };
         /** PasteIn */
         PasteIn: {
             /** Text */
@@ -1205,6 +1681,72 @@ export interface components {
             /** Google */
             google: boolean;
         };
+        /** QualityOut */
+        QualityOut: {
+            /** Answers */
+            answers: number;
+            /** Avg Scores */
+            avg_scores: {
+                [key: string]: number;
+            };
+            /** By Type */
+            by_type: {
+                [key: string]: number;
+            };
+            /** Days */
+            days: number;
+            /** Flagged Pct */
+            flagged_pct: number | null;
+            /** Helpful Pct */
+            helpful_pct: number | null;
+            latency: components["schemas"]["LatencyOut"];
+            /** Rated */
+            rated: number;
+            /** Research Failed Pct */
+            research_failed_pct: number | null;
+            /** Research Jobs */
+            research_jobs: number;
+            /** Scoring Failed Pct */
+            scoring_failed_pct: number | null;
+            /** Scoring Runs */
+            scoring_runs: number;
+        };
+        /** ReferralsOut */
+        ReferralsOut: {
+            /** Counted */
+            counted: number;
+            /** Held */
+            held: number;
+            /** Held Items */
+            held_items: components["schemas"]["HeldRow"][];
+            /** Per Reward */
+            per_reward: number;
+            /** Referred Signups Pct */
+            referred_signups_pct: number;
+            /** Rewards Earned */
+            rewards_earned: number;
+            /** Rewards Redeemed */
+            rewards_redeemed: number;
+            /** Top Referrers */
+            top_referrers: components["schemas"]["ReferrerRow"][];
+            /** Total */
+            total: number;
+        };
+        /** ReferrerRow */
+        ReferrerRow: {
+            /** Counted */
+            counted: number;
+            /** Email */
+            email: string;
+            /** Held */
+            held: number;
+            /** Rewards Earned */
+            rewards_earned: number;
+            /** Rewards Redeemed */
+            rewards_redeemed: number;
+            /** User Id */
+            user_id: string;
+        };
         /** RequestLinkIn */
         RequestLinkIn: {
             /**
@@ -1214,6 +1756,7 @@ export interface components {
             email: string;
             /** Ref */
             ref?: string | null;
+            utm?: components["schemas"]["Utm"] | null;
         };
         /** ResearchStartedOut */
         ResearchStartedOut: {
@@ -1276,6 +1819,26 @@ export interface components {
             seq: number | null;
             /** Text */
             text: string;
+        };
+        /** SeriesPoint */
+        SeriesPoint: {
+            /**
+             * Active Users
+             * @default 0
+             */
+            active_users: number;
+            /** Day */
+            day: string;
+            /**
+             * Sessions
+             * @default 0
+             */
+            sessions: number;
+            /**
+             * Signups
+             * @default 0
+             */
+            signups: number;
         };
         /** SessionCreateIn */
         SessionCreateIn: {
@@ -1400,6 +1963,7 @@ export interface components {
             password: string;
             /** Ref */
             ref?: string | null;
+            utm?: components["schemas"]["Utm"] | null;
         };
         /** SourceOut */
         SourceOut: {
@@ -1469,6 +2033,43 @@ export interface components {
             /** Utterance Id */
             utterance_id: string | null;
         };
+        /** TemplateInfo */
+        TemplateInfo: {
+            /** Audience */
+            audience: string;
+            /** Kind */
+            kind: string;
+            /** Title */
+            title: string;
+            /** When */
+            when: string;
+        };
+        /** TemplatePreview */
+        TemplatePreview: {
+            /** Html */
+            html: string;
+            /** Kind */
+            kind: string;
+            /** Subject */
+            subject: string;
+            /** Text */
+            text: string;
+        };
+        /** TimelineItem */
+        TimelineItem: {
+            /** At */
+            at: string;
+            /** Category */
+            category: string;
+            /** Detail */
+            detail: string;
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string;
+        };
         /** TourIn */
         TourIn: {
             /**
@@ -1536,6 +2137,87 @@ export interface components {
             /** Tokens */
             tokens: number;
         };
+        /** UserDetailOut */
+        UserDetailOut: {
+            /** Attribution */
+            attribution: {
+                [key: string]: unknown;
+            } | null;
+            credits: components["schemas"]["CreditBreakdown"];
+            /** Emails Failed */
+            emails_failed: number;
+            /** Emails Sent */
+            emails_sent: number;
+            /** Held */
+            held: number;
+            /** Invited */
+            invited: number;
+            /** Onboarding */
+            onboarding: {
+                [key: string]: unknown;
+            } | null;
+            /** Referral Code */
+            referral_code: string | null;
+            /** Referred By */
+            referred_by: string | null;
+            /** Timeline */
+            timeline: components["schemas"]["TimelineItem"][];
+            user: components["schemas"]["UserRow"];
+        };
+        /** UserListOut */
+        UserListOut: {
+            /** Items */
+            items: components["schemas"]["UserRow"][];
+            /** Total */
+            total: number;
+        };
+        /** UserRow */
+        UserRow: {
+            /** Companies */
+            companies: number;
+            /** Created At */
+            created_at: string;
+            /** Credits Available */
+            credits_available: number;
+            /** Email */
+            email: string;
+            /** Full Name */
+            full_name: string | null;
+            /** Has Cv */
+            has_cv: boolean;
+            /** Id */
+            id: string;
+            /** Is Admin */
+            is_admin: boolean;
+            /** Last Active At */
+            last_active_at: string | null;
+            /** Onboarded */
+            onboarded: boolean;
+            /** Referrals Counted */
+            referrals_counted: number;
+            /** Referrals Held */
+            referrals_held: number;
+            /** Referred */
+            referred: boolean;
+            /** Sessions */
+            sessions: number;
+            /** Signup Method */
+            signup_method: string | null;
+            /** Utm Source */
+            utm_source: string | null;
+        };
+        /**
+         * Utm
+         * @description Campaign tags on the link someone arrived on (utm_source and friends).
+         */
+        Utm: {
+            /** Campaign */
+            campaign?: string | null;
+            /** Medium */
+            medium?: string | null;
+            /** Source */
+            source?: string | null;
+        };
         /** UtteranceOut */
         UtteranceOut: {
             /** Ended At */
@@ -1601,6 +2283,316 @@ export interface operations {
             };
         };
     };
+    activity_api_admin_activity_get: {
+        parameters: {
+            query?: {
+                kind?: string | null;
+                category?: string | null;
+                user_id?: string | null;
+                q?: string | null;
+                before?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_activity_api_admin_activity_export_csv_get: {
+        parameters: {
+            query?: {
+                kind?: string | null;
+                category?: string | null;
+                user_id?: string | null;
+                q?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    email_log_api_admin_emails_get: {
+        parameters: {
+            query?: {
+                kind?: string | null;
+                status?: string | null;
+                q?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    email_templates_api_admin_emails_templates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateInfo"][];
+                };
+            };
+        };
+    };
+    email_template_preview_api_admin_emails_templates__kind__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplatePreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    marketing_api_admin_marketing_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    overview_api_admin_overview_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    quality_api_admin_quality_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QualityOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    referrals_api_admin_referrals_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferralsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_referral_api_admin_referrals__referral_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                referral_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferralsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     usage_api_admin_usage_get: {
         parameters: {
             query?: {
@@ -1619,6 +2611,106 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UsageSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    users_api_admin_users_get: {
+        parameters: {
+            query?: {
+                q?: string;
+                sort?: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    user_detail_api_admin_users__user_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    grant_credits_api_admin_users__user_id__credits_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GrantIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDetailOut"];
                 };
             };
             /** @description Validation Error */
@@ -1669,6 +2761,9 @@ export interface operations {
         parameters: {
             query?: {
                 ref?: string | null;
+                utm_source?: string | null;
+                utm_medium?: string | null;
+                utm_campaign?: string | null;
             };
             header?: never;
             path?: never;

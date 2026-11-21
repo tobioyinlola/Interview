@@ -15,7 +15,7 @@ PROXY="${E2E_PROXY:-0}"
 if [ "$PROXY" = "1" ]; then API_PUBLIC=http://localhost:5173; export API_BASE=""; else API_PUBLIC=http://localhost:8765; export API_BASE="http://localhost:8765"; fi
 # `;` not `&&`: with `cd x && cmd &` the shell backgrounds the whole list, so $! would be a subshell.
 export API_START="cd $ROOT/backend; ENVIRONMENT=local USE_FAKE_PROVIDERS=true WEB_ORIGIN=http://localhost:5173 \
-  RATE_LIMIT_AUTH_PER_MINUTE=1000 LOGIN_REQUESTS_PER_HOUR=1000 \
+  RATE_LIMIT_AUTH_PER_MINUTE=1000 LOGIN_REQUESTS_PER_HOUR=1000 ADMIN_EMAILS=admin-e2e@example.com \
   GOOGLE_CLIENT_ID=e2e-client GOOGLE_CLIENT_SECRET=e2e-secret API_PUBLIC_URL=$API_PUBLIC \
   GOOGLE_AUTH_URL=http://localhost:9099/auth GOOGLE_TOKEN_URL=http://localhost:9099/token \
   nohup $PY/uvicorn app.main:app --port 8765 --timeout-graceful-shutdown 1 >> $API_LOG 2>&1 & echo \$! > $API_PID"
@@ -56,6 +56,7 @@ NODE_PATH="$(npm root -g)" node "$ROOT/frontend/e2e/google-signin.cjs"
 NODE_PATH="$(npm root -g)" node "$ROOT/frontend/e2e/password-auth.cjs"
 NODE_PATH="$(npm root -g)" node "$ROOT/frontend/e2e/referral.cjs"
 NODE_PATH="$(npm root -g)" node "$ROOT/frontend/e2e/tour-guide.cjs"
+NODE_PATH="$(npm root -g)" node "$ROOT/frontend/e2e/admin.cjs"
 NODE_PATH="$(npm root -g)" node "$ROOT/frontend/e2e/responsive.cjs"
 if [ "${E2E_TOUR:-0}" = "1" ]; then NODE_PATH="$(npm root -g)" node "$ROOT/frontend/e2e/tour.cjs"; fi
 echo "screenshots and logs in $OUT"

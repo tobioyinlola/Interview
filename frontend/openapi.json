@@ -1,6 +1,119 @@
 {
   "components": {
     "schemas": {
+      "ActivityItem": {
+        "properties": {
+          "actor_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Email"
+          },
+          "at": {
+            "title": "At",
+            "type": "string"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "user_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Email"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          }
+        },
+        "required": [
+          "id",
+          "at",
+          "kind",
+          "category",
+          "label",
+          "user_id",
+          "user_email",
+          "actor_email",
+          "detail"
+        ],
+        "title": "ActivityItem",
+        "type": "object"
+      },
+      "ActivityOut": {
+        "properties": {
+          "categories": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Categories",
+            "type": "object"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ActivityItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Before"
+          }
+        },
+        "required": [
+          "items",
+          "next_before",
+          "categories"
+        ],
+        "title": "ActivityOut",
+        "type": "object"
+      },
       "AudioTokenOut": {
         "properties": {
           "audio_token": {
@@ -27,6 +140,11 @@
       "BillingOut": {
         "description": "How many sessions the person can start, and how far along their invite reward is.",
         "properties": {
+          "gifted_credits_available": {
+            "default": 0,
+            "title": "Gifted Credits Available",
+            "type": "integer"
+          },
           "paid_credits_available": {
             "title": "Paid Credits Available",
             "type": "integer"
@@ -315,6 +433,39 @@
         "title": "BriefSection",
         "type": "object"
       },
+      "ChannelRow": {
+        "properties": {
+          "activated": {
+            "title": "Activated",
+            "type": "integer"
+          },
+          "activation_pct": {
+            "title": "Activation Pct",
+            "type": "number"
+          },
+          "channel": {
+            "title": "Channel",
+            "type": "string"
+          },
+          "second_session": {
+            "title": "Second Session",
+            "type": "integer"
+          },
+          "signups": {
+            "title": "Signups",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "channel",
+          "signups",
+          "activated",
+          "activation_pct",
+          "second_session"
+        ],
+        "title": "ChannelRow",
+        "type": "object"
+      },
       "CompanyCreatedOut": {
         "properties": {
           "company": {
@@ -583,6 +734,39 @@
         "title": "CompanySummary",
         "type": "object"
       },
+      "CreditBreakdown": {
+        "properties": {
+          "gifted": {
+            "title": "Gifted",
+            "type": "integer"
+          },
+          "paid": {
+            "title": "Paid",
+            "type": "integer"
+          },
+          "referral": {
+            "title": "Referral",
+            "type": "integer"
+          },
+          "trial": {
+            "title": "Trial",
+            "type": "integer"
+          },
+          "used": {
+            "title": "Used",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "trial",
+          "gifted",
+          "referral",
+          "paid",
+          "used"
+        ],
+        "title": "CreditBreakdown",
+        "type": "object"
+      },
       "CvUploadOut": {
         "properties": {
           "content": {
@@ -642,6 +826,108 @@
         "title": "CvUploadOut",
         "type": "object"
       },
+      "EmailKindRow": {
+        "properties": {
+          "failed_30d": {
+            "title": "Failed 30D",
+            "type": "integer"
+          },
+          "failed_7d": {
+            "title": "Failed 7D",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "sent_30d": {
+            "title": "Sent 30D",
+            "type": "integer"
+          },
+          "sent_7d": {
+            "title": "Sent 7D",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "sent_7d",
+          "failed_7d",
+          "sent_30d",
+          "failed_30d"
+        ],
+        "title": "EmailKindRow",
+        "type": "object"
+      },
+      "EmailLogItem": {
+        "properties": {
+          "at": {
+            "title": "At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "to": {
+            "title": "To",
+            "type": "string"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          }
+        },
+        "required": [
+          "id",
+          "at",
+          "kind",
+          "to",
+          "status",
+          "user_id"
+        ],
+        "title": "EmailLogItem",
+        "type": "object"
+      },
+      "EmailsOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/EmailLogItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "kinds": {
+            "items": {
+              "$ref": "#/components/schemas/EmailKindRow"
+            },
+            "title": "Kinds",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kinds",
+          "items"
+        ],
+        "title": "EmailsOut",
+        "type": "object"
+      },
       "FeedbackIn": {
         "properties": {
           "value": {
@@ -654,6 +940,46 @@
           "value"
         ],
         "title": "FeedbackIn",
+        "type": "object"
+      },
+      "FunnelStep": {
+        "properties": {
+          "from_previous_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Previous Pct"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "of_signups_pct": {
+            "title": "Of Signups Pct",
+            "type": "number"
+          },
+          "users": {
+            "title": "Users",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "users",
+          "of_signups_pct",
+          "from_previous_pct"
+        ],
+        "title": "FunnelStep",
         "type": "object"
       },
       "GapOut": {
@@ -687,6 +1013,38 @@
         "title": "GapOut",
         "type": "object"
       },
+      "GrantIn": {
+        "properties": {
+          "count": {
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "notify": {
+            "default": true,
+            "title": "Notify",
+            "type": "boolean"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "count"
+        ],
+        "title": "GrantIn",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -698,6 +1056,79 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HealthCounts": {
+        "properties": {
+          "blocked_no_credit_7d": {
+            "title": "Blocked No Credit 7D",
+            "type": "integer"
+          },
+          "emails_failed_24h": {
+            "title": "Emails Failed 24H",
+            "type": "integer"
+          },
+          "research_failed_24h": {
+            "title": "Research Failed 24H",
+            "type": "integer"
+          },
+          "scoring_failed_24h": {
+            "title": "Scoring Failed 24H",
+            "type": "integer"
+          },
+          "wrong_passwords_24h": {
+            "title": "Wrong Passwords 24H",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "research_failed_24h",
+          "scoring_failed_24h",
+          "emails_failed_24h",
+          "blocked_no_credit_7d",
+          "wrong_passwords_24h"
+        ],
+        "title": "HealthCounts",
+        "type": "object"
+      },
+      "HeldRow": {
+        "properties": {
+          "at": {
+            "title": "At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "referred_email": {
+            "title": "Referred Email",
+            "type": "string"
+          },
+          "referrer_email": {
+            "title": "Referrer Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "at",
+          "referrer_email",
+          "referred_email",
+          "reason"
+        ],
+        "title": "HeldRow",
         "type": "object"
       },
       "JobOut": {
@@ -755,6 +1186,62 @@
         "title": "JobOut",
         "type": "object"
       },
+      "LatencyOut": {
+        "properties": {
+          "p50_first_token_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P50 First Token Ms"
+          },
+          "p50_total_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P50 Total Ms"
+          },
+          "p95_first_token_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P95 First Token Ms"
+          },
+          "p95_total_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P95 Total Ms"
+          }
+        },
+        "required": [
+          "p50_first_token_ms",
+          "p95_first_token_ms",
+          "p50_total_ms",
+          "p95_total_ms"
+        ],
+        "title": "LatencyOut",
+        "type": "object"
+      },
       "LoginIn": {
         "properties": {
           "email": {
@@ -774,6 +1261,90 @@
           "password"
         ],
         "title": "LoginIn",
+        "type": "object"
+      },
+      "MarketingOut": {
+        "properties": {
+          "by_campaign": {
+            "items": {
+              "$ref": "#/components/schemas/ChannelRow"
+            },
+            "title": "By Campaign",
+            "type": "array"
+          },
+          "by_method": {
+            "items": {
+              "$ref": "#/components/schemas/ChannelRow"
+            },
+            "title": "By Method",
+            "type": "array"
+          },
+          "by_source": {
+            "items": {
+              "$ref": "#/components/schemas/ChannelRow"
+            },
+            "title": "By Source",
+            "type": "array"
+          },
+          "days": {
+            "title": "Days",
+            "type": "integer"
+          },
+          "hit_paywall_users": {
+            "title": "Hit Paywall Users",
+            "type": "integer"
+          },
+          "k_factor": {
+            "title": "K Factor",
+            "type": "number"
+          },
+          "median_hours_to_first_session": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Hours To First Session"
+          },
+          "redeemed_rewards": {
+            "title": "Redeemed Rewards",
+            "type": "integer"
+          },
+          "referred_pct": {
+            "title": "Referred Pct",
+            "type": "number"
+          },
+          "second_session_users": {
+            "title": "Second Session Users",
+            "type": "integer"
+          },
+          "signups": {
+            "title": "Signups",
+            "type": "integer"
+          },
+          "trial_used_users": {
+            "title": "Trial Used Users",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "days",
+          "signups",
+          "by_method",
+          "by_source",
+          "by_campaign",
+          "referred_pct",
+          "k_factor",
+          "median_hours_to_first_session",
+          "trial_used_users",
+          "hit_paywall_users",
+          "second_session_users",
+          "redeemed_rewards"
+        ],
+        "title": "MarketingOut",
         "type": "object"
       },
       "MeOut": {
@@ -1092,6 +1663,118 @@
         "title": "OnboardingIn",
         "type": "object"
       },
+      "OverviewOut": {
+        "properties": {
+          "avg_questions_per_session": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Questions Per Session"
+          },
+          "avg_session_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Session Seconds"
+          },
+          "dau": {
+            "title": "Dau",
+            "type": "integer"
+          },
+          "days": {
+            "title": "Days",
+            "type": "integer"
+          },
+          "funnel": {
+            "items": {
+              "$ref": "#/components/schemas/FunnelStep"
+            },
+            "title": "Funnel",
+            "type": "array"
+          },
+          "health": {
+            "$ref": "#/components/schemas/HealthCounts"
+          },
+          "mau": {
+            "title": "Mau",
+            "type": "integer"
+          },
+          "new_users": {
+            "title": "New Users",
+            "type": "integer"
+          },
+          "new_users_prev": {
+            "title": "New Users Prev",
+            "type": "integer"
+          },
+          "referrals_counted": {
+            "title": "Referrals Counted",
+            "type": "integer"
+          },
+          "referrals_held": {
+            "title": "Referrals Held",
+            "type": "integer"
+          },
+          "rewards_redeemed": {
+            "title": "Rewards Redeemed",
+            "type": "integer"
+          },
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/SeriesPoint"
+            },
+            "title": "Series",
+            "type": "array"
+          },
+          "sessions": {
+            "title": "Sessions",
+            "type": "integer"
+          },
+          "sessions_prev": {
+            "title": "Sessions Prev",
+            "type": "integer"
+          },
+          "total_users": {
+            "title": "Total Users",
+            "type": "integer"
+          },
+          "wau": {
+            "title": "Wau",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "days",
+          "total_users",
+          "new_users",
+          "new_users_prev",
+          "dau",
+          "wau",
+          "mau",
+          "sessions",
+          "sessions_prev",
+          "avg_session_seconds",
+          "avg_questions_per_session",
+          "funnel",
+          "series",
+          "health",
+          "referrals_counted",
+          "referrals_held",
+          "rewards_redeemed"
+        ],
+        "title": "OverviewOut",
+        "type": "object"
+      },
       "PasteIn": {
         "properties": {
           "text": {
@@ -1141,6 +1824,204 @@
         "title": "ProvidersOut",
         "type": "object"
       },
+      "QualityOut": {
+        "properties": {
+          "answers": {
+            "title": "Answers",
+            "type": "integer"
+          },
+          "avg_scores": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Avg Scores",
+            "type": "object"
+          },
+          "by_type": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Type",
+            "type": "object"
+          },
+          "days": {
+            "title": "Days",
+            "type": "integer"
+          },
+          "flagged_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flagged Pct"
+          },
+          "helpful_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Helpful Pct"
+          },
+          "latency": {
+            "$ref": "#/components/schemas/LatencyOut"
+          },
+          "rated": {
+            "title": "Rated",
+            "type": "integer"
+          },
+          "research_failed_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Research Failed Pct"
+          },
+          "research_jobs": {
+            "title": "Research Jobs",
+            "type": "integer"
+          },
+          "scoring_failed_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scoring Failed Pct"
+          },
+          "scoring_runs": {
+            "title": "Scoring Runs",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "days",
+          "answers",
+          "rated",
+          "helpful_pct",
+          "flagged_pct",
+          "latency",
+          "by_type",
+          "avg_scores",
+          "research_jobs",
+          "research_failed_pct",
+          "scoring_runs",
+          "scoring_failed_pct"
+        ],
+        "title": "QualityOut",
+        "type": "object"
+      },
+      "ReferralsOut": {
+        "properties": {
+          "counted": {
+            "title": "Counted",
+            "type": "integer"
+          },
+          "held": {
+            "title": "Held",
+            "type": "integer"
+          },
+          "held_items": {
+            "items": {
+              "$ref": "#/components/schemas/HeldRow"
+            },
+            "title": "Held Items",
+            "type": "array"
+          },
+          "per_reward": {
+            "title": "Per Reward",
+            "type": "integer"
+          },
+          "referred_signups_pct": {
+            "title": "Referred Signups Pct",
+            "type": "number"
+          },
+          "rewards_earned": {
+            "title": "Rewards Earned",
+            "type": "integer"
+          },
+          "rewards_redeemed": {
+            "title": "Rewards Redeemed",
+            "type": "integer"
+          },
+          "top_referrers": {
+            "items": {
+              "$ref": "#/components/schemas/ReferrerRow"
+            },
+            "title": "Top Referrers",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "counted",
+          "held",
+          "rewards_earned",
+          "rewards_redeemed",
+          "referred_signups_pct",
+          "top_referrers",
+          "held_items",
+          "per_reward"
+        ],
+        "title": "ReferralsOut",
+        "type": "object"
+      },
+      "ReferrerRow": {
+        "properties": {
+          "counted": {
+            "title": "Counted",
+            "type": "integer"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "held": {
+            "title": "Held",
+            "type": "integer"
+          },
+          "rewards_earned": {
+            "title": "Rewards Earned",
+            "type": "integer"
+          },
+          "rewards_redeemed": {
+            "title": "Rewards Redeemed",
+            "type": "integer"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "email",
+          "counted",
+          "held",
+          "rewards_earned",
+          "rewards_redeemed"
+        ],
+        "title": "ReferrerRow",
+        "type": "object"
+      },
       "RequestLinkIn": {
         "properties": {
           "email": {
@@ -1159,6 +2040,16 @@
               }
             ],
             "title": "Ref"
+          },
+          "utm": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Utm"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -1333,6 +2224,34 @@
           "ended_at"
         ],
         "title": "SegmentOut",
+        "type": "object"
+      },
+      "SeriesPoint": {
+        "properties": {
+          "active_users": {
+            "default": 0,
+            "title": "Active Users",
+            "type": "integer"
+          },
+          "day": {
+            "title": "Day",
+            "type": "string"
+          },
+          "sessions": {
+            "default": 0,
+            "title": "Sessions",
+            "type": "integer"
+          },
+          "signups": {
+            "default": 0,
+            "title": "Signups",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day"
+        ],
+        "title": "SeriesPoint",
         "type": "object"
       },
       "SessionCreateIn": {
@@ -1689,6 +2608,16 @@
               }
             ],
             "title": "Ref"
+          },
+          "utm": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Utm"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -1904,6 +2833,100 @@
         "title": "SuggestionOut",
         "type": "object"
       },
+      "TemplateInfo": {
+        "properties": {
+          "audience": {
+            "title": "Audience",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "when": {
+            "title": "When",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "title",
+          "when",
+          "audience"
+        ],
+        "title": "TemplateInfo",
+        "type": "object"
+      },
+      "TemplatePreview": {
+        "properties": {
+          "html": {
+            "title": "Html",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "subject",
+          "html",
+          "text"
+        ],
+        "title": "TemplatePreview",
+        "type": "object"
+      },
+      "TimelineItem": {
+        "properties": {
+          "at": {
+            "title": "At",
+            "type": "string"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "at",
+          "kind",
+          "category",
+          "label",
+          "detail"
+        ],
+        "title": "TimelineItem",
+        "type": "object"
+      },
       "TourIn": {
         "properties": {
           "done": {
@@ -2080,6 +3103,280 @@
         "title": "UsageUser",
         "type": "object"
       },
+      "UserDetailOut": {
+        "properties": {
+          "attribution": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attribution"
+          },
+          "credits": {
+            "$ref": "#/components/schemas/CreditBreakdown"
+          },
+          "emails_failed": {
+            "title": "Emails Failed",
+            "type": "integer"
+          },
+          "emails_sent": {
+            "title": "Emails Sent",
+            "type": "integer"
+          },
+          "held": {
+            "title": "Held",
+            "type": "integer"
+          },
+          "invited": {
+            "title": "Invited",
+            "type": "integer"
+          },
+          "onboarding": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Onboarding"
+          },
+          "referral_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referral Code"
+          },
+          "referred_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referred By"
+          },
+          "timeline": {
+            "items": {
+              "$ref": "#/components/schemas/TimelineItem"
+            },
+            "title": "Timeline",
+            "type": "array"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserRow"
+          }
+        },
+        "required": [
+          "user",
+          "credits",
+          "referral_code",
+          "referred_by",
+          "invited",
+          "held",
+          "emails_sent",
+          "emails_failed",
+          "onboarding",
+          "attribution",
+          "timeline"
+        ],
+        "title": "UserDetailOut",
+        "type": "object"
+      },
+      "UserListOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/UserRow"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "items"
+        ],
+        "title": "UserListOut",
+        "type": "object"
+      },
+      "UserRow": {
+        "properties": {
+          "companies": {
+            "title": "Companies",
+            "type": "integer"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "credits_available": {
+            "title": "Credits Available",
+            "type": "integer"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "full_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name"
+          },
+          "has_cv": {
+            "title": "Has Cv",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "is_admin": {
+            "title": "Is Admin",
+            "type": "boolean"
+          },
+          "last_active_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Active At"
+          },
+          "onboarded": {
+            "title": "Onboarded",
+            "type": "boolean"
+          },
+          "referrals_counted": {
+            "title": "Referrals Counted",
+            "type": "integer"
+          },
+          "referrals_held": {
+            "title": "Referrals Held",
+            "type": "integer"
+          },
+          "referred": {
+            "title": "Referred",
+            "type": "boolean"
+          },
+          "sessions": {
+            "title": "Sessions",
+            "type": "integer"
+          },
+          "signup_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signup Method"
+          },
+          "utm_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Utm Source"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "full_name",
+          "created_at",
+          "last_active_at",
+          "sessions",
+          "companies",
+          "has_cv",
+          "onboarded",
+          "credits_available",
+          "referrals_counted",
+          "referrals_held",
+          "signup_method",
+          "utm_source",
+          "referred",
+          "is_admin"
+        ],
+        "title": "UserRow",
+        "type": "object"
+      },
+      "Utm": {
+        "description": "Campaign tags on the link someone arrived on (utm_source and friends).",
+        "properties": {
+          "campaign": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Campaign"
+          },
+          "medium": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Medium"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          }
+        },
+        "title": "Utm",
+        "type": "object"
+      },
       "UtteranceOut": {
         "properties": {
           "ended_at": {
@@ -2220,6 +3517,629 @@
         ]
       }
     },
+    "/api/admin/activity": {
+      "get": {
+        "description": "The log of everything happening on the platform, newest first.",
+        "operationId": "activity_api_admin_activity_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 20,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "User Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 80,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Before"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Activity",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/activity/export.csv": {
+      "get": {
+        "description": "The same log as a spreadsheet (up to 5,000 rows). Exporting is itself logged.",
+        "operationId": "export_activity_api_admin_activity_export_csv_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 20,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "User Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Activity",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/emails": {
+      "get": {
+        "description": "Which emails went out and whether the provider took them. Never the body of a message.",
+        "operationId": "email_log_api_admin_emails_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 30,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(sent|failed)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Email Log",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/emails/templates": {
+      "get": {
+        "operationId": "email_templates_api_admin_emails_templates_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TemplateInfo"
+                  },
+                  "title": "Response Email Templates Api Admin Emails Templates Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Email Templates",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/emails/templates/{kind}": {
+      "get": {
+        "description": "A template filled with obviously fake data, to look at before it goes to anyone.",
+        "operationId": "email_template_preview_api_admin_emails_templates__kind__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "title": "Kind",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplatePreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Email Template Preview",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/marketing": {
+      "get": {
+        "description": "Where sign-ups come from and how far each channel gets, plus the signals for pricing.",
+        "operationId": "marketing_api_admin_marketing_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 90,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Marketing",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/overview": {
+      "get": {
+        "description": "Product health at a glance: growth, activity, the funnel, and what is going wrong.",
+        "operationId": "overview_api_admin_overview_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 90,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Overview",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/quality": {
+      "get": {
+        "description": "How good and how fast the product is: ratings, speed, scores, and failures.",
+        "operationId": "quality_api_admin_quality_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 90,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QualityOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Quality",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/referrals": {
+      "get": {
+        "operationId": "referrals_api_admin_referrals_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 90,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferralsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Referrals",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/referrals/{referral_id}/approve": {
+      "post": {
+        "description": "A held sign-up turned out to be a real, different person (say, a housemate): count it.",
+        "operationId": "approve_referral_api_admin_referrals__referral_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "referral_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Referral Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferralsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve Referral",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/admin/usage": {
       "get": {
         "description": "The owner's cost view: spend per day, the heaviest users, and the average cost of a session\nand of a research job. These are ESTIMATES from counted audio seconds and tokens times the\nPRICE_* settings; the provider's own billing is the source of truth.",
@@ -2261,6 +4181,182 @@
           }
         },
         "summary": "Usage",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/users": {
+      "get": {
+        "operationId": "users_api_admin_users_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 100,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "newest",
+              "pattern": "^(newest|oldest|active|sessions)$",
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Users",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/users/{user_id}": {
+      "get": {
+        "description": "One account: who they are, what they have done, and their activity. No CV text, transcripts\nor answers: an admin sees what is happening, not what anyone said.",
+        "operationId": "user_detail_api_admin_users__user_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "User Detail",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/users/{user_id}/credits": {
+      "post": {
+        "description": "Give someone free interviews, for support or goodwill. Logged against the admin, and the\nperson is told by email unless `notify` is off.",
+        "operationId": "grant_credits_api_admin_users__user_id__credits_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Grant Credits",
         "tags": [
           "admin"
         ]
@@ -2364,6 +4460,54 @@
                 }
               ],
               "title": "Ref"
+            }
+          },
+          {
+            "in": "query",
+            "name": "utm_source",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Utm Source"
+            }
+          },
+          {
+            "in": "query",
+            "name": "utm_medium",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Utm Medium"
+            }
+          },
+          {
+            "in": "query",
+            "name": "utm_campaign",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Utm Campaign"
             }
           }
         ],
@@ -3466,7 +5610,7 @@
         ]
       },
       "post": {
-        "description": "Start a practice session. The person agreed at sign-up that their partner knows the assistant\nis on; every account has that on record, and the session stores when. An account without it\ncannot start a session.",
+        "description": "Start an interview session. The person agreed at sign-up that their partner knows the\nassistant is on; every account has that on record, and the session stores when. An account\nwithout it cannot start a session.",
         "operationId": "create_session_api_sessions_post",
         "parameters": [
           {

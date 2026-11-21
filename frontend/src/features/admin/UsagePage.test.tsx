@@ -139,9 +139,25 @@ describe("UsagePage", () => {
     ).toHaveLength(2);
   });
 
-  it("is simply unavailable to someone who is not an admin (the server answers 404)", async () => {
+  it("sends someone who is not an admin back to the dashboard", async () => {
     mockApi({
-      "GET /api/me": () => ({ json: { ...ME, is_admin: false } }),
+      "GET /api/me": () => ({
+        json: { ...ME, is_admin: false, onboarded: true, tour_done: true },
+      }),
+      "GET /api/notes": () => ({
+        json: { role: "", content: "", updated_at: null },
+      }),
+      "GET /api/companies": () => ({ json: [] }),
+      "GET /api/sessions": () => ({ json: { items: [], next_cursor: null } }),
+    });
+    renderApp(<App />, "/admin/usage");
+    expect(await screen.findByRole("combobox")).toBeInTheDocument(); // the dashboard's search
+    expect(screen.queryByText("Usage and cost")).toBeNull();
+  });
+
+  it("is simply unavailable when the server answers 404, whatever the page believes", async () => {
+    mockApi({
+      "GET /api/me": () => ({ json: { ...ME, is_admin: true } }),
       "GET /api/admin/usage": () => ({
         status: 404,
         json: {
@@ -151,12 +167,11 @@ describe("UsagePage", () => {
     });
     renderApp(<App />, "/admin/usage");
     expect(await screen.findByText(/isn't available/)).toBeInTheDocument();
-    expect(screen.queryByText("Estimated total")).toBeNull();
   });
 });
 
 describe("navigation", () => {
-  it("shows the Usage link only to admins", async () => {
+  it("shows the Admin console link only to admins", async () => {
     mockApi({
       ...admin,
       "GET /api/notes": () => ({
@@ -166,10 +181,9 @@ describe("navigation", () => {
       "GET /api/sessions": () => ({ json: { items: [], next_cursor: null } }),
     });
     renderApp(<App />, "/");
-    expect(await screen.findByRole("link", { name: "Usage" })).toHaveAttribute(
-      "href",
-      "/admin/usage",
-    );
+    expect(
+      await screen.findByRole("link", { name: "Admin console" }),
+    ).toHaveAttribute("href", "/admin");
   });
 
   it("hides it from everyone else", async () => {
@@ -183,6 +197,6 @@ describe("navigation", () => {
     });
     renderApp(<App />, "/");
     await screen.findByRole("link", { name: "Sessions" });
-    expect(screen.queryByRole("link", { name: "Usage" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Admin console" })).toBeNull();
   });
 });

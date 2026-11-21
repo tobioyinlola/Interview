@@ -38,3 +38,15 @@ export interface BriefEdit {
 export type BriefEditResult = S["BriefEditOut"];
 export type UsageSummary = S["UsageSummary"];
 export type UsageDay = S["UsageDay"];
+
+export type AdminOverview = S["OverviewOut"];
+export type AdminUserRow = S["UserRow"];
+export type AdminUserList = S["UserListOut"];
+export type AdminUserDetail = S["UserDetailOut"];
+export type AdminActivity = S["ActivityOut"];
+export type AdminReferrals = S["ReferralsOut"];
+export type AdminMarketing = S["MarketingOut"];
+export type AdminQuality = S["QualityOut"];
+export type AdminEmails = S["EmailsOut"];
+export type AdminTemplate = S["TemplateInfo"];
+export type AdminTemplatePreview = S["TemplatePreview"];
