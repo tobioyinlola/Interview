@@ -35,7 +35,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: "practice",
     target: "nav-session-new",
-    title: "3. Practise with a friend",
+    title: "3. Run a mock interview",
     body: "Start a session, join a Google Meet with a friend who knows the assistant is on, and share the Meet tab with its audio.",
   },
   {

@@ -113,8 +113,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         </h1>
         <p className="mt-2 text-sm text-muted">
           {signup
-            ? "Practise interviews on Google Meet with a partner who knows the assistant is on."
-            : "Welcome back. InterviewMeet is for practice with a partner who knows the assistant is on."}
+            ? "Run mock interviews on Google Meet with a partner who knows the assistant is on."
+            : "Welcome back. InterviewMeet is for mock interviews with a partner who knows the assistant is on."}
         </p>
 
         {urlError && (
@@ -226,8 +226,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
                       <Link to="/privacy" className="underline">
                         Privacy Notice
                       </Link>
-                      , and I will only practise with a partner who knows the
-                      assistant is on.
+                      , and I will only run mock interviews with a partner who
+                      knows the assistant is on.
                     </span>
                   </label>
                 </>
@@ -328,7 +328,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
             <Link to="/privacy" className="underline">
               privacy notice
             </Link>
-            . Practice only, with a partner who knows the assistant is on.
+            . Mock interviews only, with a partner who knows the assistant is
+            on.
           </p>
         )}
       </div>

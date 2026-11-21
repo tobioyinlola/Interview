@@ -26,7 +26,7 @@ describe("app shell", () => {
       "Overview",
       "CV",
       "Companies",
-      "Practice",
+      "Interview",
       "Sessions",
       "Settings",
       "Privacy",

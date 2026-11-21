@@ -168,7 +168,7 @@ export function OnboardingPage() {
             ],
             [
               "/session/new",
-              "Start a practice call",
+              "Start an interview",
               "Share a Meet tab with a friend who knows.",
             ],
           ].map(([to, title, text], i) => (

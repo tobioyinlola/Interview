@@ -31,7 +31,7 @@ describe("HelpPage", () => {
       "/companies",
     );
     expect(
-      qs.getByRole("link", { name: "Start a practice session" }),
+      qs.getByRole("link", { name: "Start an interview" }),
     ).toHaveAttribute("href", "/session/new");
     expect(qs.getByRole("link", { name: "Review afterwards" })).toHaveAttribute(
       "href",
@@ -63,7 +63,7 @@ describe("HelpPage", () => {
     await userEvent.click(q);
     expect(details).toHaveAttribute("open");
     expect(
-      within(details).getByText(/No\. InterviewMeet is for practice/),
+      within(details).getByText(/No\. InterviewMeet is for mock interviews/),
     ).toBeInTheDocument();
   });
 

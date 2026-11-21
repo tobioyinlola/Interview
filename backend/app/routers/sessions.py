@@ -74,14 +74,14 @@ async def create_session(
     settings: Settings = Depends(get_settings),  # noqa: B008
     idempotency_key: str | None = Header(default=None, max_length=200),
 ) -> SessionCreateOut:
-    """Start a practice session. The person agreed at sign-up that their partner knows the assistant
+    """Start an interview session. The person agreed at sign-up that their partner knows the assistant
     is on; every account has that on record, and the session stores when. An account without it
     cannot start a session."""
     if user.practice_consent_at is None:
         raise ApiError(
             400,
             "consent_required",
-            "Agree to the terms about your practice partner before starting a session.",
+            "Agree to the terms about your interview partner before starting a session.",
         )
 
     idem = IdempotencyRepo(db, user.id)
@@ -313,7 +313,7 @@ async def transcript(
 ) -> PlainTextResponse:
     """The saved transcript as text, with timestamps (FR-34)."""
     row = await _own_session(db, user, session_id)
-    lines = [f"Practice session {row.started_at:%Y-%m-%d %H:%M} UTC", ""]
+    lines = [f"Interview session {row.started_at:%Y-%m-%d %H:%M} UTC", ""]
     for u in await LiveRepo(db, user.id).utterances(session_id):
         when = u.ended_at.strftime("%H:%M:%S") if u.ended_at else "--:--:--"
         who = "You" if u.speaker == "you" else "Partner"

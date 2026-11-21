@@ -28,7 +28,7 @@ describe("terms and privacy", () => {
     await screen.findByRole("heading", { name: "Terms of use" });
     expect(
       screen.getByText(
-        /for practising interviews with a friend, mentor or peer who knows/,
+        /for mock interviews with a friend, mentor or peer who knows/,
       ),
     ).toBeInTheDocument();
     expect(
@@ -77,7 +77,7 @@ describe("terms and privacy", () => {
     ).toHaveAttribute("href", "/privacy");
     expect(
       screen.getByText(
-        /Practice only, with a partner who knows the assistant is on/,
+        /Mock interviews only, with a partner who knows the assistant is on/,
       ),
     ).toBeInTheDocument();
   });

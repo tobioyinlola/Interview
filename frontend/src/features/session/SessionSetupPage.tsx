@@ -65,12 +65,12 @@ export function SessionSetupPage() {
   return (
     <main className="page-narrow">
       <h1 className="text-3xl font-semibold tracking-tight">
-        Start a practice call
+        Start an interview
       </h1>
       <p className="text-sm text-muted">
-        Practice with a friend, mentor or peer who knows the assistant is on.
-        Join them on Google Meet, then share the Meet tab with its audio on the
-        next screen.
+        Run a mock interview with a friend, mentor or peer who knows the
+        assistant is on. Join them on Google Meet, then share the Meet tab with
+        its audio on the next screen.
       </p>
 
       <section aria-labelledby="co-h" className="card space-y-2">
@@ -78,7 +78,7 @@ export function SessionSetupPage() {
           Company
         </h2>
         <label htmlFor="company" className="block text-sm font-medium">
-          Which company are you practising for?
+          Which company are you interviewing with?
         </label>
         <select
           id="company"
@@ -116,11 +116,11 @@ export function SessionSetupPage() {
       </section>
 
       <p className="text-xs leading-relaxed text-muted">
-        Your practice partner must know this assistant is listening to the call
-        and transcribing it. This is for practice only, so follow local law on
-        recording and transcribing calls. Audio is relayed for transcription and
-        discarded; only text is saved. Audio and text are processed by OpenAI to
-        transcribe and write answers.
+        Your interview partner must know this assistant is listening to the call
+        and transcribing it. This is for mock interviews only, so follow local
+        law on recording and transcribing calls. Audio is relayed for
+        transcription and discarded; only text is saved. Audio and text are
+        processed by OpenAI to transcribe and write answers.
       </p>
 
       <section aria-labelledby="ready-h" className="card">

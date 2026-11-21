@@ -33,7 +33,7 @@ describe("SessionSetupPage", () => {
   it("keeps Start disabled until a CV is uploaded and a company is chosen", async () => {
     mockApi(base());
     open();
-    await screen.findByRole("heading", { name: "Start a practice call" });
+    await screen.findByRole("heading", { name: "Start an interview" });
     await screen.findByRole("option", { name: "Acme" });
     expect(start()).toBeDisabled();
 
@@ -73,7 +73,7 @@ describe("SessionSetupPage", () => {
     expect(
       await screen.findByText(/must know this assistant is listening/),
     ).toBeInTheDocument();
-    expect(screen.getByText(/practice only/i)).toBeInTheDocument();
+    expect(screen.getByText(/mock interviews only/i)).toBeInTheDocument();
     expect(screen.getByText(/follow local law/i)).toBeInTheDocument();
     expect(screen.getByText(/processed by OpenAI/)).toBeInTheDocument();
   });

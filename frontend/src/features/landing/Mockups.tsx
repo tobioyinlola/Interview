@@ -58,7 +58,7 @@ export function Window({
   );
 }
 
-/** Wide "device": the live session as it looks while practising. */
+/** Wide "device": the live session as it looks while interviewing. */
 export function HeroDevice() {
   return (
     <div
@@ -69,7 +69,7 @@ export function HeroDevice() {
         <div className="grid grid-cols-[150px_1fr] max-sm:grid-cols-1">
           <div className="border-r border-line p-4 max-sm:hidden">
             <div className="mb-5 text-sm font-semibold">InterviewMeet</div>
-            {["Dashboard", "CV", "Companies", "Practice", "Sessions"].map(
+            {["Dashboard", "CV", "Companies", "Interview", "Sessions"].map(
               (x, i) => (
                 <div
                   key={x}

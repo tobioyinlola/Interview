@@ -17,22 +17,35 @@ const form = (
 describe("CompanyForm role", () => {
   it("adopts the notes role when it arrives after the form opened", () => {
     const { rerender } = render(form({ defaultRole: "" }));
-    expect(screen.getByLabelText("Role")).toHaveValue("");
+    expect(screen.getByLabelText("Role you're interviewing for")).toHaveValue(
+      "",
+    );
     rerender(form({ defaultRole: "Product Manager" }));
-    expect(screen.getByLabelText("Role")).toHaveValue("Product Manager");
+    expect(screen.getByLabelText("Role you're interviewing for")).toHaveValue(
+      "Product Manager",
+    );
   });
 
   it("never overwrites a role the user has typed", async () => {
     const { rerender } = render(form({ defaultRole: "" }));
-    await userEvent.type(screen.getByLabelText("Role"), "Data Scientist");
+    await userEvent.type(
+      screen.getByLabelText("Role you're interviewing for"),
+      "Data Scientist",
+    );
     rerender(form({ defaultRole: "Product Manager" }));
-    expect(screen.getByLabelText("Role")).toHaveValue("Data Scientist");
+    expect(screen.getByLabelText("Role you're interviewing for")).toHaveValue(
+      "Data Scientist",
+    );
   });
 
   it("lets the user clear the prefilled role", async () => {
     render(form({ defaultRole: "Product Manager" }));
-    await userEvent.clear(screen.getByLabelText("Role"));
-    expect(screen.getByLabelText("Role")).toHaveValue("");
+    await userEvent.clear(
+      screen.getByLabelText("Role you're interviewing for"),
+    );
+    expect(screen.getByLabelText("Role you're interviewing for")).toHaveValue(
+      "",
+    );
   });
 
   it("keeps a saved company's role when editing, even if notes differ", () => {
@@ -45,6 +58,8 @@ describe("CompanyForm role", () => {
         defaultRole: "Product Manager",
       }),
     );
-    expect(screen.getByLabelText("Role")).toHaveValue("Staff Engineer");
+    expect(screen.getByLabelText("Role you're interviewing for")).toHaveValue(
+      "Staff Engineer",
+    );
   });
 });

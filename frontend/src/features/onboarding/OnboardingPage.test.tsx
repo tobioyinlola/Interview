@@ -161,7 +161,7 @@ describe("the four steps", () => {
       Object.keys(GOALS),
     );
     expect(
-      screen.getByText(/So your practice fits what's at stake/),
+      screen.getByText(/So your interviews fit what's at stake/),
     ).toBeInTheDocument();
   });
 
@@ -373,7 +373,7 @@ describe("finishing", () => {
       screen.getByRole("link", { name: new RegExp(n) }).getAttribute("href");
     expect(hrefs("Upload your CV")).toBe("/notes");
     expect(hrefs("Add a company")).toBe("/companies");
-    expect(hrefs("Start a practice call")).toBe("/session/new");
+    expect(hrefs("Start an interview")).toBe("/session/new");
     expect(hrefs("Go to your dashboard")).toBe("/dashboard");
   });
 

@@ -127,7 +127,7 @@ export function Layout() {
     item("/dashboard", "Overview", <HomeIcon />, true),
     item("/notes", "CV", <NoteIcon />),
     item("/companies", "Companies", <BuildingIcon />),
-    item("/session/new", "Practice", <MicIcon />),
+    item("/session/new", "Interview", <MicIcon />),
     item("/referrals", "Invite friends", <GiftIcon />),
   ];
   const account = [

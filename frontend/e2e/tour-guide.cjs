@@ -122,7 +122,7 @@ const links = () =>
   await page.getByRole("heading", { name: "Help" }).waitFor();
   await page.getByText("Once an answer is up it stays").waitFor();
   await page.getByText("Can I use it in a real interview?").click();
-  await page.getByText(/No\. InterviewMeet is for practice/).waitFor();
+  await page.getByText(/No\. InterviewMeet is for mock interviews/).waitFor();
   await page.screenshot({ path: `${SHOTS}/6-help.png`, fullPage: true });
   ok(true, "the Help page explains the panel and answers questions");
   await page.getByRole("button", { name: "Take the tour" }).click();

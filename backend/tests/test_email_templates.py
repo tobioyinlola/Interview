@@ -93,7 +93,7 @@ def test_each_message_says_what_it_is_for() -> None:
     assert ">Sign in<" in login.html and "no password to type" in login.text
     assert "Choose a new password" in reset.html and "signed out everywhere else" in reset.text
     assert "Upload your CV" in welcome.text and "Add the company" in welcome.text
-    assert "Practise on Google Meet" in welcome.text and "/dashboard" in welcome.html
+    assert "mock interview on Google Meet" in welcome.text and "/dashboard" in welcome.html
     assert "November 17, 2026 at 09:05 UTC" in changed.text and "/forgot-password" in changed.html
     assert "signed you out of your other devices" in changed.text
     assert "deleted" in deleted.text and "/signup" in deleted.html

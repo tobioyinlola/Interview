@@ -15,7 +15,7 @@ const QUICK_START: { to: string; title: string; text: string }[] = [
   },
   {
     to: "/session/new",
-    title: "Start a practice session",
+    title: "Start an interview",
     text: "Pick the company, then join a Google Meet with a friend who knows the assistant is on.",
   },
   {
@@ -57,7 +57,7 @@ const FAQ: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: "Can I use it in a real interview?",
-    a: "No. InterviewMeet is for practice with a partner who knows the assistant is listening. You agreed to that when you signed up.",
+    a: "No. InterviewMeet is for mock interviews with a partner who knows the assistant is listening. You agreed to that when you signed up.",
   },
   {
     q: "What do you keep?",

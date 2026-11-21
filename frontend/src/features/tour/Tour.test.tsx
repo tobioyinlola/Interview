@@ -109,7 +109,7 @@ describe("the tour's steps", () => {
     for (const word of [
       "CV",
       "company",
-      "Practise",
+      "mock interview",
       "live panel",
       "Review",
       "Free sessions",

@@ -37,8 +37,9 @@ export function ReferralPage() {
     <main className="page-narrow">
       <h1 className="text-3xl font-semibold tracking-tight">Invite friends</h1>
       <p className="text-sm text-muted">
-        Everyone gets one free practice session. Invite {b.referrals_per_reward}{" "}
-        people who sign up with your link and you earn another free session.
+        Everyone gets one free interview session. Invite{" "}
+        {b.referrals_per_reward} people who sign up with your link and you earn
+        another free session.
       </p>
 
       <section aria-labelledby="link-h" className="card space-y-3">

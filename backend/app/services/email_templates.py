@@ -15,9 +15,7 @@ from app.services.names import first_name
 
 ACCENT, INK, MUTED, CANVAS, LINE = "#7B47F3", "#1C1B2E", "#5E5C75", "#F7F4FF", "#E6E1F5"
 FONT = "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
-PRACTICE_RULE = (
-    "InterviewMeet is for practising interviews with a partner who knows the assistant is on."
-)
+PRACTICE_RULE = "InterviewMeet is for mock interviews with a partner who knows the assistant is on."
 
 
 @dataclass(frozen=True)
@@ -203,7 +201,7 @@ def signup_confirmation(
             ("p", _greeting(name)),
             (
                 "p",
-                "You're one click away from practising interviews with answers grounded in your "
+                "You're one click away from mock interviews with answers grounded in your "
                 "own CV. Confirm your email address to create your account.",
             ),
             ("button", "Confirm email and sign in", link),
@@ -282,13 +280,13 @@ def welcome(brand: Brand, to: str, name: str | None) -> EmailMessage:
         subject=f"Welcome to InterviewMeet, {subject_first}"
         if subject_first
         else "Welcome to InterviewMeet",
-        preheader="Three steps to your first practice call.",
+        preheader="Three steps to your first mock interview.",
         heading=f"You're in, {first}" if first else "You're in",
         blocks=[
             ("p", _greeting(name)),
             (
                 "p",
-                "Your account is ready. Here's the quickest way to your first practice call:",
+                "Your account is ready. Here's the quickest way to your first mock interview:",
             ),
             (
                 "steps",
@@ -302,7 +300,7 @@ def welcome(brand: Brand, to: str, name: str | None) -> EmailMessage:
                         "We build a brief where every fact cites its source.",
                     ),
                     (
-                        "Practise on Google Meet with a friend",
+                        "Run a mock interview on Google Meet with a friend",
                         "Share the Meet tab and get an outline for each question they ask.",
                     ),
                 ],
@@ -310,7 +308,7 @@ def welcome(brand: Brand, to: str, name: str | None) -> EmailMessage:
             ("button", "Go to your dashboard", f"{brand.web_origin.rstrip('/')}/dashboard"),
             (
                 "note",
-                "Always tell your practice partner that the assistant is listening. You confirm "
+                "Always tell your interview partner that the assistant is listening. You confirm "
                 "that before every session.",
             ),
         ],
@@ -355,7 +353,7 @@ def account_deleted(brand: Brand, to: str, name: str | None) -> EmailMessage:
             (
                 "p",
                 "As you asked, we've deleted your InterviewMeet account along with your CV text, "
-                "companies and practice sessions. Backups age out within 30 days.",
+                "companies and interview sessions. Backups age out within 30 days.",
             ),
             (
                 "p",

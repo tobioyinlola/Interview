@@ -61,7 +61,7 @@ export const TIMELINES = {
   few_weeks: {
     emoji: "📅",
     label: "In the next few weeks",
-    hint: "Enough time for a few practice calls",
+    hint: "Enough time for a few mock interviews",
   },
   few_months: {
     emoji: "🗓️",
@@ -119,7 +119,7 @@ export interface StepInfo {
 export const STEPS: StepInfo[] = [
   {
     title: "What are you preparing for?",
-    why: "So your practice fits what's at stake.",
+    why: "So your interviews fit what's at stake.",
   },
   {
     title: "Tell us about your role",
@@ -138,11 +138,11 @@ export const STEPS: StepInfo[] = [
 /** A short plan to match how soon the interview is. */
 export const PLAN: Record<Timeline, string> = {
   this_week:
-    "Your interview is close, so let's move fast: upload your CV, add the company, and run a practice call today.",
+    "Your interview is close, so let's move fast: upload your CV, add the company, and run a mock interview today.",
   few_weeks:
-    "You have a few weeks: aim for two or three practice calls, each with a different friend.",
+    "You have a few weeks: aim for two or three mock interviews, each with a different friend.",
   few_months:
-    "You have plenty of time: get your CV and company briefs right first, then practise once a week.",
+    "You have plenty of time: get your CV and company briefs right first, then run a mock interview once a week.",
   not_scheduled:
     "No rush: set up your CV now, so you're ready the moment an interview lands.",
 };
