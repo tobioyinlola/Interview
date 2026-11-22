@@ -153,6 +153,11 @@ const probe = () => {
           throw e;
         }
         await page.waitForTimeout(350);
+        if (process.env.E2E_SHOTS && p === "/dashboard" && st)
+          await page.screenshot({
+            path: `${process.env.E2E_SHOTS}/dash-${w}.png`,
+            fullPage: true,
+          });
         const issues = await page.evaluate(probe);
         checks++;
         if (issues.length) {

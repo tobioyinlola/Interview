@@ -36,9 +36,20 @@ function Item({
   children: React.ReactNode;
 }) {
   return (
-    <li className="flex items-start gap-2">
-      <span aria-hidden="true">{ok ? (warn ? "!" : "✓") : "○"}</span>
-      <span>
+    <li className="flex items-start gap-3">
+      <span
+        aria-hidden="true"
+        className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+          ok
+            ? warn
+              ? "bg-amber-100 text-amber-700"
+              : "bg-emerald-100 text-emerald-700"
+            : "bg-canvas text-muted"
+        }`}
+      >
+        {ok ? (warn ? "!" : "✓") : ""}
+      </span>
+      <span className="pt-0.5">
         <span className="sr-only">
           {ok ? (warn ? "Needs attention: " : "Done: ") : "Not done: "}
         </span>
@@ -63,16 +74,35 @@ function ReadinessCard() {
   const stale = hasBrief && newest > STALE_DAYS;
   const canCapture = isSupported(currentEnv());
   const ready = cvUploaded && canCapture;
+  const done = [cvUploaded, hasBrief && !stale, canCapture].filter(
+    Boolean,
+  ).length;
 
   return (
     <section
       aria-labelledby="ready-h"
       className="space-y-3 rounded-2xl bg-surface p-5 shadow-card"
     >
-      <h2 id="ready-h" className="text-lg font-medium">
-        Readiness
-      </h2>
-      <ul className="space-y-1 text-sm">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 id="ready-h" className="text-lg font-semibold">
+          Readiness
+        </h2>
+        <span className="text-sm text-muted">{done} of 3 ready</span>
+      </div>
+      <div
+        role="progressbar"
+        aria-label="Interview readiness"
+        aria-valuemin={0}
+        aria-valuemax={3}
+        aria-valuenow={done}
+        className="h-2 overflow-hidden rounded-full bg-canvas"
+      >
+        <div
+          className="h-full rounded-full bg-accent transition-all"
+          style={{ width: `${(done / 3) * 100}%` }}
+        />
+      </div>
+      <ul className="space-y-3 text-sm">
         <Item ok={cvUploaded}>
           CV uploaded{" "}
           {!cvUploaded && (
@@ -298,73 +328,142 @@ function FocusCard() {
   );
 }
 
+const TONES = {
+  violet: "bg-accent-soft text-accent-dark",
+  sky: "bg-sky-100 text-sky-700",
+  amber: "bg-amber-100 text-amber-700",
+  emerald: "bg-emerald-100 text-emerald-700",
+};
+
 function Stat({
   label,
   value,
   hint,
   icon,
+  tone,
 }: {
   label: string;
   value: string;
   hint: string;
   icon: React.ReactNode;
+  tone: keyof typeof TONES;
 }) {
   return (
-    <div className="rounded-2xl bg-surface p-5 shadow-card">
-      <div className="flex items-center justify-between text-sm text-muted">
-        {label}
-        <span className="rounded-lg bg-accent-soft p-1.5 text-accent-dark">
-          {icon}
-        </span>
-      </div>
+    <div className="rounded-2xl bg-surface p-4 shadow-card sm:p-5">
+      <span
+        className={`flex h-9 w-9 items-center justify-center rounded-xl ${TONES[tone]}`}
+      >
+        {icon}
+      </span>
       <p className="mt-4 text-3xl font-semibold tabular-nums tracking-tight">
         {value}
       </p>
-      <p className="mt-1 text-xs text-muted">{hint}</p>
+      <p className="mt-0.5 text-sm font-medium">{label}</p>
+      <p className="text-xs text-muted">{hint}</p>
     </div>
   );
 }
 
-function Action({
-  to,
-  title,
-  sub,
-  primary,
+/** A round letter for a company, so lists are easy to scan. */
+function Avatar({ name }: { name: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft font-semibold text-accent-dark"
+    >
+      {(name.trim()[0] ?? "?").toUpperCase()}
+    </span>
+  );
+}
+
+const BRIEF: Record<string, { text: string; tone: string }> = {
+  ready: { text: "Brief ready", tone: "bg-emerald-100 text-emerald-700" },
+  failed: { text: "Research failed", tone: "bg-red-100 text-red-700" },
+};
+
+/** The one thing to do next, as a big friendly card at the top. */
+function Hero({
+  name,
+  cv,
+  companies,
+  sessions,
 }: {
-  to: string;
-  title: string;
-  sub: string;
-  primary?: boolean;
+  name: string;
+  cv: boolean;
+  companies: number;
+  sessions: number;
 }) {
+  const next = !cv
+    ? {
+        to: "/settings/cv",
+        cta: "Add your CV",
+        line: "Start with your CV so every answer sounds like you.",
+      }
+    : companies === 0
+      ? {
+          to: "/companies",
+          cta: "Add the company",
+          line: "Tell us who is interviewing you and we will research them.",
+        }
+      : {
+          to: "/session/new",
+          cta: "New interview",
+          line:
+            sessions === 0
+              ? "You are all set. Start your first interview when you are ready."
+              : "Pick a company and share your Meet tab to get live help.",
+        };
+  return (
+    <section
+      aria-label="What to do next"
+      className="overflow-hidden rounded-3xl bg-gradient-to-br from-ink via-ink to-accent-dark p-6 text-surface shadow-lift sm:p-8"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-6">
+        <div className="min-w-0 flex-1 basis-72">
+          <h1 className="sr-only">Dashboard</h1>
+          <p className="break-words text-3xl font-semibold tracking-tight sm:text-4xl">
+            Hello{name ? `, ${name}` : ""} <span aria-hidden="true">👋</span>
+          </p>
+          <p className="mt-1 text-surface/80">
+            Here&apos;s your interview overview.
+          </p>
+          <p className="mt-4 max-w-md text-surface/90">{next.line}</p>
+          <Link
+            to={next.to}
+            className="btn btn-lg mt-5 bg-surface text-ink hover:bg-canvas"
+          >
+            {next.cta}
+            <ArrowIcon className="h-4 w-4" />
+          </Link>
+        </div>
+        <div
+          aria-hidden="true"
+          className="hidden h-28 w-28 shrink-0 items-center justify-center rounded-3xl bg-surface/10 sm:flex"
+        >
+          <MicIcon className="h-12 w-12" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** A nudge toward the other half of the product. */
+function AutoApplyCard() {
   return (
     <Link
-      to={to}
-      className={`flex items-center gap-3 rounded-2xl p-3.5 transition-colors ${
-        primary
-          ? "bg-accent text-surface hover:bg-accent-dark"
-          : "bg-canvas hover:bg-accent-soft"
-      }`}
+      to="/auto-apply"
+      className="group block rounded-2xl bg-accent-soft p-5 transition-colors hover:bg-accent-soft/70"
     >
-      <span
-        className={`rounded-xl p-2 ${primary ? "bg-surface/20" : "bg-surface text-accent-dark"}`}
-      >
-        {title.includes("interview") ? (
-          <MicIcon />
-        ) : title.includes("company") ? (
-          <BuildingIcon />
-        ) : (
-          <NoteIcon />
-        )}
+      <span className="text-sm font-medium text-accent-dark">New</span>
+      <h2 className="mt-1 text-lg font-semibold">Let Auto-Apply find jobs</h2>
+      <p className="mt-1 text-sm text-muted">
+        Answer a few questions once and we apply to jobs that fit you for 30
+        days. You approve anything uncertain.
+      </p>
+      <span className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-accent-dark">
+        Set it up{" "}
+        <ArrowIcon className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
       </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-medium">{title}</span>
-        <span
-          className={`block text-xs leading-snug ${primary ? "text-surface/80" : "text-muted"}`}
-        >
-          {sub}
-        </span>
-      </span>
-      <ArrowIcon className="h-4 w-4 shrink-0" />
     </Link>
   );
 }
@@ -376,6 +475,7 @@ export function DashboardPage() {
   const { data: me } = useMe();
   const companies = useCompanies();
   const sessions = useSessions();
+  const notes = useNotes();
   const all = sessions.data?.pages.flatMap((p) => p.items) ?? [];
   const recent = (sessions.data?.pages[0]?.items ?? []).slice(0, 5);
   const more = sessions.hasNextPage ? "+" : "";
@@ -386,30 +486,29 @@ export function DashboardPage() {
   ).length;
 
   return (
-    <main className="max-w-6xl p-4 sm:p-5 lg:px-5 lg:py-6">
-      <div className="min-w-0">
-        <h1 className="sr-only">Dashboard</h1>
-        <p className="break-words text-3xl font-semibold tracking-tight sm:text-4xl">
-          Hello
-          {firstName(me?.full_name) ? `, ${firstName(me?.full_name)}` : ""}{" "}
-          <span aria-hidden="true">👋</span>
-        </p>
-        <p className="mt-1 text-muted">Here&apos;s your interview overview.</p>
-      </div>
+    <main className="max-w-6xl space-y-5 p-4 sm:p-5 lg:px-5 lg:py-6">
+      <Hero
+        name={firstName(me?.full_name)}
+        cv={notes.data ? notes.data.content.trim().length > 0 : true}
+        companies={companies.data?.length ?? 1}
+        sessions={all.length}
+      />
 
-      <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="space-y-5">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 2xl:grid-cols-4">
             <Stat
               label="Sessions"
               value={`${all.length}${more}`}
               hint="Interviews"
+              tone="violet"
               icon={<MicIcon className="h-4 w-4" />}
             />
             <Stat
               label="Questions"
               value={`${questions}${more}`}
               hint="Questions answered"
+              tone="sky"
               icon={<NoteIcon className="h-4 w-4" />}
             />
             <Stat
@@ -420,12 +519,14 @@ export function DashboardPage() {
                   ? "Across your sessions"
                   : "Starts at your first call"
               }
+              tone="amber"
               icon={<ClockIcon className="h-4 w-4" />}
             />
             <Stat
               label="Briefs ready"
               value={String(ready)}
               hint={`${companies.data?.length ?? 0} companies added`}
+              tone="emerald"
               icon={<BuildingIcon className="h-4 w-4" />}
             />
           </div>
@@ -461,7 +562,7 @@ export function DashboardPage() {
               </h2>
               <Link
                 to="/companies"
-                className="text-sm text-accent-dark underline"
+                className="text-sm font-medium text-accent-dark hover:underline"
               >
                 All companies
               </Link>
@@ -470,57 +571,41 @@ export function DashboardPage() {
               <p className="mt-3 text-muted">No companies yet.</p>
             )}
             <ul className="mt-3 space-y-1">
-              {(companies.data ?? []).slice(0, 5).map((c) => (
-                <li key={c.id} className="flex justify-between gap-3 py-2.5">
-                  <Link
-                    to={`/companies/${c.id}`}
-                    className="font-medium text-accent-dark underline"
-                  >
-                    {c.name}
-                  </Link>
-                  <span className="text-sm text-muted">
-                    {c.job_status === "ready"
-                      ? "Brief ready"
-                      : c.job_status === "failed"
-                        ? "Research failed"
-                        : c.job_status
-                          ? "Researching…"
-                          : "Not researched"}
-                  </span>
-                </li>
-              ))}
+              {(companies.data ?? []).slice(0, 5).map((c) => {
+                const b = c.job_status ? BRIEF[c.job_status] : undefined;
+                return (
+                  <li key={c.id}>
+                    <Link
+                      to={`/companies/${c.id}`}
+                      className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-canvas"
+                    >
+                      <Avatar name={c.name} />
+                      <span className="min-w-0 flex-1 truncate font-medium">
+                        {c.name}
+                      </span>
+                      <span
+                        className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${b?.tone ?? "bg-canvas text-muted"}`}
+                      >
+                        {c.job_status === "ready"
+                          ? "Brief ready"
+                          : c.job_status === "failed"
+                            ? "Research failed"
+                            : c.job_status
+                              ? "Researching…"
+                              : "Not researched"}
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           </section>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-5">
           <SessionsCard />
+          <AutoApplyCard />
           <FocusCard />
-
-          <section
-            aria-label="Quick actions"
-            className="rounded-2xl bg-surface p-5 shadow-card"
-          >
-            <h2 className="text-lg font-semibold">Quick actions</h2>
-            <div className="mt-3 space-y-2">
-              <Action
-                primary
-                to="/session/new"
-                title="New interview"
-                sub="Pick a company, then share your Meet tab"
-              />
-              <Action
-                to="/companies"
-                title="Add a company"
-                sub="Research a role and get a cited brief"
-              />
-              <Action
-                to="/settings/cv"
-                title="Upload your CV"
-                sub="What outlines are built from"
-              />
-            </div>
-          </section>
 
           <section
             aria-labelledby="se-h"
@@ -532,7 +617,7 @@ export function DashboardPage() {
               </h2>
               <Link
                 to="/sessions"
-                className="text-sm text-accent-dark underline"
+                className="text-sm font-medium text-accent-dark hover:underline"
               >
                 All sessions
               </Link>
@@ -542,18 +627,21 @@ export function DashboardPage() {
             )}
             <ul className="mt-3 space-y-1">
               {recent.map((s) => (
-                <li key={s.id} className="py-2.5">
-                  <Link
-                    to={`/sessions/${s.id}`}
-                    className="font-medium text-accent-dark underline"
-                  >
-                    {formatWhen(s.started_at)}
-                  </Link>
-                  <span className="mt-0.5 block text-sm text-muted">
-                    {s.company_name ?? "No company"} ·{" "}
-                    {formatDuration(s.duration_seconds)} · {s.question_count}{" "}
-                    question{s.question_count === 1 ? "" : "s"}
-                  </span>
+                <li key={s.id} className="flex items-center gap-3 p-2">
+                  <Avatar name={s.company_name ?? "?"} />
+                  <div className="min-w-0">
+                    <Link
+                      to={`/sessions/${s.id}`}
+                      className="font-medium text-accent-dark hover:underline"
+                    >
+                      {formatWhen(s.started_at)}
+                    </Link>
+                    <span className="mt-0.5 block text-sm text-muted">
+                      {s.company_name ?? "No company"} ·{" "}
+                      {formatDuration(s.duration_seconds)} · {s.question_count}{" "}
+                      question{s.question_count === 1 ? "" : "s"}
+                    </span>
+                  </div>
                 </li>
               ))}
             </ul>
