@@ -2,7 +2,7 @@ import { AuthLayout } from "../ui/AuthLayout";
 
 export function BrowserNotice() {
   return (
-    <AuthLayout>
+    <AuthLayout plain>
       <div>
         <h1 className="text-[1.75rem] font-semibold leading-tight tracking-tight sm:text-3xl">
           This browser isn&apos;t supported

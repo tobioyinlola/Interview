@@ -9,9 +9,18 @@ from app.schemas.brief import BriefContent
 NOTES_MAX = 16_000
 
 
+class Utm(BaseModel):
+    """Campaign tags on the link someone arrived on (utm_source and friends)."""
+
+    source: str | None = Field(default=None, max_length=60)
+    medium: str | None = Field(default=None, max_length=60)
+    campaign: str | None = Field(default=None, max_length=60)
+
+
 class RequestLinkIn(BaseModel):
     email: EmailStr
     ref: str | None = Field(default=None, max_length=40)  # an invite code from a link
+    utm: Utm | None = None
 
 
 class StatusOut(BaseModel):
@@ -23,6 +32,7 @@ class SignUpIn(BaseModel):
     full_name: str = Field(min_length=1, max_length=400)  # the name rules give the message
     password: str = Field(min_length=1, max_length=256)  # the real rules are checked server-side
     ref: str | None = Field(default=None, max_length=40)  # an invite code from a link
+    utm: Utm | None = None
 
 
 class LoginIn(BaseModel):
@@ -73,10 +83,14 @@ class ProfileIn(BaseModel):
 class MeOut(BaseModel):
     id: uuid.UUID
     email: str
-    is_admin: bool = False  # may open the owner's usage and cost view
     full_name: str | None = None
     onboarded: bool = True  # false until onboarding is finished or skipped
     onboarding: OnboardingAnswers | None = None
+    tour_done: bool = True  # false until the first-time tour was finished or skipped
+
+
+class TourIn(BaseModel):
+    done: bool = True  # false asks for the tour to be shown again
 
 
 class NotesIn(BaseModel):
@@ -387,10 +401,12 @@ class BillingOut(BaseModel):
     trial_available: bool  # the free first session, not yet used
     referral_credits_available: int  # redeemed rewards, not yet used
     paid_credits_available: int
+    gifted_credits_available: int = 0  # free interviews the InterviewMeet team added
     payments_enabled: bool  # false until per-session payments exist
     referral_code: str
     referral_link: str
     referrals_qualified: int  # people who signed up with their link
+    referrals_held: int  # sign-ups that looked like the same device as the inviter, not counted
     referrals_per_reward: int
     referrals_to_next_reward: int
     rewards_earned: int

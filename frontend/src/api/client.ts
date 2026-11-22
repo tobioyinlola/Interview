@@ -1,3 +1,5 @@
+import { fingerprint } from "./fingerprint";
+
 /** Typed REST client. Cookie auth, CSRF header on mutations, one error shape. */
 // An empty value means "the API is on this same origin" (the web server forwards /api to it); only
 // an unset value falls back to the local development address.
@@ -35,6 +37,8 @@ export async function apiFetch<T>(
   if (init.body && !headers.has("content-type"))
     headers.set("content-type", "application/json");
   if (method !== "GET") headers.set("x-requested-with", "meet-practice"); // CSRF header
+  const print = fingerprint();
+  if (print) headers.set("x-device-fp", print); // see fingerprint.ts: stops self-invites
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers,

@@ -9,7 +9,7 @@ import {
   useRequestLink,
   useSignUp,
 } from "../../api/hooks";
-import { savedInvite } from "../referral/invite";
+import { savedInvite, savedUtm } from "../referral/invite";
 import { PasswordField } from "../../ui/PasswordField";
 import { AuthLayout } from "../../ui/AuthLayout";
 
@@ -98,12 +98,18 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const emailLink = () => {
     if (emailRef.current?.reportValidity()) link.mutate(email.trim());
   };
-  const google = () =>
+  const google = () => {
+    const query = new URLSearchParams();
+    if (savedInvite()) query.set("ref", savedInvite()!);
+    const utm = savedUtm();
+    if (utm?.source) query.set("utm_source", utm.source);
+    if (utm?.medium) query.set("utm_medium", utm.medium);
+    if (utm?.campaign) query.set("utm_campaign", utm.campaign);
+    const qs = query.toString();
     window.location.assign(
-      `${API_BASE_URL}/api/auth/google/start${
-        savedInvite() ? `?ref=${savedInvite()}` : ""
-      }`,
+      `${API_BASE_URL}/api/auth/google/start${qs ? `?${qs}` : ""}`,
     );
+  };
 
   return (
     <AuthLayout>
@@ -113,8 +119,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         </h1>
         <p className="mt-2 text-sm text-muted">
           {signup
-            ? "Practise interviews on Google Meet with a partner who knows the assistant is on."
-            : "Welcome back. InterviewMeet is for practice with a partner who knows the assistant is on."}
+            ? "Run mock interviews on Google Meet with a partner who knows the assistant is on."
+            : "Welcome back. InterviewMeet is for mock interviews with a partner who knows the assistant is on."}
         </p>
 
         {urlError && (
@@ -226,8 +232,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
                       <Link to="/privacy" className="underline">
                         Privacy Notice
                       </Link>
-                      , and I will only practise with a partner who knows the
-                      assistant is on.
+                      , and I will only run mock interviews with a partner who
+                      knows the assistant is on.
                     </span>
                   </label>
                 </>
@@ -328,7 +334,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
             <Link to="/privacy" className="underline">
               privacy notice
             </Link>
-            . Practice only, with a partner who knows the assistant is on.
+            . Mock interviews only, with a partner who knows the assistant is
+            on.
           </p>
         )}
       </div>

@@ -17,7 +17,7 @@ export function SessionsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-semibold tracking-tight">Sessions</h1>
         <Link to="/session/new" className="btn-primary">
-          Start practice
+          Start interview
         </Link>
       </div>
       {q.isPending && <LoadingRows />}
@@ -26,7 +26,7 @@ export function SessionsPage() {
       )}
       {q.isSuccess && items.length === 0 && (
         <p className="text-muted">
-          No sessions yet. After a practice call, it appears here with its
+          No sessions yet. After an interview, it appears here with its
           transcript and scores.
         </p>
       )}

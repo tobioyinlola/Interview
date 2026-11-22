@@ -137,7 +137,7 @@ class SuggestionService:
         convo = "\n".join(history) if history else "(nothing earlier)"
         return (
             f"Target role: {ctx.role or 'not specified'}\n"
-            f"Company: {ctx.company or 'not specified'}\n"
+            f"Company interviewing the candidate: {ctx.company or 'not specified'}\n"
             f"Seniority: {ctx.seniority}\n"
             f"<vocabulary>\n{ctx.terms or 'Use the standard terminology of the target role.'}"
             f"\n</vocabulary>\n\n"

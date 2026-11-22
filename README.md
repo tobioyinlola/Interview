@@ -69,13 +69,24 @@ Facts with no valid source are dropped and empty sections say "Not found". Pages
   sources the job actually collected.
 - Needs `OPENAI_API_KEY` to research. Without it a job fails with a clear message.
 
+## Tour and Help
+The first time the dashboard opens, a nine-step tour rings the real sidebar items, the search box and the
+account button, and explains the live panel. It can be skipped (Escape or Skip tour) and is remembered on the
+account (`users.tour_done_at`, `PUT /api/tour`). Take it again from the account menu or the Help page. On a
+phone, where the menu is a drawer, a step whose item is hidden is shown in the middle of the screen with the
+same words. `/help` has a quick start, how the live panel works, and common questions. The steps are in
+`frontend/src/features/tour/steps.ts`; each target is a `data-tour` attribute.
+
 ## Sessions, the free trial and invites
 Every account gets one free practice session. Each session after that will be pay per session; **payments
 are not built yet**, so a person with no session left is told so (HTTP 402, `payment_required`) and pointed to
 the invite page. Invite three people who sign up with your link (`/signup?ref=CODE`, and who confirm their
 email) and you earn a free session, which you **redeem** on the Invite friends page before you can use it.
 The code survives email-link, password and Google sign-up. Inviting yourself (including `+tag` and Gmail dot
-variants of your own address) does not count. Settings: `REFERRALS_PER_FREE_SESSION` (default 3) and
+variants of your own address) does not count, and neither does a sign-up from the inviter's own device
+(a device-id cookie; or the same coarse device fingerprint from the same network address, in another
+browser or a private window), nor a second account made on the same device as another invited one. Those
+are recorded as "held" and the inviter is told. Only keyed hashes are kept, deleted with the account. Settings: `REFERRALS_PER_FREE_SESSION` (default 3) and
 `ENFORCE_SESSION_CREDITS` (default true; only tests turn it off).
 
 ## Live practice session
@@ -157,7 +168,7 @@ sideways scrolling and undersized controls, and runs with the other browser test
   strict Content-Security-Policy for the web app (`frontend/nginx.conf.template`), verified in Chromium against the
   production build (`E2E_PROD=1 scripts/e2e-live.sh`).
 - **Observability:** Prometheus `/metrics` (route templates only, never content), alert rules in
-  `ops/alerts.yml` with a runbook each (`docs/runbooks/`), optional scrubbed Sentry, admin-only cost view at `/admin/usage`.
+  `ops/alerts.yml` with a runbook each (`docs/runbooks/`), optional scrubbed Sentry, a staff-only back office at `/admin` with its own sign-in (users, activity log, referrals, marketing, quality, emails, cost); it is separate from the customer app and has no link inside it.
 - **Reliability:** circuit breaker with a fallback answer model, stale research-job recovery, graceful
   shutdown that tells browsers to reconnect.
 - **Checks you can run:** `scripts/loadtest.sh` (synthetic sessions, fake providers) and

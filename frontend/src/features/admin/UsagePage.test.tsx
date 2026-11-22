@@ -2,7 +2,7 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { App } from "../../app/App";
-import { ME, mockApi, renderApp, stubSupportedBrowser } from "../../test-utils";
+import { mockApi, renderApp, stubSupportedBrowser } from "../../test-utils";
 
 beforeEach(() => stubSupportedBrowser());
 afterEach(() => vi.restoreAllMocks());
@@ -65,7 +65,11 @@ const summary = (over = {}) => ({
   },
   ...over,
 });
-const admin = { "GET /api/me": () => ({ json: { ...ME, is_admin: true } }) };
+const admin = {
+  "GET /api/admin/auth/me": () => ({
+    json: { email: "boss@example.com", full_name: null },
+  }),
+};
 
 describe("UsagePage", () => {
   it("shows totals, averages, days, heaviest users and the caps in force", async () => {
@@ -139,9 +143,31 @@ describe("UsagePage", () => {
     ).toHaveLength(2);
   });
 
-  it("is simply unavailable to someone who is not an admin (the server answers 404)", async () => {
+  it("asks for the staff sign-in when there is none", async () => {
     mockApi({
-      "GET /api/me": () => ({ json: { ...ME, is_admin: false } }),
+      "GET /api/admin/auth/me": () => ({
+        status: 401,
+        json: {
+          error: {
+            code: "staff_not_authenticated",
+            message: "x",
+            request_id: "r",
+          },
+        },
+      }),
+    });
+    renderApp(<App />, "/admin/usage");
+    expect(
+      await screen.findByRole("heading", { name: "Staff sign in" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Usage and cost")).toBeNull();
+  });
+
+  it("is simply unavailable when the server answers 404, whatever the page believes", async () => {
+    mockApi({
+      "GET /api/admin/auth/me": () => ({
+        json: { email: "boss@example.com", full_name: null },
+      }),
       "GET /api/admin/usage": () => ({
         status: 404,
         json: {
@@ -151,38 +177,5 @@ describe("UsagePage", () => {
     });
     renderApp(<App />, "/admin/usage");
     expect(await screen.findByText(/isn't available/)).toBeInTheDocument();
-    expect(screen.queryByText("Estimated total")).toBeNull();
-  });
-});
-
-describe("navigation", () => {
-  it("shows the Usage link only to admins", async () => {
-    mockApi({
-      ...admin,
-      "GET /api/notes": () => ({
-        json: { role: "", content: "", updated_at: null },
-      }),
-      "GET /api/companies": () => ({ json: [] }),
-      "GET /api/sessions": () => ({ json: { items: [], next_cursor: null } }),
-    });
-    renderApp(<App />, "/");
-    expect(await screen.findByRole("link", { name: "Usage" })).toHaveAttribute(
-      "href",
-      "/admin/usage",
-    );
-  });
-
-  it("hides it from everyone else", async () => {
-    mockApi({
-      "GET /api/me": () => ({ json: { ...ME, is_admin: false } }),
-      "GET /api/notes": () => ({
-        json: { role: "", content: "", updated_at: null },
-      }),
-      "GET /api/companies": () => ({ json: [] }),
-      "GET /api/sessions": () => ({ json: { items: [], next_cursor: null } }),
-    });
-    renderApp(<App />, "/");
-    await screen.findByRole("link", { name: "Sessions" });
-    expect(screen.queryByRole("link", { name: "Usage" })).toBeNull();
   });
 });

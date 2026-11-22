@@ -14,7 +14,7 @@ from app import metrics
 from app.adapters.interfaces import ProviderError, ProviderNotConfigured, SttProvider
 from app.config import Settings, get_settings
 from app.db import get_db
-from app.deps import current_user, get_hub, get_scorer, get_stt, get_suggester
+from app.deps import current_user, get_hub, get_notifier, get_scorer, get_stt, get_suggester
 from app.errors import ApiError
 from app.models import PracticeSession, User
 from app.repositories import (
@@ -44,8 +44,10 @@ from app.schemas.api import (
     SuggestionOut,
     UtteranceOut,
 )
+from app.services.events import record_from
 from app.services.gaps import find_gaps
 from app.services.live import LiveHub
+from app.services.notify import Notifier
 from app.services.suggest import SuggestionService
 from app.services.vocab import session_stt_prompt
 from app.workers.scoring_worker import ScoringRunner
@@ -74,14 +76,14 @@ async def create_session(
     settings: Settings = Depends(get_settings),  # noqa: B008
     idempotency_key: str | None = Header(default=None, max_length=200),
 ) -> SessionCreateOut:
-    """Start a practice session. The person agreed at sign-up that their partner knows the assistant
-    is on; every account has that on record, and the session stores when. An account without it
-    cannot start a session."""
+    """Start an interview session. The person agreed at sign-up that their partner knows the
+    assistant is on; every account has that on record, and the session stores when. An account
+    without it cannot start a session."""
     if user.practice_consent_at is None:
         raise ApiError(
             400,
             "consent_required",
-            "Agree to the terms about your practice partner before starting a session.",
+            "Agree to the terms about your interview partner before starting a session.",
         )
 
     idem = IdempotencyRepo(db, user.id)
@@ -111,6 +113,7 @@ async def create_session(
             db, user, per_reward=max(1, settings.referrals_per_free_session)
         ).take_credit()
     if credit is None and settings.enforce_session_credits:
+        await record_from(db, "session.blocked", user_id=user.id)
         raise ApiError(
             402,
             "payment_required",
@@ -142,6 +145,14 @@ async def create_session(
         if saved is None:
             raise
         out = SessionCreateOut.model_validate(saved)
+    await record_from(
+        db,
+        "session.started",
+        user_id=user.id,
+        session_id=out.session_id,
+        credit=credit.kind if credit is not None else "not_enforced",
+        company=company_id is not None,
+    )
     out.audio_token = await _token(db, settings, user, out.session_id)
     out.sample_rate = settings.stt_sample_rate
     return out
@@ -172,18 +183,45 @@ async def end_session(
     db: AsyncSession = Depends(get_db),  # noqa: B008
     suggester: SuggestionService = Depends(get_suggester),  # noqa: B008
     hub: LiveHub = Depends(get_hub),  # noqa: B008
+    settings: Settings = Depends(get_settings),  # noqa: B008
+    notifier: Notifier = Depends(get_notifier),  # noqa: B008
 ) -> SessionEndOut:
     live = LiveRepo(db, user.id)
+    existing = await SessionsRepo(db, user.id).get(session_id)
+    was_active = existing is not None and existing.status == "active"
     row = await live.end_session(session_id)
     if row is None:
         raise ApiError(404, "session_not_found", "Session not found.")
     suggester.forget(session_id)
     await hub.broadcast_desktop(session_id, {"type": "end"})
-    return SessionEndOut(
+    out = SessionEndOut(
         status=row.status,
         utterances=len(await live.utterances(session_id)),
         suggestions=len(await live.suggestions(session_id)),
     )
+    if was_active:  # ending twice is harmless and is not a second event
+        seconds = int((row.ended_at - row.started_at).total_seconds()) if row.ended_at else 0
+        await record_from(
+            db,
+            "session.ended",
+            user_id=user.id,
+            session_id=session_id,
+            seconds=seconds,
+            questions=out.suggestions,
+        )
+        if settings.enforce_session_credits:
+            left = await BillingRepo(
+                db, user, per_reward=max(1, settings.referrals_per_free_session)
+            ).summary()
+            if (
+                left.trial_available
+                + left.referral_available
+                + left.paid_available
+                + left.granted_available
+                == 0
+            ):
+                await notifier.trial_used(user.id)
+    return out
 
 
 @router.get("/sessions/{session_id}/pin")
@@ -313,7 +351,7 @@ async def transcript(
 ) -> PlainTextResponse:
     """The saved transcript as text, with timestamps (FR-34)."""
     row = await _own_session(db, user, session_id)
-    lines = [f"Practice session {row.started_at:%Y-%m-%d %H:%M} UTC", ""]
+    lines = [f"Interview session {row.started_at:%Y-%m-%d %H:%M} UTC", ""]
     for u in await LiveRepo(db, user.id).utterances(session_id):
         when = u.ended_at.strftime("%H:%M:%S") if u.ended_at else "--:--:--"
         who = "You" if u.speaker == "you" else "Partner"
@@ -486,6 +524,7 @@ async def suggestion_feedback(
     """Thumbs up or down on an outline, stored with the session."""
     if not await LiveRepo(db, user.id).set_feedback(suggestion_id, body.value):
         raise ApiError(404, "suggestion_not_found", "Outline not found.")
+    await record_from(db, "answer.rated", user_id=user.id, value=body.value)
     return {"status": "ok"}
 
 

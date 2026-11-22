@@ -15,7 +15,7 @@ const PAGES: { label: string; to: string; words: string }[] = [
   { label: "CV", to: "/notes", words: "upload resume notes target role" },
   { label: "Companies", to: "/companies", words: "research brief add company" },
   {
-    label: "Start a practice call",
+    label: "Start an interview",
     to: "/session/new",
     words: "practice session new interview start",
   },
@@ -29,6 +29,11 @@ const PAGES: { label: string; to: string; words: string }[] = [
     label: "Onboarding answers",
     to: "/onboarding",
     words: "focus goal level timeline update preferences",
+  },
+  {
+    label: "Help",
+    to: "/help",
+    words: "guide tour how to faq support start question",
   },
   { label: "Settings", to: "/settings", words: "name account delete data" },
   { label: "Privacy", to: "/privacy", words: "data policy" },

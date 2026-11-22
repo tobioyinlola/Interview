@@ -27,6 +27,7 @@ from app.schemas.api import (
 )
 from app.schemas.brief import BriefContent
 from app.services.brief_edit import EditError, FactEdit, apply_edits
+from app.services.events import record_from
 from app.services.url_guard import Resolver, UrlRejected, validate_public_url
 from app.workers.research_worker import ResearchRunner
 
@@ -154,6 +155,9 @@ async def create_company(
             raise
         return CompanyCreatedOut.model_validate(saved)
     runner.start(job.id)
+    await record_from(
+        db, "company.added", user_id=user.id, company_id=company.id, name=company.name
+    )
     return out
 
 

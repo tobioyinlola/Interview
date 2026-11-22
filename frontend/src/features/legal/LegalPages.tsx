@@ -33,29 +33,29 @@ function Shell({
 export function TermsPage() {
   return (
     <Shell title="Terms of use">
-      <h2 className="text-lg font-semibold">Practice only</h2>
+      <h2 className="text-lg font-semibold">Mock interviews only</h2>
       <p>
-        InterviewMeet is for practising interviews with a friend, mentor or peer
-        who knows the assistant is on. It is not for real interviews, and it has
-        no feature to hide the assistant from another person or to avoid
+        InterviewMeet is for mock interviews with a friend, mentor or peer who
+        knows the assistant is on. It is not for real interviews, and it has no
+        feature to hide the assistant from another person or to avoid
         screen-share, proctoring or detection tools. None will be added.
       </p>
       <h2 className="text-lg font-semibold">Consent</h2>
       <p>
-        You must tell your practice partner that the assistant listens to the
+        You must tell your interview partner that the assistant listens to the
         call and transcribes it, and get their agreement. You agree to this
         once, with the box you tick when you sign up, and the app records when.
         It does not ask again.
       </p>
       <h2 className="text-lg font-semibold">Sessions and invites</h2>
       <p>
-        Every account gets one free practice session. More sessions will be paid
-        for one at a time; payments are not available yet. If three people sign
-        up with your invite link and confirm their email, you earn one free
+        Every account gets one free interview session. More sessions will be
+        paid for one at a time; payments are not available yet. If three people
+        sign up with your invite link and confirm their email, you earn one free
         session, which you redeem yourself and can use whenever you like.
-        Inviting yourself, a second address of your own, or accounts made only
-        to collect rewards does not count, and we may take back rewards earned
-        that way.
+        Inviting yourself, a second address of your own, accounts made on your
+        own device, or accounts made only to collect rewards does not count, and
+        we may take back rewards earned that way.
       </p>
       <h2 className="text-lg font-semibold">The law</h2>
       <p>
@@ -106,6 +106,14 @@ export function PrivacyPage() {
         <li>
           Counts of audio seconds and tokens used (for limits and cost), never
           content.
+        </li>
+        <li>
+          To stop people inviting themselves, a random device id in a cookie and
+          a coarse description of your device (screen size, time zone, language
+          and processor count) and your network address, each kept only as a
+          scrambled value, not readable back. They are used only to see whether
+          an invite came from the inviter&apos;s own device, and are deleted
+          with your account.
         </li>
       </ul>
       <h2 className="text-lg font-semibold">What is not stored</h2>

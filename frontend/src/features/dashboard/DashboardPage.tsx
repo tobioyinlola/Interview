@@ -1,9 +1,11 @@
-import { Link } from "react-router-dom";
+import { type FormEvent, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
 import { currentEnv, isSupported } from "../../app/browserSupport";
 import {
   useBilling,
   useCompanies,
+  useCreateCompany,
   useMe,
   useNotes,
   useSessions,
@@ -84,7 +86,7 @@ function ReadinessCard() {
             ? stale
               ? `Company brief is ${newest} days old. Consider researching again.`
               : "Company brief ready and fresh"
-            : "Company brief (optional)"}{" "}
+            : "The company interviewing you"}{" "}
           {!hasBrief && (
             <Link to="/companies" className="text-accent-dark underline">
               Add a company
@@ -97,13 +99,125 @@ function ReadinessCard() {
         to="/session/new"
         className={`inline-block rounded-xl px-4 py-2.5 font-medium ${ready ? "bg-accent text-surface hover:bg-accent-dark" : "border border-line"}`}
       >
-        Start practice
+        Start interview
       </Link>
     </section>
   );
 }
 
 /** Their chosen focus areas, and a line of advice that matches how soon the interview is. */
+/** Shown until a company has been added: who is interviewing you? Researches them straight away
+ *  (what they do and how), so the dashboard is useful from the first minute. */
+function InterviewTargetCard() {
+  const notes = useNotes();
+  const create = useCreateCompany();
+  const navigate = useNavigate();
+  const key = useRef(crypto.randomUUID());
+  const [name, setName] = useState("");
+  const [site, setSite] = useState("");
+  const [role, setRole] = useState<string | null>(null); // null: follow the role from the CV page
+  const shownRole = role ?? notes.data?.role ?? "";
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    create.mutate(
+      {
+        key: key.current,
+        input: {
+          name: name.trim(),
+          website_url: site.trim() || null,
+          job_posting_url: null,
+          extra_links: [],
+          role: shownRole.trim(),
+          known_text: "",
+        },
+      },
+      {
+        onSuccess: (r) => navigate(`/companies/${r.company.id}`),
+        onError: () => {
+          key.current = crypto.randomUUID();
+        },
+      },
+    );
+  };
+  const field = "input mt-1 w-full";
+  return (
+    <section
+      aria-labelledby="target-h"
+      className="space-y-3 rounded-2xl bg-surface p-5 shadow-card ring-1 ring-accent/30"
+    >
+      <div>
+        <h2 id="target-h" className="text-lg font-semibold">
+          Who is interviewing you?
+        </h2>
+        <p className="mt-1 text-sm text-muted">
+          Tell us the company you are interviewing with, not an employer you
+          have worked for. We research what they do and how they work, so every
+          answer fits them.
+        </p>
+      </div>
+      <form
+        onSubmit={submit}
+        className="space-y-3"
+        aria-label="Interview target"
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label htmlFor="t-name" className="block text-sm font-medium">
+              Company interviewing you
+            </label>
+            <input
+              id="t-name"
+              required
+              maxLength={120}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className={field}
+            />
+          </div>
+          <div>
+            <label htmlFor="t-role" className="block text-sm font-medium">
+              Role you&apos;re interviewing for
+            </label>
+            <input
+              id="t-role"
+              maxLength={200}
+              value={shownRole}
+              onChange={(e) => setRole(e.target.value)}
+              className={field}
+            />
+          </div>
+        </div>
+        <div>
+          <label htmlFor="t-site" className="block text-sm font-medium">
+            Company website{" "}
+            <span className="font-normal text-muted">(recommended)</span>
+          </label>
+          <input
+            id="t-site"
+            type="url"
+            placeholder="https://"
+            value={site}
+            onChange={(e) => setSite(e.target.value)}
+            className={field}
+          />
+        </div>
+        {create.isError && (
+          <p role="alert" className="notice-error">
+            {create.error.message}
+          </p>
+        )}
+        <button
+          type="submit"
+          className="btn-primary"
+          disabled={!name.trim() || create.isPending}
+        >
+          {create.isPending ? "Starting…" : "Research this company"}
+        </button>
+      </form>
+    </section>
+  );
+}
+
 /** The free sessions left, and how far along the invite reward is. */
 function SessionsCard() {
   const billing = useBilling();
@@ -234,7 +348,7 @@ function Action({
       <span
         className={`rounded-xl p-2 ${primary ? "bg-surface/20" : "bg-surface text-accent-dark"}`}
       >
-        {title.includes("practice") ? (
+        {title.includes("interview") ? (
           <MicIcon />
         ) : title.includes("company") ? (
           <BuildingIcon />
@@ -280,7 +394,7 @@ export function DashboardPage() {
           {firstName(me?.full_name) ? `, ${firstName(me?.full_name)}` : ""}{" "}
           <span aria-hidden="true">👋</span>
         </p>
-        <p className="mt-1 text-muted">Here&apos;s your practice overview.</p>
+        <p className="mt-1 text-muted">Here&apos;s your interview overview.</p>
       </div>
 
       <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
@@ -289,17 +403,17 @@ export function DashboardPage() {
             <Stat
               label="Sessions"
               value={`${all.length}${more}`}
-              hint="Practice calls"
+              hint="Interviews"
               icon={<MicIcon className="h-4 w-4" />}
             />
             <Stat
               label="Questions"
               value={`${questions}${more}`}
-              hint="Answered in practice"
+              hint="Questions answered"
               icon={<NoteIcon className="h-4 w-4" />}
             />
             <Stat
-              label="Practice time"
+              label="Interview time"
               value={minutes(seconds)}
               hint={
                 all.length
@@ -316,6 +430,10 @@ export function DashboardPage() {
             />
           </div>
 
+          {companies.isSuccess && companies.data.length === 0 && (
+            <InterviewTargetCard />
+          )}
+
           <ReadinessCard />
 
           <section
@@ -323,7 +441,7 @@ export function DashboardPage() {
             className="rounded-2xl bg-surface p-5 shadow-card"
           >
             <h2 id="chart-h" className="text-lg font-semibold">
-              Practice summary
+              Interview summary
             </h2>
             <p className="text-sm text-muted">
               Questions per session, most recent sessions.
@@ -388,7 +506,7 @@ export function DashboardPage() {
               <Action
                 primary
                 to="/session/new"
-                title="New practice session"
+                title="New interview"
                 sub="Pick a company, then share your Meet tab"
               />
               <Action

@@ -114,7 +114,7 @@ async def test_transcript_download_is_plain_text_with_timestamps(alice, db):
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/plain")
     assert "attachment" in r.headers["content-disposition"]
     lines = r.text.strip().splitlines()
-    assert lines[0].startswith("Practice session 2026-") or lines[0].startswith("Practice session ")
+    assert lines[0].startswith("Interview session 2026-")
     assert "[14:05:01] Partner: Tell me about yourself." in lines
     assert "[14:05:02] You: I led a launch." in lines
 

@@ -522,7 +522,7 @@ export class LiveSessionController {
     this.stopAudio();
     this.state.set({
       status: "error",
-      problem: `${message} You can type the question below to keep practising.`,
+      problem: `${message} You can type the question below to keep going.`,
     });
   }
 

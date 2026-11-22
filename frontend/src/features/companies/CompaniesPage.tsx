@@ -57,9 +57,11 @@ export function CompaniesPage() {
             Add a company
           </h2>
           <p className="mb-3 text-sm text-muted">
-            The app reads the links you give and searches the web, then writes a
-            brief with a source for every fact. It takes about a minute and
-            keeps going if you leave.
+            Add the company that will be interviewing you, not an employer you
+            have worked for. The app reads the links you give and searches the
+            web for what the company does and how it works, then writes a brief
+            with a source for every fact. It takes about a minute and keeps
+            going if you leave.
           </p>
           <CompanyForm
             defaultRole={notes.data?.role ?? ""}
@@ -79,7 +81,8 @@ export function CompaniesPage() {
       {companies.isSuccess && items.length === 0 && !adding && (
         <p className="text-muted">
           No companies yet. Add the company you&apos;re interviewing with to get
-          a researched brief before your practice call.
+          a researched brief on what they do and how they work, before your
+          interview.
         </p>
       )}
       <ul className="list-card">

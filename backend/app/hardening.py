@@ -13,6 +13,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.config import Settings
 from app.logging_config import request_id_var
+from app.services.clientip import forwarded_client_ip
 
 DEFAULT_API_URL = "http://localhost:8000"
 KNOWN_ENVIRONMENTS = {"local", "staging", "production"}
@@ -237,7 +238,7 @@ class RateLimitMiddleware:
     def client_key(self, scope: Scope) -> str:
         headers = dict(scope["headers"])
         if self.s.trust_proxy_headers:
-            fwd: str = headers.get(b"x-forwarded-for", b"").decode().split(",")[0].strip()
+            fwd = forwarded_client_ip(headers.get(b"x-forwarded-for", b"").decode())
             if fwd:
                 return fwd
         client = scope.get("client")

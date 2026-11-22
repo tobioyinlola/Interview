@@ -4,6 +4,7 @@ from app.models.tables import (
     Company,
     CompanyBrief,
     CompanySource,
+    Event,
     IdempotencyKey,
     LoginFailure,
     LoginToken,
@@ -16,6 +17,7 @@ from app.models.tables import (
     Suggestion,
     Usage,
     User,
+    UserDevice,
     Utterance,
 )
 
@@ -25,6 +27,7 @@ __all__ = [
     "Company",
     "CompanyBrief",
     "CompanySource",
+    "Event",
     "IdempotencyKey",
     "LoginFailure",
     "LoginToken",
@@ -37,5 +40,6 @@ __all__ = [
     "Suggestion",
     "Usage",
     "User",
+    "UserDevice",
     "Utterance",
 ]

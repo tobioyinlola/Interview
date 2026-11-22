@@ -11,6 +11,7 @@ from app.models import Note, User
 from app.repositories import NotesRepo
 from app.schemas.api import CvUploadOut, NotesIn, NotesOut
 from app.services.cv import CvError, extract_text, safe_filename
+from app.services.events import record_from
 
 router = APIRouter(prefix="/api", tags=["notes"])
 
@@ -63,6 +64,9 @@ async def upload_cv(
         ) from None
     name = safe_filename(unquote(request.headers.get("x-filename", "")))
     note = await NotesRepo(db, user.id).set_cv(text=result.text, filename=name)
+    await record_from(
+        db, "cv.uploaded", user_id=user.id, characters=len(result.text), truncated=result.truncated
+    )
     return CvUploadOut(**_out(note).model_dump(), truncated=result.truncated)
 
 
@@ -72,4 +76,6 @@ async def remove_cv(
     db: AsyncSession = Depends(get_db),  # noqa: B008
 ) -> NotesOut:
     """Remove the CV text. The target role stays."""
-    return _out(await NotesRepo(db, user.id).clear_cv())
+    out = _out(await NotesRepo(db, user.id).clear_cv())
+    await record_from(db, "cv.removed", user_id=user.id)
+    return out

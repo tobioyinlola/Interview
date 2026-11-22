@@ -1,6 +1,7 @@
 // Real-browser end-to-end test of the live session. Run it with scripts/e2e-live.sh, which starts
 // the API in fake-provider mode (no OpenAI) and the web dev server first.
 const { chromium } = require("playwright");
+const { skipTour } = require("./helpers.cjs");
 const fs = require("fs");
 const { execSync } = require("child_process");
 const SHOTS = process.env.E2E_SHOTS || require("os").tmpdir();
@@ -100,6 +101,7 @@ const FAKE_MIC = () => {
   // A brand-new account is asked four questions first; this test skips them.
   await page.getByRole("button", { name: "Skip for now" }).click();
   await page.getByRole("heading", { name: "Dashboard" }).waitFor();
+  await skipTour(page);
 
   // CV upload: a real PDF, then a Word file, then files the server must refuse
   await page.goto("http://localhost:5173/notes");

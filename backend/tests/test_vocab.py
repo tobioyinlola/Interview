@@ -59,7 +59,7 @@ def test_the_prompt_carries_company_seniority_and_role_vocabulary():
         terms=vocab.PRODUCT_TERMS,
     )
     prompt = SuggestionService.build_prompt(ctx, [], "Why us?")
-    assert "Company: Northwind" in prompt
+    assert "Company interviewing the candidate: Northwind" in prompt
     assert "Seniority: senior (6 or more years)" in prompt
     assert "<vocabulary>\nproduct roadmap" in prompt
 
@@ -91,3 +91,14 @@ async def test_the_fallback_segment_transcriber_gets_the_same_hint(alice, stt): 
     )
     assert r.status_code == 200
     assert "Product Manager" in stt.prompts[-1]
+
+
+def test_the_research_and_answer_prompts_are_about_the_company_interviewing_the_candidate() -> None:
+    from app.prompts import load_prompt
+
+    research = load_prompt("research")
+    assert "will INTERVIEW the candidate" in research
+    assert "not an employer the candidate has worked for" in research
+    assert "what it does and HOW" in research
+    answer = load_prompt("suggestion")
+    assert "the company interviewing the candidate, never an employer from their CV" in answer

@@ -5,6 +5,7 @@ import hmac
 import secrets
 
 COOKIE_NAME = "session"
+STAFF_COOKIE_NAME = "staff_session"  # the back office has its own, separate sign-in
 CSRF_HEADER = "x-requested-with"
 CSRF_VALUE = "meet-practice"
 

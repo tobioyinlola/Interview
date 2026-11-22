@@ -26,7 +26,7 @@ describe("app shell", () => {
       "Overview",
       "CV",
       "Companies",
-      "Practice",
+      "Interview",
       "Sessions",
       "Settings",
       "Privacy",
@@ -45,20 +45,13 @@ describe("app shell", () => {
     );
   });
 
-  it("shows the Usage link to administrators only", async () => {
+  it("has no link to the back office: it is a separate place", async () => {
     signedIn();
-    const { unmount } = renderApp(<App />, "/dashboard");
-    await screen.findByRole("navigation", { name: "Main" });
-    expect(screen.queryByRole("link", { name: "Usage" })).toBeNull();
-    unmount();
-    vi.restoreAllMocks();
-    stubSupportedBrowser();
-    signedIn({ ...ME, is_admin: true });
     renderApp(<App />, "/dashboard");
-    expect(await screen.findByRole("link", { name: "Usage" })).toHaveAttribute(
-      "href",
-      "/admin/usage",
-    );
+    await screen.findByRole("navigation", { name: "Main" });
+    expect(
+      screen.queryByRole("link", { name: /admin|back office/i }),
+    ).toBeNull();
   });
 
   it("opens and closes the menu on small screens", async () => {
@@ -218,8 +211,10 @@ describe("top bar on every page", () => {
     const names = [
       "Settings",
       "Update my focus",
+      "Help",
       "Privacy",
       "Terms",
+      "Take the tour",
       "Sign out",
     ];
     for (const n of names.slice(1)) {

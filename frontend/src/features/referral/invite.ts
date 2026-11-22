@@ -8,14 +8,47 @@ const clean = (raw: string | null | undefined): string | null => {
   return VALID.test(code) ? code : null;
 };
 
-/** Remember the code in the current address, if there is one. Call once when the app starts. */
+const UTM_KEY = "meet-practice-utm";
+const TAG = /[^A-Za-z0-9_.\- ]/g;
+const tag = (raw: string | null) =>
+  (raw ?? "").replace(TAG, "").trim().slice(0, 60);
+
+export interface Utm {
+  source?: string;
+  medium?: string;
+  campaign?: string;
+}
+
+/** Remember the invite code and any campaign tags (utm_source and friends) in the current address.
+ *  Call once when the app starts. The first campaign seen is kept: later visits do not replace it. */
 export function captureInvite(search = window.location.search): void {
-  const code = clean(new URLSearchParams(search).get("ref"));
-  if (!code) return;
+  const params = new URLSearchParams(search);
+  const code = clean(params.get("ref"));
+  const utm: Utm = {};
+  for (const [key, name] of [
+    ["utm_source", "source"],
+    ["utm_medium", "medium"],
+    ["utm_campaign", "campaign"],
+  ] as const) {
+    const v = tag(params.get(key));
+    if (v) utm[name] = v;
+  }
   try {
-    localStorage.setItem(KEY, code);
+    if (code) localStorage.setItem(KEY, code);
+    if (Object.keys(utm).length && !localStorage.getItem(UTM_KEY))
+      localStorage.setItem(UTM_KEY, JSON.stringify(utm));
   } catch {
-    /* storage can be blocked: the code just is not kept */
+    /* storage can be blocked: nothing is kept */
+  }
+}
+
+/** The remembered campaign tags, or undefined. */
+export function savedUtm(): Utm | undefined {
+  try {
+    const raw = localStorage.getItem(UTM_KEY);
+    return raw ? (JSON.parse(raw) as Utm) : undefined;
+  } catch {
+    return undefined;
   }
 }
 

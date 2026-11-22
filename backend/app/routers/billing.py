@@ -11,6 +11,7 @@ from app.errors import ApiError
 from app.models import User
 from app.repositories import BillingRepo
 from app.schemas.api import BillingOut
+from app.services.events import record_from
 
 router = APIRouter(prefix="/api", tags=["billing"])
 
@@ -21,14 +22,19 @@ async def billing_out(db: AsyncSession, user: User, settings: Settings) -> Billi
     per = max(1, settings.referrals_per_free_session)
     s = await BillingRepo(db, user, per_reward=per).summary()
     return BillingOut(
-        sessions_available=s.trial_available + s.referral_available + s.paid_available,
+        sessions_available=s.trial_available
+        + s.referral_available
+        + s.paid_available
+        + s.granted_available,
         trial_available=s.trial_available > 0,
         referral_credits_available=s.referral_available,
         paid_credits_available=s.paid_available,
+        gifted_credits_available=s.granted_available,
         payments_enabled=PAYMENTS_ENABLED,
         referral_code=user.referral_code or "",
         referral_link=f"{settings.web_origin}/signup?ref={user.referral_code}",
         referrals_qualified=s.referrals_qualified,
+        referrals_held=s.referrals_held,
         referrals_per_reward=per,
         referrals_to_next_reward=per - (s.referrals_qualified % per),
         rewards_earned=s.rewards_earned,
@@ -55,4 +61,5 @@ async def redeem_reward(
     per = max(1, settings.referrals_per_free_session)
     if not await BillingRepo(db, user, per_reward=per).redeem_reward():
         raise ApiError(409, "nothing_to_redeem", "You have no invite reward to redeem yet.")
+    await record_from(db, "reward.redeemed", user_id=user.id)
     return await billing_out(db, user, settings)

@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import metrics
 from app.config import get_settings
 from app.db import dispose_engine, get_sessionmaker
+from app.deps import build_email_sender
 from app.errors import install_error_handlers
 from app.hardening import (
     BodyLimitMiddleware,
@@ -32,9 +33,12 @@ from app.routers import (
     notes,
     profile,
     sessions,
+    staff_auth,
 )
+from app.services.events import purge_old_events
 from app.services.google_oauth import GoogleOAuth
 from app.services.live import LiveHub
+from app.services.notify import Notifier
 from app.services.providers import build_answer_llm, build_runner
 from app.workers.scoring_worker import ScoringRunner
 
@@ -64,6 +68,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.live_hub = hub = LiveHub()
     scorer = ScoringRunner(build_answer_llm(settings), settings, get_sessionmaker())
     app.state.scoring_runner = scorer
+    # the jobs tell people when their brief or review is ready
+    notifier = Notifier(get_sessionmaker(), settings, build_email_sender(settings))
+    runner.notifier = notifier
+    scorer.notifier = notifier
+    await purge_old_events(get_sessionmaker(), settings.event_retention_days)
     await scorer.fail_interrupted()
     await runner.recover_stale()  # requeue jobs a restart interrupted
     yield
@@ -110,6 +119,7 @@ def create_app() -> FastAPI:
         companies.router,
         sessions.router,
         audio_ws.router,
+        staff_auth.router,
         admin.router,
     ):
         app.include_router(r)

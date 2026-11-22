@@ -312,7 +312,7 @@ describe("CompanyPage: actions", () => {
     await userEvent.click(
       await screen.findByRole("button", { name: "Edit company details" }),
     );
-    const role = screen.getByLabelText("Role");
+    const role = screen.getByLabelText("Role you're interviewing for");
     expect(role).toHaveValue("Backend Engineer");
     await userEvent.clear(role);
     await userEvent.type(role, "Staff Engineer");

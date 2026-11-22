@@ -744,3 +744,52 @@ async def test_segment_adapter_handles_network_failure_garbage_and_no_key():
         )
     with pytest.raises(ProviderNotConfigured):
         await OpenAIRealtimeStt("", model="m", url="x").transcribe_segment(b"\x00\x00")
+
+
+# ------------------------------------------------------------------ scoring tells the person
+
+
+async def test_finished_scoring_is_logged_and_the_person_is_emailed(
+    alice, db, with_scorer, engine, settings, sender
+):
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.models import Event
+    from app.services.notify import Notifier
+
+    with_scorer.notifier = Notifier(
+        async_sessionmaker(engine, expire_on_commit=False), settings, sender
+    )
+    sid = await ended_session_with_answers(alice, db)
+    await alice.post(f"/api/sessions/{sid}/score")
+    await with_scorer.wait_idle()
+    kinds = [e.kind for e in (await db.execute(select(Event))).scalars()]
+    assert "scoring.ready" in kinds
+    (mail,) = [m for m in sender.messages if m.kind == "review_ready"]
+    assert mail.to == "alice@example.com"
+    assert f"/sessions/{sid}" in mail.html and "2 of your answers" in mail.text
+    assert "average score" in mail.text
+
+
+async def test_failed_scoring_is_logged_and_nobody_is_emailed(
+    alice, db, app, engine, settings, sender
+):
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.deps import get_scorer
+    from app.models import Event
+    from app.services.notify import Notifier
+
+    bad = ScoringRunner(
+        ScriptedLlm(lambda u: "not json at all"),
+        settings,
+        async_sessionmaker(engine, expire_on_commit=False),
+    )  # type: ignore[arg-type]
+    bad.notifier = Notifier(async_sessionmaker(engine, expire_on_commit=False), settings, sender)
+    app.dependency_overrides[get_scorer] = lambda: bad
+    sid = await ended_session_with_answers(alice, db)
+    await alice.post(f"/api/sessions/{sid}/score")
+    await bad.wait_idle()
+    kinds = [e.kind for e in (await db.execute(select(Event))).scalars()]
+    assert "scoring.failed" in kinds and "scoring.ready" not in kinds
+    assert "review_ready" not in sender.kinds()

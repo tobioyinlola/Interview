@@ -20,10 +20,29 @@ def all_messages(brand: t.Brand = BRAND, name: str | None = "Jordan Reyes") -> l
         t.welcome(brand, "a@b.com", name),
         t.password_changed(brand, "a@b.com", name, WHEN),
         t.account_deleted(brand, "a@b.com", name),
+        t.brief_ready(brand, "a@b.com", name, "Northwind", "c-1"),
+        t.review_ready(brand, "a@b.com", name, "s-1", 4, 71),
+        t.friend_joined(brand, "a@b.com", name, "Sam", 2, 3),
+        t.reward_earned(brand, "a@b.com", name, 3),
+        t.trial_used(brand, "a@b.com", name, 3),
+        t.credit_granted(brand, "a@b.com", name, 2, "Thanks for the feedback."),
     ]
 
 
-KINDS = ["signup", "login", "reset", "welcome", "password_changed", "account_deleted"]
+KINDS = [
+    "signup",
+    "login",
+    "reset",
+    "welcome",
+    "password_changed",
+    "account_deleted",
+    "brief_ready",
+    "review_ready",
+    "friend_joined",
+    "reward_earned",
+    "trial_used",
+    "credit_granted",
+]
 
 
 def test_there_is_one_message_per_core_action_with_the_right_kind() -> None:
@@ -65,7 +84,16 @@ def test_every_message_has_a_plain_text_version_that_says_the_same(m: EmailMessa
 @pytest.mark.parametrize("m", all_messages(), ids=KINDS)
 def test_subjects_are_short_plain_and_on_brand(m: EmailMessage) -> None:
     assert 10 < len(m.subject) <= 70 and "\n" not in m.subject and "\r" not in m.subject
-    assert "InterviewMeet" in m.subject or m.kind == "login"
+    # most subjects name the product; the ones about a specific thing name that instead
+    assert "InterviewMeet" in m.subject or m.kind in {
+        "login",
+        "brief_ready",
+        "review_ready",
+        "friend_joined",
+        "reward_earned",
+        "trial_used",
+        "credit_granted",
+    }
 
 
 def test_the_action_emails_carry_their_link_in_the_button_the_fallback_and_the_text() -> None:
@@ -76,7 +104,7 @@ def test_the_action_emails_carry_their_link_in_the_button_the_fallback_and_the_t
 
 
 def test_the_other_emails_have_no_one_time_link_so_it_can_never_be_logged() -> None:
-    assert [m.link for m in all_messages()[3:]] == [None, None, None]
+    assert [m.link for m in all_messages()[3:]] == [None] * 9
 
 
 def test_expiry_is_stated_and_the_ignore_advice_is_there() -> None:
@@ -86,14 +114,14 @@ def test_expiry_is_stated_and_the_ignore_advice_is_there() -> None:
 
 
 def test_each_message_says_what_it_is_for() -> None:
-    signup, login, reset, welcome, changed, deleted = all_messages()
+    signup, login, reset, welcome, changed, deleted, *_ = all_messages()
     assert (
         "Confirm email and sign in" in signup.html and "no account will be created" in signup.text
     )
     assert ">Sign in<" in login.html and "no password to type" in login.text
     assert "Choose a new password" in reset.html and "signed out everywhere else" in reset.text
     assert "Upload your CV" in welcome.text and "Add the company" in welcome.text
-    assert "Practise on Google Meet" in welcome.text and "/dashboard" in welcome.html
+    assert "mock interview on Google Meet" in welcome.text and "/dashboard" in welcome.html
     assert "November 17, 2026 at 09:05 UTC" in changed.text and "/forgot-password" in changed.html
     assert "signed you out of your other devices" in changed.text
     assert "deleted" in deleted.text and "/signup" in deleted.html
@@ -157,3 +185,63 @@ def test_only_the_logo_is_loaded_from_outside_and_there_is_no_tracking() -> None
 def test_the_origin_with_a_trailing_slash_does_not_double_up() -> None:
     m = t.welcome(t.Brand(web_origin="https://app.example.com/"), "a@b.com", "Jo")
     assert "https://app.example.com//" not in m.html.replace("https://", "")
+
+
+# ---------------------------------------------------------------------------- the newer messages
+
+
+def newer() -> dict[str, EmailMessage]:
+    return {m.kind: m for m in all_messages()[6:]}
+
+
+def test_the_brief_email_names_the_company_and_opens_its_page() -> None:
+    m = newer()["brief_ready"]
+    assert m.subject == "Your brief on Northwind is ready"
+    assert "https://app.example.com/companies/c-1" in m.html
+    assert "what the company does and how" in m.text and "source" in m.text
+    assert "Hi Jordan," in m.text
+
+
+def test_the_review_email_says_how_many_answers_and_the_average() -> None:
+    m = newer()["review_ready"]
+    assert "4 of your answers" in m.text and "71 out of 100" in m.text
+    assert "https://app.example.com/sessions/s-1" in m.html
+    without = t.review_ready(BRAND, "a@b.com", "Jo", "s-1", 4, None)
+    assert "out of 100" not in without.text and "4 of your answers" in without.text
+
+
+def test_the_friend_email_shows_progress_toward_the_reward() -> None:
+    m = newer()["friend_joined"]
+    assert m.subject == "Sam joined with your link"
+    assert "That's 2 of 3 toward your next free interview." in m.text
+    assert "https://app.example.com/referrals" in m.html
+    nameless = t.friend_joined(BRAND, "a@b.com", "Jo", None, 1, 3)
+    assert nameless.subject == "A friend joined with your link"
+
+
+def test_the_reward_email_points_to_redeeming() -> None:
+    m = newer()["reward_earned"]
+    assert "3 friends have joined" in m.text and "Redeem" in m.html
+    assert "https://app.example.com/referrals" in m.html
+
+
+def test_the_free_interview_nudge_says_payments_are_coming_and_offers_the_invite_route() -> None:
+    m = newer()["trial_used"]
+    assert "payments are coming soon" in m.text and "invite 3 friends" in m.text
+    assert "https://app.example.com/referrals" in m.html
+
+
+def test_the_credit_email_says_how_many_and_why() -> None:
+    m = newer()["credit_granted"]
+    assert "added 2 free interviews" in m.text and "Thanks for the feedback." in m.text
+    assert "https://app.example.com/session/new" in m.html
+    one = t.credit_granted(BRAND, "a@b.com", "Jo", 1, None)
+    assert "added 1 free interview " in one.text + " "
+
+
+def test_a_company_name_cannot_inject_html_or_break_the_subject_line() -> None:
+    evil = "<img src=x onerror=alert(1)>\r\nBcc: x@y.z"
+    m = t.brief_ready(BRAND, "a@b.com", "Jo", evil, "c-1")
+    assert "<img src=x" not in m.html and "\n" not in m.subject and "\r" not in m.subject
+    f = t.friend_joined(BRAND, "a@b.com", "Jo", evil, 1, 3)
+    assert "<img src=x" not in f.html and "\n" not in f.subject

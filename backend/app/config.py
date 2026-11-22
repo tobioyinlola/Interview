@@ -89,12 +89,15 @@ class Settings(BaseSettings):
     support_email: str = ""
     # Inviting this many people who sign up earns one free session, which the person redeems.
     referrals_per_free_session: int = 3
+    # How long the admin event log is kept. Older events are deleted when the server starts.
+    event_retention_days: int = 180
     # Off only in tests that start many sessions without caring about credits.
     enforce_session_credits: bool = True
     dev_log_email_links: bool = False
     resend_api_key: SecretStr = SecretStr("")  # sends the sign-in email
     email_from: str = ""  # e.g. "Meet Practice <login@yourdomain.com>", a Resend-verified domain
-    admin_emails: str = ""  # comma-separated; may open the usage and cost view
+    admin_emails: str = ""  # comma-separated; staff who may sign in to the back office
+    staff_session_hours: int = 12  # a back-office sign-in lasts a working day, not weeks
     trust_proxy_headers: bool = False  # read the client IP from X-Forwarded-For (behind a proxy)
     rate_limit_per_minute: int = 600  # general /api limit per client
     rate_limit_auth_per_minute: int = 30  # sign-in endpoints, stricter

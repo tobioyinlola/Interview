@@ -94,8 +94,13 @@ describe("CompaniesPage", () => {
     await userEvent.click(
       await screen.findByRole("button", { name: "Add a company" }),
     );
-    expect(await screen.findByLabelText("Role")).toHaveValue("Product Manager");
-    await userEvent.type(screen.getByLabelText("Company name"), "  Acme  ");
+    expect(
+      await screen.findByLabelText("Role you're interviewing for"),
+    ).toHaveValue("Product Manager");
+    await userEvent.type(
+      screen.getByLabelText("Company you're interviewing with"),
+      "  Acme  ",
+    );
     await userEvent.type(
       screen.getByLabelText(/Company website/),
       "https://acme.com",
@@ -129,7 +134,10 @@ describe("CompaniesPage", () => {
     expect(
       screen.getByRole("button", { name: "Save and research" }),
     ).toBeDisabled();
-    await userEvent.type(screen.getByLabelText("Company name"), "A");
+    await userEvent.type(
+      screen.getByLabelText("Company you're interviewing with"),
+      "A",
+    );
     expect(
       screen.getByRole("button", { name: "Save and research" }),
     ).toBeEnabled();
@@ -150,7 +158,10 @@ describe("CompaniesPage", () => {
     await userEvent.click(
       await screen.findByRole("button", { name: "Add a company" }),
     );
-    await userEvent.type(screen.getByLabelText("Company name"), "Acme");
+    await userEvent.type(
+      screen.getByLabelText("Company you're interviewing with"),
+      "Acme",
+    );
     await userEvent.type(
       screen.getByLabelText(/Company website/),
       "http://localhost",
@@ -161,7 +172,9 @@ describe("CompaniesPage", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       /Website: Links to localhost/,
     );
-    expect(screen.getByLabelText("Company name")).toHaveValue("Acme");
+    expect(
+      screen.getByLabelText("Company you're interviewing with"),
+    ).toHaveValue("Acme");
     expect(screen.getByLabelText(/Company website/)).toHaveValue(
       "http://localhost",
     );
@@ -182,7 +195,10 @@ describe("CompaniesPage", () => {
     await userEvent.click(
       await screen.findByRole("button", { name: "Add a company" }),
     );
-    await userEvent.type(screen.getByLabelText("Company name"), "Acme");
+    await userEvent.type(
+      screen.getByLabelText("Company you're interviewing with"),
+      "Acme",
+    );
     await userEvent.click(
       screen.getByRole("button", { name: "Save and research" }),
     );
@@ -202,7 +218,10 @@ describe("CompaniesPage", () => {
     await userEvent.click(
       await screen.findByRole("button", { name: "Add a company" }),
     );
-    await userEvent.type(screen.getByLabelText("Company name"), "Acme");
+    await userEvent.type(
+      screen.getByLabelText("Company you're interviewing with"),
+      "Acme",
+    );
     const submit = screen.getByRole("button", { name: "Save and research" });
     await userEvent.click(submit);
     await screen.findByRole("alert");
@@ -212,7 +231,10 @@ describe("CompaniesPage", () => {
         2,
       ),
     );
-    await userEvent.type(screen.getByLabelText("Company name"), " Inc");
+    await userEvent.type(
+      screen.getByLabelText("Company you're interviewing with"),
+      " Inc",
+    );
     await userEvent.click(submit);
     await waitFor(() =>
       expect(calls.filter((c) => c.key === "POST /api/companies")).toHaveLength(
@@ -236,7 +258,10 @@ describe("CompaniesPage", () => {
     await userEvent.click(
       await screen.findByRole("button", { name: "Add a company" }),
     );
-    await userEvent.type(screen.getByLabelText("Company name"), "Acme");
+    await userEvent.type(
+      screen.getByLabelText("Company you're interviewing with"),
+      "Acme",
+    );
     const add = screen.getByRole("button", { name: "Add a link" });
     await userEvent.click(add);
     await userEvent.click(add);
@@ -268,7 +293,9 @@ describe("CompaniesPage", () => {
     await userEvent.click(
       await screen.findByRole("button", { name: "Add a company" }),
     );
-    const known = screen.getByLabelText("What I already know");
+    const known = screen.getByLabelText(
+      /What you already know about this company/,
+    );
     expect(known).toHaveAttribute("maxlength", "2000");
     const form = screen.getByRole("form", { name: "Company details" });
     expect(within(form).getByText("0 / 2,000")).toBeInTheDocument();

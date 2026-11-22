@@ -4,6 +4,7 @@ import httpx
 import pytest
 
 from app.adapters.email import (
+    AuditedEmailSender,
     ConsoleEmailSender,
     EmailMessage,
     ResendEmailSender,
@@ -93,10 +94,13 @@ async def test_the_unconfigured_sender_sends_nothing_and_says_so(
 
 def test_resend_is_chosen_when_configured_and_otherwise_never_for_unconfigured_prod() -> None:
     on = Settings(environment="production", resend_api_key="re_x", email_from="a@b.com")
-    assert isinstance(get_email_sender(on), ResendEmailSender)
+    # every sender is wrapped so its outcome reaches the admin event log
+    assert isinstance(get_email_sender(on), AuditedEmailSender)
+    assert isinstance(get_email_sender(on)._inner, ResendEmailSender)  # type: ignore[attr-defined]
     off = Settings(environment="production")
-    assert type(get_email_sender(off)).__name__ == "UnconfiguredEmailSender"
-    assert type(get_email_sender(Settings(environment="local"))).__name__ == "ConsoleEmailSender"
+    assert type(get_email_sender(off)._inner).__name__ == "UnconfiguredEmailSender"  # type: ignore[attr-defined]
+    local = get_email_sender(Settings(environment="local"))
+    assert type(local._inner).__name__ == "ConsoleEmailSender"  # type: ignore[attr-defined]
 
 
 def test_production_refuses_to_boot_without_email_configuration() -> None:
@@ -121,11 +125,11 @@ def test_a_plain_postgres_address_gets_the_async_driver() -> None:
 
 def test_dev_email_links_work_in_staging_only_and_never_in_production() -> None:
     staging = Settings(environment="staging", dev_log_email_links=True)  # type: ignore[arg-type]
-    assert type(get_email_sender(staging)).__name__ == "ConsoleEmailSender"
+    assert type(get_email_sender(staging)._inner).__name__  # type: ignore[attr-defined] == "ConsoleEmailSender"
     prod = Settings(environment="production", dev_log_email_links=True)  # type: ignore[arg-type]
-    assert type(get_email_sender(prod)).__name__ == "UnconfiguredEmailSender"
+    assert type(get_email_sender(prod)._inner).__name__  # type: ignore[attr-defined] == "UnconfiguredEmailSender"
     off = Settings(environment="staging")  # type: ignore[arg-type]
-    assert type(get_email_sender(off)).__name__ == "UnconfiguredEmailSender"
+    assert type(get_email_sender(off)._inner).__name__  # type: ignore[attr-defined] == "UnconfiguredEmailSender"
     base = dict(
         cookie_secret="x" * 40,
         web_origin="https://app.example.com",
@@ -150,10 +154,10 @@ async def test_dev_mode_with_resend_sends_for_real_and_also_logs_the_link() -> N
         email_from="Meet <onboarding@resend.dev>",
     )
     sender = get_email_sender(cfg)
-    assert isinstance(sender, TeeEmailSender)
+    assert isinstance(sender._inner, TeeEmailSender)  # type: ignore[attr-defined]
     # production-style config (no dev switch) sends only through Resend
     plain = Settings(environment="staging", resend_api_key="re_x", email_from="a@b.com")  # type: ignore[arg-type]
-    assert isinstance(get_email_sender(plain), ResendEmailSender)
+    assert isinstance(get_email_sender(plain)._inner, ResendEmailSender)  # type: ignore[attr-defined]
 
 
 async def test_tee_sender_calls_the_real_sender_and_the_log_in_order() -> None:

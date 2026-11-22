@@ -641,3 +641,52 @@ describe("an invite link", () => {
     expect(body).toEqual({ email: "me@example.com" }); // undefined is not sent
   });
 });
+
+describe("campaign tags on the link", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("are sent with the emailed link request", async () => {
+    localStorage.setItem(
+      "meet-practice-utm",
+      JSON.stringify({ source: "linkedin", campaign: "launch" }),
+    );
+    const calls = api(false, {
+      "POST /api/auth/request-link": () => ({
+        status: 202,
+        json: { status: "sent" },
+      }),
+    });
+    renderApp(<App />, "/login");
+    await typeEmail("me@example.com");
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Email me a sign-in link" }),
+    );
+    await screen.findByText(/check your email/i);
+    expect(
+      calls.find((c) => c.key === "POST /api/auth/request-link")!.body,
+    ).toEqual({
+      email: "me@example.com",
+      utm: { source: "linkedin", campaign: "launch" },
+    });
+  });
+
+  it("travel with Google too", async () => {
+    localStorage.setItem(
+      "meet-practice-utm",
+      JSON.stringify({ source: "linkedin" }),
+    );
+    localStorage.setItem("meet-practice-invite", "abc23xyz");
+    api(true);
+    const assign = captureNavigation();
+    renderApp(<App />, "/signup");
+    await userEvent.click(
+      await screen.findByRole("checkbox", { name: /i agree/i }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /continue with google/i }),
+    );
+    const url = new URL(assign.mock.calls[0][0]);
+    expect(url.searchParams.get("ref")).toBe("abc23xyz");
+    expect(url.searchParams.get("utm_source")).toBe("linkedin");
+  });
+});

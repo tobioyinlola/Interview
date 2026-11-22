@@ -7,7 +7,7 @@ const FEATURES = [
   {
     n: "01",
     title: "Company research",
-    body: "Add a company and a job link. A cited brief is ready before you practise: every fact shows its source, and anything without one is dropped.",
+    body: "Add a company and a job link. A cited brief is ready before you interview: every fact shows its source, and anything without one is dropped.",
   },
   {
     n: "02",
@@ -44,7 +44,7 @@ const STEPS = [
   },
   {
     n: "02",
-    title: "Practise on Meet",
+    title: "Interview on Meet",
     body: "Join a Google Meet with a friend, share the Meet tab with audio, and answer their questions as outlines appear.",
   },
   {
@@ -134,7 +134,7 @@ export function LandingPage() {
         {/* Hero */}
         <section className="mx-auto max-w-5xl px-4 pb-16 pt-16 text-center sm:px-6 sm:pt-24">
           <span className="inline-flex items-center gap-2 rounded-full bg-accent-soft px-4 py-1.5 text-sm font-medium text-accent-dark">
-            ✦ Practice on Google Meet
+            ✦ Interview on Google Meet
           </span>
           <h1 className="mx-auto mt-6 max-w-3xl text-4xl font-semibold leading-[1.08] tracking-tight sm:text-6xl">
             Ace every interview,{" "}
@@ -161,8 +161,8 @@ export function LandingPage() {
             </a>
           </div>
           <p className="mt-5 text-sm text-muted">
-            Sign up with Google or just your email. For practice with a partner
-            who knows it is on.
+            Sign up with Google or just your email. For mock interviews with a
+            partner who knows it is on.
           </p>
           <div className="mt-14 grid items-end gap-8 lg:grid-cols-[1fr_auto]">
             <HeroDevice />
@@ -233,7 +233,7 @@ export function LandingPage() {
           <Heading
             eyebrow="How it works"
             a="Three steps,"
-            b="one practice loop."
+            b="one interview loop."
           />
           <ol className="mt-12 space-y-8">
             {STEPS.map((s, i) => (
@@ -303,15 +303,15 @@ export function LandingPage() {
           </div>
         </section>
 
-        {/* Practice, openly */}
+        {/* Mock interviews, openly */}
         <section className="mx-auto max-w-3xl px-4 py-12 text-center sm:px-6">
           <Heading
-            eyebrow="Practice, openly"
+            eyebrow="Mock interviews, openly"
             a="Made for rehearsal,"
             b="not for hiding."
           />
           <p className="mt-6 text-muted">
-            InterviewMeet is for practising with a friend who knows the
+            InterviewMeet is for mock interviews with a friend who knows the
             assistant is on, and you agree to that when you sign up. There is no
             feature to hide it, and none will be added. Use it to prepare, then
             walk into the real interview on your own words.
@@ -327,7 +327,7 @@ export function LandingPage() {
             </h2>
             <p className="mx-auto mt-5 max-w-xl text-surface/80">
               Create your account, upload your CV and add a company, and run
-              your first practice session.
+              your first interview session.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link
@@ -352,8 +352,8 @@ export function LandingPage() {
           <div>
             <Wordmark />
             <p className="mt-4 max-w-xs text-sm text-muted">
-              A quiet studio for interview practice, built around consent and
-              your own words.
+              A quiet studio for mock interviews, built around consent and your
+              own words.
             </p>
           </div>
           <div>

@@ -1,6 +1,7 @@
 // Real-browser test of the free trial and the invite reward: three friends sign up through one
 // person's link, the reward is redeemed, and sessions run out as they should.
 const { chromium } = require("playwright");
+const { skipTour } = require("./helpers.cjs");
 const fs = require("fs");
 const BASE = "http://localhost:5173";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -26,6 +27,14 @@ const waitNewLink = async (before) => {
   throw new Error("no sign-in link");
 };
 const stamp = Date.now();
+const SHOTS = process.env.E2E_SHOTS || "/tmp";
+const snap = async (page, name) => {
+  await sleep(500);
+  await page.screenshot({
+    path: `${SHOTS}/referral-${name}.png`,
+    fullPage: true,
+  });
+};
 
 (async () => {
   const browser = await chromium.launch();
@@ -43,6 +52,7 @@ const stamp = Date.now();
   await a.goto(await waitNewLink(before));
   await a.getByRole("button", { name: "Skip for now" }).click();
   await a.waitForURL("**/dashboard");
+  await skipTour(a);
   await a
     .getByRole("region", { name: "Your sessions" })
     .getByText(/1\s+session available/)
@@ -56,6 +66,7 @@ const stamp = Date.now();
     "the invite link has a code: " + link,
   );
   const path = new URL(link).pathname + new URL(link).search;
+  await snap(a, "1-new-account");
 
   // three friends sign up through it
   for (let i = 1; i <= 3; i++) {
@@ -79,7 +90,7 @@ const stamp = Date.now();
     await f.waitForURL("**/onboarding");
     await f.close();
     await a.reload();
-    // the third friend completes the set, so the bar starts over at 0 of 3 and the reward appears
+    // the third friend completes the set: the bar is full and the reward appears
     await a
       .getByText(
         i < 3
@@ -88,6 +99,7 @@ const stamp = Date.now();
       )
       .waitFor();
     if (i < 3) {
+      if (i === 2) await snap(a, "2-two-friends");
       ok(
         (await a
           .getByRole("button", { name: "Redeem free session" })
@@ -98,6 +110,7 @@ const stamp = Date.now();
   }
   await a.getByText(/You earned 1 free session/).waitFor();
   ok(true, "the third friend earns a free session");
+  await snap(a, "3-reward-earned");
 
   // the reward is only usable once redeemed
   await a.getByText("You can start 1 session now.").waitFor();
@@ -105,6 +118,43 @@ const stamp = Date.now();
   await a.getByText("1 from inviting friends").waitFor();
   await a.getByText("You can start 2 sessions now.").waitFor();
   ok(true, "redeeming adds a session to the account");
+  await snap(a, "4-redeemed");
+  await a.setViewportSize({ width: 390, height: 844 });
+  await snap(a, "5-phone");
+  await a.setViewportSize({ width: 1280, height: 900 });
+
+  // the same person, on their own browser, with a second email: it does not count
+  await a.getByRole("button", { name: "Sign out" }).click();
+  await a.getByRole("heading", { name: "Sign in" }).waitFor();
+  await a.goto(BASE + path);
+  await a.getByLabel("Full name").fill("Second Address");
+  await a.getByLabel("Email address").fill(`second-${stamp}@example.org`);
+  await a.getByLabel("Password", { exact: true }).fill("correct horse battery");
+  await a
+    .getByLabel("Confirm password", { exact: true })
+    .fill("correct horse battery");
+  await a.getByRole("checkbox", { name: /i agree/i }).check();
+  const m = links().length;
+  await a.getByRole("button", { name: "Create account" }).click();
+  await a.getByText(/confirm your address/i).waitFor();
+  await a.goto(await waitNewLink(m));
+  await a.waitForURL("**/onboarding");
+  await a.getByRole("button", { name: "Skip for now" }).click();
+  await a.waitForURL("**/dashboard");
+  await skipTour(a);
+  await a.getByRole("button", { name: "Sign out" }).click();
+  await a.getByRole("heading", { name: "Sign in" }).waitFor();
+  await a.getByLabel("Email address").fill(`owner${stamp}@example.com`);
+  const k = links().length;
+  await a.getByRole("button", { name: "Email me a sign-in link" }).click();
+  await a.goto(await waitNewLink(k));
+  await a.waitForURL("**/dashboard");
+  await a.goto(BASE + "/referrals");
+  await a.getByText(/1 sign-up didn't count/).waitFor();
+  ok(true, "a second email on the inviter's own browser did not count");
+  await a.getByText("3 friends have signed up").waitFor();
+  ok(true, "and the three real friends still do");
+  await snap(a, "6-held");
 
   // use both sessions, then the third is refused
   await a.goto(BASE + "/notes");

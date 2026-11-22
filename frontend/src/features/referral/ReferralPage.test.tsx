@@ -16,6 +16,7 @@ const billing = (over: Record<string, unknown> = {}) => ({
   referral_code: "abc23xyz",
   referral_link: "https://app.example.com/signup?ref=abc23xyz",
   referrals_qualified: 0,
+  referrals_held: 0,
   referrals_per_reward: 3,
   referrals_to_next_reward: 3,
   rewards_earned: 0,
@@ -56,6 +57,60 @@ describe("ReferralPage", () => {
       screen.getByText(/2 of 3 toward your next free session/),
     ).toHaveTextContent("1 more to go");
     expect(screen.getByText(/friends have/)).toBeInTheDocument();
+  });
+
+  it("shows a full bar while an earned reward waits to be redeemed, then starts over", async () => {
+    open(
+      billing({
+        referrals_qualified: 3,
+        rewards_earned: 1,
+        rewards_redeemable: 1,
+        referrals_to_next_reward: 3,
+      }),
+    );
+    const bar = await screen.findByRole("progressbar");
+    expect(bar).toHaveAttribute("aria-valuenow", "3");
+    expect(
+      screen.getByText(/3 of 3: you earned a free session/),
+    ).toBeInTheDocument();
+  });
+
+  it("starts the bar over once the reward has been redeemed", async () => {
+    open(
+      billing({
+        referrals_qualified: 3,
+        rewards_earned: 1,
+        rewards_redeemable: 0,
+        referral_credits_available: 1,
+        sessions_available: 2,
+      }),
+    );
+    const bar = await screen.findByRole("progressbar");
+    expect(bar).toHaveAttribute("aria-valuenow", "0");
+    expect(
+      screen.getByText(/0 of 3 toward your next free session/),
+    ).toBeInTheDocument();
+  });
+
+  it("tells the inviter, kindly, when a sign-up did not count", async () => {
+    open(billing({ referrals_held: 1 }));
+    const note = await screen.findByRole("note");
+    expect(note).toHaveTextContent("1 sign-up didn't count");
+    expect(note).toHaveTextContent("the same device or person as you");
+    expect(note).toHaveTextContent("contact support");
+  });
+
+  it("says how many when several did not count", async () => {
+    open(billing({ referrals_held: 3, referrals_qualified: 0 }));
+    expect(await screen.findByRole("note")).toHaveTextContent(
+      "3 sign-ups didn't count because they looked like",
+    );
+  });
+
+  it("shows no such note when nothing was held", async () => {
+    open(billing());
+    await screen.findByRole("heading", { name: "Invite friends" });
+    expect(screen.queryByRole("note")).toBeNull();
   });
 
   it("copies the link", async () => {

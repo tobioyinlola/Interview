@@ -1,4 +1,5 @@
 import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import { App } from "../../app/App";
 import { PLAN } from "../onboarding/content";
@@ -66,7 +67,7 @@ describe("DashboardPage (FR-33)", () => {
     expect(c.queryByRole("link", { name: "Upload your CV" })).toBeNull();
     expect(c.getByText("Browser can share tab audio")).toBeInTheDocument();
     expect(c.queryByText(/Partner consent/)).toBeNull(); // agreed at sign-up, not a step
-    expect(c.getByRole("link", { name: "Start practice" })).toHaveAttribute(
+    expect(c.getByRole("link", { name: "Start interview" })).toHaveAttribute(
       "href",
       "/session/new",
     );
@@ -239,15 +240,15 @@ describe("DashboardPage (FR-33)", () => {
           within(screen.getByText(hint).parentElement!).getByText(value),
         ).toBeInTheDocument(),
       );
-    await stat("Practice calls", "2");
-    await stat("Answered in practice", "7");
+    await stat("Interviews", "2");
+    await stat("Questions answered", "7");
     await stat("Across your sessions", "30 min");
   });
 
   it("shows zeros, not placeholders, for a new user", async () => {
     mockApi(base());
     renderApp(<App />, "/");
-    const sessions = (await screen.findByText("Practice calls")).parentElement!;
+    const sessions = (await screen.findByText("Interviews")).parentElement!;
     expect(within(sessions).getByText("0")).toBeInTheDocument();
     expect(screen.getByText(/after two sessions/i)).toBeInTheDocument();
   });
@@ -380,5 +381,140 @@ describe("DashboardPage: sessions card", () => {
       await card.findByRole("link", { name: "Redeem your free session" }),
     ).toBeInTheDocument();
     expect(card.getByText(/Payments are coming soon/)).toBeInTheDocument();
+  });
+});
+
+describe("DashboardPage: who is interviewing you", () => {
+  const created = {
+    status: 201,
+    json: {
+      company: { id: "c-new", name: "Northwind", role: "PM", known_text: "" },
+      job_id: "j1",
+    },
+  };
+  const none = (over: Record<string, () => object> = {}) =>
+    base({
+      "GET /api/companies": () => ({ json: [] }),
+      "GET /api/notes": () => ({
+        json: {
+          role: "Product Manager",
+          content: "Led a launch.",
+          updated_at: "x",
+        },
+      }),
+      "GET /api/billing": () => ({ status: 404, json: {} }),
+      ...over,
+    });
+
+  it("asks which company is interviewing you, not where you have worked", async () => {
+    mockApi(none());
+    renderApp(<App />, "/dashboard");
+    const card = within(
+      await screen.findByRole("region", { name: "Who is interviewing you?" }),
+    );
+    expect(
+      card.getByText(/not an employer you have worked for/),
+    ).toBeInTheDocument();
+    expect(card.getByLabelText("Company interviewing you")).toBeInTheDocument();
+    expect(card.getByLabelText("Role you're interviewing for")).toHaveValue(
+      "Product Manager",
+    );
+  });
+
+  it("starts the research straight away and opens the company page", async () => {
+    const calls = mockApi(none({ "POST /api/companies": () => created }));
+    renderApp(<App />, "/dashboard");
+    const card = within(
+      await screen.findByRole("region", { name: "Who is interviewing you?" }),
+    );
+    const go = card.getByRole("button", { name: "Research this company" });
+    expect(go).toBeDisabled(); // a name is needed
+    await userEvent.type(
+      card.getByLabelText("Company interviewing you"),
+      "  Northwind  ",
+    );
+    await userEvent.type(
+      card.getByLabelText(/Company website/),
+      "https://northwind.example",
+    );
+    await userEvent.click(go);
+    await waitFor(() =>
+      expect(calls.some((c) => c.key === "POST /api/companies")).toBe(true),
+    );
+    const post = calls.find((c) => c.key === "POST /api/companies")!;
+    expect(post.body).toMatchObject({
+      name: "Northwind",
+      website_url: "https://northwind.example",
+      role: "Product Manager",
+    });
+    expect(post.headers.get("idempotency-key")).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it("is not shown once a company has been added", async () => {
+    mockApi(
+      none({
+        "GET /api/companies": () => ({
+          json: [
+            {
+              id: "c1",
+              name: "Acme",
+              last_researched_at: null,
+              job_status: "searching",
+            },
+          ],
+        }),
+      }),
+    );
+    renderApp(<App />, "/dashboard");
+    await screen.findByRole("region", { name: "Readiness" });
+    expect(
+      screen.queryByRole("region", { name: "Who is interviewing you?" }),
+    ).toBeNull();
+  });
+
+  it("shows the server's message and keeps what was typed, with a fresh key for the retry", async () => {
+    const calls = mockApi(
+      none({
+        "POST /api/companies": () => ({
+          status: 422,
+          json: {
+            error: {
+              code: "bad_url",
+              message: "That link is not allowed.",
+              request_id: "r",
+            },
+          },
+        }),
+      }),
+    );
+    renderApp(<App />, "/dashboard");
+    const card = within(
+      await screen.findByRole("region", { name: "Who is interviewing you?" }),
+    );
+    await userEvent.type(
+      card.getByLabelText("Company interviewing you"),
+      "Northwind",
+    );
+    await userEvent.click(
+      card.getByRole("button", { name: "Research this company" }),
+    );
+    expect(await card.findByRole("alert")).toHaveTextContent(
+      "That link is not allowed.",
+    );
+    expect(card.getByLabelText("Company interviewing you")).toHaveValue(
+      "Northwind",
+    );
+    await userEvent.click(
+      card.getByRole("button", { name: "Research this company" }),
+    );
+    await waitFor(() =>
+      expect(calls.filter((c) => c.key === "POST /api/companies")).toHaveLength(
+        2,
+      ),
+    );
+    const [a, b] = calls.filter((c) => c.key === "POST /api/companies");
+    expect(a.headers.get("idempotency-key")).not.toBe(
+      b.headers.get("idempotency-key"),
+    );
   });
 });

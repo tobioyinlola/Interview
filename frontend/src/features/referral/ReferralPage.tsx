@@ -20,7 +20,10 @@ export function ReferralPage() {
       </main>
     );
   const b = billing.data;
-  const done = b.referrals_qualified % b.referrals_per_reward;
+  // A full set that is still waiting to be redeemed shows as full, not as a bar that started over.
+  const set = b.referrals_qualified % b.referrals_per_reward;
+  const waiting = b.rewards_redeemable > 0 && set === 0;
+  const done = waiting ? b.referrals_per_reward : set;
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(b.referral_link);
@@ -34,8 +37,9 @@ export function ReferralPage() {
     <main className="page-narrow">
       <h1 className="text-3xl font-semibold tracking-tight">Invite friends</h1>
       <p className="text-sm text-muted">
-        Everyone gets one free practice session. Invite {b.referrals_per_reward}{" "}
-        people who sign up with your link and you earn another free session.
+        Everyone gets one free interview session. Invite{" "}
+        {b.referrals_per_reward} people who sign up with your link and you earn
+        another free session.
       </p>
 
       <section aria-labelledby="link-h" className="card space-y-3">
@@ -87,12 +91,28 @@ export function ReferralPage() {
           />
         </div>
         <p className="text-sm text-muted">
-          {done} of {b.referrals_per_reward} toward your next free session
-          {b.referrals_to_next_reward < b.referrals_per_reward
-            ? `: ${b.referrals_to_next_reward} more to go`
-            : ""}
-          .
+          {waiting
+            ? `${done} of ${b.referrals_per_reward}: you earned a free session.`
+            : `${done} of ${b.referrals_per_reward} toward your next free session${
+                b.referrals_to_next_reward < b.referrals_per_reward
+                  ? `: ${b.referrals_to_next_reward} more to go`
+                  : ""
+              }.`}
         </p>
+
+        {b.referrals_held > 0 && (
+          <p
+            role="note"
+            className="rounded-xl bg-canvas p-3 text-sm text-muted"
+          >
+            {b.referrals_held === 1
+              ? "1 sign-up didn't count"
+              : `${b.referrals_held} sign-ups didn't count`}{" "}
+            because {b.referrals_held === 1 ? "it looked" : "they looked"} like
+            the same device or person as you. If that's a mistake, for example
+            you share a computer with a friend, contact support.
+          </p>
+        )}
 
         {b.rewards_redeemable > 0 ? (
           <div className="rounded-xl bg-accent-soft p-4">
@@ -152,8 +172,8 @@ export function ReferralPage() {
 
       <p className="text-xs text-muted">
         A friend counts once they have signed up with your link and confirmed
-        their email. Inviting yourself, or a second address of your own, does
-        not count. See the{" "}
+        their email. Inviting yourself, a second address of your own, or an
+        account made on your own device does not count. See the{" "}
         <Link to="/terms" className="underline">
           terms
         </Link>

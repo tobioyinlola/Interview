@@ -1,6 +1,7 @@
 // Real-browser test of sign up with a password, log in, wrong password, and password reset.
 // Emailed links are read from the API log (local mode prints them instead of sending).
 const { chromium } = require("playwright");
+const { skipTour } = require("./helpers.cjs");
 const fs = require("fs");
 const BASE = "http://localhost:5173";
 const ok = (cond, msg, detail) => {
@@ -137,6 +138,7 @@ const NEW = "a brand new passphrase";
   await page.getByRole("link", { name: "Go to your dashboard" }).click();
   await page.waitForURL("**/dashboard");
   await page.getByText("Hello, Jordan 👋").waitFor();
+  await skipTour(page);
   ok(
     true,
     "four answers saved; the dashboard greets the first name with a wave",

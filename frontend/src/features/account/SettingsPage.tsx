@@ -11,7 +11,8 @@ export function PrivacyNotice() {
       </h2>
       <ul className="list-disc space-y-1 pl-5 text-sm">
         <li>
-          This app is for practice with a partner who knows the assistant is on.
+          This app is for mock interviews with a partner who knows the assistant
+          is on.
         </li>
         <li>
           Recording and transcribing calls is regulated differently in different

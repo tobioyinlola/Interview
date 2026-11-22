@@ -265,7 +265,7 @@ async def test_health_checks_and_non_api_paths_are_never_limited(monkeypatch):
 async def test_forwarded_headers_are_ignored_unless_a_proxy_is_trusted(monkeypatch):
     async with make_client(monkeypatch, rate_limit_per_minute=2) as c:
         codes = [
-            (await c.get("/api/me", headers={"x-forwarded-for": f"10.0.0.{i}"})).status_code
+            (await c.get("/api/me", headers={"x-forwarded-for": f"8.8.8.{i}"})).status_code
             for i in range(4)
         ]
     assert codes == [401, 401, 429, 429]  # spoofing the header does not buy a fresh allowance
@@ -279,6 +279,16 @@ async def test_behind_a_trusted_proxy_each_real_client_gets_its_own_allowance(mo
         ]
         b = (await c.get("/api/me", headers={"x-forwarded-for": "2.2.2.2"})).status_code
     assert a == [401, 401, 429] and b == 401
+
+
+async def test_behind_a_trusted_proxy_a_made_up_first_address_buys_nothing(monkeypatch):
+    async with make_client(monkeypatch, rate_limit_per_minute=2, trust_proxy_headers=True) as c:
+        codes = [
+            # the caller invents a different leading address every time; the proxy adds the real one
+            (await c.get("/api/me", headers={"x-forwarded-for": f"6.6.6.{i}, 1.1.1.1"})).status_code
+            for i in range(4)
+        ]
+    assert codes == [401, 401, 429, 429]
 
 
 async def test_rate_limit_rejections_still_carry_cors_and_a_request_id(monkeypatch):

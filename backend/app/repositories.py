@@ -30,9 +30,11 @@ from app.models import (
     Suggestion,
     Usage,
     User,
+    UserDevice,
     Utterance,
 )
 from app.security import hash_token, new_token
+from app.services.devices import DeviceInfo, same_device
 from app.services.referrals import canonical_email, clean_code, new_referral_code
 
 
@@ -46,6 +48,8 @@ class ConsumedToken(NamedTuple):
     purpose: str
     full_name: str | None
     referral_code: str | None = None
+    device: DeviceInfo = DeviceInfo()
+    attribution: dict[str, Any] | None = None
 
 
 class AuthRepo:
@@ -54,6 +58,9 @@ class AuthRepo:
     def __init__(self, db: AsyncSession, secret: str) -> None:
         self.db = db
         self.secret = secret
+        # Set by get_or_create_user when a new account was counted (or held) for an inviter:
+        # (inviter id, "counted" | "held"). The route reads it to log and to tell the inviter.
+        self.last_referral: tuple[uuid.UUID, str] | None = None
 
     async def recent_login_requests(self, email: str, *, within: timedelta) -> int:
         stmt = (
@@ -72,8 +79,11 @@ class AuthRepo:
         password_hash: str | None = None,
         full_name: str | None = None,
         referral_code: str | None = None,
+        device: DeviceInfo | None = None,
+        attribution: dict[str, Any] | None = None,
     ) -> str:
         token = new_token()
+        device = device or DeviceInfo()
         self.db.add(
             LoginToken(
                 email=email,
@@ -83,6 +93,10 @@ class AuthRepo:
                 password_hash=password_hash,
                 full_name=full_name,
                 referral_code=referral_code,
+                attribution=attribution,
+                device_cookie_hash=device.cookie_hash,
+                device_print_hash=device.print_hash,
+                device_ip_hash=device.ip_hash,
             )
         )
         await self.db.commit()
@@ -107,11 +121,21 @@ class AuthRepo:
                 LoginToken.purpose,
                 LoginToken.full_name,
                 LoginToken.referral_code,
+                LoginToken.device_cookie_hash,
+                LoginToken.device_print_hash,
+                LoginToken.device_ip_hash,
+                LoginToken.attribution,
             )
         )
         row = (await self.db.execute(stmt)).one_or_none()
         await self.db.commit()
-        return ConsumedToken(row[0], row[1], row[2], row[3], row[4]) if row else None
+        return (
+            ConsumedToken(
+                row[0], row[1], row[2], row[3], row[4], DeviceInfo(row[5], row[6], row[7]), row[8]
+            )
+            if row
+            else None
+        )
 
     async def peek_token_email(self, token: str, purposes: tuple[str, ...]) -> str | None:
         """The email a valid unused token belongs to, without using it up."""
@@ -160,7 +184,13 @@ class AuthRepo:
         await self.db.commit()
 
     async def get_or_create_user(
-        self, email: str, *, full_name: str | None = None, referral_code: str | None = None
+        self,
+        email: str,
+        *,
+        full_name: str | None = None,
+        referral_code: str | None = None,
+        devices: tuple[DeviceInfo, ...] = (),
+        attribution: dict[str, Any] | None = None,
     ) -> User:
         user = (await self.db.execute(select(User).where(User.email == email))).scalar_one_or_none()
         if user:
@@ -170,22 +200,61 @@ class AuthRepo:
             full_name=full_name,
             practice_consent_at=_now(),  # agreeing to the terms is part of making an account
             referral_code=new_referral_code(),
+            attribution=attribution,
         )
         self.db.add(user)
         try:
             await self.db.flush()
             # Everyone gets one free trial session, and whoever invited them gets the credit.
             self.db.add(SessionCredit(user_id=user.id, kind="trial"))
-            await self._apply_referral(user, referral_code)
+            await self._apply_referral(user, referral_code, devices)
+            user.attribution = {**(attribution or {}), "referred": self.last_referral is not None}
+            for d in dict.fromkeys(devices):  # once each, and after the check so the new account
+                # is not compared with itself
+                self._remember_device(user.id, d)
             await self.db.commit()
         except IntegrityError:  # created concurrently by another request
             await self.db.rollback()
             return (await self.db.execute(select(User).where(User.email == email))).scalar_one()
         return user
 
-    async def _apply_referral(self, user: User, code: str | None) -> None:
+    def _remember_device(self, user_id: uuid.UUID, d: DeviceInfo) -> None:
+        if not d.is_empty():
+            self.db.add(
+                UserDevice(
+                    user_id=user_id,
+                    cookie_hash=d.cookie_hash,
+                    print_hash=d.print_hash,
+                    ip_hash=d.ip_hash,
+                )
+            )
+
+    async def record_device(self, user_id: uuid.UUID, d: DeviceInfo) -> None:
+        """Note a device this account signed in from, once."""
+        if d.is_empty():
+            return
+        known = await self._devices_of([user_id])
+        if any(
+            (k.cookie_hash, k.print_hash, k.ip_hash) == (d.cookie_hash, d.print_hash, d.ip_hash)
+            for k in known
+        ):
+            return
+        self._remember_device(user_id, d)
+        await self.db.commit()
+
+    async def _devices_of(self, user_ids: list[uuid.UUID]) -> list[DeviceInfo]:
+        rows = (
+            await self.db.execute(select(UserDevice).where(UserDevice.user_id.in_(user_ids)))
+        ).scalars()
+        return [DeviceInfo(r.cookie_hash, r.print_hash, r.ip_hash) for r in rows]
+
+    async def _apply_referral(
+        self, user: User, code: str | None, devices: tuple[DeviceInfo, ...] = ()
+    ) -> None:
         """Count this new account for the person whose code it arrived with. Unknown codes, your own
-        code, and your own mailbox under another spelling count for nothing."""
+        code, and your own mailbox under another spelling count for nothing. An account made on the
+        inviter's own device, or on the same device as another account they invited, is recorded
+        but held: it does not earn a reward, because it is the same person."""
         code = clean_code(code)
         if code is None:
             return
@@ -196,7 +265,28 @@ class AuthRepo:
             return
         if canonical_email(referrer.email) == canonical_email(user.email):
             return
-        self.db.add(Referral(referrer_id=referrer.id, referred_id=user.id))
+        counted = (
+            (
+                await self.db.execute(
+                    select(Referral.referred_id).where(
+                        Referral.referrer_id == referrer.id, Referral.status == "counted"
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        known = await self._devices_of([referrer.id, *counted])
+        held = any(same_device(d, k) for d in devices for k in known)
+        self.db.add(
+            Referral(
+                referrer_id=referrer.id,
+                referred_id=user.id,
+                status="held" if held else "counted",
+                held_reason="same_device" if held else None,
+            )
+        )
+        self.last_referral = (referrer.id, "held" if held else "counted")
 
     async def create_session(self, user_id: uuid.UUID, *, ttl: timedelta) -> str:
         token = new_token()
@@ -822,16 +912,18 @@ class BillingSummary(NamedTuple):
     trial_available: int
     referral_available: int
     paid_available: int
+    granted_available: int
     referrals_qualified: int
     rewards_earned: int
     rewards_redeemed: int
+    referrals_held: int = 0
 
 
 class BillingRepo:
     """Who may start a session, and the invite rewards that earn more of them."""
 
     # Which credit is used first: the free trial, then rewards, then anything paid for.
-    ORDER = {"trial": 0, "referral": 1, "paid": 2}
+    ORDER = {"trial": 0, "grant": 1, "referral": 2, "paid": 3}
 
     def __init__(self, db: AsyncSession, user: User, *, per_reward: int) -> None:
         self.db = db
@@ -846,7 +938,7 @@ class BillingRepo:
                 .group_by(SessionCredit.kind, SessionCredit.used_at.is_(None))
             )
         ).all()
-        free = {k: 0 for k in self.ORDER}
+        free = {k: 0 for k in self.ORDER}  # trial | grant (given by the team) | referral | paid
         redeemed = 0
         for kind, unused, n in rows:
             if unused:
@@ -858,7 +950,16 @@ class BillingRepo:
                 await self.db.execute(
                     select(func.count())
                     .select_from(Referral)
-                    .where(Referral.referrer_id == self.user.id)
+                    .where(Referral.referrer_id == self.user.id, Referral.status == "counted")
+                )
+            ).scalar_one()
+        )
+        held = int(
+            (
+                await self.db.execute(
+                    select(func.count())
+                    .select_from(Referral)
+                    .where(Referral.referrer_id == self.user.id, Referral.status == "held")
                 )
             ).scalar_one()
         )
@@ -866,9 +967,11 @@ class BillingRepo:
             trial_available=free["trial"],
             referral_available=free["referral"],
             paid_available=free["paid"],
+            granted_available=free["grant"],
             referrals_qualified=qualified,
             rewards_earned=qualified // self.per_reward,
             rewards_redeemed=redeemed,
+            referrals_held=held,
         )
 
     async def take_credit(self) -> SessionCredit | None:

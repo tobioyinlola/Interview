@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-query";
 
 import { ApiError, apiFetch } from "./client";
-import { savedInvite } from "../features/referral/invite";
+import { savedInvite, savedUtm } from "../features/referral/invite";
 import { POLL_MS, isActive } from "./polling";
 import type {
   Billing,
@@ -63,7 +63,7 @@ export function useRequestLink() {
     mutationFn: (email: string) =>
       apiFetch<{ status: string }>("/api/auth/request-link", {
         method: "POST",
-        body: json({ email, ref: savedInvite() }),
+        body: json({ email, ref: savedInvite(), utm: savedUtm() }),
       }),
   });
 }
@@ -73,7 +73,7 @@ export function useSignUp() {
     mutationFn: (v: { email: string; password: string; full_name: string }) =>
       apiFetch<{ status: string }>("/api/auth/signup", {
         method: "POST",
-        body: json({ ...v, ref: savedInvite() }),
+        body: json({ ...v, ref: savedInvite(), utm: savedUtm() }),
       }),
   });
 }
@@ -113,6 +113,16 @@ export function useRedeemReward() {
     mutationFn: () =>
       apiFetch<Billing>("/api/billing/redeem", { method: "POST" }),
     onSuccess: (b) => qc.setQueryData(["billing"], b),
+  });
+}
+
+/** Remember that the first-time tour was finished or skipped. */
+export function useSaveTour() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (done: boolean) =>
+      apiFetch<Me>("/api/tour", { method: "PUT", body: json({ done }) }),
+    onSuccess: (me) => qc.setQueryData(["me"], me),
   });
 }
 

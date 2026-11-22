@@ -85,7 +85,7 @@ export function GlobalSearch() {
 
   let index = -1;
   return (
-    <div ref={boxRef} className="relative w-full max-w-md">
+    <div ref={boxRef} data-tour="search" className="relative w-full max-w-md">
       <label htmlFor={`${listId}-in`} className="sr-only">
         Search pages, companies and sessions
       </label>

@@ -58,8 +58,12 @@ export function CompanyForm({
     <form onSubmit={submit} className="space-y-4" aria-label="Company details">
       <div>
         <label htmlFor="c-name" className="block text-sm font-medium">
-          Company name
+          Company you&apos;re interviewing with
         </label>
+        <p className="text-xs text-muted">
+          The company that is interviewing you, not an employer you have worked
+          for.
+        </p>
         <input
           id="c-name"
           required
@@ -144,7 +148,7 @@ export function CompanyForm({
 
       <div>
         <label htmlFor="c-role" className="block text-sm font-medium">
-          Role
+          Role you&apos;re interviewing for
         </label>
         <input
           id="c-role"
@@ -159,7 +163,8 @@ export function CompanyForm({
       </div>
       <div>
         <label htmlFor="c-known" className="block text-sm font-medium">
-          What I already know
+          What you already know about this company{" "}
+          <span className="font-normal text-muted">(optional)</span>
         </label>
         <textarea
           id="c-known"
