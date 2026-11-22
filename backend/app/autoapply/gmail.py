@@ -198,15 +198,23 @@ class GmailAdapter:
         found = (data or {}).get("messages") or []
         return SentMessage(message_id, found[0].get("threadId"), found[0]["id"]) if found else None
 
+    @staticmethod
+    def _text_of(payload: dict[str, Any]) -> str:
+        """The plain-text part of a message, up to 2,000 characters. Read for classification and
+        then dropped: it is never stored or logged."""
+        stack, found = [payload], ""
+        while stack and not found:
+            part = stack.pop(0)
+            if part.get("mimeType") == "text/plain" and part.get("body", {}).get("data"):
+                raw = part["body"]["data"]
+                found = base64.urlsafe_b64decode(raw + "=" * (-len(raw) % 4)).decode(
+                    "utf-8", "replace"
+                )
+            stack.extend(part.get("parts", []))
+        return found[:2000]
+
     async def _inbound(self, access: str, provider_id: str) -> InboundMessage | None:
-        q = urlencode(
-            [("format", "metadata")]
-            + [
-                ("metadataHeaders", h)
-                for h in ("From", "Subject", "Date", "Message-ID", "In-Reply-To", "References")
-            ]
-        )
-        m = await self._call("GET", f"{API}/messages/{provider_id}?{q}", access)
+        m = await self._call("GET", f"{API}/messages/{provider_id}?format=full", access)
         if not m or "SENT" in m.get("labelIds", []) or "DRAFT" in m.get("labelIds", []):
             return None
         h = {x["name"].lower(): x["value"] for x in m.get("payload", {}).get("headers", [])}
@@ -220,7 +228,7 @@ class GmailAdapter:
             message_id=h.get("message-id", "").strip("<>"),
             from_addr=h.get("from", ""),
             subject=h.get("subject", ""),
-            snippet=m.get("snippet", ""),
+            snippet=self._text_of(m.get("payload", {})) or m.get("snippet", ""),
             received_at=received,
             in_reply_to=h.get("in-reply-to", "").strip("<>") or None,
             references=[r.strip("<>") for r in h.get("references", "").split() if r],

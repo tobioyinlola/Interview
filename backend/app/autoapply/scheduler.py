@@ -12,11 +12,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.adapters.interfaces import LlmProvider
-from app.autoapply import campaign, discovery, outbox, outreach, pipeline
+from app.autoapply import campaign, discovery, mailsync, outbox, outreach, pipeline
 from app.autoapply.adapters import DiscoveryAdapter, FormAdapter, MailboxAdapter
 from app.autoapply.clock import utcnow
 from app.config import Settings
-from app.models import Application, Campaign, JobPosting, Outreach
+from app.models import Application, Campaign, JobPosting, MailboxConnection, Outreach
 
 log = logging.getLogger("app.autoapply.scheduler")
 
@@ -108,6 +108,16 @@ async def tick(
             .scalars()
             .all()
         )
+        # replies keep arriving after a campaign ends, for as long as the mailbox stays connected
+        readers = (
+            (
+                await db.execute(
+                    select(MailboxConnection.user_id).where(MailboxConnection.status == "connected")
+                )
+            )
+            .scalars()
+            .all()
+        )
     expired = await outbox.expire_unsent(maker, now) if closed else 0
     await outbox.reconcile(maker, adapters, now)  # first give back work a dead worker held
     failures = 0
@@ -117,6 +127,12 @@ async def tick(
         except Exception:  # noqa: BLE001 - one candidate's problem must not stop the others
             failures += 1
             log.exception("auto-apply pass failed", extra={"fields": {"user": str(uid)}})
+    for uid in readers:
+        try:
+            await mailsync.sync_user(maker, mailbox_adapter, settings, uid, now)
+        except Exception:  # noqa: BLE001
+            failures += 1
+            log.exception("mailbox read failed", extra={"fields": {"user": str(uid)}})
     settled = await outbox.reconcile(maker, adapters, now)
     return {
         "closed": closed,

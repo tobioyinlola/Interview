@@ -9,12 +9,23 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import RedirectResponse
-from sqlalchemy import select, tuple_
+from sqlalchemy import func, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.interfaces import LlmProvider
 from app.autoapply import campaign as camp
-from app.autoapply import clock, discovery, facts, outbox, outreach, pipeline, rules
+from app.autoapply import (
+    clock,
+    dashboard,
+    discovery,
+    facts,
+    interviews,
+    outbox,
+    outreach,
+    pipeline,
+    recruiting,
+    rules,
+)
 from app.autoapply import mailbox as mbx
 from app.autoapply.adapters import AdapterError, DiscoveryAdapter, FormAdapter, MailboxAdapter
 from app.autoapply.fixtures import FixtureForm, FixtureMailbox
@@ -30,40 +41,53 @@ from app.autoapply.schemas import (
     ApproveIn,
     AttemptOut,
     CampaignOut,
+    CandidateApp,
+    ConfirmTimeIn,
     ConnectOut,
+    DashboardOut,
     Disclosure,
     EnableIn,
     FactsIn,
     FactsOut,
+    InterviewOut,
     JobUrlIn,
+    LinkEventIn,
     MailboxOut,
     OutreachIn,
     OutreachOut,
     PostingOut,
+    PrepareOut,
+    PrimaryAction,
     ProfileIn,
     ProfileOut,
+    RecruitingOut,
     ResolveIn,
     RunOut,
     StatusOut,
+    UsageOut,
 )
 from app.config import Settings, get_settings
 from app.db import get_db
-from app.deps import current_user
+from app.deps import current_user, get_runner
 from app.errors import ApiError
 from app.models import (
     Application,
     ApplicationEvent,
     CandidateAnswer,
     DiscoveryRun,
+    InterviewLink,
     JobPosting,
     Note,
     Outreach,
+    RecruitingEvent,
     SearchProfile,
     SubmissionAttempt,
     User,
 )
+from app.repositories import CompaniesRepo, UsageRepo
 from app.schemas.api import StatusOut as Ok
 from app.services.providers import build_answer_llm
+from app.workers.research_worker import ResearchRunner
 
 
 def get_now() -> datetime:
@@ -933,3 +957,338 @@ async def resolve_unknown(
         raise ApiError(409, "not_waiting", "This application is not waiting to be confirmed.")
     await outbox.resolve_by_candidate(db, a, sent=body.sent, now=now)
     return _app_out(a, p)
+
+
+# ------------------------------------------------------------- employer replies and interviews
+
+
+def _interview_out(link: InterviewLink, p: JobPosting, now: datetime) -> InterviewOut:
+    return InterviewOut(
+        id=str(link.id),
+        application_id=str(link.application_id),
+        company=p.company,
+        title=p.title,
+        round=link.round,
+        status=link.status,
+        scheduling_url=link.scheduling_url,
+        meeting_url=link.meeting_url,
+        scheduled_at=link.scheduled_at,
+        time_zone_unclear=link.time_zone_unclear,
+        company_id=str(link.company_id) if link.company_id else None,
+        action=dashboard.action_for(link, now),
+        history=link.history or [],
+    )
+
+
+async def _interviews(db: AsyncSession, user_id: Any) -> list[tuple[InterviewLink, JobPosting]]:
+    rows = (
+        await db.execute(
+            select(InterviewLink, JobPosting)
+            .join(Application, Application.id == InterviewLink.application_id)
+            .join(JobPosting, JobPosting.id == Application.posting_id)
+            .where(InterviewLink.user_id == user_id)
+            .order_by(InterviewLink.scheduled_at.asc().nulls_last(), InterviewLink.created_at)
+        )
+    ).all()
+    return [(r[0], r[1]) for r in rows]
+
+
+@router.get("/interviews")
+async def list_interviews(
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    now: datetime = Depends(get_now),  # noqa: B008
+) -> list[InterviewOut]:
+    return [_interview_out(link, p, now) for link, p in await _interviews(db, user.id)]
+
+
+@router.post("/interviews/{interview_id}/prepare")
+async def prepare_interview(
+    interview_id: str,
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    settings: Settings = Depends(get_settings),  # noqa: B008
+    runner: ResearchRunner = Depends(get_runner),  # noqa: B008
+) -> PrepareOut:
+    """Open this interview in the preparation part of the app: its company is created (or found)
+    and researched, and the session starts with the submitted CV and application."""
+    try:
+        key = uuid.UUID(interview_id)
+        company_id, _role, _snapshot = await interviews.session_context(db, user.id, key)
+    except ValueError:
+        raise ApiError(404, "interview_not_found", "Interview not found.") from None
+    except interviews.HandoffError as exc:
+        raise ApiError(exc.status, exc.code, exc.message) from None
+    repo = CompaniesRepo(db, user.id)
+    started = False
+    if await repo.latest_job(company_id) is None:
+        if await UsageRepo(db, user.id).consume_research_job(settings.cap_research_jobs_daily):
+            job = repo.add_job(company_id, refresh=False)
+            await db.flush()
+            started = True
+    await db.commit()
+    if started:
+        runner.start(job.id)
+    return PrepareOut(
+        interview_id=str(key),
+        company_id=str(company_id),
+        session_url=f"/session/new?interview={key}",
+        research_started=started,
+    )
+
+
+async def _review_out(db: AsyncSession, user_id: Any, ev: RecruitingEvent) -> RecruitingOut:
+    ids = [uuid.UUID(i) for i in (ev.evidence or {}).get("candidates", [])]
+    cands: list[CandidateApp] = []
+    if ids:
+        rows = (
+            await db.execute(
+                select(Application.id, JobPosting.company, JobPosting.title)
+                .join(JobPosting, JobPosting.id == Application.posting_id)
+                .where(Application.user_id == user_id, Application.id.in_(ids))
+            )
+        ).all()
+        cands = [CandidateApp(id=str(i), company=c, title=t) for i, c, t in rows]
+    return RecruitingOut(
+        id=str(ev.id),
+        kind=ev.kind,
+        status=ev.status,
+        received_at=ev.received_at,
+        sender=(ev.evidence or {}).get("from", ""),
+        subject=(ev.evidence or {}).get("subject", ""),
+        matched_by=(ev.evidence or {}).get("matched_by"),
+        application_id=str(ev.application_id) if ev.application_id else None,
+        candidates=cands,
+        scheduled_at=ev.scheduled_at,
+        time_zone_unclear=ev.time_zone_unclear,
+        links=ev.links or {},
+    )
+
+
+async def _event(db: AsyncSession, user_id: Any, event_id: str) -> RecruitingEvent:
+    try:
+        key = uuid.UUID(event_id)
+    except ValueError:
+        raise ApiError(404, "not_found", "Not found.") from None
+    ev = (
+        await db.execute(
+            select(RecruitingEvent).where(
+                RecruitingEvent.id == key, RecruitingEvent.user_id == user_id
+            )
+        )
+    ).scalar_one_or_none()
+    if ev is None:
+        raise ApiError(404, "not_found", "Not found.")
+    return ev
+
+
+@router.get("/recruiting")
+async def list_recruiting(
+    status: str | None = None,
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> list[RecruitingOut]:
+    q = (
+        select(RecruitingEvent)
+        .where(RecruitingEvent.user_id == user.id)
+        .order_by(RecruitingEvent.received_at.desc())
+        .limit(100)
+    )
+    if status:
+        q = q.where(RecruitingEvent.status == status)
+    return [await _review_out(db, user.id, e) for e in (await db.execute(q)).scalars().all()]
+
+
+@router.post("/recruiting/{event_id}/link")
+async def link_event(
+    event_id: str,
+    body: LinkEventIn,
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    now: datetime = Depends(get_now),  # noqa: B008
+) -> RecruitingOut:
+    """Settle an ambiguous employer message by choosing the application it belongs to."""
+    ev = await _event(db, user.id, event_id)
+    if ev.status != "needs_review":
+        raise ApiError(409, "not_waiting", "This message is already settled.")
+    a, p = await _owned(db, user.id, body.application_id)
+    ev.application_id, ev.status = a.id, "matched"
+    from app.autoapply import mailsync
+
+    await mailsync._apply(db, ev, a, p, now)
+    await db.commit()
+    return await _review_out(db, user.id, ev)
+
+
+@router.post("/recruiting/{event_id}/dismiss")
+async def dismiss_event(
+    event_id: str,
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> RecruitingOut:
+    ev = await _event(db, user.id, event_id)
+    if ev.status == "needs_review":
+        ev.status = "dismissed"
+        await db.commit()
+    return await _review_out(db, user.id, ev)
+
+
+@router.post("/recruiting/{event_id}/confirm-time")
+async def confirm_time(
+    event_id: str,
+    body: ConfirmTimeIn,
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> RecruitingOut:
+    """The message named no clear time zone, so the candidate says which one it was written in."""
+    ev = await _event(db, user.id, event_id)
+    local = (ev.evidence or {}).get("local_time")
+    try:
+        zone_name = rules.clean_timezone(body.timezone)
+    except rules.ProfileProblem as exc:
+        raise ApiError(422, "invalid_timezone", str(exc)) from None
+    if not ev.time_zone_unclear or not local:
+        raise ApiError(409, "not_waiting", "This time does not need confirming.")
+    ev.scheduled_at, ev.time_zone_unclear = recruiting.at_zone(local, zone_name), False
+    for link in (
+        await db.execute(select(InterviewLink).where(InterviewLink.last_event_id == ev.id))
+    ).scalars():
+        link.scheduled_at, link.time_zone_unclear = ev.scheduled_at, False
+    await db.commit()
+    return await _review_out(db, user.id, ev)
+
+
+# ---------------------------------------------------------------------------- the dashboard
+
+
+@router.get("/dashboard")
+async def read_dashboard(
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    now: datetime = Depends(get_now),  # noqa: B008
+) -> DashboardOut:
+    """Next interview, what needs the candidate, and recent applications, in that order."""
+    prof = await camp.get_profile(db, user.id)
+    c = await camp.current(db, user.id)
+    progress = camp.progress(c, prof, now)
+    box = await mbx.get(db, user.id)
+    channels = rules.clean_channels(prof.channels if prof else {})
+    mailbox_out = MailboxOut(
+        connected=bool(box and box.status == "connected"),
+        provider=box.provider if box else None,
+        address=box.address if box else None,
+        status=box.status if box else None,
+        last_synced_at=box.last_synced_at if box else None,
+    )
+    all_interviews = await _interviews(db, user.id)
+    upcoming = next(
+        ((link, p) for link, p in all_interviews if dashboard.is_upcoming(link, now)), None
+    )
+    invites = [(link, p) for link, p in all_interviews if link.status == "invited"]
+    waiting = (
+        await db.execute(
+            select(Application, JobPosting)
+            .join(JobPosting, JobPosting.id == Application.posting_id)
+            .where(Application.user_id == user.id, Application.status == "needs_input")
+            .order_by(Application.updated_at.desc())
+            .limit(5)
+        )
+    ).all()
+    recent = (
+        await db.execute(
+            select(Application, JobPosting)
+            .join(JobPosting, JobPosting.id == Application.posting_id)
+            .where(
+                Application.user_id == user.id,
+                Application.status.in_(
+                    (
+                        "submitted",
+                        "sent_email",
+                        "confirmation_pending",
+                        "failed",
+                        "queued",
+                        "sending",
+                    )
+                ),
+            )
+            .order_by(Application.updated_at.desc())
+            .limit(10)
+        )
+    ).all()
+    counts_rows = (
+        await db.execute(
+            select(Application.status, func.count())
+            .where(Application.user_id == user.id)
+            .group_by(Application.status)
+        )
+    ).all()
+    run = await _last_run(db, user.id)
+    run_count = (
+        await db.execute(
+            select(func.count()).select_from(DiscoveryRun).where(DiscoveryRun.user_id == user.id)
+        )
+    ).scalar_one()
+    needs_reconnect = bool(
+        box and box.status == "reauth_needed" and (channels["email"] or channels["outreach"])
+    )
+    state, kind, label = dashboard.decide(
+        campaign=c,
+        campaign_state=progress["state"],
+        paused=bool(prof and prof.paused),
+        has_profile=prof is not None,
+        needs_reconnect=needs_reconnect,
+        upcoming=upcoming[0] if upcoming else None,
+        open_invite=next((link for link, _ in invites if link.scheduling_url), None),
+        first_waiting=str(waiting[0][0].id) if waiting else None,
+        last_run_status=run.status if run else None,
+        last_run_eligible=run.eligible if run else 0,
+        run_count=run_count,
+    )
+    href = {
+        "setup": "/auto-apply/setup",
+        "preferences": "/auto-apply/setup",
+        "reconnect": "/auto-apply/setup#email",
+        "results": "/auto-apply/applications",
+        "last_run": "/auto-apply/applications",
+    }.get(kind)
+    primary = PrimaryAction(kind=kind, label=label, href=href)
+    if kind in ("prepare", "book") and (upcoming or invites):
+        link = upcoming or next(((link, p) for link, p in invites if link.scheduling_url), None)
+        if link:
+            primary.interview_id = str(link[0].id)
+            primary.href = link[0].scheduling_url if kind == "book" else None
+    if kind == "answer" and waiting:
+        primary.application_id = str(waiting[0][0].id)
+        primary.href = f"/auto-apply/applications/{waiting[0][0].id}"
+    usage = None
+    if c is not None and prof is not None:
+        day = clock.local_day(now, c.timezone)
+        usage = UsageOut(
+            applications_used=await outbox.used_today(db, user.id, ("form", "email"), day),
+            applications_cap=prof.daily_application_cap,
+            outreach_used=await outbox.used_today(db, user.id, ("outreach",), day),
+            outreach_cap=prof.daily_outreach_cap,
+        )
+    review = (
+        await db.execute(
+            select(func.count())
+            .select_from(RecruitingEvent)
+            .where(RecruitingEvent.user_id == user.id, RecruitingEvent.status == "needs_review")
+        )
+    ).scalar_one()
+    return DashboardOut(
+        state=state,
+        primary=primary,
+        campaign=CampaignOut(**progress),
+        paused=bool(prof and prof.paused),
+        mailbox=mailbox_out,
+        channels=channels,
+        last_run=run,
+        usage=usage,
+        next_interview=_interview_out(*upcoming, now) if upcoming else None,
+        open_invites=[_interview_out(link, p, now) for link, p in invites],
+        needs_input=[_app_out(a, p) for a, p in waiting],
+        recent=[_app_out(a, p) for a, p in recent],
+        counts={status: n for status, n in counts_rows},
+        review_count=review,
+    )

@@ -238,3 +238,88 @@ async def test_connecting_says_so_when_email_is_not_set_up(ada, settings):
     r = await ada.post("/api/autoapply/mailbox/connect")
     assert r.status_code == 503 and r.json()["error"]["code"] == "mailbox_unavailable"
     assert (await ada.get("/api/autoapply/mailbox")).json()["can_connect"] is False
+
+
+# --------------------------------------------------------------------------- reading mail
+
+
+def b64(text: str) -> str:
+    return base64.urlsafe_b64encode(text.encode()).decode().rstrip("=")
+
+
+async def test_reading_new_mail_returns_text_for_classification_and_skips_our_own_sent_mail(
+    gmail_settings,
+):
+    gmail_settings.google_token_url = "https://oauth.test/token"
+    incoming = {
+        "id": "m1",
+        "threadId": "t1",
+        "internalDate": "1764000000000",
+        "labelIds": ["INBOX"],
+        "snippet": "short",
+        "payload": {
+            "headers": [
+                {"name": "From", "value": "Rec <rec@acme.test>"},
+                {"name": "Subject", "value": "Interview"},
+                {"name": "Date", "value": "Mon, 02 Nov 2026 09:00:00 +0000"},
+                {"name": "Message-ID", "value": "<abc@acme.test>"},
+                {"name": "In-Reply-To", "value": "<ours@interviewmeet.app>"},
+                {"name": "References", "value": "<ours@interviewmeet.app> <x@y>"},
+            ],
+            "mimeType": "multipart/alternative",
+            "parts": [
+                {"mimeType": "text/html", "body": {"data": b64("<p>html</p>")}},
+                {"mimeType": "text/plain", "body": {"data": b64("Please pick a time")}},
+            ],
+        },
+    }
+    ours = {"id": "m2", "labelIds": ["SENT"], "payload": {"headers": []}}
+
+    def handler(req):
+        path = req.url.path
+        if path == "/token":
+            return httpx.Response(200, json={"access_token": "at"})
+        if path.endswith("/profile"):
+            return httpx.Response(200, json={"historyId": "900"})
+        if path.endswith("/history"):
+            return httpx.Response(
+                200,
+                json={
+                    "history": [
+                        {"messagesAdded": [{"message": {"id": "m1"}}, {"message": {"id": "m2"}}]}
+                    ]
+                },
+            )
+        if path.endswith("/messages/m1"):
+            return httpx.Response(200, json=incoming)
+        if path.endswith("/messages/m2"):
+            return httpx.Response(200, json=ours)
+        return httpx.Response(404)
+
+    msgs, cursor = await GmailAdapter(gmail_settings, mock(handler)).read_since("r", "850")
+    assert cursor == "900" and len(msgs) == 1
+    m = msgs[0]
+    assert m.snippet == "Please pick a time" and m.in_reply_to == "ours@interviewmeet.app"
+    assert m.references == ["ours@interviewmeet.app", "x@y"] and m.thread_id == "t1"
+    assert m.received_at.isoformat() == "2026-11-02T09:00:00+00:00"
+
+
+async def test_an_expired_cursor_falls_back_to_recent_mail(gmail_settings):
+    gmail_settings.google_token_url = "https://oauth.test/token"
+    seen = []
+
+    def handler(req):
+        path = req.url.path
+        seen.append(path)
+        if path == "/token":
+            return httpx.Response(200, json={"access_token": "at"})
+        if path.endswith("/profile"):
+            return httpx.Response(200, json={"historyId": "1000"})
+        if path.endswith("/history"):
+            return httpx.Response(404)  # Google forgot that far back
+        if path.endswith("/messages"):
+            return httpx.Response(200, json={"messages": []})
+        return httpx.Response(404)
+
+    msgs, cursor = await GmailAdapter(gmail_settings, mock(handler)).read_since("r", "1")
+    assert msgs == [] and cursor == "1000" and any(p.endswith("/messages") for p in seen)

@@ -652,3 +652,64 @@ class Outreach(Base):
     reason: Mapped[str | None] = mapped_column(String(300), nullable=True)
     created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
     sent_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+
+
+class RecruitingEvent(Base):
+    """Something an employer sent about an application, read from the candidate's mailbox. Only
+    evidence is kept (who, which subject, what kind, when): the message itself stays in the
+    mailbox and no body text is stored."""
+
+    __tablename__ = "aa_recruiting_events"
+    __table_args__ = (UniqueConstraint("mailbox_id", "provider_message_id"),)
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = _fk("users.id", index=True)
+    mailbox_id: Mapped[uuid.UUID] = _fk("aa_mailboxes.id")
+    provider_message_id: Mapped[str] = mapped_column(String(200))
+    thread_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # acknowledgment | assessment | shortlist | invitation | confirmation | reschedule |
+    # cancellation | rejection
+    kind: Mapped[str] = mapped_column(String(14))
+    application_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("aa_applications.id", ondelete="SET NULL"), nullable=True
+    )
+    status: Mapped[str] = mapped_column(String(14), default="matched")
+    # matched | needs_review | dismissed
+    evidence: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    links: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)  # scheduling / meeting
+    scheduled_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    time_zone_unclear: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    round: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    received_at: Mapped[datetime] = mapped_column(_TS)
+    created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+
+
+class InterviewLink(Base):
+    """An interview with an employer, tied to the application that led to it and to a company in
+    the interview-preparation part of the app. One per application and round, however many
+    messages (invitation, confirmation, reschedule, repeat) mention it."""
+
+    __tablename__ = "aa_interviews"
+    __table_args__ = (UniqueConstraint("application_id", "round"),)
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = _fk("users.id", index=True)
+    application_id: Mapped[uuid.UUID] = _fk("aa_applications.id")
+    company_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="SET NULL"), nullable=True
+    )
+    round: Mapped[int] = mapped_column(Integer, default=1)
+    status: Mapped[str] = mapped_column(String(10), default="invited")
+    # invited | scheduled | cancelled | completed
+    scheduling_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    meeting_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    scheduled_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    time_zone_unclear: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    last_event_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("aa_recruiting_events.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    history: Mapped[list[Any]] = mapped_column(
+        JSONB, default=list, server_default=text("'[]'::jsonb")
+    )  # [{kind, at, scheduled_at}]: reschedules and cancellations stay visible
+    created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(_TS, default=_now, onupdate=_now)

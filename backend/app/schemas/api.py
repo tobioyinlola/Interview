@@ -118,6 +118,9 @@ class SessionCreateIn(BaseModel):
     consent: bool | None = None
     company_id: uuid.UUID | None = None
     role: str | None = Field(default=None, max_length=200)
+    # Start from an interview that came out of Auto-Apply: the assistant then knows the CV that was
+    # actually submitted and the job as it was when the person applied.
+    interview_id: uuid.UUID | None = None
 
 
 class SessionCreateOut(BaseModel):

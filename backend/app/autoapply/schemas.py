@@ -197,3 +197,87 @@ class OutreachOut(BaseModel):
 
 class ResolveIn(BaseModel):
     sent: bool  # true: it did go through; false: it did not, so it may be sent again
+
+
+class InterviewOut(BaseModel):
+    id: str
+    application_id: str
+    company: str
+    title: str
+    round: int
+    status: str  # invited | scheduled | cancelled | completed
+    scheduling_url: str | None
+    meeting_url: str | None
+    scheduled_at: datetime | None
+    time_zone_unclear: bool
+    company_id: str | None
+    action: str | None  # book | prepare | confirm_time
+    history: list[dict[str, Any]]
+
+
+class CandidateApp(BaseModel):
+    id: str
+    company: str
+    title: str
+
+
+class RecruitingOut(BaseModel):
+    id: str
+    kind: str
+    status: str
+    received_at: datetime
+    sender: str
+    subject: str
+    matched_by: str | None
+    application_id: str | None
+    candidates: list[CandidateApp]
+    scheduled_at: datetime | None
+    time_zone_unclear: bool
+    links: dict[str, str]
+
+
+class LinkEventIn(BaseModel):
+    application_id: str
+
+
+class ConfirmTimeIn(BaseModel):
+    timezone: str = Field(max_length=64)
+
+
+class PrepareOut(BaseModel):
+    interview_id: str
+    company_id: str
+    session_url: str
+    research_started: bool
+
+
+class UsageOut(BaseModel):
+    applications_used: int
+    applications_cap: int
+    outreach_used: int
+    outreach_cap: int
+
+
+class PrimaryAction(BaseModel):
+    kind: str
+    label: str
+    href: str | None = None
+    application_id: str | None = None
+    interview_id: str | None = None
+
+
+class DashboardOut(BaseModel):
+    state: str
+    primary: PrimaryAction
+    campaign: CampaignOut
+    paused: bool
+    mailbox: MailboxOut
+    channels: dict[str, bool]
+    last_run: RunOut | None
+    usage: UsageOut | None
+    next_interview: InterviewOut | None
+    open_invites: list[InterviewOut]
+    needs_input: list[ApplicationOut]
+    recent: list[ApplicationOut]
+    counts: dict[str, int]
+    review_count: int

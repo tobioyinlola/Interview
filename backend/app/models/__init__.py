@@ -12,6 +12,7 @@ from app.models.tables import (
     DiscoveryRun,
     Event,
     IdempotencyKey,
+    InterviewLink,
     JobAlias,
     JobPosting,
     LoginFailure,
@@ -20,6 +21,7 @@ from app.models.tables import (
     Note,
     Outreach,
     PracticeSession,
+    RecruitingEvent,
     Referral,
     ResearchJob,
     Score,
@@ -34,6 +36,8 @@ from app.models.tables import (
 )
 
 __all__ = [
+    "InterviewLink",
+    "RecruitingEvent",
     "MailboxConnection",
     "Outreach",
     "SubmissionAttempt",
