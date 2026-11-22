@@ -157,7 +157,9 @@ SOURCE_LABELS = {
 
 def source_labels(settings: Settings) -> list[str]:
     """Readable names of the sources being searched, for the candidate to see."""
-    return [SOURCE_LABELS[n] for n in _names(settings.autoapply_discovery_sources) if n in SOURCE_LABELS]
+    return [
+        SOURCE_LABELS[n] for n in _names(settings.autoapply_discovery_sources) if n in SOURCE_LABELS
+    ]
 
 
 KNOWN_SOURCES = ("fixture", "greenhouse", "lever", "ashby", "remotive", "arbeitnow", "remoteok")
