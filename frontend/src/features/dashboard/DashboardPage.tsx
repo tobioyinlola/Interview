@@ -349,7 +349,7 @@ function Stat({
   tone: keyof typeof TONES;
 }) {
   return (
-    <div className="rounded-2xl bg-surface p-4 shadow-card sm:p-5">
+    <div className="rounded-2xl bg-surface p-4 shadow-card transition-transform hover:-translate-y-0.5 sm:p-5">
       <span
         className={`flex h-9 w-9 items-center justify-center rounded-xl ${TONES[tone]}`}
       >
@@ -427,7 +427,28 @@ function Hero({
           <p className="mt-1 text-surface/80">
             Here&apos;s your interview overview.
           </p>
-          <p className="mt-4 max-w-md text-surface/90">{next.line}</p>
+          <ol
+            aria-label="Getting started"
+            className="mt-4 flex flex-wrap gap-2 text-xs font-medium"
+          >
+            {[
+              ["CV", cv],
+              ["Company", companies > 0],
+              ["First interview", sessions > 0],
+            ].map(([label, done]) => (
+              <li
+                key={String(label)}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 ${
+                  done ? "bg-emerald-400/20 text-emerald-200" : "bg-surface/10"
+                }`}
+              >
+                <span aria-hidden="true">{done ? "✓" : "○"}</span>
+                {label}
+                <span className="sr-only">{done ? " done" : " to do"}</span>
+              </li>
+            ))}
+          </ol>
+          <p className="mt-4 max-w-md text-lg text-surface/90">{next.line}</p>
           <Link
             to={next.to}
             className="btn btn-lg mt-5 bg-surface text-ink hover:bg-canvas"
@@ -568,7 +589,12 @@ export function DashboardPage() {
               </Link>
             </div>
             {companies.isSuccess && companies.data.length === 0 && (
-              <p className="mt-3 text-muted">No companies yet.</p>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-canvas p-4">
+                <p className="text-muted">No companies yet.</p>
+                <Link to="/companies" className="btn-primary">
+                  Add a company
+                </Link>
+              </div>
             )}
             <ul className="mt-3 space-y-1">
               {(companies.data ?? []).slice(0, 5).map((c) => {
@@ -623,7 +649,15 @@ export function DashboardPage() {
               </Link>
             </div>
             {sessions.isSuccess && recent.length === 0 && (
-              <p className="mt-3 text-muted">No sessions yet.</p>
+              <div className="mt-3 rounded-2xl bg-canvas p-4">
+                <p className="text-muted">No sessions yet.</p>
+                <Link
+                  to="/session/new"
+                  className="mt-1 inline-block text-sm font-medium text-accent-dark hover:underline"
+                >
+                  Start your first interview
+                </Link>
+              </div>
             )}
             <ul className="mt-3 space-y-1">
               {recent.map((s) => (
