@@ -15,7 +15,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import metrics
-from app.autoapply import campaign, clock, pipeline, postings
+from app.autoapply import campaign, clock, matching, pipeline, postings
 from app.autoapply.adapters import AdapterError, DiscoveryAdapter, RawPosting
 from app.autoapply.fixtures import FixtureDiscovery
 from app.config import Settings
@@ -30,6 +30,7 @@ class GreenhouseDiscovery:
     listed by its token in AUTOAPPLY_GREENHOUSE_BOARDS. Reading is public and needs no key."""
 
     name = "greenhouse"
+    broad = True  # a whole company board: keep only roles that could fit
 
     def __init__(
         self, boards: list[str], transport: httpx.AsyncBaseTransport | None = None
@@ -112,21 +113,38 @@ def _fixture_jobs(settings: Settings) -> list[RawPosting]:
     return out
 
 
+def _names(value: str) -> list[str]:
+    return [v.strip() for v in value.split(",") if v.strip()]
+
+
 def build_sources(settings: Settings) -> list[DiscoveryAdapter]:
-    """The discovery sources named in AUTOAPPLY_DISCOVERY_SOURCES. Outside production only the
-    fixture is allowed to return anything, so a staging run can never apply for a real job."""
+    """The discovery sources named in AUTOAPPLY_DISCOVERY_SOURCES, in that order. Several can run
+    together: the same job found twice becomes one posting. Outside production only the fixture
+    ever returns anything it was handed, so a staging run cannot apply for a real job."""
+    from app.autoapply import sources as feeds
+
     out: list[DiscoveryAdapter] = []
-    for name in (n.strip() for n in settings.autoapply_discovery_sources.split(",") if n.strip()):
+    for name in _names(settings.autoapply_discovery_sources):
         if name == "fixture":
             out.append(FixtureDiscovery(_fixture_jobs(settings)))
         elif name == "greenhouse":
-            boards = [
-                b.strip() for b in settings.autoapply_greenhouse_boards.split(",") if b.strip()
-            ]
-            out.append(GreenhouseDiscovery(boards))
+            out.append(GreenhouseDiscovery(_names(settings.autoapply_greenhouse_boards)))
+        elif name == "lever":
+            out.append(feeds.LeverSource(_names(settings.autoapply_lever_companies)))
+        elif name == "ashby":
+            out.append(feeds.AshbySource(_names(settings.autoapply_ashby_boards)))
+        elif name == "remotive":
+            out.append(feeds.RemotiveSource())
+        elif name == "arbeitnow":
+            out.append(feeds.ArbeitnowSource())
+        elif name == "remoteok":
+            out.append(feeds.RemoteOkSource())
         else:
             log.warning("unknown discovery source", extra={"fields": {"source": name}})
     return out
+
+
+KNOWN_SOURCES = ("fixture", "greenhouse", "lever", "ashby", "remotive", "arbeitnow", "remoteok")
 
 
 async def _claim(
@@ -196,9 +214,17 @@ async def run_if_due(
     errors: list[str] = []
     for src in sources:
         try:
-            raws.extend(await src.search(prof.criteria or {}, now))
+            found_here = await src.search(prof.criteria or {}, now)
         except AdapterError as exc:
             errors.append(f"{src.name}: {exc.message}")
+            continue
+        if getattr(src, "broad", False):
+            # a big public feed: keep only jobs whose title could be a role the candidate wants,
+            # so their list is not buried under thousands of unrelated listings
+            found_here = [
+                r for r in found_here if matching.role_could_fit(prof.criteria or {}, r.title)
+            ]
+        raws.extend(found_here)
     if errors and not raws and len(errors) == len(sources):
         run.status, run.error, run.finished_at = "failed", "; ".join(errors)[:500], now
         await db.commit()

@@ -118,6 +118,20 @@ def _any_of(items: list[dict[str, Any]], judge: Any) -> tuple[str, str, bool]:
     return FAIL, results[0][0][1], required
 
 
+def role_could_fit(criteria: dict[str, Any], title: str) -> bool:
+    """Could this job title be one of the roles wanted? Used only to thin out big public feeds; the
+    real judgement is `evaluate`. With no role chosen, nothing is filtered."""
+    wanted = [r["value"] for r in (criteria.get("roles") or [])]
+    if not wanted:
+        return True
+    have = set(words(title))
+    for target in wanted:
+        want = words(target)
+        if want and sum(w in have for w in want) / len(want) >= 0.75:
+            return True
+    return False
+
+
 def _role(posting: JobPosting) -> Any:
     title = set(words(posting.title))
 
@@ -282,7 +296,10 @@ def evaluate(
             "channel",
             "A way to apply",
             FAIL,
-            "no supported way to apply was found on the listing",
+            (
+                "this job has to be applied to on the employer's own site: "
+                "open the job to apply yourself"
+            ),
             True,
         )
 

@@ -47,8 +47,9 @@ the menu link is hidden.
 | --- | --- |
 | `AUTOAPPLY_ENABLED` | Master flag (default off) |
 | `AUTOAPPLY_POLICY_VERSION` | Terms version recorded with each agreement |
-| `AUTOAPPLY_DISCOVERY_SOURCES` | Comma list: `fixture`, `greenhouse` |
-| `AUTOAPPLY_GREENHOUSE_BOARDS` | Board tokens for the Greenhouse source |
+| `AUTOAPPLY_DISCOVERY_SOURCES` | Comma list, any mix: `remotive`, `arbeitnow`, `remoteok` (no setup), `greenhouse`, `lever`, `ashby` (need names below), `fixture` (demo/tests) |
+| `AUTOAPPLY_GREENHOUSE_BOARDS` / `_LEVER_COMPANIES` / `_ASHBY_BOARDS` | Comma lists of the employers' board names for those sources |
+| `AUTOAPPLY_SAMPLE_JOBS` | Demo mode: the fixture source offers twelve built-in sample jobs and the app says sending is simulated. Never in production |
 | `AUTOAPPLY_MAILBOX_PROVIDER` | `fixture` (default) or `gmail` |
 | `AUTOAPPLY_FORM_DISPATCH` / `_EMAIL_DISPATCH` / `_OUTREACH_DISPATCH` | Allow **real** sends on that channel. Fixtures never need them |
 | `AUTOAPPLY_ALLOWED_RECIPIENTS` | Outside production, the only addresses a real mailbox may write to |
@@ -66,7 +67,7 @@ The API refuses to start in production with a half-configured Auto-Apply (see `h
 | Part | Choice | Status |
 | --- | --- | --- |
 | Mailbox | **Gmail** (OAuth, `gmail.send` + `gmail.readonly`) | Code complete and tested against recorded responses only. **Not run against live Google.** |
-| Job discovery | **Greenhouse** public boards API, plus a fixture source | Greenhouse parsing tested against sample data; not run against a live board here |
+| Job discovery | Several at once: **Remotive, Arbeitnow, Remote OK** (public feeds, no setup), **Greenhouse, Lever, Ashby** (employer boards you name), plus a fixture source | Parsing tested against sample responses in each feed's published format. **Not run against the live services from this repository** (no outbound network). Big feeds are thinned to titles that could be a role the candidate wants. The same job found by two sources is one application. These sources only find jobs; a job that needs the employer's own site is listed as "apply yourself" with the link |
 | Employer forms | **Fixture adapter only** | No real employer form adapter exists yet. The interface (`FormAdapter`) is ready; `AUTOAPPLY_FORM_DISPATCH` has nothing real to enable until one is approved |
 | Everything else (limits, claims, reconciliation, matching, tailoring, replies, interviews, hand-off) | In-repo | Verified with the fixture adapters and the automated suite |
 
