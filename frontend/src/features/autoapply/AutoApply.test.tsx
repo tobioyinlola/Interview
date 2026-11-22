@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { App } from "../../app/App";
@@ -733,7 +733,7 @@ describe("the applications list", () => {
   });
 });
 
-describe("setting up", () => {
+describe("setting up: the guided flow", () => {
   const profile = (over: object = {}) => ({
     criteria: {
       roles: [{ value: "Senior Product Manager", required: true }],
@@ -748,6 +748,13 @@ describe("setting up", () => {
     version: 1,
     ...over,
   });
+  const empty = () =>
+    profile({
+      criteria: {},
+      channels: { form: false, email: false, outreach: false },
+      version: 0,
+      timezone: "UTC",
+    });
   const facts = {
     contact: {
       name: "Ada Okoye",
@@ -768,39 +775,111 @@ describe("setting up", () => {
     ],
     education: [],
   };
+  const confirmed = {
+    data: facts,
+    version: 1,
+    verified_at: "2026-11-02T09:00:00Z",
+    cv_changed: false,
+    from_model: true,
+  };
+  const disclosure = (over: object = {}) => ({
+    policy_version: "2026-11",
+    shared: ["your CV"],
+    channels: { form: true, email: false, outreach: false },
+    daily_application_cap: 5,
+    daily_outreach_cap: 3,
+    mailbox: null,
+    problems: [],
+    ...over,
+  });
   const setup = (extra: Record<string, () => object> = {}) =>
     base({
       "GET /api/autoapply/profile": () => ({ json: profile() }),
-      "GET /api/autoapply/facts": () => ({ json: null }),
+      "GET /api/autoapply/facts": () => ({ json: confirmed }),
       "GET /api/autoapply/answers": () => ({ json: [] }),
       "GET /api/autoapply/mailbox": () => ({
         json: { connected: false, status: null, can_connect: true },
       }),
-      "GET /api/autoapply/authorization": () => ({
-        json: {
-          policy_version: "2026-11",
-          shared: ["your CV"],
-          channels: { form: true, email: false, outreach: false },
-          daily_application_cap: 5,
-          daily_outreach_cap: 3,
-          mailbox: null,
-          problems: [],
-        },
-      }),
+      "GET /api/autoapply/authorization": () => ({ json: disclosure() }),
       "GET /api/autoapply/dashboard": () => ({
         json: dash({ campaign: { state: "none" } }),
       }),
       ...extra,
     });
+  const next = () =>
+    userEvent.click(screen.getByRole("button", { name: "Next" }));
+  const saved = (calls: { key: string; body: unknown }[]) =>
+    calls
+      .filter((c) => c.key === "PUT /api/autoapply/profile")
+      .map(
+        (c) =>
+          c.body as {
+            criteria: Record<string, unknown>;
+            timezone: string;
+            active_hours: unknown;
+            daily_application_cap: number;
+          },
+      );
 
-  it("reads the CV into a draft the candidate checks, and only then confirms it", async () => {
+  it("shows seven steps with a progress bar, and starts where something is still needed", async () => {
+    setup({ "GET /api/autoapply/profile": () => ({ json: empty() }) });
+    renderApp(<App />, "/auto-apply/setup");
+    expect(
+      await screen.findByRole("heading", { name: "What you want" }),
+    ).toBeInTheDocument(); // details are confirmed
+    const rail = within(
+      screen.getByRole("navigation", { name: "Setup steps" }),
+    );
+    expect(rail.getAllByRole("listitem")).toHaveLength(7);
+    expect(rail.getByRole("button", { name: /Details/ })).toBeEnabled();
+    expect(rail.getByRole("button", { name: /Channels/ })).toBeDisabled(); // not yet reachable
+    expect(
+      screen.getByRole("progressbar", { name: "Setup progress" }),
+    ).toHaveAttribute("aria-valuenow", "17");
+    expect(screen.getByText("Step 2 of 7")).toBeInTheDocument();
+  });
+
+  it("starts at the first step when the CV details are not confirmed yet", async () => {
+    setup({ "GET /api/autoapply/facts": () => ({ json: null }) });
+    renderApp(<App />, "/auto-apply/setup");
+    expect(
+      await screen.findByRole("heading", { name: "Your details" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Step 1 of 7")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+    expect(
+      screen.getAllByText(/Check your details and confirm them/).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("asks for the CV first when there is none", async () => {
+    setup({
+      "GET /api/autoapply/facts": () => ({ json: null }),
+      "GET /api/notes": () => ({
+        json: { role: "", content: "", updated_at: null },
+      }),
+    });
+    renderApp(<App />, "/auto-apply/setup");
+    expect(
+      await screen.findByText(/Upload it here to carry on/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Upload your CV" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+  });
+
+  it("reads the CV into a draft, and only confirming it moves on", async () => {
+    let done = false;
     const calls = setup({
+      "GET /api/autoapply/facts": () => ({ json: done ? confirmed : null }),
       "POST /api/autoapply/facts/extract": () => ({
         json: { data: facts, version: 0, verified_at: null, from_model: true },
       }),
-      "PUT /api/autoapply/facts": () => ({
-        json: { data: facts, version: 1, verified_at: "2026-11-02T09:00:00Z" },
-      }),
+      "PUT /api/autoapply/facts": () => {
+        done = true;
+        return { json: confirmed };
+      },
     });
     renderApp(<App />, "/auto-apply/setup");
     await userEvent.click(
@@ -808,26 +887,27 @@ describe("setting up", () => {
     );
     const name = await screen.findByLabelText("Full name");
     expect(name).toHaveValue("Ada Okoye");
-    expect(calls.some((c) => c.key === "PUT /api/autoapply/facts")).toBe(false); // nothing confirmed yet
+    expect(calls.some((c) => c.key === "PUT /api/autoapply/facts")).toBe(false);
     await userEvent.clear(name);
     await userEvent.type(name, "Ada N. Okoye");
     await userEvent.click(
       screen.getByRole("button", { name: "These details are right" }),
     );
+    expect(
+      await screen.findByText(/Your details are confirmed/),
+    ).toBeInTheDocument();
     await waitFor(() => {
-      const put = calls.find((c) => c.key === "PUT /api/autoapply/facts");
-      expect((put?.body as { verified: boolean }).verified).toBe(true);
-      expect((put?.body as { data: typeof facts }).data.contact.name).toBe(
-        "Ada N. Okoye",
-      );
-      expect(
-        (put?.body as { data: typeof facts }).data.history[0].company,
-      ).toBe("Northwind");
+      const put = calls.find((c) => c.key === "PUT /api/autoapply/facts")
+        ?.body as { verified: boolean; data: typeof facts };
+      expect(put.verified).toBe(true);
+      expect(put.data.contact.name).toBe("Ada N. Okoye");
     });
+    expect(screen.getByRole("button", { name: "Next" })).toBeEnabled();
   });
 
   it("warns when only patterns could read the CV", async () => {
     setup({
+      "GET /api/autoapply/facts": () => ({ json: null }),
       "POST /api/autoapply/facts/extract": () => ({
         json: {
           data: { ...facts, history: [] },
@@ -846,16 +926,25 @@ describe("setting up", () => {
     ).toBeInTheDocument();
   });
 
-  it("picks roles and places from lists, and saves them with the must-haves and a salary floor", async () => {
+  it("will not open a later step by link until the earlier ones are done", async () => {
+    setup({ "GET /api/autoapply/profile": () => ({ json: empty() }) });
+    renderApp(<App />, "/auto-apply/setup?step=review");
+    expect(
+      await screen.findByRole("heading", { name: "What you want" }),
+    ).toBeInTheDocument();
+  });
+
+  it("role step: needs a role and a place, offers lists, and keeps must-haves", async () => {
     const calls = setup({
-      "PUT /api/autoapply/profile": () => ({ json: profile({ version: 2 }) }),
+      "GET /api/autoapply/profile": () => ({ json: empty() }),
+      "PUT /api/autoapply/profile": () => ({ json: profile({ version: 1 }) }),
     });
-    renderApp(<App />, "/auto-apply/setup");
-    const chosen = within(
-      await screen.findByRole("list", { name: "Roles you want: chosen" }),
-    );
-    expect(chosen.getByText("Senior Product Manager")).toBeInTheDocument();
-    // a role from the dropdown list, then one typed by hand
+    renderApp(<App />, "/auto-apply/setup?step=role");
+    await screen.findByRole("heading", { name: "What you want" });
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+    expect(
+      screen.getAllByText("Add at least one role.").length,
+    ).toBeGreaterThan(0);
     const roles = screen.getByLabelText("Roles you want", {
       selector: "input",
     }) as HTMLInputElement;
@@ -865,18 +954,15 @@ describe("setting up", () => {
         .querySelectorAll("option"),
     ].map((o) => o.getAttribute("value"));
     expect(options).toContain("Data Analyst");
-    await userEvent.type(roles, "Data Analyst");
+    await userEvent.type(roles, "Senior Product Manager");
     await userEvent.click(screen.getByRole("button", { name: "Add role" }));
     await userEvent.type(roles, "Head of Chaos{Enter}");
-    expect(
-      within(
-        screen.getByRole("list", { name: "Roles you want: chosen" }),
-      ).getAllByRole("listitem"),
-    ).toHaveLength(3);
     await userEvent.click(
       screen.getByRole("button", { name: "Remove Head of Chaos" }),
     );
-    // places: countries and wider regions are both offered
+    expect(
+      screen.getAllByText("Add a country or region you can work in.").length,
+    ).toBeGreaterThan(0);
     const places = screen.getByLabelText(
       "Where you can work: a country or region",
       { selector: "input" },
@@ -894,81 +980,171 @@ describe("setting up", () => {
         "United Kingdom",
       ]),
     );
-    await userEvent.type(places, "Kenya");
+    await userEvent.type(places, "Nigeria");
     await userEvent.click(screen.getByRole("button", { name: "Add place" }));
-    await userEvent.click(screen.getByLabelText("remote"));
+    // the work style tiles, and choosing how strict it is
+    await userEvent.click(screen.getByRole("button", { name: /Remote/ }));
     await userEvent.click(
-      screen.getByLabelText("This is a must (work arrangement)"),
+      within(
+        screen.getByRole("radiogroup", {
+          name: "How strict is the work style",
+        }),
+      ).getByRole("radio", { name: "Nice to have" }),
     );
-    await userEvent.type(screen.getByLabelText("Amount"), "90000");
     await userEvent.click(
-      screen.getByLabelText(/This is a must\. Jobs that do not say/),
+      within(
+        screen.getByRole("radiogroup", { name: "How strict is the role" }),
+      ).getByRole("radio", { name: "Nice to have" }),
     );
-    await userEvent.click(
-      screen.getByRole("button", { name: "Save my search" }),
-    );
-    await waitFor(() => {
-      const body = calls.find((c) => c.key === "PUT /api/autoapply/profile")
-        ?.body as {
-        criteria: Record<string, unknown>;
-        timezone: string;
-        daily_application_cap: number;
-      };
-      expect(body.criteria.roles).toEqual([
-        { value: "Senior Product Manager", required: true },
-        { value: "Data Analyst", required: true },
-      ]);
-      expect(body.criteria.locations).toEqual([
-        { value: "Nigeria", required: true },
-        { value: "Kenya", required: true },
-      ]);
-      expect(body.criteria.arrangement).toEqual([
-        { value: "remote", required: true },
-      ]);
-      expect(body.criteria.salary).toEqual({
-        floor: 90000,
-        currency: "USD",
-        period: "year",
-        required: true,
-      });
-      expect(body.timezone).toBe("Africa/Lagos");
-      expect(body.daily_application_cap).toBe(5);
-    });
+    await next();
+    expect(
+      await screen.findByRole("heading", { name: "Nice to have" }),
+    ).toBeInTheDocument();
+    const body = saved(calls)[0];
+    expect(body.criteria.roles).toEqual([
+      { value: "Senior Product Manager", required: false },
+    ]);
+    expect(body.criteria.locations).toEqual([
+      { value: "Nigeria", required: true },
+    ]);
+    expect(body.criteria.arrangement).toEqual([
+      { value: "remote", required: false },
+    ]);
   });
 
-  it("says plainly when the server is in demo mode", async () => {
+  it("shows an error from the server and stays on the step", async () => {
     setup({
-      "GET /api/autoapply/dashboard": () => ({
-        json: dash({ demo: true, campaign: { state: "none" } }),
+      "PUT /api/autoapply/profile": () => ({
+        status: 422,
+        json: {
+          error: {
+            code: "invalid_profile",
+            message: "That timezone is not recognised.",
+            request_id: "r",
+          },
+        },
       }),
     });
-    renderApp(<App />, "/auto-apply/setup");
-    expect(await screen.findByRole("note")).toHaveTextContent("Demo mode");
-    expect(screen.getByRole("note")).toHaveTextContent(
-      "Nothing is sent to a real employer",
+    renderApp(<App />, "/auto-apply/setup?step=role");
+    await screen.findByRole("heading", { name: "What you want" });
+    await userEvent.type(
+      screen.getByLabelText("Roles you want", { selector: "input" }),
+      "Data Analyst",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Add role" }));
+    await next();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "not recognised",
+    );
+    expect(
+      screen.getByRole("heading", { name: "What you want" }),
+    ).toBeInTheDocument();
+  });
+
+  it("preferences: optional, with pills, pay and sponsorship, saved with their strictness", async () => {
+    const calls = setup({
+      "PUT /api/autoapply/profile": () => ({ json: profile({ version: 2 }) }),
+    });
+    renderApp(<App />, "/auto-apply/setup?step=preferences");
+    await screen.findByRole("heading", { name: "Nice to have" });
+    expect(screen.getByRole("button", { name: "Next" })).toBeEnabled(); // nothing is required here
+    await userEvent.click(screen.getByRole("button", { name: "senior" }));
+    await userEvent.click(screen.getByRole("button", { name: "full time" }));
+    await userEvent.type(screen.getByLabelText("Amount"), "90000");
+    await userEvent.selectOptions(screen.getByLabelText("Currency"), "NGN");
+    await userEvent.click(screen.getByRole("radio", { name: "per month" }));
+    await userEvent.click(
+      within(
+        screen.getByRole("radiogroup", { name: "How strict is the pay" }),
+      ).getByRole("radio", { name: "Must have" }),
+    );
+    await userEvent.click(
+      screen.getByRole("radio", { name: "I need sponsorship" }),
+    );
+    await next();
+    expect(
+      await screen.findByRole("heading", { name: "When to apply" }),
+    ).toBeInTheDocument();
+    const c = saved(calls)[0].criteria;
+    expect(c.seniority).toEqual([{ value: "senior", required: false }]);
+    expect(c.contract).toEqual([{ value: "full_time", required: false }]);
+    expect(c.salary).toEqual({
+      floor: 90000,
+      currency: "NGN",
+      period: "month",
+      required: true,
+    });
+    expect(c.sponsorship).toEqual({ need: "needed", required: false });
+  });
+
+  it("skipping an optional step moves on without saving", async () => {
+    const calls = setup();
+    renderApp(<App />, "/auto-apply/setup?step=preferences");
+    await screen.findByRole("heading", { name: "Nice to have" });
+    await userEvent.click(screen.getByRole("button", { name: "Skip" }));
+    expect(
+      await screen.findByRole("heading", { name: "When to apply" }),
+    ).toBeInTheDocument();
+    expect(calls.some((c) => c.key === "PUT /api/autoapply/profile")).toBe(
+      false,
     );
   });
 
-  it("chooses each way to apply separately and connects email", async () => {
+  it("schedule: time zone, active hours and a daily limit slider", async () => {
+    const calls = setup({
+      "PUT /api/autoapply/profile": () => ({ json: profile() }),
+    });
+    renderApp(<App />, "/auto-apply/setup?step=schedule");
+    await screen.findByRole("heading", { name: "When to apply" });
+    await userEvent.selectOptions(
+      screen.getByLabelText("Your time zone"),
+      "Europe/London",
+    );
+    await userEvent.click(
+      screen.getByRole("switch", { name: "Send at any time of day" }),
+    );
+    await userEvent.selectOptions(screen.getByLabelText("From"), "8");
+    await userEvent.selectOptions(screen.getByLabelText("Until"), "17");
+    fireEvent.change(screen.getByLabelText("Most applications per day"), {
+      target: { value: "12" },
+    });
+    expect(screen.getByText(/up to 360 applications/)).toBeInTheDocument();
+    await next();
+    expect(
+      await screen.findByRole("heading", { name: "How to apply" }),
+    ).toBeInTheDocument();
+    const b = saved(calls)[0];
+    expect(b.timezone).toBe("Europe/London");
+    expect(b.active_hours).toEqual({ start: 8, end: 17 });
+    expect(b.daily_application_cap).toBe(12);
+  });
+
+  it("schedule: refuses hours that start and end together", async () => {
+    setup();
+    renderApp(<App />, "/auto-apply/setup?step=schedule");
+    await screen.findByRole("heading", { name: "When to apply" });
+    await userEvent.click(
+      screen.getByRole("switch", { name: "Send at any time of day" }),
+    );
+    await userEvent.selectOptions(screen.getByLabelText("Until"), "9");
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+  });
+
+  it("how to apply: separate options, and email needs a connected mailbox", async () => {
     const calls = setup({
       "PUT /api/autoapply/profile": () => ({ json: profile() }),
       "POST /api/autoapply/mailbox/connect": () => ({
         json: { connected: true, url: null },
       }),
     });
-    renderApp(<App />, "/auto-apply/setup");
+    renderApp(<App />, "/auto-apply/setup?step=apply");
+    await screen.findByRole("heading", { name: "How to apply" });
+    expect(screen.getByRole("button", { name: "Next" })).toBeEnabled(); // forms only
     await userEvent.click(
-      await screen.findByLabelText(/Email applications from my own email/),
+      screen.getByRole("button", { name: /Email applications/ }),
     );
-    await waitFor(() =>
-      expect(
-        (
-          calls.find((c) => c.key === "PUT /api/autoapply/profile")?.body as {
-            channels: object;
-          }
-        ).channels,
-      ).toEqual({ form: true, email: true, outreach: false }),
-    );
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+    expect(screen.getAllByText(/Connect your email/).length).toBeGreaterThan(0);
     await userEvent.click(
       screen.getByRole("button", { name: "Connect my email" }),
     );
@@ -979,41 +1155,93 @@ describe("setting up", () => {
     );
   });
 
-  it("saves a reusable answer only as ticked", async () => {
-    const calls = setup({
-      "PUT /api/autoapply/answers/notice_period": () => ({ json: {} }),
+  it("how to apply: needs at least one way, and saves the notes limit", async () => {
+    setup({
+      "GET /api/autoapply/mailbox": () => ({
+        json: {
+          connected: true,
+          address: "ada@example.com",
+          status: "connected",
+          can_connect: true,
+        },
+      }),
+      "PUT /api/autoapply/profile": () => ({ json: profile() }),
     });
-    renderApp(<App />, "/auto-apply/setup");
-    await userEvent.type(
-      await screen.findByLabelText("Your answer"),
-      "Two weeks",
+    renderApp(<App />, "/auto-apply/setup?step=apply");
+    await screen.findByRole("heading", { name: "How to apply" });
+    await userEvent.click(
+      screen.getByRole("button", { name: /Employers' application forms/ }),
     );
-    await userEvent.click(screen.getByLabelText("Reuse this answer"));
-    await userEvent.click(screen.getByRole("button", { name: "Save answer" }));
-    await waitFor(() =>
-      expect(
-        calls.find((c) => c.key === "PUT /api/autoapply/answers/notice_period")
-          ?.body,
-      ).toEqual({
-        question: "What is your notice period?",
-        value: "Two weeks",
-        reusable: false,
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+    expect(
+      screen.getAllByText("Choose at least one way to apply.").length,
+    ).toBeGreaterThan(0);
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /A short note to the hiring contact/,
       }),
     );
+    expect(screen.getByLabelText("Most notes a day")).toBeInTheDocument();
+    expect(screen.getByText(/Connected: ada@example.com/)).toBeInTheDocument();
   });
 
-  it("starts only after the candidate agrees, and never while something is missing", async () => {
+  it("answers: saves only what was written, and reuse is on unless switched off", async () => {
+    const calls = setup({
+      "PUT /api/autoapply/answers/notice_period": () => ({ json: {} }),
+      "PUT /api/autoapply/answers/relocation": () => ({ json: {} }),
+    });
+    renderApp(<App />, "/auto-apply/setup?step=answers");
+    await screen.findByRole("heading", { name: "Your quick answers" });
+    await userEvent.type(
+      screen.getByLabelText("What is your notice period?"),
+      "Two weeks",
+    );
+    await userEvent.type(
+      screen.getByLabelText("Are you willing to relocate?"),
+      "Within Nigeria",
+    );
+    await userEvent.click(
+      screen.getByRole("switch", {
+        name: /Reuse my answer to: Are you willing to relocate/,
+      }),
+    );
+    await next();
+    expect(
+      await screen.findByRole("heading", { name: "Review and start" }),
+    ).toBeInTheDocument();
+    const puts = calls.filter((c) =>
+      c.key.startsWith("PUT /api/autoapply/answers/"),
+    );
+    expect(puts.map((c) => c.key).sort()).toEqual([
+      "PUT /api/autoapply/answers/notice_period",
+      "PUT /api/autoapply/answers/relocation",
+    ]);
+    expect(puts.find((c) => c.key.endsWith("notice_period"))!.body).toEqual({
+      question: "What is your notice period?",
+      value: "Two weeks",
+      reusable: true,
+    });
+    expect(puts.find((c) => c.key.endsWith("relocation"))!.body).toEqual({
+      question: "Are you willing to relocate?",
+      value: "Within Nigeria",
+      reusable: false,
+    });
+  });
+
+  it("review: summarises everything, lets any part be edited, and starts only after agreeing", async () => {
     const calls = setup({
       "POST /api/autoapply/campaign/enable": () => ({
         json: campaign({ day: 1 }),
       }),
     });
-    renderApp(<App />, "/auto-apply/setup");
-    const start = await screen.findByRole("button", {
-      name: "Start Auto-Apply",
-    });
+    renderApp(<App />, "/auto-apply/setup?step=review");
+    await screen.findByRole("heading", { name: "Review and start" });
+    const what = within(screen.getByRole("region", { name: "What you want" }));
+    expect(what.getByText(/Senior Product Manager/)).toBeInTheDocument();
+    expect(what.getByText(/Nigeria/)).toBeInTheDocument();
+    expect(await screen.findByText("your CV")).toBeInTheDocument();
+    const start = screen.getByRole("button", { name: "Start Auto-Apply" });
     expect(start).toBeDisabled();
-    expect(screen.getByText("your CV")).toBeInTheDocument();
     await userEvent.click(
       screen.getByLabelText(/I agree that InterviewMeet may apply/),
     );
@@ -1027,21 +1255,25 @@ describe("setting up", () => {
     );
   });
 
-  it("blocks starting while the server lists what is missing", async () => {
+  it("review: Edit jumps back to that step", async () => {
+    setup();
+    renderApp(<App />, "/auto-apply/setup?step=review");
+    await screen.findByRole("heading", { name: "Review and start" });
+    await userEvent.click(
+      screen.getByRole("button", { name: "Edit schedule" }),
+    );
+    expect(
+      await screen.findByRole("heading", { name: "When to apply" }),
+    ).toBeInTheDocument();
+  });
+
+  it("review: never starts while the server lists what is missing", async () => {
     setup({
       "GET /api/autoapply/authorization": () => ({
-        json: {
-          policy_version: "2026-11",
-          shared: [],
-          channels: { form: true, email: false, outreach: false },
-          daily_application_cap: 5,
-          daily_outreach_cap: 3,
-          mailbox: null,
-          problems: ["Upload your CV first."],
-        },
+        json: disclosure({ problems: ["Upload your CV first."] }),
       }),
     });
-    renderApp(<App />, "/auto-apply/setup");
+    renderApp(<App />, "/auto-apply/setup?step=review");
     expect(
       await screen.findByText("Upload your CV first."),
     ).toBeInTheDocument();
@@ -1051,6 +1283,69 @@ describe("setting up", () => {
     expect(
       screen.getByRole("button", { name: "Start Auto-Apply" }),
     ).toBeDisabled();
+  });
+
+  it("review: a running search shows its progress and can be paused", async () => {
+    const calls = setup({
+      "GET /api/autoapply/dashboard": () => ({
+        json: dash({ campaign: campaign({ day: 4 }) }),
+      }),
+      "POST /api/autoapply/campaign/pause": () => ({
+        json: campaign({ state: "paused" }),
+      }),
+    });
+    renderApp(<App />, "/auto-apply/setup?step=review");
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "running: day 4 of 30",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Pause Auto-Apply" }),
+    );
+    await waitFor(() =>
+      expect(
+        calls.some((c) => c.key === "POST /api/autoapply/campaign/pause"),
+      ).toBe(true),
+    );
+  });
+
+  it("goes back a step and the rail shows what is done", async () => {
+    setup();
+    renderApp(<App />, "/auto-apply/setup?step=schedule");
+    await screen.findByRole("heading", { name: "When to apply" });
+    const rail = within(
+      screen.getByRole("navigation", { name: "Setup steps" }),
+    );
+    expect(rail.getByRole("button", { name: /Details/ })).toHaveTextContent(
+      "(done)",
+    );
+    expect(
+      rail.getByRole("button", { name: /Role & place/ }),
+    ).toHaveTextContent("(done)");
+    expect(rail.getByRole("button", { name: /Schedule/ })).toHaveAttribute(
+      "aria-current",
+      "step",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(
+      await screen.findByRole("heading", { name: "Nice to have" }),
+    ).toBeInTheDocument();
+    await userEvent.click(rail.getByRole("button", { name: /Role & place/ }));
+    expect(
+      await screen.findByRole("heading", { name: "What you want" }),
+    ).toBeInTheDocument();
+  });
+
+  it("says plainly when the server is in demo mode", async () => {
+    setup({
+      "GET /api/autoapply/dashboard": () => ({
+        json: dash({ demo: true, campaign: { state: "none" } }),
+      }),
+    });
+    renderApp(<App />, "/auto-apply/setup");
+    expect(await screen.findByRole("note")).toHaveTextContent("Demo mode");
+    expect(screen.getByRole("note")).toHaveTextContent(
+      "Nothing is sent to a real employer",
+    );
   });
 });
 

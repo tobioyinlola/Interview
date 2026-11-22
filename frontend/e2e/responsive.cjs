@@ -35,6 +35,11 @@ const IN = [
   "/settings/privacy",
   "/auto-apply",
   "/auto-apply/setup",
+  "/auto-apply/setup?step=role",
+  "/auto-apply/setup?step=preferences",
+  "/auto-apply/setup?step=schedule",
+  "/auto-apply/setup?step=apply",
+  "/auto-apply/setup?step=answers",
   "/auto-apply/applications",
   "/companies",
   "/session/new",
@@ -133,7 +138,20 @@ const probe = () => {
       const page = await ctx.newPage();
       for (const p of paths) {
         await page.goto(B + p);
-        await page.waitForSelector("main, h1", { state: "attached" });
+        try {
+          await page.waitForSelector("main, h1", {
+            state: "attached",
+            timeout: 15000,
+          });
+        } catch (e) {
+          console.log(
+            `[${w}x${h}] ${p}: the page did not render (${page.url()})`,
+          );
+          console.log(
+            (await page.evaluate(() => document.body.innerText)).slice(0, 300),
+          );
+          throw e;
+        }
         await page.waitForTimeout(350);
         const issues = await page.evaluate(probe);
         checks++;
