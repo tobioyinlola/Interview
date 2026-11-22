@@ -152,7 +152,10 @@ export function SessionSetupPage() {
               <Tick ok={cvUploaded}>
                 CV uploaded{" "}
                 {!cvUploaded && (
-                  <Link to="/notes" className="text-accent-dark underline">
+                  <Link
+                    to="/settings/cv"
+                    className="text-accent-dark underline"
+                  >
                     Upload your CV
                   </Link>
                 )}

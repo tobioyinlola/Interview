@@ -11,7 +11,7 @@ import {
   useReviewQueue,
   useRunDiscovery,
 } from "./api";
-import { Fail, Pill, STAGE, Section, day, when } from "./ui";
+import { DemoNotice, Fail, Pill, STAGE, Section, day, when } from "./ui";
 import type { AAInterview } from "../../api/types";
 
 function NextInterview({ iv }: { iv: AAInterview }) {
@@ -179,6 +179,8 @@ export function AutoApplyPage() {
           {c.state === "ended" && `Finished on ${day(c.ends_at)}.`}
         </p>
       </header>
+
+      {d.demo && <DemoNotice />}
 
       <PrimaryCard d={d} />
 

@@ -59,6 +59,13 @@ class User(Base):
     # Where the account came from, for the admin marketing view: how they signed up (password,
     # email_link, google), whether an invite brought them, and the campaign tags on the link.
     attribution: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    # Bio data the person chooses to keep on their account (all optional).
+    phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    location: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    headline: Mapped[str | None] = mapped_column(
+        String(120), nullable=True
+    )  # e.g. "Product manager"
+    linkedin_url: Mapped[str | None] = mapped_column(String(300), nullable=True)
     # When the person finished or skipped the first-time tour of the app. Null: not yet shown.
     tour_done_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
     # The code in this person's invite link. Every account has one.

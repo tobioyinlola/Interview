@@ -74,7 +74,7 @@ const links = () =>
   await snap("2-search");
   await page.getByRole("button", { name: "Next" }).click();
   await dialog.getByRole("heading", { name: "1. Upload your CV" }).waitFor();
-  await expectRing("nav-notes", "CV link in the sidebar");
+  await expectRing("nav-settings", "Settings link in the sidebar");
   await snap("3-cv");
   await page.getByRole("button", { name: "Next" }).click();
   await page.getByRole("button", { name: "Next" }).click();

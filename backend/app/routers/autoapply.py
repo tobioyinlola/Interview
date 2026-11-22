@@ -189,10 +189,15 @@ async def status(
     user: User = Depends(current_user),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008
     now: datetime = Depends(get_now),  # noqa: B008
+    settings: Settings = Depends(get_settings),  # noqa: B008
 ) -> StatusOut:
     prof = await camp.get_profile(db, user.id)
     c = await camp.current(db, user.id)
-    return StatusOut(enabled=True, campaign=CampaignOut(**camp.progress(c, prof, now)))
+    return StatusOut(
+        enabled=True,
+        demo=settings.autoapply_sample_jobs,
+        campaign=CampaignOut(**camp.progress(c, prof, now)),
+    )
 
 
 @router.get("/profile")
@@ -269,6 +274,17 @@ async def extract_facts(
     if not cv.strip():
         raise ApiError(422, "no_cv", "Upload your CV first.")
     draft, from_model = await facts.extract(llm, cv, email=user.email, name=user.full_name)
+    contact = draft["contact"]
+    # what the person already told us in Settings fills any gap the CV left
+    for key, known in (
+        ("name", user.full_name),
+        ("phone", user.phone),
+        ("location", user.location),
+    ):
+        if not contact.get(key) and known:
+            contact[key] = known
+    if user.linkedin_url and user.linkedin_url not in draft["links"]:
+        draft["links"] = [*draft["links"], user.linkedin_url][:10]
     return FactsOut(data=draft, version=0, verified_at=None, from_model=from_model)
 
 
@@ -1167,6 +1183,7 @@ async def read_dashboard(
     user: User = Depends(current_user),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008
     now: datetime = Depends(get_now),  # noqa: B008
+    settings: Settings = Depends(get_settings),  # noqa: B008
 ) -> DashboardOut:
     """Next interview, what needs the candidate, and recent applications, in that order."""
     prof = await camp.get_profile(db, user.id)
@@ -1278,6 +1295,7 @@ async def read_dashboard(
         )
     ).scalar_one()
     return DashboardOut(
+        demo=settings.autoapply_sample_jobs,
         state=state,
         primary=primary,
         campaign=CampaignOut(**progress),

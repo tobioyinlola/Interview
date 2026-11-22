@@ -50,6 +50,8 @@ fi
 cleanup() { kill "$(cat "$API_PID")" "$(cat "$OUT/vite.pid")" "$(cat "$OUT/google.pid")" 2>/dev/null || true; sleep 1; }
 trap cleanup EXIT
 for _ in $(seq 1 40); do curl -sf localhost:8765/healthz >/dev/null && curl -sf localhost:5173/ >/dev/null && break; sleep 0.5; done
+# E2E_ONLY=responsive runs just that one script against the same stack (faster while fixing a page).
+if [ -n "${E2E_ONLY:-}" ]; then NODE_PATH="$(npm root -g)" node "$ROOT/frontend/e2e/$E2E_ONLY.cjs"; exit; fi
 NODE_PATH="$(npm root -g)" node "$ROOT/frontend/e2e/live-session.cjs"
 # The fake Google always signs in as the same person; forget them so reruns see a brand-new account
 # (a new account is sent to onboarding, which the test checks).
@@ -58,6 +60,7 @@ NODE_PATH="$(npm root -g)" node "$ROOT/frontend/e2e/google-signin.cjs"
 NODE_PATH="$(npm root -g)" node "$ROOT/frontend/e2e/password-auth.cjs"
 NODE_PATH="$(npm root -g)" node "$ROOT/frontend/e2e/referral.cjs"
 NODE_PATH="$(npm root -g)" node "$ROOT/frontend/e2e/tour-guide.cjs"
+NODE_PATH="$(npm root -g)" node "$ROOT/frontend/e2e/settings.cjs"
 NODE_PATH="$(npm root -g)" node "$ROOT/frontend/e2e/autoapply.cjs"
 NODE_PATH="$(npm root -g)" node "$ROOT/frontend/e2e/admin.cjs"
 NODE_PATH="$(npm root -g)" node "$ROOT/frontend/e2e/responsive.cjs"

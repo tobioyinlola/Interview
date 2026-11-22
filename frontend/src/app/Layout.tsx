@@ -22,7 +22,6 @@ import {
   LogoutIcon,
   MenuIcon,
   MicIcon,
-  NoteIcon,
   ShieldIcon,
   ChevronIcon,
   GiftIcon,
@@ -123,7 +122,6 @@ export function Layout() {
 
   const menu = [
     item("/dashboard", "Overview", <HomeIcon />, true),
-    item("/notes", "CV", <NoteIcon />),
     item("/companies", "Companies", <BuildingIcon />),
     item("/session/new", "Interview", <MicIcon />),
     ...(me?.autoapply ? [item("/auto-apply", "Auto-Apply", <SendIcon />)] : []),

@@ -25,6 +25,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/account/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Change Password
+         * @description Change the password, or set a first one if the person only used email links or Google.
+         *     Changing it needs the current password, every other device is signed out, and an email tells
+         *     the account owner.
+         */
+        put: operations["change_password_api_account_password_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/activity": {
         parameters: {
             query?: never;
@@ -2371,6 +2393,8 @@ export interface components {
             counts: {
                 [key: string]: number;
             };
+            /** Demo */
+            demo: boolean;
             last_run: components["schemas"]["RunOut"] | null;
             mailbox: components["schemas"]["MailboxOut"];
             /** Needs Input */
@@ -2697,16 +2721,29 @@ export interface components {
             /** Full Name */
             full_name?: string | null;
             /**
+             * Has Password
+             * @default false
+             */
+            has_password: boolean;
+            /** Headline */
+            headline?: string | null;
+            /**
              * Id
              * Format: uuid
              */
             id: string;
+            /** Linkedin Url */
+            linkedin_url?: string | null;
+            /** Location */
+            location?: string | null;
             /**
              * Onboarded
              * @default true
              */
             onboarded: boolean;
             onboarding?: components["schemas"]["OnboardingAnswers"] | null;
+            /** Phone */
+            phone?: string | null;
             /**
              * Tour Done
              * @default true
@@ -2838,6 +2875,13 @@ export interface components {
             /** Wau */
             wau: number;
         };
+        /** PasswordIn */
+        PasswordIn: {
+            /** Current Password */
+            current_password?: string | null;
+            /** New Password */
+            new_password: string;
+        };
         /** PasteIn */
         PasteIn: {
             /** Text */
@@ -2889,10 +2933,22 @@ export interface components {
             /** Label */
             label: string;
         };
-        /** ProfileIn */
+        /**
+         * ProfileIn
+         * @description What a person can change about themselves. Only fields that are sent are changed; an empty
+         *     string clears an optional one.
+         */
         ProfileIn: {
             /** Full Name */
-            full_name: string;
+            full_name?: string | null;
+            /** Headline */
+            headline?: string | null;
+            /** Linkedin Url */
+            linkedin_url?: string | null;
+            /** Location */
+            location?: string | null;
+            /** Phone */
+            phone?: string | null;
         };
         /** ProfileOut */
         ProfileOut: {
@@ -3655,6 +3711,11 @@ export interface components {
         /** StatusOut */
         app__autoapply__schemas__StatusOut: {
             campaign: components["schemas"]["CampaignOut"];
+            /**
+             * Demo
+             * @default false
+             */
+            demo: boolean;
             /** Enabled */
             enabled: boolean;
         };
@@ -3688,6 +3749,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["app__schemas__api__StatusOut"];
+                };
+            };
+        };
+    };
+    change_password_api_account_password_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

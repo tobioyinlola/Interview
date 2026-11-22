@@ -123,7 +123,7 @@ describe("the tour's steps", () => {
     expect(new Set(ids).size).toBe(ids.length);
     const allowed = [
       "search",
-      "nav-notes",
+      "nav-settings",
       "nav-companies",
       "nav-session-new",
       "nav-sessions",

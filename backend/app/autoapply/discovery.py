@@ -6,6 +6,7 @@ import re
 import uuid
 from datetime import datetime
 from html import unescape
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -96,8 +97,12 @@ def _fixture_jobs(settings: Settings) -> list[RawPosting]:
     """Listings for the fixture source, read from AUTOAPPLY_FIXTURE_JOBS_FILE (a JSON list). Local
     and staging only: it lets a whole journey be tried with no real job board."""
     path = settings.autoapply_fixture_jobs_file
-    if not path or settings.environment == "production":
+    if settings.environment == "production":
         return []
+    if not path:
+        if not settings.autoapply_sample_jobs:
+            return []
+        path = str(Path(__file__).with_name("sample_jobs.json"))
     out: list[RawPosting] = []
     for item in json.loads(open(path).read()):  # noqa: SIM115, PTH123
         for k in ("posted_at", "expires_at"):

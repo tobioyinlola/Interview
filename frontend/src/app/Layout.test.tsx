@@ -24,7 +24,6 @@ describe("app shell", () => {
     const nav = within(await screen.findByRole("navigation", { name: "Main" }));
     for (const name of [
       "Overview",
-      "CV",
       "Companies",
       "Interview",
       "Sessions",
@@ -40,8 +39,19 @@ describe("app shell", () => {
       "aria-current",
       "page",
     );
-    expect(nav.getByRole("link", { name: "CV" })).not.toHaveAttribute(
+    expect(nav.getByRole("link", { name: "Companies" })).not.toHaveAttribute(
       "aria-current",
+    );
+  });
+
+  it("has no CV item in the menu: the CV lives in Settings", async () => {
+    signedIn();
+    renderApp(<App />, "/dashboard");
+    const nav = within(await screen.findByRole("navigation", { name: "Main" }));
+    expect(nav.queryByRole("link", { name: "CV" })).toBeNull();
+    expect(nav.getByRole("link", { name: "Settings" })).toHaveAttribute(
+      "href",
+      "/settings",
     );
   });
 
@@ -64,7 +74,7 @@ describe("app shell", () => {
       "aria-expanded",
       "true",
     );
-    await userEvent.click(screen.getByRole("link", { name: "CV" }));
+    await userEvent.click(screen.getByRole("link", { name: "Companies" }));
     expect(
       await screen.findByRole("button", { name: "Open menu" }),
     ).toBeInTheDocument(); // closed on navigation
@@ -145,17 +155,20 @@ describe("collapsible sidebar", () => {
 describe("top bar on every page", () => {
   const withName = { ...ME, full_name: "Jordan Reyes", onboarded: true };
 
-  it.each(["/dashboard", "/notes", "/companies", "/sessions", "/settings"])(
-    "has the search box and the account button on %s",
-    async (path) => {
-      signedIn(withName);
-      renderApp(<App />, path);
-      expect(await screen.findByRole("combobox")).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: "Account menu for Jordan Reyes" }),
-      ).toBeInTheDocument();
-    },
-  );
+  it.each([
+    "/dashboard",
+    "/settings/cv",
+    "/companies",
+    "/sessions",
+    "/settings",
+  ])("has the search box and the account button on %s", async (path) => {
+    signedIn(withName);
+    renderApp(<App />, path);
+    expect(await screen.findByRole("combobox")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Account menu for Jordan Reyes" }),
+    ).toBeInTheDocument();
+  });
 
   it("no longer has a New practice button on the dashboard", async () => {
     signedIn(withName);

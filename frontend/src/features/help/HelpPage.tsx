@@ -4,7 +4,7 @@ import { useTour } from "../tour/TourProvider";
 
 const QUICK_START: { to: string; title: string; text: string }[] = [
   {
-    to: "/notes",
+    to: "/settings/cv",
     title: "Upload your CV",
     text: "A PDF, Word (.docx) or text file. Set your target role too. Your own stories and numbers in an answer come only from your CV.",
   },

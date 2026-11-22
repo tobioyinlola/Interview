@@ -39,7 +39,7 @@ export function ApplicationsPage() {
             type="button"
             aria-selected={tab === value}
             onClick={() => setTab(value)}
-            className={`rounded-full px-3 py-1.5 text-sm ${
+            className={`inline-flex min-h-[44px] items-center rounded-full px-4 text-sm ${
               tab === value
                 ? "bg-ink text-surface"
                 : "bg-line text-muted hover:text-ink"

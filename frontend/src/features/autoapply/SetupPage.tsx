@@ -1,7 +1,10 @@
 import { type FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
+import { COUNTRIES, REGIONS } from "../../data/countries";
+import { ROLES } from "../../data/roles";
 import { Loading } from "../../ui/Loading";
+import { MultiPick } from "../../ui/Pickers";
 import type { AAFacts, AAProfile } from "../../api/types";
 import {
   useAAProfile,
@@ -18,7 +21,7 @@ import {
   useSaveFacts,
   useSaveProfile,
 } from "./api";
-import { Fail, Section, day } from "./ui";
+import { DemoNotice, Fail, Section, day } from "./ui";
 
 type Item = { value: string; required: boolean };
 type Criteria = Record<string, unknown>;
@@ -42,13 +45,13 @@ const lines = (text: string): string[] =>
     .map((s) => s.trim())
     .filter(Boolean);
 
-const toItems = (text: string, required: boolean): Item[] =>
-  lines(text).map((value) => ({ value, required }));
+const toItems = (values: string[], required: boolean): Item[] =>
+  values.map((value) => ({ value, required }));
 
-const fromItems = (items: unknown): { text: string; required: boolean } => {
+const fromItems = (items: unknown): { values: string[]; required: boolean } => {
   const list = (items as Item[] | undefined) ?? [];
   return {
-    text: list.map((i) => i.value).join("\n"),
+    values: list.map((i) => i.value),
     required: list.some((i) => i.required),
   };
 };
@@ -70,11 +73,11 @@ function Choices({
   onRequired: (r: boolean) => void;
 }) {
   return (
-    <fieldset className="space-y-1">
+    <fieldset className="min-w-0 space-y-1">
       <legend className="text-sm font-medium">{legend}</legend>
       <div className="flex flex-wrap gap-3">
         {options.map((o) => (
-          <label key={o} className="flex items-center gap-1.5 text-sm">
+          <label key={o} className="check text-sm">
             <input
               type="checkbox"
               checked={value.includes(o)}
@@ -90,7 +93,7 @@ function Choices({
           </label>
         ))}
       </div>
-      <label className="flex items-center gap-1.5 text-xs text-muted">
+      <label className="check text-xs text-muted">
         <input
           type="checkbox"
           checked={required}
@@ -197,7 +200,7 @@ function FactsEditor({
           onBlur={(e) => setD({ ...d, skills: lines(e.target.value) })}
         />
       </div>
-      <fieldset className="space-y-3">
+      <fieldset className="min-w-0 space-y-3">
         <legend className="text-sm font-medium">Work history</legend>
         {d.history.map((j, i) => (
           <div key={i} className="space-y-2 rounded-xl bg-canvas p-3">
@@ -345,17 +348,17 @@ function SearchForm({ profile }: { profile: AAProfile }) {
     | undefined;
   const spon = c.sponsorship as { need: string; required: boolean } | undefined;
   const [f, setF] = useState({
-    roles: roles.text,
+    roles: roles.values,
     rolesReq: roles.required,
-    locations: locs.text,
+    locations: locs.values,
     locationsReq: locs.required,
-    industries: inds.text,
+    industries: inds.values.join("\n"),
     industriesReq: inds.required,
-    arrangement: arr.text ? arr.text.split("\n") : [],
+    arrangement: arr.values,
     arrangementReq: arr.required,
-    seniority: sen.text ? sen.text.split("\n") : [],
+    seniority: sen.values,
     seniorityReq: sen.required,
-    contract: con.text ? con.text.split("\n") : [],
+    contract: con.values,
     contractReq: con.required,
     floor: sal ? String(sal.floor) : "",
     currency: sal?.currency ?? "USD",
@@ -379,7 +382,7 @@ function SearchForm({ profile }: { profile: AAProfile }) {
     const criteria: Criteria = {
       roles: toItems(f.roles, f.rolesReq),
       locations: toItems(f.locations, f.locationsReq),
-      industries: toItems(f.industries, f.industriesReq),
+      industries: toItems(lines(f.industries), f.industriesReq),
       arrangement: f.arrangement.map((value) => ({
         value,
         required: f.arrangementReq,
@@ -412,17 +415,16 @@ function SearchForm({ profile }: { profile: AAProfile }) {
   return (
     <form onSubmit={submit} className="space-y-4">
       <div>
-        <label htmlFor="s-roles" className="text-sm font-medium">
-          Roles you want (one per line)
-        </label>
-        <textarea
+        <MultiPick
           id="s-roles"
-          rows={2}
-          className="input w-full"
-          value={f.roles}
-          onChange={(e) => set("roles", e.target.value)}
+          label="Roles you want"
+          values={f.roles}
+          onChange={(v) => set("roles", v)}
+          suggestions={ROLES}
+          addLabel="Add role"
+          hint="Pick from the list or type your own, then add it. Add as many as you like."
         />
-        <label className="flex items-center gap-1.5 text-xs text-muted">
+        <label className="check text-xs text-muted">
           <input
             type="checkbox"
             checked={f.rolesReq}
@@ -432,21 +434,16 @@ function SearchForm({ profile }: { profile: AAProfile }) {
         </label>
       </div>
       <div>
-        <label htmlFor="s-locs" className="text-sm font-medium">
-          Where you can work: a country or region (one per line)
-        </label>
-        <textarea
+        <MultiPick
           id="s-locs"
-          rows={2}
-          className="input w-full"
-          value={f.locations}
-          onChange={(e) => set("locations", e.target.value)}
+          label="Where you can work: a country or region"
+          values={f.locations}
+          onChange={(v) => set("locations", v)}
+          suggestions={[...REGIONS, ...COUNTRIES]}
+          addLabel="Add place"
+          hint="A remote job only counts when the listing says people in your country can apply."
         />
-        <p className="text-xs text-muted">
-          A remote job only counts when the listing says people in your country
-          can apply.
-        </p>
-        <label className="flex items-center gap-1.5 text-xs text-muted">
+        <label className="check text-xs text-muted">
           <input
             type="checkbox"
             checked={f.locationsReq}
@@ -491,7 +488,7 @@ function SearchForm({ profile }: { profile: AAProfile }) {
           onChange={(e) => set("industries", e.target.value)}
         />
       </div>
-      <fieldset className="space-y-2">
+      <fieldset className="min-w-0 space-y-2">
         <legend className="text-sm font-medium">
           Lowest pay you will take
         </legend>
@@ -536,7 +533,7 @@ function SearchForm({ profile }: { profile: AAProfile }) {
             </select>
           </div>
         </div>
-        <label className="flex items-center gap-1.5 text-xs text-muted">
+        <label className="check text-xs text-muted">
           <input
             type="checkbox"
             checked={f.salaryReq}
@@ -545,7 +542,7 @@ function SearchForm({ profile }: { profile: AAProfile }) {
           This is a must. Jobs that do not say what they pay will wait for you.
         </label>
       </fieldset>
-      <fieldset className="space-y-1">
+      <fieldset className="min-w-0 space-y-1">
         <legend className="text-sm font-medium">Visa sponsorship</legend>
         <select
           aria-label="Visa sponsorship"
@@ -557,7 +554,7 @@ function SearchForm({ profile }: { profile: AAProfile }) {
           <option value="needed">I need sponsorship</option>
           <option value="not_needed">I do not need sponsorship</option>
         </select>
-        <label className="flex items-center gap-1.5 text-xs text-muted">
+        <label className="check text-xs text-muted">
           <input
             type="checkbox"
             checked={f.sponsorReq}
@@ -651,7 +648,7 @@ function ChannelsSection({ profile }: { profile: AAProfile }) {
       hint="Choose each way separately. You can change this any time."
     >
       <div className="space-y-2">
-        <label className="flex items-center gap-2 text-sm">
+        <label className="check text-sm">
           <input
             type="checkbox"
             checked={!!ch.form}
@@ -659,7 +656,7 @@ function ChannelsSection({ profile }: { profile: AAProfile }) {
           />
           Fill in employers' application forms
         </label>
-        <label className="flex items-center gap-2 text-sm">
+        <label className="check text-sm">
           <input
             type="checkbox"
             checked={!!ch.email}
@@ -667,7 +664,7 @@ function ChannelsSection({ profile }: { profile: AAProfile }) {
           />
           Email applications from my own email, when the job says to
         </label>
-        <label className="flex items-center gap-2 text-sm">
+        <label className="check text-sm">
           <input
             type="checkbox"
             checked={!!ch.outreach}
@@ -800,7 +797,7 @@ function AnswersSection() {
             onChange={(e) => setValue(e.target.value)}
           />
         </div>
-        <label className="flex items-center gap-1.5 text-xs text-muted">
+        <label className="check text-xs text-muted">
           <input
             type="checkbox"
             checked={reusable}
@@ -881,7 +878,7 @@ function StartSection() {
         </div>
       ) : (
         <>
-          <label className="flex items-start gap-2 text-sm">
+          <label className="check items-start py-2 text-sm">
             <input
               type="checkbox"
               className="mt-1"
@@ -913,6 +910,11 @@ function StartSection() {
   );
 }
 
+function DemoNoticeFromDashboard() {
+  const dash = useDashboard();
+  return dash.data?.demo ? <DemoNotice /> : null;
+}
+
 export function SetupPage() {
   const profile = useAAProfile();
   if (profile.isPending) return <Loading label="Loading your search" />;
@@ -929,6 +931,7 @@ export function SetupPage() {
       <h1 className="text-3xl font-semibold tracking-tight">
         Set up Auto-Apply
       </h1>
+      <DemoNoticeFromDashboard />
       <p className="text-sm text-muted">
         It finds roles that fit every day for 30 days and applies for you. You
         can follow along on the{" "}

@@ -107,7 +107,7 @@ describe("the first-time tour", () => {
     await screen.findByRole("combobox");
     for (const t of [
       "search",
-      "nav-notes",
+      "nav-settings",
       "nav-companies",
       "nav-session-new",
       "nav-sessions",

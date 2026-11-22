@@ -325,3 +325,57 @@ def test_fixture_listings_can_come_from_a_file_but_never_in_production(settings,
     settings.environment = "production"
     (src,) = discovery.build_sources(settings)
     assert src.postings == []
+
+
+def test_demo_mode_offers_built_in_sample_jobs_but_never_in_production(settings):
+    settings.autoapply_discovery_sources = "fixture"
+    assert discovery.build_sources(settings)[0].postings == []  # off unless asked for
+    settings.autoapply_sample_jobs = True
+    jobs = discovery.build_sources(settings)[0].postings
+    assert len(jobs) >= 10 and all("(demo)" in j.company for j in jobs)
+    assert len({j.source_url for j in jobs}) == len(jobs)
+    settings.environment = "production"
+    assert discovery.build_sources(settings)[0].postings == []
+    assert any(
+        "demo mode" in m
+        for m in problems(settings, autoapply_sample_jobs=True, environment="production")
+    )
+
+
+async def test_the_dashboard_says_when_it_is_demo_mode(ada, settings):
+    assert (await ada.get("/api/autoapply/dashboard")).json()["demo"] is False
+    settings.autoapply_sample_jobs = True
+    assert (await ada.get("/api/autoapply/dashboard")).json()["demo"] is True
+    assert (await ada.get("/api/autoapply/status")).json()["demo"] is True
+
+
+async def test_a_candidate_in_demo_mode_gets_matches_from_the_samples(ada, settings, tick, maker):
+    settings.autoapply_sample_jobs = True
+    settings.autoapply_discovery_sources = "fixture"
+    from app.autoapply import discovery as disc
+    from app.routers.autoapply import get_sources
+
+    src = disc.build_sources(settings)
+    ada_app = ada._transport.app  # type: ignore[attr-defined]
+    ada_app.dependency_overrides[get_sources] = lambda: src
+    from tests.autoapply.conftest import PROFILE
+
+    await ada.put(
+        "/api/autoapply/profile",
+        json={
+            **PROFILE,
+            "criteria": {
+                "roles": [{"value": "Product Manager", "required": True}],
+                "locations": [{"value": "Nigeria", "required": True}],
+                "arrangement": [{"value": "remote", "required": False}],
+            },
+        },
+    )
+    from tests.autoapply.conftest import FACTS
+
+    await ada.put("/api/autoapply/facts", json={"data": FACTS, "verified": True})
+    await ada.post(
+        "/api/autoapply/campaign/enable", json={"policy_version": "2026-11", "accept": True}
+    )
+    run = (await ada.post("/api/autoapply/discovery/run")).json()
+    assert run["found"] >= 10 and run["eligible"] >= 1 and run["skipped"] >= 3

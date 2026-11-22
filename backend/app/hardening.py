@@ -110,6 +110,8 @@ def _autoapply_problems(s: Settings) -> list[str]:
             )
     if s.environment == "production" and "fixture" in s.autoapply_discovery_sources.split(","):
         out.append("AUTOAPPLY_DISCOVERY_SOURCES must not include the fixture in production.")
+    if s.environment == "production" and s.autoapply_sample_jobs:
+        out.append("AUTOAPPLY_SAMPLE_JOBS is demo mode and must be off in production.")
     if s.autoapply_mailbox_provider not in ("fixture", "gmail"):
         out.append("AUTOAPPLY_MAILBOX_PROVIDER must be fixture or gmail.")
     return out

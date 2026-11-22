@@ -1,7 +1,16 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { type FormEvent, useState } from "react";
+import { NavLink, Navigate, useNavigate, useParams } from "react-router-dom";
 
-import { useDeleteAccount, useMe, useSaveProfile } from "../../api/hooks";
+import {
+  useChangePassword,
+  useDeleteAccount,
+  useMe,
+  useSaveProfile,
+} from "../../api/hooks";
+import { CvPanel } from "../notes/NotesPage";
+import { COUNTRIES } from "../../data/countries";
+import { PasswordField } from "../../ui/PasswordField";
+import { CountrySelect, RoleInput } from "../../ui/Pickers";
 
 export function PrivacyNotice() {
   return (
@@ -82,67 +91,278 @@ export function DeleteAccountButton() {
   );
 }
 
-function NameForm() {
+const TABS = [
+  { id: "profile", label: "Profile" },
+  { id: "password", label: "Password" },
+  { id: "cv", label: "CV" },
+  { id: "privacy", label: "Privacy and data" },
+] as const;
+
+/** One field of the profile form. */
+function Field({
+  id,
+  label,
+  hint,
+  ...rest
+}: {
+  id: string;
+  label: string;
+  hint?: string;
+} & React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <div className="min-w-0">
+      <label htmlFor={id} className="block text-sm font-medium">
+        {label}
+      </label>
+      <input id={id} className="input mt-1 w-full" {...rest} />
+      {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
+    </div>
+  );
+}
+
+/** "Lagos, Nigeria" becomes a city and a country from the list; anything else stays as the city. */
+function splitPlace(place: string): { city: string; country: string } {
+  const text = place.trim();
+  const hit = COUNTRIES.find(
+    (c) => text === c || text.toLowerCase().endsWith(`, ${c.toLowerCase()}`),
+  );
+  if (!hit) return { city: text, country: "" };
+  return {
+    city: text.slice(0, text.length - hit.length).replace(/,\s*$/, ""),
+    country: hit,
+  };
+}
+const joinPlace = (city: string, country: string) =>
+  [city.trim(), country].filter(Boolean).join(", ");
+
+function ProfileTab() {
   const { data: me } = useMe();
   const save = useSaveProfile();
-  const [name, setName] = useState(me?.full_name ?? "");
-  const changed = name.trim() !== (me?.full_name ?? "");
+  const place = splitPlace(me?.location ?? "");
+  const start = {
+    name: me?.full_name ?? "",
+    phone: me?.phone ?? "",
+    city: place.city,
+    country: place.country,
+    headline: me?.headline ?? "",
+    linkedin: me?.linkedin_url ?? "",
+  };
+  const [f, setF] = useState(start);
+  const set = (k: keyof typeof start, v: string) => setF({ ...f, [k]: v });
+  const changed = (Object.keys(start) as (keyof typeof start)[]).some(
+    (k) => f[k].trim() !== start[k],
+  );
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!changed) return;
+    save.mutate(
+      {
+        full_name: f.name.trim(),
+        phone: f.phone.trim(),
+        location: joinPlace(f.city, f.country),
+        headline: f.headline.trim(),
+        linkedin_url: f.linkedin.trim(),
+      },
+      {
+        // show it as saved and tidied, not as typed
+        onSuccess: (m) =>
+          setF({
+            name: m.full_name ?? "",
+            phone: m.phone ?? "",
+            ...splitPlace(m.location ?? ""),
+            headline: m.headline ?? "",
+            linkedin: m.linkedin_url ?? "",
+          }),
+      },
+    );
+  };
   return (
-    <section aria-labelledby="profile-h" className="card space-y-2">
-      <h2 id="profile-h" className="text-lg font-semibold">
-        Your name
-      </h2>
-      <form
-        className="flex flex-wrap items-end gap-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (changed)
-            save.mutate(name.trim(), {
-              // show the name as saved, tidied, not as typed
-              onSuccess: (me) => setName(me.full_name ?? ""),
-            });
-        }}
-      >
-        <div className="min-w-0 flex-1 basis-60">
-          <label htmlFor="profile-name" className="block text-sm font-medium">
-            Full name
-          </label>
-          <input
+    <section aria-labelledby="profile-h" className="card space-y-4">
+      <div>
+        <h2 id="profile-h" className="text-lg font-semibold">
+          Your details
+        </h2>
+        <p className="text-sm text-muted">
+          Used to greet you and to fill in applications. Only your name is
+          required.
+        </p>
+      </div>
+      <form onSubmit={submit} className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field
             id="profile-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            label="Full name"
+            value={f.name}
+            onChange={(e) => set("name", e.target.value)}
             autoComplete="name"
             maxLength={120}
-            className="input mt-1 w-full"
+          />
+          <Field
+            id="profile-email"
+            label="Email address"
+            value={me?.email ?? ""}
+            readOnly
+            aria-readonly="true"
+            hint="This is how you sign in, so it cannot be changed here."
+          />
+          <Field
+            id="profile-phone"
+            label="Phone number"
+            type="tel"
+            inputMode="tel"
+            value={f.phone}
+            onChange={(e) => set("phone", e.target.value)}
+            autoComplete="tel"
+            placeholder="+234 801 234 5678"
+          />
+          <CountrySelect
+            id="profile-country"
+            label="Country"
+            value={f.country}
+            onChange={(v) => set("country", v)}
+          />
+          <Field
+            id="profile-city"
+            label="City or town"
+            value={f.city}
+            onChange={(e) => set("city", e.target.value)}
+            autoComplete="address-level2"
+            maxLength={80}
+            placeholder="Lagos"
+          />
+          <RoleInput
+            id="profile-headline"
+            label="What you do"
+            value={f.headline}
+            onChange={(v) => set("headline", v)}
+            hint="Pick a role from the list, or type your own."
+          />
+          <Field
+            id="profile-linkedin"
+            label="LinkedIn or portfolio link"
+            inputMode="url"
+            autoCapitalize="none"
+            value={f.linkedin}
+            onChange={(e) => set("linkedin", e.target.value)}
+            maxLength={300}
+            placeholder="https://linkedin.com/in/you"
           />
         </div>
-        <button
-          type="submit"
-          disabled={!changed || name.trim().length < 2 || save.isPending}
-          className="btn-primary"
-        >
-          {save.isPending ? "Saving…" : "Save name"}
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="submit"
+            disabled={!changed || f.name.trim().length < 2 || save.isPending}
+            className="btn-primary"
+          >
+            {save.isPending ? "Saving…" : "Save changes"}
+          </button>
+          {save.isSuccess && !changed && (
+            <p role="status" className="text-sm text-muted">
+              Saved.
+            </p>
+          )}
+        </div>
+        {save.isError && (
+          <p role="alert" className="notice-error">
+            {save.error.message}
+          </p>
+        )}
       </form>
-      {save.isSuccess && !changed && (
-        <p role="status" className="text-sm text-muted">
-          Saved.
-        </p>
-      )}
-      {save.isError && (
-        <p role="alert" className="notice-error">
-          {save.error.message}
-        </p>
-      )}
     </section>
   );
 }
 
-export function SettingsPage() {
+function PasswordTab() {
+  const { data: me } = useMe();
+  const change = useChangePassword();
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [again, setAgain] = useState("");
+  const had = me?.has_password ?? false;
+  const mismatch = again.length > 0 && next !== again;
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (mismatch || !next) return;
+    change.mutate(
+      { current_password: had ? current : undefined, new_password: next },
+      {
+        onSuccess: () => {
+          setCurrent("");
+          setNext("");
+          setAgain("");
+        },
+      },
+    );
+  };
   return (
-    <main className="page-narrow">
-      <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
-      <NameForm />
+    <section aria-labelledby="pw-h" className="card space-y-4">
+      <div>
+        <h2 id="pw-h" className="text-lg font-semibold">
+          {had ? "Change your password" : "Set a password"}
+        </h2>
+        <p className="text-sm text-muted">
+          {had
+            ? "You will stay signed in here and be signed out everywhere else."
+            : "You sign in with an emailed link or Google. Add a password if you also want to sign in with one."}{" "}
+          Use at least 10 characters. A few random words work well.
+        </p>
+      </div>
+      <form onSubmit={submit} className="max-w-md space-y-4">
+        {had && (
+          <PasswordField
+            label="Current password"
+            value={current}
+            onChange={setCurrent}
+            autoComplete="current-password"
+          />
+        )}
+        <PasswordField
+          label="New password"
+          value={next}
+          onChange={setNext}
+          autoComplete="new-password"
+        />
+        <PasswordField
+          label="Repeat the new password"
+          value={again}
+          onChange={setAgain}
+          autoComplete="new-password"
+          invalid={mismatch}
+        />
+        {mismatch && (
+          <p role="alert" className="text-sm text-red-700">
+            The two new passwords are not the same.
+          </p>
+        )}
+        {change.isError && (
+          <p role="alert" className="notice-error">
+            {change.error.message}
+          </p>
+        )}
+        {change.isSuccess && (
+          <p role="status" className="text-sm">
+            ✓ Password saved. We emailed you to say so.
+          </p>
+        )}
+        <button
+          type="submit"
+          className="btn-primary"
+          disabled={change.isPending || mismatch || !next}
+        >
+          {change.isPending
+            ? "Saving…"
+            : had
+              ? "Change password"
+              : "Set password"}
+        </button>
+      </form>
+    </section>
+  );
+}
+
+function PrivacyTab() {
+  return (
+    <>
       <PrivacyNotice />
       <section aria-labelledby="danger" className="card space-y-2 !bg-red-50">
         <h2 id="danger" className="text-lg font-semibold">
@@ -150,6 +370,44 @@ export function SettingsPage() {
         </h2>
         <DeleteAccountButton />
       </section>
+    </>
+  );
+}
+
+export function SettingsPage() {
+  const { tab = "profile" } = useParams();
+  if (!TABS.some((t) => t.id === tab))
+    return <Navigate to="/settings/profile" replace />;
+  return (
+    <main className="page-narrow">
+      <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
+      <nav
+        aria-label="Settings sections"
+        className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0"
+      >
+        <ul className="flex min-w-max gap-1">
+          {TABS.map((t) => (
+            <li key={t.id}>
+              <NavLink
+                to={`/settings/${t.id}`}
+                className={({ isActive }) =>
+                  `inline-flex min-h-[44px] items-center rounded-full px-4 text-sm transition-colors ${
+                    isActive
+                      ? "bg-ink font-medium text-surface"
+                      : "bg-surface text-muted shadow-card hover:text-ink"
+                  }`
+                }
+              >
+                {t.label}
+              </NavLink>
+            </li>
+          ))}
+        </ul>
+      </nav>
+      {tab === "profile" && <ProfileTab />}
+      {tab === "password" && <PasswordTab />}
+      {tab === "cv" && <CvPanel />}
+      {tab === "privacy" && <PrivacyTab />}
     </main>
   );
 }

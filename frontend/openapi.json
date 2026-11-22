@@ -1575,6 +1575,10 @@
             "title": "Counts",
             "type": "object"
           },
+          "demo": {
+            "title": "Demo",
+            "type": "boolean"
+          },
           "last_run": {
             "anyOf": [
               {
@@ -1646,6 +1650,7 @@
           }
         },
         "required": [
+          "demo",
           "state",
           "primary",
           "campaign",
@@ -2562,10 +2567,48 @@
             ],
             "title": "Full Name"
           },
+          "has_password": {
+            "default": false,
+            "title": "Has Password",
+            "type": "boolean"
+          },
+          "headline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headline"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
             "type": "string"
+          },
+          "linkedin_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linkedin Url"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
           },
           "onboarded": {
             "default": true,
@@ -2581,6 +2624,17 @@
                 "type": "null"
               }
             ]
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
           },
           "tour_done": {
             "default": true,
@@ -3068,6 +3122,33 @@
         "title": "OverviewOut",
         "type": "object"
       },
+      "PasswordIn": {
+        "properties": {
+          "current_password": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Password"
+          },
+          "new_password": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "new_password"
+        ],
+        "title": "PasswordIn",
+        "type": "object"
+      },
       "PasteIn": {
         "properties": {
           "text": {
@@ -3233,17 +3314,70 @@
         "type": "object"
       },
       "ProfileIn": {
+        "description": "What a person can change about themselves. Only fields that are sent are changed; an empty\nstring clears an optional one.",
         "properties": {
           "full_name": {
-            "maxLength": 400,
-            "minLength": 1,
-            "title": "Full Name",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 400,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name"
+          },
+          "headline": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headline"
+          },
+          "linkedin_url": {
+            "anyOf": [
+              {
+                "maxLength": 600,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linkedin Url"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
           }
         },
-        "required": [
-          "full_name"
-        ],
         "title": "ProfileIn",
         "type": "object"
       },
@@ -5430,6 +5564,11 @@
           "campaign": {
             "$ref": "#/components/schemas/CampaignOut"
           },
+          "demo": {
+            "default": false,
+            "title": "Demo",
+            "type": "boolean"
+          },
           "enabled": {
             "title": "Enabled",
             "type": "boolean"
@@ -5480,6 +5619,48 @@
           }
         },
         "summary": "Delete Account",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/account/password": {
+      "put": {
+        "description": "Change the password, or set a first one if the person only used email links or Google.\nChanging it needs the current password, every other device is signed out, and an email tells\nthe account owner.",
+        "operationId": "change_password_api_account_password_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Change Password",
         "tags": [
           "account"
         ]

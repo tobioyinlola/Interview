@@ -29,11 +29,16 @@ const IN = [
   "/onboarding",
   "/referrals",
   "/help",
-  "/notes",
+  "/settings/profile",
+  "/settings/password",
+  "/settings/cv",
+  "/settings/privacy",
+  "/auto-apply",
+  "/auto-apply/setup",
+  "/auto-apply/applications",
   "/companies",
   "/session/new",
   "/sessions",
-  "/settings",
 ];
 
 const probe = () => {
@@ -42,7 +47,7 @@ const probe = () => {
   if (de.scrollWidth > de.clientWidth) {
     const bad = [...document.querySelectorAll("body *")].find(
       (e) =>
-        e.getBoundingClientRect().right > de.clientWidth + 1 &&
+        e.getBoundingClientRect().right > de.clientWidth &&
         getComputedStyle(e).position !== "fixed",
     );
     found.push(
