@@ -45,19 +45,13 @@ describe("app shell", () => {
     );
   });
 
-  it("shows the Admin console link to administrators only", async () => {
+  it("has no link to the back office: it is a separate place", async () => {
     signedIn();
-    const { unmount } = renderApp(<App />, "/dashboard");
-    await screen.findByRole("navigation", { name: "Main" });
-    expect(screen.queryByRole("link", { name: "Admin console" })).toBeNull();
-    unmount();
-    vi.restoreAllMocks();
-    stubSupportedBrowser();
-    signedIn({ ...ME, is_admin: true });
     renderApp(<App />, "/dashboard");
+    await screen.findByRole("navigation", { name: "Main" });
     expect(
-      await screen.findByRole("link", { name: "Admin console" }),
-    ).toHaveAttribute("href", "/admin");
+      screen.queryByRole("link", { name: /admin|back office/i }),
+    ).toBeNull();
   });
 
   it("opens and closes the menu on small screens", async () => {

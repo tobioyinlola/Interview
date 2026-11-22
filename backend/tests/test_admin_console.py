@@ -30,10 +30,10 @@ SECRET_SAID = "SECRET-TRANSCRIPT-DO-NOT-LEAK"
 
 
 @pytest.fixture
-async def boss(new_client, sign_in, settings):
+async def boss(new_client, staff_sign_in, settings):
     settings.admin_emails = "boss@example.com"
     async with new_client() as c:
-        await sign_in(c, "boss@example.com")
+        await staff_sign_in(c, "boss@example.com")
         yield c
 
 
@@ -238,18 +238,15 @@ POST_PATHS = [
 
 
 @pytest.mark.parametrize("path", GET_PATHS)
-async def test_every_console_page_is_closed_to_signed_out_visitors_and_ordinary_users(
+async def test_every_console_page_is_closed_to_anyone_without_a_staff_sign_in(
     new_client, sign_in, settings, path
 ):
     settings.admin_emails = "boss@example.com"
     async with new_client() as anon:
         assert (await anon.get(path)).status_code == 401
     async with new_client() as c:
-        await sign_in(c, "alice@example.com")
-        r = await c.get(path)
-        assert (
-            r.status_code == 404 and r.json()["error"]["code"] == "not_found"
-        )  # not even "forbidden"
+        await sign_in(c, "boss@example.com")  # signed in to the app, even as the owner: not enough
+        assert (await c.get(path)).status_code == 401
 
 
 @pytest.mark.parametrize("path", POST_PATHS)
@@ -258,15 +255,15 @@ async def test_the_console_actions_are_closed_too(new_client, sign_in, settings,
     async with new_client() as anon:
         assert (await anon.post(path, json={"count": 1})).status_code == 401
     async with new_client() as c:
-        await sign_in(c, "alice@example.com")
-        assert (await c.post(path, json={"count": 1})).status_code == 404
+        await sign_in(c, "boss@example.com")
+        assert (await c.post(path, json={"count": 1})).status_code == 401
 
 
-async def test_with_no_admins_configured_nobody_gets_in(new_client, sign_in, settings):
+async def test_with_no_admins_configured_nobody_gets_in(new_client, staff_sign_in, settings):
     settings.admin_emails = ""
     async with new_client() as c:
-        await sign_in(c, "boss@example.com")
-        assert (await c.get("/api/admin/overview")).status_code == 404
+        await c.post("/api/admin/auth/request-link", json={"email": "boss@example.com"})
+        assert (await c.get("/api/admin/overview")).status_code == 401
 
 
 # ----------------------------------------------------------------------------------- overview

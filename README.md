@@ -168,7 +168,7 @@ sideways scrolling and undersized controls, and runs with the other browser test
   strict Content-Security-Policy for the web app (`frontend/nginx.conf.template`), verified in Chromium against the
   production build (`E2E_PROD=1 scripts/e2e-live.sh`).
 - **Observability:** Prometheus `/metrics` (route templates only, never content), alert rules in
-  `ops/alerts.yml` with a runbook each (`docs/runbooks/`), optional scrubbed Sentry, admin-only cost view at `/admin/usage`.
+  `ops/alerts.yml` with a runbook each (`docs/runbooks/`), optional scrubbed Sentry, a staff-only back office at `/admin` with its own sign-in (users, activity log, referrals, marketing, quality, emails, cost); it is separate from the customer app and has no link inside it.
 - **Reliability:** circuit breaker with a fallback answer model, stale research-job recovery, graceful
   shutdown that tells browsers to reconnect.
 - **Checks you can run:** `scripts/loadtest.sh` (synthetic sessions, fake providers) and

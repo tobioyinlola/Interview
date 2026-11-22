@@ -33,6 +33,7 @@ from app.routers import (
     notes,
     profile,
     sessions,
+    staff_auth,
 )
 from app.services.events import purge_old_events
 from app.services.google_oauth import GoogleOAuth
@@ -118,6 +119,7 @@ def create_app() -> FastAPI:
         companies.router,
         sessions.router,
         audio_ws.router,
+        staff_auth.router,
         admin.router,
     ):
         app.include_router(r)

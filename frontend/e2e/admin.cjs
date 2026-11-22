@@ -22,6 +22,12 @@ const links = () =>
       .readFileSync(process.env.API_LOG, "utf8")
       .matchAll(/http:\/\/localhost:5173\/login\/verify\?token=[\w-]+/g),
   ].map((m) => m[0]);
+const staffLinks = () =>
+  [
+    ...fs
+      .readFileSync(process.env.API_LOG, "utf8")
+      .matchAll(/http:\/\/localhost:5173\/admin\/verify\?token=[\w-]+/g),
+  ].map((m) => m[0]);
 
 (async () => {
   const browser = await chromium.launch();
@@ -81,22 +87,58 @@ const links = () =>
   );
   await page.setViewportSize({ width: 1280, height: 900 });
 
-  // sign in as the admin
-  await page.goto(BASE + "/login");
-  await page.getByLabel("Email address").fill("admin-e2e@example.com");
-  const n = links().length;
-  await page.getByRole("button", { name: "Email me a sign-in link" }).click();
-  for (let i = 0; i < 60 && links().length <= n; i++) await sleep(100);
-  await page.goto(links().pop());
+  // the back office is its own place with its own sign-in
+  await page.goto(BASE + "/admin");
+  await page.waitForURL("**/admin/login");
+  await page.getByRole("heading", { name: "Staff sign in" }).waitFor();
+  ok(
+    (await page.getByTestId("auth-showcase").count()) === 0 &&
+      (await page.getByText("Back office · staff only").isVisible()),
+    "typing /admin shows a staff sign-in, not the customer sign-in",
+  );
+  await shot("0-staff-login", false);
+  await page.getByLabel("Work email").fill("not-staff@example.com");
   await page
-    .getByRole("button", { name: "Skip for now" })
-    .click({ timeout: 4000 })
-    .catch(() => {});
-  await page.waitForURL("**/dashboard");
-  await skipTour(page);
-  await page.getByRole("link", { name: "Admin console" }).click();
+    .getByRole("button", { name: "Email me a sign-in link instead" })
+    .click();
+  await page.getByText(/If that address is on the staff list/).waitFor();
+  ok(true, "asking for a link says the same thing for any address");
+  const before = staffLinks().length;
+  await page.goto(BASE + "/admin/login");
+  await page.getByLabel("Work email").fill("admin-e2e@example.com");
+  await page
+    .getByRole("button", { name: "Email me a sign-in link instead" })
+    .click();
+  for (let i = 0; i < 60 && staffLinks().length <= before; i++)
+    await sleep(100);
+  ok(
+    staffLinks().length === before + 1,
+    "and only a staff address is actually sent a link",
+  );
+  await page.goto(staffLinks().pop());
   await page.getByRole("navigation", { name: "Admin sections" }).waitFor();
-  ok(true, "an admin sees the console in the sidebar and can open it");
+  ok(
+    (await page.getByText("Back office", { exact: true }).isVisible()) &&
+      (await page.getByText("admin-e2e@example.com").isVisible()),
+    "the link opens the back office, showing who is signed in",
+  );
+  ok(
+    (await page.getByRole("navigation", { name: "Main" }).count()) === 0,
+    "with none of the customer app around it",
+  );
+  const asCustomer = await page.evaluate(
+    async () => (await fetch("/api/me", { credentials: "include" })).status,
+  );
+  ok(
+    asCustomer === 401,
+    "and staff sign-in does not sign them in to the customer app",
+  );
+  await page.goto(
+    BASE + "/login/verify?token=" + staffLinks().pop().split("=")[1],
+  );
+  await page.getByText(/That link didn.t work/).waitFor();
+  ok(true, "a back-office link is no good for the customer app");
+  await page.goto(BASE + "/admin");
 
   // overview
   await page.getByRole("heading", { name: "Overview" }).waitFor();
@@ -190,7 +232,7 @@ const links = () =>
   await page.getByRole("table", { name: "Email templates" }).waitFor();
   const previews = page.getByRole("button", { name: /^Preview / });
   const count = await previews.count();
-  ok(count === 12, `the emails page lists all ${count} templates`);
+  ok(count === 13, `the emails page lists all ${count} templates`);
   await shot("12-emails");
   for (let i = 0; i < count; i++) {
     await page
@@ -221,7 +263,7 @@ const links = () =>
     );
   }
 
-  // an ordinary person gets nothing
+  // an ordinary customer gets nothing, even when signed in to the app
   const other = await browser.newContext({
     viewport: { width: 1280, height: 900 },
   });
@@ -241,19 +283,43 @@ const links = () =>
   await p2.waitForURL("**/dashboard");
   await skipTour(p2);
   ok(
-    (await p2.getByRole("link", { name: "Admin console" }).count()) === 0,
-    "an ordinary person has no admin link",
+    (await p2.getByRole("link", { name: /admin|back office/i }).count()) === 0,
+    "a customer has no link to the back office anywhere in the app",
   );
   const status = await p2.evaluate(
     async () =>
       (await fetch("/api/admin/overview", { credentials: "include" })).status,
   );
-  ok(status === 404, "and the server answers them with 404");
+  ok(status === 401, "and the server refuses them");
   await p2.goto(BASE + "/admin");
-  await p2.waitForURL("**/dashboard");
-  ok(true, "typing the admin address sends them back to their dashboard");
+  await p2.waitForURL("**/admin/login");
+  ok(
+    true,
+    "typing the address shows them the staff sign-in, which they cannot pass",
+  );
+  await p2.getByLabel("Work email").fill("ordinary@example.com");
+  await p2.getByLabel("Password").fill("whatever-password");
+  await p2.getByRole("button", { name: "Sign in", exact: true }).click();
+  await p2.getByRole("alert").waitFor();
+  ok(true, "a wrong sign-in is refused");
+
+  // signing out ends it
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await page.waitForURL("**/admin/login");
+  await page.goto(BASE + "/admin/users");
+  await page.waitForURL("**/admin/login");
+  ok(true, "signing out closes the back office");
 
   // the admin pages on a phone: nothing runs off the side
+  const again = staffLinks().length;
+  await page.goto(BASE + "/admin/login");
+  await page.getByLabel("Work email").fill("admin-e2e@example.com");
+  await page
+    .getByRole("button", { name: "Email me a sign-in link instead" })
+    .click();
+  for (let i = 0; i < 60 && staffLinks().length <= again; i++) await sleep(100);
+  await page.goto(staffLinks().pop());
+  await page.getByRole("navigation", { name: "Admin sections" }).waitFor();
   await page.setViewportSize({ width: 390, height: 844 });
   for (const path of [
     "/admin",

@@ -1369,11 +1369,6 @@
             "title": "Id",
             "type": "string"
           },
-          "is_admin": {
-            "default": false,
-            "title": "Is Admin",
-            "type": "boolean"
-          },
           "onboarded": {
             "default": true,
             "title": "Onboarded",
@@ -2699,6 +2694,65 @@
         "title": "SourceOut",
         "type": "object"
       },
+      "StaffIn": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "StaffIn",
+        "type": "object"
+      },
+      "StaffLoginIn": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "StaffLoginIn",
+        "type": "object"
+      },
+      "StaffOut": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "full_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "StaffOut",
+        "type": "object"
+      },
       "StatusOut": {
         "properties": {
           "status": {
@@ -3745,6 +3799,173 @@
         "summary": "Export Activity",
         "tags": [
           "admin"
+        ]
+      }
+    },
+    "/api/admin/auth/login": {
+      "post": {
+        "operationId": "login_api_admin_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StaffLoginIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login",
+        "tags": [
+          "staff"
+        ]
+      }
+    },
+    "/api/admin/auth/logout": {
+      "post": {
+        "operationId": "logout_api_admin_auth_logout_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Logout",
+        "tags": [
+          "staff"
+        ]
+      }
+    },
+    "/api/admin/auth/me": {
+      "get": {
+        "operationId": "me_api_admin_auth_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Me",
+        "tags": [
+          "staff"
+        ]
+      }
+    },
+    "/api/admin/auth/request-link": {
+      "post": {
+        "description": "Email a single-use back-office link, but only to staff. The answer is the same for every\naddress, so it cannot be used to find out who is on the staff list.",
+        "operationId": "request_link_api_admin_auth_request_link_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StaffIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Request Link",
+        "tags": [
+          "staff"
+        ]
+      }
+    },
+    "/api/admin/auth/verify": {
+      "post": {
+        "description": "Exchange the emailed token for a staff cookie. POST, so a mail scanner that opens the link\ncannot use the token up.",
+        "operationId": "verify_api_admin_auth_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify",
+        "tags": [
+          "staff"
         ]
       }
     },

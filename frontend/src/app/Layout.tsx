@@ -23,7 +23,6 @@ import {
   MenuIcon,
   MicIcon,
   NoteIcon,
-  ChartIcon,
   ShieldIcon,
   ChevronIcon,
   GiftIcon,
@@ -134,9 +133,6 @@ export function Layout() {
     item("/sessions", "Sessions", <ListIcon />),
     item("/settings", "Settings", <GearIcon />),
   ];
-  const admin = me?.is_admin
-    ? [item("/admin", "Admin console", <ChartIcon />)]
-    : [];
   const support = [
     item("/help", "Help", <HelpIcon />),
     item("/privacy", "Privacy", <ShieldIcon />),
@@ -219,9 +215,6 @@ export function Layout() {
           >
             <Group title="Menu" items={menu} collapsed={collapsed} />
             <Group title="Account" items={account} collapsed={collapsed} />
-            {admin.length > 0 && (
-              <Group title="Admin" items={admin} collapsed={collapsed} />
-            )}
             <Group title="Support" items={support} collapsed={collapsed} />
           </nav>
           <div className="mt-6 border-t border-surface/15 pt-4">

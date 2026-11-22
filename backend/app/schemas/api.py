@@ -83,7 +83,6 @@ class ProfileIn(BaseModel):
 class MeOut(BaseModel):
     id: uuid.UUID
     email: str
-    is_admin: bool = False  # may open the owner's usage and cost view
     full_name: str | None = None
     onboarded: bool = True  # false until onboarding is finished or skipped
     onboarding: OnboardingAnswers | None = None

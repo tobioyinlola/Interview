@@ -241,6 +241,31 @@ def sign_in_link(
     )
 
 
+def staff_sign_in_link(
+    brand: Brand, to: str, name: str | None, link: str, ttl_minutes: int
+) -> EmailMessage:
+    return _message(
+        "staff_login",
+        brand,
+        to,
+        subject="Your InterviewMeet back-office sign-in link",
+        preheader="Use this link to open the back office. It works once.",
+        heading="Sign in to the back office",
+        blocks=[
+            ("p", _greeting(name)),
+            ("p", "Use the button below to open the InterviewMeet back office."),
+            ("button", "Open the back office", link),
+            (
+                "note",
+                f"This link works once and expires in {ttl_minutes} minutes. If you didn't ask for "
+                "it, ignore this email and tell the owner: someone typed your address.",
+            ),
+        ],
+        why="You got this email because someone asked to sign in to the back office as you.",
+        link=link,
+    )
+
+
 def password_reset(
     brand: Brand, to: str, name: str | None, link: str, ttl_minutes: int
 ) -> EmailMessage:
@@ -561,6 +586,12 @@ CATALOG: list[tuple[str, str, str, str]] = [
         "Someone asks for an emailed sign-in link.",
         "Anyone with an account",
     ),
+    (
+        "staff_login",
+        "Back-office sign-in link",
+        "A staff member asks to sign in to the back office.",
+        "Staff only",
+    ),
     ("reset", "Reset password", "Someone asks to reset their password.", "Account owner"),
     ("welcome", "Welcome", "An account is created (link, password or Google).", "The new person"),
     ("password_changed", "Password changed", "A password is reset or changed.", "Account owner"),
@@ -590,6 +621,7 @@ def sample_message(kind: str, brand: Brand, to: str = "jordan@example.com") -> E
     builders = {
         "signup": lambda: signup_confirmation(brand, to, name, SAMPLE_LINK, 15),
         "login": lambda: sign_in_link(brand, to, name, SAMPLE_LINK, 15),
+        "staff_login": lambda: staff_sign_in_link(brand, to, name, SAMPLE_LINK, 15),
         "reset": lambda: password_reset(brand, to, name, SAMPLE_LINK, 15),
         "welcome": lambda: welcome(brand, to, name),
         "password_changed": lambda: password_changed(

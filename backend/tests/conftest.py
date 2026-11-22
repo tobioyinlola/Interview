@@ -181,6 +181,20 @@ def sign_in(sender):
 
 
 @pytest.fixture
+def staff_sign_in(sender):
+    """Sign in to the back office with the emailed link (the address must be on the staff list)."""
+
+    async def _staff(client: httpx.AsyncClient, email: str) -> httpx.Response:
+        r = await client.post("/api/admin/auth/request-link", json={"email": email})
+        assert r.status_code == 202
+        v = await client.post("/api/admin/auth/verify", json={"token": sender.token_for(email)})
+        assert v.status_code == 200, v.text
+        return v
+
+    return _staff
+
+
+@pytest.fixture
 async def live_server(app):
     """A real uvicorn server on a free port, in the test's event loop (so the async test engine
     works). Needed for WebSockets and for client disconnects, which ASGI test clients can't do."""

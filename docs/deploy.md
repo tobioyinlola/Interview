@@ -23,7 +23,8 @@ Variables:
 | `OPENAI_API_KEY` | the project key (required in production) |
 | `TRUST_PROXY_HEADERS` | leave `false` while testing. Set `true` in production (the app reads the last public address in `X-Forwarded-For`, which the platform edge adds, and ignores any earlier ones a caller makes up): it makes rate limits per client and lets the invite check recognise the same device in another browser (without it, only the device cookie is used) |
 | `METRICS_TOKEN` | random string; the scraper sends it as a bearer token |
-| `ADMIN_EMAILS` | comma-separated emails allowed to see the cost view |
+| `ADMIN_EMAILS` | comma-separated staff emails allowed into the back office at `/admin` (own sign-in: emailed link or password, 12-hour session, `STAFF_SESSION_HOURS`) |
+| `EVENT_RETENTION_DAYS` | how long the back-office activity log is kept (default 180) |
 | `RESEND_API_KEY`, `EMAIL_FROM` | required; see below |
 | `REFERRALS_PER_FREE_SESSION` | optional, default 3: signed-up friends needed to earn one free session |
 | `SUPPORT_EMAIL` | optional; the contact address in every email footer; the line is left out when empty |

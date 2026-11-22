@@ -10,10 +10,10 @@ TODAY = datetime.now(UTC).date()
 
 
 @pytest.fixture
-async def boss(new_client, sign_in, settings):
+async def boss(new_client, staff_sign_in, settings):
     settings.admin_emails = " Boss@Example.com , other@example.com "  # case and spaces tolerated
     async with new_client() as c:
-        await sign_in(c, "boss@example.com")
+        await staff_sign_in(c, "boss@example.com")
         yield c
 
 
@@ -31,12 +31,14 @@ async def add_user(db, email):
 # ------------------------------------------------------------------- access
 
 
-async def test_a_normal_user_gets_404_so_the_route_is_not_revealed(new_client, sign_in, settings):
+async def test_being_signed_in_to_the_app_does_not_open_the_back_office(
+    new_client, sign_in, settings
+):
     settings.admin_emails = "boss@example.com"
     async with new_client() as c:
-        await sign_in(c, "alice@example.com")
+        await sign_in(c, "boss@example.com")  # even the owner, signed in to the customer app
         r = await c.get("/api/admin/usage")
-    assert r.status_code == 404 and r.json()["error"]["code"] == "not_found"
+    assert r.status_code == 401 and r.json()["error"]["code"] == "staff_not_authenticated"
 
 
 async def test_anonymous_gets_401_and_an_unconfigured_admin_list_admits_nobody(
@@ -47,34 +49,18 @@ async def test_anonymous_gets_401_and_an_unconfigured_admin_list_admits_nobody(
     settings.admin_emails = ""
     async with new_client() as c:
         await sign_in(c, "boss@example.com")
-        assert (await c.get("/api/admin/usage")).status_code == 404
+        assert (await c.get("/api/admin/usage")).status_code == 401
 
 
-async def test_an_admin_is_admitted_and_told_so(boss):
-    me = (await boss.get("/api/me")).json()
-    assert me["is_admin"] is True
+async def test_a_staff_member_is_admitted(boss):
     assert (await boss.get("/api/admin/usage")).status_code == 200
 
 
-async def test_the_sign_in_response_already_says_whether_the_user_is_an_admin(
-    new_client, sender, settings
-):
+async def test_the_customer_app_never_says_who_is_staff(new_client, sign_in, settings):
     settings.admin_emails = "boss@example.com"
     async with new_client() as c:
-        await c.post("/api/auth/request-link", json={"email": "boss@example.com"})
-        v = await c.post("/api/auth/verify", json={"token": sender.token_for("boss@example.com")})
-        assert v.json()["is_admin"] is True
-    async with new_client() as c:
-        await c.post("/api/auth/request-link", json={"email": "alice@example.com"})
-        v = await c.post("/api/auth/verify", json={"token": sender.token_for("alice@example.com")})
-        assert v.json()["is_admin"] is False
-
-
-async def test_a_normal_user_is_not_an_admin_in_me(new_client, sign_in, settings):
-    settings.admin_emails = "boss@example.com"
-    async with new_client() as c:
-        await sign_in(c, "alice@example.com")
-        assert (await c.get("/api/me")).json()["is_admin"] is False
+        me = (await sign_in(c, "boss@example.com")).json()
+        assert "is_admin" not in me and "is_admin" not in (await c.get("/api/me")).json()
 
 
 @pytest.mark.parametrize("days", [0, 91, -1, "x"])

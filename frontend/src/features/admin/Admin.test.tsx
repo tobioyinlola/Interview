@@ -2,15 +2,16 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { App } from "../../app/App";
-import { ME, mockApi, renderApp, stubSupportedBrowser } from "../../test-utils";
+import { mockApi, renderApp, stubSupportedBrowser } from "../../test-utils";
 
 beforeEach(() => stubSupportedBrowser());
 afterEach(() => vi.restoreAllMocks());
 
-const admin = { ...ME, is_admin: true, onboarded: true, tour_done: true };
 const base = (routes: Record<string, () => object> = {}) =>
   mockApi({
-    "GET /api/me": () => ({ json: admin }),
+    "GET /api/admin/auth/me": () => ({
+      json: { email: "boss@example.com", full_name: null },
+    }),
     "GET /api/billing": () => ({ status: 404, json: {} }),
     ...routes,
   });
@@ -67,22 +68,37 @@ const overview = {
 };
 
 describe("admin console: access", () => {
-  it("sends an ordinary signed-in person back to the dashboard", async () => {
+  it("sends anyone without a staff sign-in to the staff sign-in page", async () => {
     mockApi({
-      "GET /api/me": () => ({
-        json: { ...ME, is_admin: false, onboarded: true, tour_done: true },
+      "GET /api/admin/auth/me": () => ({
+        status: 401,
+        json: {
+          error: {
+            code: "staff_not_authenticated",
+            message: "x",
+            request_id: "r",
+          },
+        },
       }),
-      "GET /api/notes": () => ({
-        json: { role: "", content: "", updated_at: null },
-      }),
-      "GET /api/companies": () => ({ json: [] }),
-      "GET /api/sessions": () => ({ json: { items: [], next_cursor: null } }),
     });
-    renderApp(<App />, "/admin");
-    expect(await screen.findByRole("combobox")).toBeInTheDocument();
+    renderApp(<App />, "/admin/users");
+    expect(
+      await screen.findByRole("heading", { name: "Staff sign in" }),
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole("navigation", { name: "Admin sections" }),
     ).toBeNull();
+  });
+
+  it("is a separate place from the app: its own header, staff name and sign out", async () => {
+    base({ "GET /api/admin/overview": () => ({ json: overview }) });
+    renderApp(<App />, "/admin");
+    expect(await screen.findByText("Back office")).toBeInTheDocument();
+    expect(screen.getByText("boss@example.com")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Sign out" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Main" })).toBeNull(); // no customer sidebar
   });
 
   it("has a tab for every section, with the current one marked", async () => {

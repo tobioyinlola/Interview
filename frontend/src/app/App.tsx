@@ -18,6 +18,8 @@ import { MarketingPage } from "../features/admin/MarketingPage";
 import { OverviewPage } from "../features/admin/OverviewPage";
 import { QualityPage } from "../features/admin/QualityPage";
 import { ReferralsAdminPage } from "../features/admin/ReferralsAdminPage";
+import { StaffLoginPage } from "../features/admin/StaffLoginPage";
+import { StaffVerifyPage } from "../features/admin/StaffVerifyPage";
 import { UsagePage } from "../features/admin/UsagePage";
 import { UserPage } from "../features/admin/UserPage";
 import { UsersPage } from "../features/admin/UsersPage";
@@ -53,6 +55,19 @@ export function App() {
       <Route path="/" element={<Home />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/admin/login" element={<StaffLoginPage />} />
+      <Route path="/admin/verify" element={<StaffVerifyPage />} />
+      <Route path="/admin" element={<AdminLayout />}>
+        <Route index element={<OverviewPage />} />
+        <Route path="users" element={<UsersPage />} />
+        <Route path="users/:id" element={<UserPage />} />
+        <Route path="activity" element={<ActivityPage />} />
+        <Route path="referrals" element={<ReferralsAdminPage />} />
+        <Route path="marketing" element={<MarketingPage />} />
+        <Route path="quality" element={<QualityPage />} />
+        <Route path="emails" element={<EmailsAdminPage />} />
+        <Route path="usage" element={<UsagePage />} />
+      </Route>
       <Route element={<SupportedBrowser />}>
         <Route path="/login" element={<SignInForm />} />
         <Route path="/signup" element={<SignUpForm />} />
@@ -73,17 +88,6 @@ export function App() {
             <Route path="/referrals" element={<ReferralPage />} />
             <Route path="/help" element={<HelpPage />} />
             <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/admin" element={<AdminLayout />}>
-              <Route index element={<OverviewPage />} />
-              <Route path="users" element={<UsersPage />} />
-              <Route path="users/:id" element={<UserPage />} />
-              <Route path="activity" element={<ActivityPage />} />
-              <Route path="referrals" element={<ReferralsAdminPage />} />
-              <Route path="marketing" element={<MarketingPage />} />
-              <Route path="quality" element={<QualityPage />} />
-              <Route path="emails" element={<EmailsAdminPage />} />
-              <Route path="usage" element={<UsagePage />} />
-            </Route>
           </Route>
         </Route>
       </Route>
