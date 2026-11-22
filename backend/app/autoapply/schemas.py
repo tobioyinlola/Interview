@@ -82,3 +82,71 @@ class CampaignOut(BaseModel):
 class StatusOut(BaseModel):
     enabled: bool
     campaign: CampaignOut
+
+
+class PostingOut(BaseModel):
+    id: str
+    company: str
+    title: str
+    region: str | None
+    arrangement: str | None
+    application_url: str | None
+    source: str
+
+
+class ApplicationOut(BaseModel):
+    id: str
+    status: str
+    channel: str | None
+    posting: PostingOut
+    score: float
+    needs_input: list[dict[str, Any]]
+    skip_reason: str | None
+    recruiting_stage: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ApplicationEventOut(BaseModel):
+    kind: str
+    detail: dict[str, Any]
+    created_at: datetime
+
+
+class ApplicationDetail(ApplicationOut):
+    match: dict[str, Any]
+    package: dict[str, Any] | None  # the exact package: what was or will be sent
+    package_frozen_at: datetime | None
+    history: list[ApplicationEventOut]
+
+
+class ApplicationPage(BaseModel):
+    items: list[ApplicationOut]
+    next_cursor: str | None
+
+
+class AnswerApplicationIn(BaseModel):
+    field: str = Field(min_length=1, max_length=60)
+    value: str = Field(min_length=1, max_length=2000)
+    save_for_reuse: bool = False  # saved as a reusable answer only when the person ticks this
+
+
+class ApproveIn(BaseModel):
+    rule: str = Field(min_length=1, max_length=60)
+
+
+class JobUrlIn(BaseModel):
+    url: str = Field(min_length=8, max_length=2000)
+
+
+class RunOut(BaseModel):
+    local_day: str
+    status: str
+    found: int
+    new: int
+    eligible: int
+    needs_input: int
+    skipped: int
+    error: str | None
+    started_at: datetime
+    finished_at: datetime | None

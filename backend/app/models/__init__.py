@@ -1,4 +1,6 @@
 from app.models.tables import (
+    Application,
+    ApplicationEvent,
     AudioToken,
     AuthSession,
     Campaign,
@@ -7,8 +9,11 @@ from app.models.tables import (
     Company,
     CompanyBrief,
     CompanySource,
+    DiscoveryRun,
     Event,
     IdempotencyKey,
+    JobAlias,
+    JobPosting,
     LoginFailure,
     LoginToken,
     Note,
@@ -26,6 +31,11 @@ from app.models.tables import (
 )
 
 __all__ = [
+    "ApplicationEvent",
+    "Application",
+    "DiscoveryRun",
+    "JobAlias",
+    "JobPosting",
     "Campaign",
     "CandidateAnswer",
     "CandidateFacts",

@@ -1,0 +1,249 @@
+"""Finding jobs: one run per candidate per local day, through every configured source."""
+
+import logging
+import re
+import uuid
+from datetime import datetime
+from html import unescape
+from typing import Any
+
+import httpx
+from sqlalchemy import select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.autoapply import campaign, clock, pipeline, postings
+from app.autoapply.adapters import AdapterError, DiscoveryAdapter, RawPosting
+from app.autoapply.fixtures import FixtureDiscovery
+from app.config import Settings
+from app.models import Application, DiscoveryRun
+from app.services.events import record_from
+
+log = logging.getLogger("app.autoapply.discovery")
+
+
+class GreenhouseDiscovery:
+    """Public job boards hosted by Greenhouse (boards-api.greenhouse.io). Each employer's board is
+    listed by its token in AUTOAPPLY_GREENHOUSE_BOARDS. Reading is public and needs no key."""
+
+    name = "greenhouse"
+
+    def __init__(
+        self, boards: list[str], transport: httpx.AsyncBaseTransport | None = None
+    ) -> None:
+        self.boards = boards
+        self._transport = transport
+
+    async def _get(self, url: str) -> Any:
+        try:
+            async with httpx.AsyncClient(transport=self._transport, timeout=15) as c:
+                r = await c.get(url, headers={"accept": "application/json"})
+        except httpx.HTTPError:
+            raise AdapterError(
+                "network", "The job board could not be reached.", transient=True
+            ) from None
+        if r.status_code == 404:
+            return None
+        if r.status_code >= 500 or r.status_code == 429:
+            raise AdapterError("unavailable", "The job board is busy.", transient=True)
+        if r.status_code != 200:
+            raise AdapterError("rejected", f"The job board answered {r.status_code}.")
+        return r.json()
+
+    @staticmethod
+    def parse(board: str, job: dict[str, Any]) -> RawPosting:
+        html = unescape(job.get("content") or "")
+        text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html)).strip()
+        url = job.get("absolute_url") or ""
+        location = (job.get("location") or {}).get("name") or ""
+        updated = job.get("updated_at")
+        return RawPosting(
+            source="greenhouse",
+            source_url=url or f"https://boards.greenhouse.io/{board}/jobs/{job.get('id')}",
+            company=job.get("company_name") or board.replace("-", " ").title(),
+            title=job.get("title") or "",
+            description=text,
+            requisition_id=str(job.get("requisition_id") or job.get("internal_job_id") or "")
+            or None,
+            region=location or None,
+            arrangement="remote" if "remote" in location.lower() else None,
+            posted_at=datetime.fromisoformat(updated.replace("Z", "+00:00")) if updated else None,
+            application_url=url or None,
+            evidence={"title": "the job board", "region": "the job board's location field"},
+        )
+
+    async def search(self, criteria: dict[str, Any], now: datetime) -> list[RawPosting]:
+        found: list[RawPosting] = []
+        for board in self.boards:
+            data = await self._get(
+                f"https://boards-api.greenhouse.io/v1/boards/{board}/jobs?content=true"
+            )
+            for job in (data or {}).get("jobs", []):
+                found.append(self.parse(board, job))
+        return found
+
+    async def fetch(self, url: str) -> RawPosting | None:
+        m = re.search(r"greenhouse\.io/(?:embed/job_app\?for=)?([\w-]+)/jobs/(\d+)", url)
+        if not m:
+            return None
+        data = await self._get(f"https://boards-api.greenhouse.io/v1/boards/{m[1]}/jobs/{m[2]}")
+        return self.parse(m[1], data) if data else None
+
+
+def build_sources(settings: Settings) -> list[DiscoveryAdapter]:
+    """The discovery sources named in AUTOAPPLY_DISCOVERY_SOURCES. Outside production only the
+    fixture is allowed to return anything, so a staging run can never apply for a real job."""
+    out: list[DiscoveryAdapter] = []
+    for name in (n.strip() for n in settings.autoapply_discovery_sources.split(",") if n.strip()):
+        if name == "fixture":
+            out.append(FixtureDiscovery())
+        elif name == "greenhouse":
+            boards = [
+                b.strip() for b in settings.autoapply_greenhouse_boards.split(",") if b.strip()
+            ]
+            out.append(GreenhouseDiscovery(boards))
+        else:
+            log.warning("unknown discovery source", extra={"fields": {"source": name}})
+    return out
+
+
+async def _claim(
+    db: AsyncSession, user_id: uuid.UUID, camp_id: uuid.UUID, day: Any, now: datetime
+) -> uuid.UUID | None:
+    """Take today's run for this candidate, or None when another worker already has it or it is
+    done. A run that failed earlier today may be taken again."""
+    res = await db.execute(
+        pg_insert(DiscoveryRun)
+        .values(
+            id=uuid.uuid4(),
+            user_id=user_id,
+            campaign_id=camp_id,
+            local_day=day,
+            status="running",
+            found=0,
+            new=0,
+            eligible=0,
+            needs_input=0,
+            skipped=0,
+            started_at=now,
+        )
+        .on_conflict_do_nothing(index_elements=["user_id", "local_day"])
+        .returning(DiscoveryRun.id)
+    )
+    run_id = res.scalar_one_or_none()
+    if run_id is None:
+        retry = await db.execute(
+            update(DiscoveryRun)
+            .where(
+                DiscoveryRun.user_id == user_id,
+                DiscoveryRun.local_day == day,
+                DiscoveryRun.status == "failed",
+            )
+            .values(status="running", error=None, started_at=now)
+            .returning(DiscoveryRun.id)
+        )
+        run_id = retry.scalar_one_or_none()
+    await db.commit()
+    return run_id
+
+
+async def run_if_due(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    *,
+    now: datetime,
+    sources: list[DiscoveryAdapter],
+    llm: Any,
+    form: Any,
+) -> DiscoveryRun | None:
+    """Run today's discovery for one candidate unless it already ran, the search is paused, or the
+    campaign is over. At most one run per candidate per local day, however many schedulers ask."""
+    camp = await campaign.current(db, user_id)
+    prof = await campaign.get_profile(db, user_id)
+    if not campaign.outbound_open(camp, prof, now):
+        return None
+    assert camp is not None and prof is not None
+    day = clock.local_day(now, camp.timezone)
+    run_id = await _claim(db, user_id, camp.id, day, now)
+    if run_id is None:
+        return None
+    run = await db.get(DiscoveryRun, run_id)
+    assert run is not None
+    ctx = await pipeline.load_context(db, user_id, camp, prof, llm=llm, form=form, now=now)
+    raws: list[RawPosting] = []
+    errors: list[str] = []
+    for src in sources:
+        try:
+            raws.extend(await src.search(prof.criteria or {}, now))
+        except AdapterError as exc:
+            errors.append(f"{src.name}: {exc.message}")
+    if errors and not raws and len(errors) == len(sources):
+        run.status, run.error, run.finished_at = "failed", "; ".join(errors)[:500], now
+        await db.commit()
+        await record_from(db, "autoapply.discovery_failed", user_id=user_id, errors=len(errors))
+        return run
+    seen: set[uuid.UUID] = set()
+    for raw in raws:
+        run.found += 1
+        posting, created, dup = await postings.upsert(db, raw, now)
+        if posting.id in seen:
+            continue  # the same job from two sources in one run counts once
+        seen.add(posting.id)
+        existed = (
+            await db.execute(
+                select(Application.id).where(
+                    Application.user_id == user_id, Application.posting_id == posting.id
+                )
+            )
+        ).first()
+        app, outcome = await pipeline.process(db, ctx, posting, possible_duplicate=dup)
+        if existed is None:
+            run.new += 1
+        run.eligible += outcome == "eligible"
+        run.needs_input += outcome == "needs_input"
+        run.skipped += outcome == "skipped"
+    run.status, run.finished_at = "done", now
+    run.error = "; ".join(errors)[:500] if errors else None
+    await db.commit()
+    await record_from(
+        db,
+        "autoapply.discovery_done",
+        user_id=user_id,
+        found=run.found,
+        new=run.new,
+        eligible=run.eligible,
+    )
+    return run
+
+
+async def intake_url(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    url: str,
+    *,
+    now: datetime,
+    sources: list[DiscoveryAdapter],
+    llm: Any,
+    form: Any,
+) -> tuple[Application, str] | None:
+    """A job address pasted by the candidate goes through exactly the same checks as a discovered
+    one. None when no source can read the address."""
+    camp = await campaign.current(db, user_id)
+    prof = await campaign.get_profile(db, user_id)
+    if camp is None or prof is None or camp.status != "active":
+        raise campaign.CampaignError("not_active", "Start Auto-Apply before adding a job.")
+    raw: RawPosting | None = None
+    for src in sources:
+        try:
+            raw = await src.fetch(url)
+        except AdapterError:
+            raw = None
+        if raw is not None:
+            break
+    if raw is None:
+        return None
+    posting, _created, dup = await postings.upsert(db, raw, now)
+    ctx = await pipeline.load_context(db, user_id, camp, prof, llm=llm, form=form, now=now)
+    result = await pipeline.process(db, ctx, posting, possible_duplicate=dup)
+    await db.commit()
+    return result

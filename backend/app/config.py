@@ -123,6 +123,7 @@ class Settings(BaseSettings):
     autoapply_outreach_dispatch: bool = False  # kill switch: hiring outreach from a mailbox
     autoapply_mailbox_provider: str = "fixture"  # fixture | gmail
     autoapply_discovery_sources: str = "fixture"  # comma-separated adapter names
+    autoapply_greenhouse_boards: str = ""  # comma-separated Greenhouse board tokens to read
     autoapply_allowed_recipients: str = ""  # comma-separated; set outside production to test sends
     autoapply_tick_seconds: int = 60  # how often the scheduler looks for work (0 = never)
     mailbox_encryption_key: SecretStr = SecretStr("")  # Fernet key; encrypts mailbox tokens

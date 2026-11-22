@@ -50,6 +50,8 @@ EVENT_KINDS: dict[str, tuple[str, str]] = {
     "autoapply.enabled": ("autoapply", "Switched on Auto-Apply"),
     "autoapply.paused": ("autoapply", "Paused Auto-Apply"),
     "autoapply.resumed": ("autoapply", "Resumed Auto-Apply"),
+    "autoapply.discovery_done": ("autoapply", "Daily job search finished"),
+    "autoapply.discovery_failed": ("autoapply", "Daily job search failed"),
     "autoapply.ended": ("autoapply", "A 30-day search finished"),
     "email.sent": ("email", "Email sent"),
     "email.failed": ("email", "Email failed to send"),

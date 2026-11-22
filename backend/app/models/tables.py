@@ -462,3 +462,123 @@ class Campaign(Base):
     channels: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     policy_version: Mapped[str] = mapped_column(String(20))
     authorization: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)  # what was shown
+
+
+class JobPosting(Base):
+    """One real opening, shared by everyone, whichever board it was found on. The canonical key is
+    the employer's requisition id when there is one, else the employer's own application URL."""
+
+    __tablename__ = "aa_postings"
+    id: Mapped[uuid.UUID] = _pk()
+    canonical_key: Mapped[str] = mapped_column(String(400), unique=True)
+    company: Mapped[str] = mapped_column(String(160))
+    title: Mapped[str] = mapped_column(String(240))
+    requisition_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    description: Mapped[str] = mapped_column(Text, default="")
+    region: Mapped[str | None] = mapped_column(String(200), nullable=True)  # who may apply
+    arrangement: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    contract: Mapped[str | None] = mapped_column(String(12), nullable=True)
+    seniority: Mapped[str | None] = mapped_column(String(12), nullable=True)
+    industry: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    salary_min: Mapped[float | None] = mapped_column(nullable=True)
+    salary_max: Mapped[float | None] = mapped_column(nullable=True)
+    salary_currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
+    salary_period: Mapped[str | None] = mapped_column(String(6), nullable=True)
+    sponsorship: Mapped[str | None] = mapped_column(
+        String(12), nullable=True
+    )  # offered | not_offered
+    posted_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    application_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    apply_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    apply_instructions: Mapped[str] = mapped_column(Text, default="")  # subject and documents
+    hiring_contact: Mapped[str | None] = mapped_column(String(320), nullable=True)  # public
+    questions: Mapped[list[Any]] = mapped_column(
+        JSONB, default=list, server_default=text("'[]'::jsonb")
+    )  # the form's questions: [{field, label, required, declaration}]
+    evidence: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=dict
+    )  # field -> where it came from
+    source: Mapped[str] = mapped_column(String(40), default="")
+    last_seen_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+    created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+
+
+class JobAlias(Base):
+    """Another place the same posting was listed. A repeat sighting never makes a second posting."""
+
+    __tablename__ = "aa_posting_aliases"
+    id: Mapped[uuid.UUID] = _pk()
+    posting_id: Mapped[uuid.UUID] = _fk("aa_postings.id", index=True)
+    source: Mapped[str] = mapped_column(String(40))
+    source_url: Mapped[str] = mapped_column(Text, unique=True)
+    seen_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+
+
+class DiscoveryRun(Base):
+    """One discovery run per candidate and local day. The unique key is what stops two schedulers
+    from both running."""
+
+    __tablename__ = "aa_discovery_runs"
+    __table_args__ = (UniqueConstraint("user_id", "local_day"),)
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = _fk("users.id", index=True)
+    campaign_id: Mapped[uuid.UUID] = _fk("aa_campaigns.id", index=True)
+    local_day: Mapped[date] = mapped_column(Date)
+    status: Mapped[str] = mapped_column(String(10), default="running")  # running | done | failed
+    found: Mapped[int] = mapped_column(Integer, default=0)
+    new: Mapped[int] = mapped_column(Integer, default=0)
+    eligible: Mapped[int] = mapped_column(Integer, default=0)
+    needs_input: Mapped[int] = mapped_column(Integer, default=0)
+    skipped: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    started_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+    finished_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+
+
+class Application(Base):
+    """One candidate's application to one posting. Unique per candidate and posting, so repeated
+    discovery or a second source can never produce a second application."""
+
+    __tablename__ = "aa_applications"
+    __table_args__ = (
+        UniqueConstraint("user_id", "posting_id"),
+        Index("ix_aa_applications_user_status", "user_id", "status"),
+    )
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = _fk("users.id")
+    posting_id: Mapped[uuid.UUID] = _fk("aa_postings.id")
+    campaign_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("aa_campaigns.id", ondelete="SET NULL"), nullable=True
+    )
+    # discovered | eligible | queued | sending | submitted | sent_email | needs_input |
+    # confirmation_pending | failed | skipped
+    status: Mapped[str] = mapped_column(String(22), default="discovered")
+    channel: Mapped[str | None] = mapped_column(String(8), nullable=True)  # form | email
+    match: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)  # per-rule evidence
+    score: Mapped[float] = mapped_column(default=0.0)
+    needs_input: Mapped[list[Any]] = mapped_column(
+        JSONB, default=list, server_default=text("'[]'::jsonb")
+    )  # [{kind, field, question, reason}]
+    answers: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb")
+    )  # answers given for this application only
+    package: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)  # frozen
+    package_frozen_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    profile_version: Mapped[int] = mapped_column(Integer, default=0)
+    skip_reason: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    recruiting_stage: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(_TS, default=_now, onupdate=_now)
+
+
+class ApplicationEvent(Base):
+    """What happened to an application, in order, for the candidate to read: found, matched,
+    sent, an employer reply. Never holds a CV, an email body or credentials."""
+
+    __tablename__ = "aa_application_events"
+    id: Mapped[uuid.UUID] = _pk()
+    application_id: Mapped[uuid.UUID] = _fk("aa_applications.id", index=True)
+    kind: Mapped[str] = mapped_column(String(30))
+    detail: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(_TS, default=_now)

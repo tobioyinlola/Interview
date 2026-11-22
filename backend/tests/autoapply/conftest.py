@@ -98,3 +98,66 @@ async def ada(new_client, sign_in, maker):
             db.add(Note(user_id=__import__("uuid").UUID(me["id"]), content=CV, role="PM"))
             await db.commit()
         yield c
+
+
+# ------------------------------------------------------------------ phase 2: discovery fixtures
+
+from app.autoapply.adapters import RawPosting  # noqa: E402
+from app.autoapply.fixtures import FIXTURE_HOST, FixtureDiscovery, FixtureForm  # noqa: E402
+from app.routers.autoapply import get_form, get_sources  # noqa: E402
+
+
+def job(n: int = 1, **over) -> RawPosting:
+    """A listing that matches Ada's search unless a test changes something."""
+    base = dict(
+        source="fixture",
+        source_url=f"https://board.fixture.test/jobs/{n}",
+        company="Acme",
+        title="Senior Product Manager",
+        description="Lead payments product. Remote.",
+        requisition_id=f"REQ-{n}",
+        region="Nigeria",
+        arrangement="remote",
+        application_url=f"https://{FIXTURE_HOST}/acme/{n}",
+        evidence={"region": "the listing's location line"},
+    )
+    base.update(over)
+    return RawPosting(**base)
+
+
+@pytest.fixture
+def discovery_source() -> FixtureDiscovery:
+    return FixtureDiscovery()
+
+
+@pytest.fixture
+def form() -> FixtureForm:
+    return FixtureForm()
+
+
+@pytest.fixture(autouse=True)
+def adapters(app, discovery_source, form):
+    app.dependency_overrides[get_sources] = lambda: [discovery_source]
+    app.dependency_overrides[get_form] = lambda: form
+
+
+async def start(c) -> dict:
+    """Profile saved, CV facts confirmed, campaign running."""
+    assert (await c.put("/api/autoapply/profile", json=PROFILE)).status_code == 200
+    await c.put("/api/autoapply/facts", json={"data": FACTS, "verified": True})
+    r = await c.post(
+        "/api/autoapply/campaign/enable", json={"policy_version": "2026-11", "accept": True}
+    )
+    assert r.status_code == 201, r.text
+    return r.json()
+
+
+async def run(c) -> dict:
+    r = await c.post("/api/autoapply/discovery/run")
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+async def apps(c, status: str | None = None) -> list[dict]:
+    q = f"?status={status}" if status else ""
+    return (await c.get(f"/api/autoapply/applications{q}")).json()["items"]
