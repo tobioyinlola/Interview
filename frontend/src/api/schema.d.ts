@@ -2409,6 +2409,11 @@ export interface components {
             recent: components["schemas"]["ApplicationOut"][];
             /** Review Count */
             review_count: number;
+            /**
+             * Sources
+             * @default []
+             */
+            sources: string[];
             /** State */
             state: string;
             usage: components["schemas"]["UsageOut"] | null;

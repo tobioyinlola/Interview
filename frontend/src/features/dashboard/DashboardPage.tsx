@@ -386,7 +386,7 @@ export function DashboardPage() {
   ).length;
 
   return (
-    <main className="mx-auto max-w-6xl p-4 sm:p-6 lg:p-8">
+    <main className="max-w-6xl p-4 sm:p-5 lg:px-5 lg:py-6">
       <div className="min-w-0">
         <h1 className="sr-only">Dashboard</h1>
         <p className="break-words text-3xl font-semibold tracking-tight sm:text-4xl">

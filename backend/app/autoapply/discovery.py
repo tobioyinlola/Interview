@@ -144,6 +144,22 @@ def build_sources(settings: Settings) -> list[DiscoveryAdapter]:
     return out
 
 
+SOURCE_LABELS = {
+    "fixture": "Sample jobs",
+    "greenhouse": "Greenhouse boards",
+    "lever": "Lever boards",
+    "ashby": "Ashby boards",
+    "remotive": "Remotive",
+    "arbeitnow": "Arbeitnow",
+    "remoteok": "Remote OK",
+}
+
+
+def source_labels(settings: Settings) -> list[str]:
+    """Readable names of the sources being searched, for the candidate to see."""
+    return [SOURCE_LABELS[n] for n in _names(settings.autoapply_discovery_sources) if n in SOURCE_LABELS]
+
+
 KNOWN_SOURCES = ("fixture", "greenhouse", "lever", "ashby", "remotive", "arbeitnow", "remoteok")
 
 

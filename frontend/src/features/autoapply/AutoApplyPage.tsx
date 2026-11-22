@@ -11,7 +11,16 @@ import {
   useReviewQueue,
   useRunDiscovery,
 } from "./api";
-import { DemoNotice, Fail, Pill, STAGE, Section, day, when } from "./ui";
+import {
+  DemoNotice,
+  Fail,
+  Pill,
+  STAGE,
+  Section,
+  SourceChips,
+  day,
+  when,
+} from "./ui";
 import type { AAInterview } from "../../api/types";
 
 function NextInterview({ iv }: { iv: AAInterview }) {
@@ -303,6 +312,8 @@ export function AutoApplyPage() {
       {d.demo && <DemoNotice />}
 
       <Hero d={d} />
+
+      <SourceChips sources={d.sources ?? []} />
 
       <dl
         className="grid grid-cols-2 gap-3 lg:grid-cols-4"

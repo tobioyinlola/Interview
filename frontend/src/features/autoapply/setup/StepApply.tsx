@@ -1,5 +1,5 @@
-import { useMailbox, useMailboxActions } from "../api";
-import { Fail } from "../ui";
+import { useDashboard, useMailbox, useMailboxActions } from "../api";
+import { Fail, SourceChips } from "../ui";
 import { OptionTile } from "./controls";
 import type { Draft } from "./draft";
 
@@ -12,6 +12,7 @@ export function StepApply({
   set: (p: Partial<Draft>) => void;
 }) {
   const box = useMailbox();
+  const dash = useDashboard();
   const { connect, disconnect } = useMailboxActions();
   const connected = !!box.data?.connected;
   const flip = (k: keyof Draft["channels"]) =>
@@ -23,6 +24,7 @@ export function StepApply({
         Choose each way separately. You can change this at any time, and one tap
         pauses everything.
       </p>
+      <SourceChips sources={dash.data?.sources ?? []} />
       <OptionTile
         selected={d.channels.form}
         onClick={() => flip("form")}

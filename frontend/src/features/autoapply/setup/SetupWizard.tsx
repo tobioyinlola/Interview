@@ -180,7 +180,7 @@ export function SetupWizard() {
   const percent = Math.round((idx / (STEPS.length - 1)) * 100);
 
   return (
-    <main className="mx-auto max-w-5xl p-4 pb-32 sm:p-6 lg:p-8 lg:pb-8">
+    <main className="max-w-5xl p-4 pb-32 sm:p-5 lg:px-5 lg:py-6 lg:pb-6">
       <div ref={top} />
       <header className="mb-6 space-y-1">
         <p className="text-sm text-muted">

@@ -270,6 +270,7 @@ class PrimaryAction(BaseModel):
 
 class DashboardOut(BaseModel):
     demo: bool  # sample jobs and simulated sending only: nothing reaches a real employer
+    sources: list[str] = []  # where jobs are looked for, as readable names
     state: str
     primary: PrimaryAction
     campaign: CampaignOut

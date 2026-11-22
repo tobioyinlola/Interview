@@ -7,7 +7,7 @@
     @apply mx-auto max-w-5xl space-y-6 p-4 sm:p-6 lg:p-8;
   }
   .page-narrow {
-    @apply mx-auto max-w-3xl space-y-6 p-4 sm:p-6 lg:p-8;
+    @apply max-w-4xl space-y-6 p-4 sm:p-5 lg:px-5 lg:py-6;
   }
   .card {
     @apply rounded-2xl bg-surface p-5 shadow-card;
