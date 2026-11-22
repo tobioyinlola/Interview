@@ -131,6 +131,10 @@ class Settings(BaseSettings):
     )
     autoapply_lever_companies: str = ""  # comma-separated Lever company names to read
     autoapply_ashby_boards: str = ""  # comma-separated Ashby board names to read
+    autoapply_smartrecruiters_companies: str = ""  # comma-separated SmartRecruiters company ids
+    autoapply_recruitee_companies: str = ""  # comma-separated Recruitee subdomains
+    autoapply_workable_companies: str = ""  # comma-separated Workable account names
+    autoapply_personio_companies: str = ""  # comma-separated Personio subdomains
     autoapply_greenhouse_boards: str = ""  # comma-separated Greenhouse board tokens to read
     autoapply_sample_jobs: bool = False  # demo mode: the fixture source offers built-in sample jobs
     autoapply_fixture_jobs_file: str = (
