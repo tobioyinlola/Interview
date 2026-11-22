@@ -122,6 +122,7 @@ def build_sources(settings: Settings) -> list[DiscoveryAdapter]:
     together: the same job found twice becomes one posting. Outside production only the fixture
     ever returns anything it was handed, so a staging run cannot apply for a real job."""
     from app.autoapply import sources as feeds
+    from app.autoapply import sources_more as more
 
     out: list[DiscoveryAdapter] = []
     for name in _names(settings.autoapply_discovery_sources):
@@ -139,12 +140,41 @@ def build_sources(settings: Settings) -> list[DiscoveryAdapter]:
             out.append(feeds.ArbeitnowSource())
         elif name == "remoteok":
             out.append(feeds.RemoteOkSource())
+        elif name in MORE_BROAD:
+            out.append(getattr(more, MORE_BROAD[name])())
+        elif name in MORE_COMPANY:
+            cls, setting = MORE_COMPANY[name]
+            out.append(getattr(more, cls)(_names(getattr(settings, setting))))
         else:
             log.warning("unknown discovery source", extra={"fields": {"source": name}})
     return out
 
 
+# feeds that need no list of employers, and those that read the employers named in a setting
+MORE_BROAD = {
+    "jobicy": "JobicySource",
+    "himalayas": "HimalayasSource",
+    "themuse": "MuseSource",
+    "workingnomads": "WorkingNomadsSource",
+    "weworkremotely": "WeWorkRemotelySource",
+}
+MORE_COMPANY = {
+    "smartrecruiters": ("SmartRecruitersSource", "autoapply_smartrecruiters_companies"),
+    "recruitee": ("RecruiteeSource", "autoapply_recruitee_companies"),
+    "workable": ("WorkableSource", "autoapply_workable_companies"),
+    "personio": ("PersonioSource", "autoapply_personio_companies"),
+}
+
 SOURCE_LABELS = {
+    "jobicy": "Jobicy",
+    "himalayas": "Himalayas",
+    "themuse": "The Muse",
+    "workingnomads": "Working Nomads",
+    "weworkremotely": "We Work Remotely",
+    "smartrecruiters": "SmartRecruiters boards",
+    "recruitee": "Recruitee boards",
+    "workable": "Workable boards",
+    "personio": "Personio boards",
     "fixture": "Sample jobs",
     "greenhouse": "Greenhouse boards",
     "lever": "Lever boards",
@@ -162,7 +192,17 @@ def source_labels(settings: Settings) -> list[str]:
     ]
 
 
-KNOWN_SOURCES = ("fixture", "greenhouse", "lever", "ashby", "remotive", "arbeitnow", "remoteok")
+KNOWN_SOURCES = (
+    "fixture",
+    "greenhouse",
+    "lever",
+    "ashby",
+    "remotive",
+    "arbeitnow",
+    "remoteok",
+    *MORE_BROAD,
+    *MORE_COMPANY,
+)
 
 
 async def _claim(

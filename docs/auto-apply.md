@@ -47,8 +47,8 @@ the menu link is hidden.
 | --- | --- |
 | `AUTOAPPLY_ENABLED` | Master flag (default off) |
 | `AUTOAPPLY_POLICY_VERSION` | Terms version recorded with each agreement |
-| `AUTOAPPLY_DISCOVERY_SOURCES` | Comma list, any mix: `remotive`, `arbeitnow`, `remoteok` (no setup), `greenhouse`, `lever`, `ashby` (need names below), `fixture` (demo/tests) |
-| `AUTOAPPLY_GREENHOUSE_BOARDS` / `_LEVER_COMPANIES` / `_ASHBY_BOARDS` | Comma lists of the employers' board names for those sources |
+| `AUTOAPPLY_DISCOVERY_SOURCES` | Comma list, any mix. No setup: `remotive`, `arbeitnow`, `remoteok`, `jobicy`, `himalayas`, `themuse`, `workingnomads`, `weworkremotely`. Need employer names (below): `greenhouse`, `lever`, `ashby`, `smartrecruiters`, `recruitee`, `workable`, `personio`. `fixture` is for demo/tests. Only `jobicy` was written from its published docs; the rest were written from descriptions of each feed and have **not** been run against the live services |
+| `AUTOAPPLY_GREENHOUSE_BOARDS` / `_LEVER_COMPANIES` / `_ASHBY_BOARDS` / `_SMARTRECRUITERS_COMPANIES` / `_RECRUITEE_COMPANIES` / `_WORKABLE_COMPANIES` / `_PERSONIO_COMPANIES` | Comma lists of the employers' board names for those sources |
 | `AUTOAPPLY_SAMPLE_JOBS` | Demo mode: the fixture source offers twelve built-in sample jobs and the app says sending is simulated. Never in production |
 | `AUTOAPPLY_MAILBOX_PROVIDER` | `fixture` (default) or `gmail` |
 | `AUTOAPPLY_FORM_DISPATCH` / `_EMAIL_DISPATCH` / `_OUTREACH_DISPATCH` | Allow **real** sends on that channel. Fixtures never need them |
@@ -101,3 +101,8 @@ application with its frozen package, attempts, hiring-contact notes, recruiting 
 subject, kind, times, links: no bodies) and interview records. Mailbox tokens are encrypted;
 disconnecting deletes them and asks Google to revoke. Deleting the account deletes all of it
 (every table references the user with `ON DELETE CASCADE`).
+
+
+### Sources we do not use
+
+**LinkedIn** has no public job-search API (its job API is for partners who post jobs), and its terms prohibit scraping, so it is not a source. Indeed and Glassdoor are the same. Keyed aggregators such as Adzuna and Jooble are possible later if you obtain a key. Check each board's own terms before relying on it: Himalayas asks that its jobs not be resubmitted to third-party sites, Jobicy asks for credit and at most one poll an hour, and Remotive delays its feed by 24 hours.
