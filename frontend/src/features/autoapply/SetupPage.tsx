@@ -636,9 +636,13 @@ function ChannelsSection({ profile }: { profile: AAProfile }) {
   const save = useSaveProfile();
   const box = useMailbox();
   const { connect, disconnect } = useMailboxActions();
-  const ch = profile.channels;
-  const set = (k: string, v: boolean) =>
-    save.mutate({ channels: { ...ch, [k]: v } });
+  // Shown at once and saved in the background, so a tick never waits on the network.
+  const [ch, setCh] = useState<Record<string, boolean>>(profile.channels);
+  const set = (k: string, v: boolean) => {
+    const next = { ...ch, [k]: v };
+    setCh(next);
+    save.mutate({ channels: next });
+  };
   const connected = box.data?.connected;
   return (
     <Section
@@ -768,13 +772,13 @@ function AnswersSection() {
             );
         }}
       >
-        <div>
+        <div className="w-full min-w-0 sm:w-auto">
           <label htmlFor="a-field" className="text-xs text-muted">
             Question
           </label>
           <select
             id="a-field"
-            className="input"
+            className="input w-full sm:w-auto sm:max-w-xs"
             value={field}
             onChange={(e) => setField(e.target.value)}
           >

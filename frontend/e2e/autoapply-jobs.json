@@ -1,0 +1,60 @@
+[
+  {
+    "source": "fixture",
+    "source_url": "https://board.fixture.test/jobs/1",
+    "company": "Acme",
+    "title": "Senior Product Manager",
+    "description": "Lead payments product. Remote.",
+    "requisition_id": "ACME-1",
+    "region": "Nigeria",
+    "arrangement": "remote",
+    "application_url": "https://jobs.fixture.test/acme/1",
+    "evidence": { "region": "the listing's location line" }
+  },
+  {
+    "source": "fixture",
+    "source_url": "https://board.fixture.test/jobs/2",
+    "company": "Contoso",
+    "title": "Senior Product Manager",
+    "description": "Own onboarding. Remote.",
+    "requisition_id": "CON-7",
+    "region": "Africa",
+    "arrangement": "remote",
+    "apply_email": "jobs@contoso.test",
+    "apply_instructions": "Email your CV. Subject: Senior PM",
+    "evidence": {
+      "apply_email": "How to apply: email jobs@contoso.test",
+      "region": "the location line"
+    }
+  },
+  {
+    "source": "fixture",
+    "source_url": "https://board.fixture.test/jobs/3",
+    "company": "Initech",
+    "title": "Senior Product Manager",
+    "description": "Remote role.",
+    "requisition_id": "INI-3",
+    "arrangement": "remote",
+    "application_url": "https://jobs.fixture.test/initech/3",
+    "questions": [
+      {
+        "field": "notice_period",
+        "label": "What is your notice period?",
+        "required": true
+      }
+    ],
+    "evidence": {}
+  },
+  {
+    "source": "fixture",
+    "source_url": "https://board.fixture.test/jobs/4",
+    "company": "Globex",
+    "title": "Marketing Director",
+    "description": "Lead marketing.",
+    "requisition_id": "GLO-4",
+    "region": "Nigeria",
+    "arrangement": "remote",
+    "application_url": "https://jobs.fixture.test/globex/4",
+    "evidence": {}
+  }
+]

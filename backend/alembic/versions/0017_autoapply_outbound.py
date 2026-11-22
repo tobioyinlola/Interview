@@ -62,9 +62,7 @@ def upgrade() -> None:
         sa.Column("id", UUID, primary_key=True),
         _fk("user_id", "users.id", nullable=False),
         _fk("posting_id", "aa_postings.id", nullable=False),
-        sa.Column(
-            "application_id", UUID, sa.ForeignKey("aa_applications.id", ondelete="SET NULL")
-        ),
+        sa.Column("application_id", UUID, sa.ForeignKey("aa_applications.id", ondelete="SET NULL")),
         sa.Column("recipient", sa.String(320), nullable=False),
         sa.Column("recipient_source", sa.String(20), nullable=False),
         sa.Column("subject", sa.String(300), nullable=False),

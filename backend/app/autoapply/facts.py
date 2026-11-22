@@ -119,9 +119,16 @@ async def extract(
         data = json.loads(reply)
         if isinstance(data, dict) and data:
             draft = clean(data)
-            if not draft["contact"]["email"]:
-                draft["contact"]["email"] = email
-            return draft, True
+            read_something = bool(
+                draft["contact"]["name"]
+                or draft["history"]
+                or draft["skills"]
+                or draft["education"]
+            )
+            if read_something:  # an empty reading is not a reading: fall back to patterns
+                if not draft["contact"]["email"]:
+                    draft["contact"]["email"] = email
+                return draft, True
     except (ProviderError, ValueError, TypeError):
         pass
     return guess(cv_text, email, name), False

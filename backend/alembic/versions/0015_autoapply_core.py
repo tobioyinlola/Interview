@@ -24,8 +24,12 @@ def _id() -> sa.Column:
 
 def _user(unique: bool = False) -> sa.Column:
     return sa.Column(
-        "user_id", UUID, sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False,
-        unique=unique, index=not unique,
+        "user_id",
+        UUID,
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=unique,
+        index=not unique,
     )
 
 
@@ -76,8 +80,9 @@ def upgrade() -> None:
         "aa_campaigns",
         _id(),
         _user(),
-        sa.Column("profile_id", UUID, sa.ForeignKey("aa_profiles.id", ondelete="CASCADE"),
-                  nullable=False),
+        sa.Column(
+            "profile_id", UUID, sa.ForeignKey("aa_profiles.id", ondelete="CASCADE"), nullable=False
+        ),
         sa.Column("timezone", sa.String(64), nullable=False),
         sa.Column("activated_at", TS, nullable=False),
         sa.Column("ends_at", TS, nullable=False),
@@ -90,7 +95,10 @@ def upgrade() -> None:
         sa.Column("authorization", JSONB, nullable=False),
     )
     op.create_index(
-        "uq_aa_campaign_active", "aa_campaigns", ["user_id"], unique=True,
+        "uq_aa_campaign_active",
+        "aa_campaigns",
+        ["user_id"],
+        unique=True,
         postgresql_where=sa.text("status = 'active'"),
     )
 

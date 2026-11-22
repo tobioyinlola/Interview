@@ -111,5 +111,11 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    for t in ("aa_application_events", "aa_applications", "aa_discovery_runs", "aa_posting_aliases", "aa_postings"):
+    for t in (
+        "aa_application_events",
+        "aa_applications",
+        "aa_discovery_runs",
+        "aa_posting_aliases",
+        "aa_postings",
+    ):
         op.drop_table(t)

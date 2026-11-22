@@ -29,9 +29,7 @@ def upgrade() -> None:
         sa.Column("provider_message_id", sa.String(200), nullable=False),
         sa.Column("thread_id", sa.String(200)),
         sa.Column("kind", sa.String(14), nullable=False),
-        sa.Column(
-            "application_id", UUID, sa.ForeignKey("aa_applications.id", ondelete="SET NULL")
-        ),
+        sa.Column("application_id", UUID, sa.ForeignKey("aa_applications.id", ondelete="SET NULL")),
         sa.Column("status", sa.String(14), nullable=False),
         sa.Column("evidence", JSONB, nullable=False),
         sa.Column("links", JSONB, nullable=False),
