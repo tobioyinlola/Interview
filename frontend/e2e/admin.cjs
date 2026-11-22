@@ -118,7 +118,10 @@ const staffLinks = () =>
   await page.goto(staffLinks().pop());
   await page.getByRole("navigation", { name: "Admin sections" }).waitFor();
   ok(
-    (await page.getByText("Back office", { exact: true }).isVisible()) &&
+    (await page
+      .getByRole("link", { name: "InterviewMeet" })
+      .first()
+      .isVisible()) &&
       (await page.getByText("admin-e2e@example.com").isVisible()),
     "the link opens the back office, showing who is signed in",
   );
@@ -146,6 +149,16 @@ const staffLinks = () =>
   const funnel = await page.getByRole("meter").count();
   ok(funnel >= 5, `the overview draws the funnel (${funnel} steps)`);
   await page.getByText("What needs attention").waitFor();
+  const navBox = await page
+    .getByRole("navigation", { name: "Admin sections" })
+    .boundingBox();
+  const headBox = await page
+    .getByRole("heading", { name: "Overview" })
+    .boundingBox();
+  ok(
+    navBox.x < 40 && navBox.width < 300 && navBox.x + navBox.width <= headBox.x,
+    "the sections are a sidebar down the left, like the customer app",
+  );
   await shot("5-overview");
 
   // users: search, open one, give a free interview
@@ -331,7 +344,7 @@ const staffLinks = () =>
     "/admin/emails",
   ]) {
     await page.goto(BASE + path);
-    await page.getByRole("navigation", { name: "Admin sections" }).waitFor();
+    await page.getByRole("button", { name: "Open menu" }).waitFor();
     await sleep(500);
     const fits = await page.evaluate(
       () =>
@@ -340,7 +353,9 @@ const staffLinks = () =>
     );
     ok(fits, `${path} fits a phone screen`);
   }
-  await shot("13-admin-phone", false);
+  await page.getByRole("button", { name: "Open menu" }).click();
+  await page.getByRole("navigation", { name: "Admin sections" }).waitFor();
+  await shot("13-admin-phone-menu", false);
   ok(
     errors.length === 0,
     "no uncaught page errors" + (errors.length ? ": " + errors[0] : ""),

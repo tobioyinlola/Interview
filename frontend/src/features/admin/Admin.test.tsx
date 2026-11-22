@@ -90,10 +90,13 @@ describe("admin console: access", () => {
     ).toBeNull();
   });
 
-  it("is a separate place from the app: its own header, staff name and sign out", async () => {
+  it("is a separate place from the app: its own sidebar, staff name and sign out", async () => {
     base({ "GET /api/admin/overview": () => ({ json: overview }) });
     renderApp(<App />, "/admin");
-    expect(await screen.findByText("Back office")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("navigation", { name: "Admin sections" }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Back office").length).toBeGreaterThan(0);
     expect(screen.getByText("boss@example.com")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Sign out" }),
@@ -101,7 +104,7 @@ describe("admin console: access", () => {
     expect(screen.queryByRole("navigation", { name: "Main" })).toBeNull(); // no customer sidebar
   });
 
-  it("has a tab for every section, with the current one marked", async () => {
+  it("has a sidebar link for every section, with the current one marked", async () => {
     base({ "GET /api/admin/overview": () => ({ json: overview }) });
     renderApp(<App />, "/admin");
     const tabs = within(
@@ -845,6 +848,30 @@ describe("admin console: emails", () => {
       expect(
         calls.filter((c) => c.key === "GET /api/admin/emails").length,
       ).toBeGreaterThan(1),
+    );
+  });
+
+  it("collapses to icons on a large screen and opens as a drawer on a phone", async () => {
+    base({ "GET /api/admin/overview": () => ({ json: overview }) });
+    renderApp(<App />, "/admin");
+    await screen.findByRole("navigation", { name: "Admin sections" });
+    await userEvent.click(
+      screen.getByRole("button", { name: "Collapse sidebar" }),
+    );
+    expect(
+      screen.getByRole("button", { name: "Expand sidebar" }),
+    ).toBeInTheDocument();
+    // the names stay for screen readers and as tooltips
+    expect(screen.getByRole("link", { name: "Users" })).toHaveAttribute(
+      "title",
+      "Users",
+    );
+    const toggle = screen.getByRole("button", { name: "Open menu" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await userEvent.click(toggle);
+    expect(screen.getByRole("button", { name: "Close menu" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
     );
   });
 });

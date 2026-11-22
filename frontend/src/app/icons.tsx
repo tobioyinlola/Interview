@@ -72,3 +72,16 @@ export const HelpIcon = make(
 export const CompassIcon = make(
   "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM15.5 8.5l-2 5-5 2 2-5z",
 );
+
+export const UsersIcon = make(
+  "M16 20v-1a4 4 0 00-4-4H7a4 4 0 00-4 4v1M9.5 11a3.5 3.5 0 100-7 3.5 3.5 0 000 7M21 20v-1a4 4 0 00-3-3.9M16 4.1a3.5 3.5 0 010 6.8",
+);
+export const ActivityIcon = make("M3 12h4l3-8 4 16 3-8h4");
+export const MailIcon = make("M3 6h18v12H3zM3 7l9 7 9-7");
+export const TargetIcon = make(
+  "M12 21a9 9 0 100-18 9 9 0 000 18M12 16a4 4 0 100-8 4 4 0 000 8M12 12h.01",
+);
+export const GaugeIcon = make("M4 16a8 8 0 1116 0M12 16l4-5M8 20h8");
+export const CoinIcon = make(
+  "M12 21a9 9 0 100-18 9 9 0 000 18M14.5 9.5c-.5-1-1.5-1.5-2.5-1.5-1.4 0-2.5.7-2.5 1.8 0 2.4 5 1.2 5 3.6 0 1.1-1.1 1.8-2.5 1.8-1.1 0-2-.5-2.5-1.5M12 6.5V8M12 16v1.5",
+);
