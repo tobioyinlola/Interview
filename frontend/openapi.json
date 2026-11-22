@@ -596,6 +596,146 @@
         "title": "AudioTokenOut",
         "type": "object"
       },
+      "AutoApplyAdminOut": {
+        "properties": {
+          "applications_by_status": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Applications By Status",
+            "type": "object"
+          },
+          "applications_sent": {
+            "title": "Applications Sent",
+            "type": "integer"
+          },
+          "attempts_failed": {
+            "title": "Attempts Failed",
+            "type": "integer"
+          },
+          "attempts_unresolved": {
+            "title": "Attempts Unresolved",
+            "type": "integer"
+          },
+          "campaigns_active": {
+            "title": "Campaigns Active",
+            "type": "integer"
+          },
+          "campaigns_ended": {
+            "title": "Campaigns Ended",
+            "type": "integer"
+          },
+          "campaigns_paused": {
+            "title": "Campaigns Paused",
+            "type": "integer"
+          },
+          "campaigns_started": {
+            "title": "Campaigns Started",
+            "type": "integer"
+          },
+          "cohort_size": {
+            "title": "Cohort Size",
+            "type": "integer"
+          },
+          "discovery_runs": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Discovery Runs",
+            "type": "object"
+          },
+          "dispatch": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Dispatch",
+            "type": "object"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "events_needing_review": {
+            "title": "Events Needing Review",
+            "type": "integer"
+          },
+          "hours_to_first_application": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hours To First Application"
+          },
+          "interviews": {
+            "title": "Interviews",
+            "type": "integer"
+          },
+          "invitations_per_100": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invitations Per 100"
+          },
+          "mailboxes": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Mailboxes",
+            "type": "object"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "switches": {
+            "items": {
+              "$ref": "#/components/schemas/SwitchOut"
+            },
+            "title": "Switches",
+            "type": "array"
+          },
+          "unresolved": {
+            "items": {
+              "$ref": "#/components/schemas/UnresolvedRow"
+            },
+            "title": "Unresolved",
+            "type": "array"
+          }
+        },
+        "required": [
+          "enabled",
+          "dispatch",
+          "provider",
+          "campaigns_active",
+          "campaigns_paused",
+          "campaigns_started",
+          "campaigns_ended",
+          "applications_by_status",
+          "applications_sent",
+          "interviews",
+          "invitations_per_100",
+          "cohort_size",
+          "hours_to_first_application",
+          "attempts_unresolved",
+          "attempts_failed",
+          "unresolved",
+          "mailboxes",
+          "discovery_runs",
+          "events_needing_review",
+          "switches"
+        ],
+        "title": "AutoApplyAdminOut",
+        "type": "object"
+      },
       "BillingOut": {
         "description": "How many sessions the person can start, and how far along their invite reward is.",
         "properties": {
@@ -4506,6 +4646,60 @@
         "title": "SuggestionOut",
         "type": "object"
       },
+      "SwitchIn": {
+        "properties": {
+          "on": {
+            "title": "On",
+            "type": "boolean"
+          },
+          "reason": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "on"
+        ],
+        "title": "SwitchIn",
+        "type": "object"
+      },
+      "SwitchOut": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "on": {
+            "title": "On",
+            "type": "boolean"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "set_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Set At"
+          }
+        },
+        "required": [
+          "name",
+          "on",
+          "reason"
+        ],
+        "title": "SwitchOut",
+        "type": "object"
+      },
       "TemplateInfo": {
         "properties": {
           "audience": {
@@ -4609,6 +4803,49 @@
           }
         },
         "title": "TourIn",
+        "type": "object"
+      },
+      "UnresolvedRow": {
+        "properties": {
+          "age_hours": {
+            "title": "Age Hours",
+            "type": "number"
+          },
+          "application_id": {
+            "title": "Application Id",
+            "type": "string"
+          },
+          "channel": {
+            "title": "Channel",
+            "type": "string"
+          },
+          "company": {
+            "title": "Company",
+            "type": "string"
+          },
+          "person": {
+            "title": "Person",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "application_id",
+          "person",
+          "company",
+          "title",
+          "channel",
+          "state",
+          "age_hours"
+        ],
+        "title": "UnresolvedRow",
         "type": "object"
       },
       "UsageDay": {
@@ -5643,6 +5880,104 @@
         "summary": "Verify",
         "tags": [
           "staff"
+        ]
+      }
+    },
+    "/api/admin/autoapply": {
+      "get": {
+        "operationId": "overview_api_admin_autoapply_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 365,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutoApplyAdminOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Overview",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/autoapply/switches/{name}": {
+      "put": {
+        "description": "Turn a kill switch on or off. Takes effect on the next claim, without a deploy; attempts\nalready sent are still settled.",
+        "operationId": "flip_api_admin_autoapply_switches__name__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SwitchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwitchOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Flip",
+        "tags": [
+          "admin"
         ]
       }
     },

@@ -12,7 +12,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.autoapply import campaign, clock, mailbox, outbox
+from app.autoapply import campaign, clock, mailbox, outbox, switches
 from app.autoapply.adapters import AdapterError
 from app.models import (
     Application,
@@ -178,8 +178,10 @@ async def send_next(
         ).scalar_one_or_none()
         prof = await campaign.get_profile(db, user_id)
         conn = await mailbox.get(db, user_id)
+        off = await switches.active(db)
         if (
-            camp is None
+            switches.blocked(off, "outreach", adapters.mailbox.name) is not None
+            or camp is None
             or prof is None
             or not campaign.outbound_open(camp, prof, now)
             or not (prof.channels or {}).get("outreach")

@@ -8,6 +8,8 @@ import {
 import { apiFetch } from "../../api/client";
 import type {
   AdminActivity,
+  AdminAutoApply,
+  AdminSwitch,
   AdminEmails,
   AdminMarketing,
   AdminOverview,
@@ -144,3 +146,23 @@ export const useTemplatePreview = (kind: string | null) =>
     queryFn: () => apiFetch(`/api/admin/emails/templates/${kind}`),
     enabled: kind !== null,
   });
+
+export const useAutoApplyAdmin = (days: number) =>
+  useQuery<AdminAutoApply>({
+    queryKey: ["admin", "autoapply", days],
+    queryFn: () => apiFetch(`/api/admin/autoapply${qs({ days })}`),
+    refetchInterval: 30_000,
+  });
+
+export function useFlipSwitch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { name: string; on: boolean; reason: string }) =>
+      apiFetch<AdminSwitch>(`/api/admin/autoapply/switches/${v.name}`, {
+        method: "PUT",
+        body: JSON.stringify({ on: v.on, reason: v.reason }),
+      }),
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: ["admin", "autoapply"] }),
+  });
+}

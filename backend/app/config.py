@@ -130,6 +130,9 @@ class Settings(BaseSettings):
         10  # a claim older than this was abandoned by a dead worker
     )
     autoapply_greenhouse_boards: str = ""  # comma-separated Greenhouse board tokens to read
+    autoapply_fixture_jobs_file: str = (
+        ""  # JSON list of listings for the fixture source (not production)
+    )
     autoapply_allowed_recipients: str = ""  # comma-separated; set outside production to test sends
     autoapply_tick_seconds: int = 60  # how often the scheduler looks for work (0 = never)
     mailbox_encryption_key: SecretStr = SecretStr("")  # Fernet key; encrypts mailbox tokens

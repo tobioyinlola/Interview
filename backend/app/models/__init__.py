@@ -15,6 +15,7 @@ from app.models.tables import (
     InterviewLink,
     JobAlias,
     JobPosting,
+    KillSwitch,
     LoginFailure,
     LoginToken,
     MailboxConnection,
@@ -36,6 +37,7 @@ from app.models.tables import (
 )
 
 __all__ = [
+    "KillSwitch",
     "InterviewLink",
     "RecruitingEvent",
     "MailboxConnection",

@@ -68,3 +68,5 @@ export type AAMailbox = S["MailboxOut"];
 export type AARun = S["RunOut"];
 export type AAOutreach = S["OutreachOut"];
 export type AAPrepared = S["PrepareOut"];
+export type AdminAutoApply = S["AutoApplyAdminOut"];
+export type AdminSwitch = S["SwitchOut"];

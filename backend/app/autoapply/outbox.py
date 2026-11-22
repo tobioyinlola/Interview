@@ -21,7 +21,8 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.autoapply import campaign, clock, cvfile, mailbox, pipeline
+from app import metrics
+from app.autoapply import campaign, clock, cvfile, mailbox, pipeline, switches
 from app.autoapply.adapters import (
     AdapterError,
     FormAdapter,
@@ -125,11 +126,15 @@ async def _precheck(
     prof: SearchProfile | None,
     adapters: Adapters,
     now: datetime,
+    off: set[str] | None = None,
 ) -> tuple[str, str] | None:
     """Why this must not go out now, as (action, reason): 'wait' keeps it queued, 'recheck'
     judges it again, 'skip' gives it up. None means all clear. Used at claim time and again just
     before dispatch."""
     channel = app.channel or ""
+    names = (adapters.form.name,) if channel == "form" else (adapters.mailbox.name,)
+    if (why := switches.blocked(off or set(), channel, *names)) is not None:
+        return "wait", why
     if not campaign.outbound_open(camp, prof, now):
         reason = "paused" if prof is not None and prof.paused else "the 30-day search is over"
         return ("wait" if prof is not None and prof.paused else "skip", reason)
@@ -174,7 +179,13 @@ async def claim_next(
             )
         ).scalar_one_or_none()
         prof = await campaign.get_profile(db, user_id)
-        if camp is None or prof is None or not campaign.outbound_open(camp, prof, now):
+        off = await switches.active(db)
+        if (
+            "global" in off
+            or camp is None
+            or prof is None
+            or not campaign.outbound_open(camp, prof, now)
+        ):
             await db.rollback()
             return None
         day = clock.local_day(now, camp.timezone)
@@ -197,7 +208,7 @@ async def claim_next(
         ).all()
         for app, posting in rows:
             blocked = await _precheck(
-                db, adapters.settings, app, posting, camp, prof, adapters, now
+                db, adapters.settings, app, posting, camp, prof, adapters, now, off
             )
             if blocked is not None:
                 continue  # this one cannot go now; another might
@@ -266,7 +277,10 @@ async def execute(
             )
         ).scalar_one_or_none()
         prof = await campaign.get_profile(db, app.user_id)
-        blocked = await _precheck(db, settings, app, posting, camp, prof, adapters, now)
+        off = await switches.active(
+            db
+        )  # read again: an operator may have flipped one since the claim
+        blocked = await _precheck(db, settings, app, posting, camp, prof, adapters, now, off)
         if blocked is not None:
             action, reason = blocked
             await _release(db, attempt, app, action=action, reason=reason, now=now)
@@ -285,6 +299,7 @@ async def execute(
                 return await _transient(db, attempt, app, exc, now)
             problem = form_problem(schema, pkg)
             if problem is not None:
+                metrics.autoapply_form_changed.inc()
                 await _release(
                     db, attempt, app, action="recheck", reason="the form changed", now=now
                 )
@@ -369,6 +384,7 @@ async def _transient(
     if len(prior) + 1 >= MAX_TRANSIENT_RETRIES or not exc.transient:
         attempt.state, attempt.finished_at = "failed", now
         attempt.failure_class, attempt.failure_message = exc.code, exc.message
+        metrics.autoapply_dispatch.labels(attempt.channel, "failed").inc()
         app.status = "failed"
         await pipeline.log(db, app, "failed", reason=exc.message)
         await db.commit()
@@ -423,6 +439,7 @@ async def _record(
             app.status = "confirmation_pending"
             await pipeline.log(db, app, "confirmation_pending", reason=error.message)
             await db.commit()
+            metrics.autoapply_dispatch.labels(claim.channel, "ambiguous").inc()
             return "ambiguous"
         if error.code == "reauth":
             conn = await mailbox.get(db, app.user_id)

@@ -15,6 +15,7 @@ import { ApplicationPage } from "../features/autoapply/ApplicationPage";
 import { ApplicationsPage } from "../features/autoapply/ApplicationsPage";
 import { AutoApplyPage } from "../features/autoapply/AutoApplyPage";
 import { SetupPage } from "../features/autoapply/SetupPage";
+import { AutoApplyAdminPage } from "../features/admin/AutoApplyAdminPage";
 import { ActivityPage } from "../features/admin/ActivityPage";
 import { AdminLayout } from "../features/admin/AdminLayout";
 import { EmailsAdminPage } from "../features/admin/EmailsAdminPage";
@@ -70,6 +71,7 @@ export function App() {
         <Route path="marketing" element={<MarketingPage />} />
         <Route path="quality" element={<QualityPage />} />
         <Route path="emails" element={<EmailsAdminPage />} />
+        <Route path="auto-apply" element={<AutoApplyAdminPage />} />
         <Route path="usage" element={<UsagePage />} />
       </Route>
       <Route element={<SupportedBrowser />}>

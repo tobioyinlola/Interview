@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import metrics
 from app.adapters.interfaces import LlmProvider
 from app.autoapply import matching, package
 from app.autoapply.adapters import FormAdapter
@@ -108,6 +109,8 @@ async def get_or_create(
         .returning(Application.id)
     )
     created = res.scalar_one_or_none() is not None
+    if not created:
+        metrics.autoapply_duplicates.inc()  # the same job seen again did not become a second one
     app = (
         await db.execute(
             select(Application).where(

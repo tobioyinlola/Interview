@@ -25,6 +25,7 @@ from app.observability import init_sentry
 from app.routers import (
     account,
     admin,
+    admin_autoapply,
     audio_ws,
     auth,
     autoapply,
@@ -149,6 +150,7 @@ def create_app() -> FastAPI:
         autoapply.router,
         staff_auth.router,
         admin.router,
+        admin_autoapply.router,
     ):
         app.include_router(r)
     return app

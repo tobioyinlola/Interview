@@ -158,6 +158,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/autoapply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Overview */
+        get: operations["overview_api_admin_autoapply_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/autoapply/switches/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Flip
+         * @description Turn a kill switch on or off. Takes effect on the next claim, without a deploy; attempts
+         *     already sent are still settled.
+         */
+        put: operations["flip_api_admin_autoapply_switches__name__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/emails": {
         parameters: {
             query?: never;
@@ -1976,6 +2014,57 @@ export interface components {
             /** Sample Rate */
             sample_rate: number;
         };
+        /** AutoApplyAdminOut */
+        AutoApplyAdminOut: {
+            /** Applications By Status */
+            applications_by_status: {
+                [key: string]: number;
+            };
+            /** Applications Sent */
+            applications_sent: number;
+            /** Attempts Failed */
+            attempts_failed: number;
+            /** Attempts Unresolved */
+            attempts_unresolved: number;
+            /** Campaigns Active */
+            campaigns_active: number;
+            /** Campaigns Ended */
+            campaigns_ended: number;
+            /** Campaigns Paused */
+            campaigns_paused: number;
+            /** Campaigns Started */
+            campaigns_started: number;
+            /** Cohort Size */
+            cohort_size: number;
+            /** Discovery Runs */
+            discovery_runs: {
+                [key: string]: number;
+            };
+            /** Dispatch */
+            dispatch: {
+                [key: string]: boolean;
+            };
+            /** Enabled */
+            enabled: boolean;
+            /** Events Needing Review */
+            events_needing_review: number;
+            /** Hours To First Application */
+            hours_to_first_application: number | null;
+            /** Interviews */
+            interviews: number;
+            /** Invitations Per 100 */
+            invitations_per_100: number | null;
+            /** Mailboxes */
+            mailboxes: {
+                [key: string]: number;
+            };
+            /** Provider */
+            provider: string;
+            /** Switches */
+            switches: components["schemas"]["SwitchOut"][];
+            /** Unresolved */
+            unresolved: components["schemas"]["UnresolvedRow"][];
+        };
         /**
          * BillingOut
          * @description How many sessions the person can start, and how far along their invite reward is.
@@ -3293,6 +3382,27 @@ export interface components {
             /** Utterance Id */
             utterance_id: string | null;
         };
+        /** SwitchIn */
+        SwitchIn: {
+            /** On */
+            on: boolean;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+        };
+        /** SwitchOut */
+        SwitchOut: {
+            /** Name */
+            name: string;
+            /** On */
+            on: boolean;
+            /** Reason */
+            reason: string;
+            /** Set At */
+            set_at?: string | null;
+        };
         /** TemplateInfo */
         TemplateInfo: {
             /** Audience */
@@ -3337,6 +3447,23 @@ export interface components {
              * @default true
              */
             done: boolean;
+        };
+        /** UnresolvedRow */
+        UnresolvedRow: {
+            /** Age Hours */
+            age_hours: number;
+            /** Application Id */
+            application_id: string;
+            /** Channel */
+            channel: string;
+            /** Company */
+            company: string;
+            /** Person */
+            person: string;
+            /** State */
+            state: string;
+            /** Title */
+            title: string;
         };
         /** UsageDay */
         UsageDay: {
@@ -3761,6 +3888,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StaffOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    overview_api_admin_autoapply_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutoApplyAdminOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    flip_api_admin_autoapply_switches__name__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SwitchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SwitchOut"];
                 };
             };
             /** @description Validation Error */

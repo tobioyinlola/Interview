@@ -58,11 +58,11 @@ from app.autoapply.schemas import (
     PostingOut,
     PrepareOut,
     PrimaryAction,
-    SearchProfileIn,
     ProfileOut,
     RecruitingOut,
     ResolveIn,
     RunOut,
+    SearchProfileIn,
     StatusOut,
     UsageOut,
 )

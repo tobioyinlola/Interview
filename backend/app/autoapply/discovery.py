@@ -1,5 +1,6 @@
 """Finding jobs: one run per candidate per local day, through every configured source."""
 
+import json
 import logging
 import re
 import uuid
@@ -12,6 +13,7 @@ from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import metrics
 from app.autoapply import campaign, clock, pipeline, postings
 from app.autoapply.adapters import AdapterError, DiscoveryAdapter, RawPosting
 from app.autoapply.fixtures import FixtureDiscovery
@@ -90,13 +92,28 @@ class GreenhouseDiscovery:
         return self.parse(m[1], data) if data else None
 
 
+def _fixture_jobs(settings: Settings) -> list[RawPosting]:
+    """Listings for the fixture source, read from AUTOAPPLY_FIXTURE_JOBS_FILE (a JSON list). Local
+    and staging only: it lets a whole journey be tried with no real job board."""
+    path = settings.autoapply_fixture_jobs_file
+    if not path or settings.environment == "production":
+        return []
+    out: list[RawPosting] = []
+    for item in json.loads(open(path).read()):  # noqa: SIM115, PTH123
+        for k in ("posted_at", "expires_at"):
+            if item.get(k):
+                item[k] = datetime.fromisoformat(item[k])
+        out.append(RawPosting(**item))
+    return out
+
+
 def build_sources(settings: Settings) -> list[DiscoveryAdapter]:
     """The discovery sources named in AUTOAPPLY_DISCOVERY_SOURCES. Outside production only the
     fixture is allowed to return anything, so a staging run can never apply for a real job."""
     out: list[DiscoveryAdapter] = []
     for name in (n.strip() for n in settings.autoapply_discovery_sources.split(",") if n.strip()):
         if name == "fixture":
-            out.append(FixtureDiscovery())
+            out.append(FixtureDiscovery(_fixture_jobs(settings)))
         elif name == "greenhouse":
             boards = [
                 b.strip() for b in settings.autoapply_greenhouse_boards.split(",") if b.strip()
@@ -180,6 +197,7 @@ async def run_if_due(
     if errors and not raws and len(errors) == len(sources):
         run.status, run.error, run.finished_at = "failed", "; ".join(errors)[:500], now
         await db.commit()
+        metrics.autoapply_discovery.labels("failed").inc()
         await record_from(db, "autoapply.discovery_failed", user_id=user_id, errors=len(errors))
         return run
     seen: set[uuid.UUID] = set()
@@ -205,6 +223,7 @@ async def run_if_due(
     run.status, run.finished_at = "done", now
     run.error = "; ".join(errors)[:500] if errors else None
     await db.commit()
+    metrics.autoapply_discovery.labels("done").inc()
     await record_from(
         db,
         "autoapply.discovery_done",

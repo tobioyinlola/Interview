@@ -8,15 +8,24 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app import metrics
 from app.adapters.interfaces import LlmProvider
 from app.autoapply import campaign, discovery, mailsync, outbox, outreach, pipeline
 from app.autoapply.adapters import DiscoveryAdapter, FormAdapter, MailboxAdapter
 from app.autoapply.clock import utcnow
 from app.config import Settings
-from app.models import Application, Campaign, JobPosting, MailboxConnection, Outreach
+from app.models import (
+    Application,
+    Campaign,
+    JobPosting,
+    MailboxConnection,
+    Outreach,
+    RecruitingEvent,
+    SubmissionAttempt,
+)
 
 log = logging.getLogger("app.autoapply.scheduler")
 
@@ -89,6 +98,49 @@ async def run_user(
         pass
 
 
+async def observe(maker: async_sessionmaker[AsyncSession], now: datetime) -> None:
+    """Publish how healthy the system is: queue age, unknown outcomes, stale mailboxes."""
+    async with maker() as db:
+        oldest = (
+            await db.execute(
+                select(func.min(Application.updated_at)).where(Application.status == "queued")
+            )
+        ).scalar_one()
+        metrics.autoapply_queue_age.set((now - oldest).total_seconds() if oldest else 0)
+        unresolved = (
+            await db.execute(
+                select(func.count(), func.min(SubmissionAttempt.claimed_at)).where(
+                    SubmissionAttempt.state.in_(("claimed", "dispatched", "ambiguous"))
+                )
+            )
+        ).one()
+        metrics.autoapply_unresolved.set(unresolved[0])
+        metrics.autoapply_unresolved_age.set(
+            (now - unresolved[1]).total_seconds() if unresolved[1] else 0
+        )
+        synced = (
+            await db.execute(
+                select(
+                    func.min(
+                        func.coalesce(
+                            MailboxConnection.last_synced_at, MailboxConnection.connected_at
+                        )
+                    )
+                ).where(MailboxConnection.status == "connected")
+            )
+        ).scalar_one()
+        metrics.autoapply_mailbox_staleness.set((now - synced).total_seconds() if synced else 0)
+        metrics.autoapply_review_events.set(
+            (
+                await db.execute(
+                    select(func.count())
+                    .select_from(RecruitingEvent)
+                    .where(RecruitingEvent.status == "needs_review")
+                )
+            ).scalar_one()
+        )
+
+
 async def tick(
     maker: async_sessionmaker[AsyncSession],
     now: datetime,
@@ -134,6 +186,8 @@ async def tick(
             failures += 1
             log.exception("mailbox read failed", extra={"fields": {"user": str(uid)}})
     settled = await outbox.reconcile(maker, adapters, now)
+    await observe(maker, now)
+    metrics.autoapply_tick_timestamp.set(now.timestamp())
     return {
         "closed": closed,
         "expired": expired,

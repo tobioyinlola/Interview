@@ -713,3 +713,18 @@ class InterviewLink(Base):
     )  # [{kind, at, scheduled_at}]: reschedules and cancellations stay visible
     created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
     updated_at: Mapped[datetime] = mapped_column(_TS, default=_now, onupdate=_now)
+
+
+class KillSwitch(Base):
+    """A switch an operator can flip without a deploy to stop new dispatches. Names: 'global',
+    'channel:form|email|outreach', 'provider:<adapter name>'. Attempts already in flight are still
+    settled."""
+
+    __tablename__ = "aa_kill_switches"
+    name: Mapped[str] = mapped_column(String(60), primary_key=True)
+    on: Mapped[bool] = mapped_column(Boolean, default=True)
+    reason: Mapped[str] = mapped_column(String(300), default="")
+    set_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    set_at: Mapped[datetime] = mapped_column(_TS, default=_now)
