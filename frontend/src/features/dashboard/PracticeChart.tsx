@@ -60,7 +60,13 @@ export function PracticeChart({ sessions }: { sessions: SessionSummary[] }) {
           </text>
         </g>
       ))}
-      <path d={area} fill="#7B47F3" opacity="0.1" />
+      <defs>
+        <linearGradient id="pc-fill" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="#7B47F3" stopOpacity="0.28" />
+          <stop offset="100%" stopColor="#7B47F3" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill="url(#pc-fill)" />
       <path
         d={line}
         fill="none"
