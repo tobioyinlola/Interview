@@ -18,6 +18,7 @@ dependencies = [
   "websockets>=13,<17",
   "prometheus-client>=0.20,<1",
   "pypdf>=5,<7",
+  "cryptography>=43,<50",
 ]
 
 [project.optional-dependencies]

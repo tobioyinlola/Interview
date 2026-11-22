@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import metrics
 from app.adapters.interfaces import ProviderError, ProviderNotConfigured, SttProvider
+from app.autoapply import interviews
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.deps import current_user, get_hub, get_notifier, get_scorer, get_stt, get_suggester
@@ -97,6 +98,17 @@ async def create_session(
 
     company_id = body.company_id
     brief_id = None
+    handoff_role: str | None = None
+    handoff_notes: str | None = None
+    if body.interview_id is not None:
+        if not settings.autoapply_enabled:
+            raise ApiError(404, "interview_not_found", "Interview not found.")
+        try:
+            company_id, handoff_role, handoff_notes = await interviews.session_context(
+                db, user.id, body.interview_id
+            )
+        except interviews.HandoffError as exc:
+            raise ApiError(exc.status, exc.code, exc.message) from None
     if company_id is not None:
         companies = CompaniesRepo(db, user.id)
         if await companies.get(company_id) is None:
@@ -123,13 +135,17 @@ async def create_session(
 
     note = await NotesRepo(db, user.id).get()
     role = body.role if body.role is not None else (note.role if note else "")
+    if handoff_role is not None:
+        role = handoff_role
     confirmed_at = user.practice_consent_at
     row = await SessionsRepo(db, user.id).create(
         consent_confirmed_at=confirmed_at,
         company_id=company_id,
         brief_id=brief_id,
         role=role,
-        notes_snapshot=note.content if note else "",
+        notes_snapshot=handoff_notes
+        if handoff_notes is not None
+        else (note.content if note else ""),
     )
     if credit is not None:
         credit.session_id = row.id

@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import {
   useBilling,
@@ -29,7 +29,9 @@ export function SessionSetupPage() {
   const companies = useCompanies();
   const create = useCreateSession();
   const navigate = useNavigate();
-  const [choice, setChoice] = useState("");
+  // Coming from Auto-Apply: the interview carries its own company, CV and job.
+  const interviewId = useSearchParams()[0].get("interview") ?? undefined;
+  const [choice, setChoice] = useState(interviewId ? NONE : "");
   // One idempotency key per attempt, so a double click cannot start two sessions.
   const key = useRef(crypto.randomUUID());
 
@@ -39,7 +41,7 @@ export function SessionSetupPage() {
     billing.data !== undefined && billing.data.sessions_available < 1;
   const cvUploaded = (notes.data?.content ?? "").trim().length > 0;
   const chosen = choice !== "";
-  const ready = cvUploaded && chosen && !noCredit;
+  const ready = (interviewId ? true : cvUploaded && chosen) && !noCredit;
   const company = companies.data?.find((c) => c.id === choice);
   const age = daysSince(company?.last_researched_at);
 
@@ -49,6 +51,7 @@ export function SessionSetupPage() {
         companyId: choice === NONE ? null : choice,
         role: notes.data?.role || undefined,
         key: key.current,
+        interviewId,
       },
       {
         onSuccess: (res) =>
@@ -73,47 +76,61 @@ export function SessionSetupPage() {
         its audio on the next screen.
       </p>
 
-      <section aria-labelledby="co-h" className="card space-y-2">
-        <h2 id="co-h" className="text-lg font-semibold">
-          Company
-        </h2>
-        <label htmlFor="company" className="block text-sm font-medium">
-          Which company are you interviewing with?
-        </label>
-        <select
-          id="company"
-          value={choice}
-          onChange={(e) => setChoice(e.target.value)}
-          className="input w-full"
-        >
-          <option value="">Choose…</option>
-          <option value={NONE}>No company (use my CV only)</option>
-          {companies.data?.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-        {company && isActive(company.job_status) && (
-          <p role="status" className="text-sm text-amber-800">
-            This company is still being researched. Outlines will use your CV
-            only until the brief is ready (the brief is chosen when the session
-            starts).
+      {interviewId ? (
+        <section aria-labelledby="co-h" className="card space-y-2">
+          <h2 id="co-h" className="text-lg font-semibold">
+            Your interview
+          </h2>
+          <p className="text-sm">
+            This session starts from your Auto-Apply interview. The assistant
+            will use the CV you submitted and the job as it was when you
+            applied.
           </p>
-        )}
-        {company &&
-          !isActive(company.job_status) &&
-          !company.last_researched_at && (
-            <p className="text-sm text-amber-800">
-              No brief yet, so outlines for this company will use your CV alone.
+        </section>
+      ) : (
+        <section aria-labelledby="co-h" className="card space-y-2">
+          <h2 id="co-h" className="text-lg font-semibold">
+            Company
+          </h2>
+          <label htmlFor="company" className="block text-sm font-medium">
+            Which company are you interviewing with?
+          </label>
+          <select
+            id="company"
+            value={choice}
+            onChange={(e) => setChoice(e.target.value)}
+            className="input w-full"
+          >
+            <option value="">Choose…</option>
+            <option value={NONE}>No company (use my CV only)</option>
+            {companies.data?.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          {company && isActive(company.job_status) && (
+            <p role="status" className="text-sm text-amber-800">
+              This company is still being researched. Outlines will use your CV
+              only until the brief is ready (the brief is chosen when the
+              session starts).
             </p>
           )}
-        {age !== null && age > 7 && (
-          <p className="text-sm text-amber-800">
-            The brief is {age} days old. Consider researching again first.
-          </p>
-        )}
-      </section>
+          {company &&
+            !isActive(company.job_status) &&
+            !company.last_researched_at && (
+              <p className="text-sm text-amber-800">
+                No brief yet, so outlines for this company will use your CV
+                alone.
+              </p>
+            )}
+          {age !== null && age > 7 && (
+            <p className="text-sm text-amber-800">
+              The brief is {age} days old. Consider researching again first.
+            </p>
+          )}
+        </section>
+      )}
 
       <p className="text-xs leading-relaxed text-muted">
         Your interview partner must know this assistant is listening to the call
@@ -128,15 +145,23 @@ export function SessionSetupPage() {
           Readiness
         </h2>
         <ul className="space-y-1 text-sm">
-          <Tick ok={cvUploaded}>
-            CV uploaded{" "}
-            {!cvUploaded && (
-              <Link to="/notes" className="text-accent-dark underline">
-                Upload your CV
-              </Link>
-            )}
-          </Tick>
-          <Tick ok={chosen}>Company chosen (or &quot;no company&quot;)</Tick>
+          {interviewId ? (
+            <Tick ok>Interview opened from Auto-Apply</Tick>
+          ) : (
+            <>
+              <Tick ok={cvUploaded}>
+                CV uploaded{" "}
+                {!cvUploaded && (
+                  <Link to="/notes" className="text-accent-dark underline">
+                    Upload your CV
+                  </Link>
+                )}
+              </Tick>
+              <Tick ok={chosen}>
+                Company chosen (or &quot;no company&quot;)
+              </Tick>
+            </>
+          )}
         </ul>
       </section>
 

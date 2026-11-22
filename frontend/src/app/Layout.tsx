@@ -27,6 +27,7 @@ import {
   ChevronIcon,
   GiftIcon,
   HelpIcon,
+  SendIcon,
 } from "./icons";
 
 type Item = { to: string; label: string; icon: React.ReactNode; end?: boolean };
@@ -127,6 +128,7 @@ export function Layout() {
     item("/notes", "CV", <NoteIcon />),
     item("/companies", "Companies", <BuildingIcon />),
     item("/session/new", "Interview", <MicIcon />),
+    ...(me?.autoapply ? [item("/auto-apply", "Auto-Apply", <SendIcon />)] : []),
     item("/referrals", "Invite friends", <GiftIcon />),
   ];
   const account = [

@@ -153,3 +153,58 @@ async def monitor_loop(interval: float = 0.5) -> None:
             db_pool_capacity.set(pool.size() + getattr(pool, "_max_overflow", 0))  # type: ignore[attr-defined]
         except Exception:  # noqa: BLE001, S110 - metrics must never break the app
             pass
+
+
+# ---- Auto-Apply (counts and ages only: never a CV, an email body or an address)
+autoapply_tick_timestamp = Gauge(
+    "autoapply_tick_timestamp_seconds",
+    "When the Auto-Apply scheduler last finished a pass",
+    registry=REGISTRY,
+)
+autoapply_queue_age = Gauge(
+    "autoapply_queue_age_seconds",
+    "Age of the oldest application waiting to be sent",
+    registry=REGISTRY,
+)
+autoapply_unresolved = Gauge(
+    "autoapply_unresolved_attempts",
+    "Send attempts whose outcome is still unknown",
+    registry=REGISTRY,
+)
+autoapply_unresolved_age = Gauge(
+    "autoapply_unresolved_attempt_age_seconds",
+    "Age of the oldest attempt with an unknown outcome",
+    registry=REGISTRY,
+)
+autoapply_mailbox_staleness = Gauge(
+    "autoapply_mailbox_staleness_seconds",
+    "Longest time since a connected mailbox was read",
+    registry=REGISTRY,
+)
+autoapply_review_events = Gauge(
+    "autoapply_events_needing_review",
+    "Employer messages waiting for a person to match them",
+    registry=REGISTRY,
+)
+autoapply_dispatch = Counter(
+    "autoapply_dispatch_total",
+    "Send attempts by channel and outcome",
+    ["channel", "outcome"],
+    registry=REGISTRY,
+)
+autoapply_form_changed = Counter(
+    "autoapply_form_changes_total",
+    "Sends stopped because the employer's form changed",
+    registry=REGISTRY,
+)
+autoapply_duplicates = Counter(
+    "autoapply_duplicates_prevented_total",
+    "Repeat sightings that did not become a new application",
+    registry=REGISTRY,
+)
+autoapply_discovery = Counter(
+    "autoapply_discovery_runs_total",
+    "Daily job searches by outcome",
+    ["status"],
+    registry=REGISTRY,
+)

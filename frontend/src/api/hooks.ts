@@ -343,15 +343,21 @@ export function useCreateSession() {
       companyId,
       role,
       key,
+      interviewId,
     }: {
       companyId: string | null;
       role?: string;
       key: string;
+      interviewId?: string;
     }) =>
       apiFetch<SessionCreated>("/api/sessions", {
         method: "POST",
         // Consent was agreed once, at sign-up; the server checks that it is on record.
-        body: json({ company_id: companyId, role }),
+        body: json(
+          interviewId
+            ? { interview_id: interviewId }
+            : { company_id: companyId, role },
+        ),
         headers: { "idempotency-key": key },
       }),
   });

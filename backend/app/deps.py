@@ -94,6 +94,7 @@ def me_out(user: User, settings: Settings) -> MeOut:
         full_name=user.full_name,
         onboarded=user.onboarded_at is not None,
         tour_done=user.tour_done_at is not None,
+        autoapply=settings.autoapply_enabled,
         onboarding=OnboardingAnswers(**user.onboarding) if user.onboarding else None,
     )
 

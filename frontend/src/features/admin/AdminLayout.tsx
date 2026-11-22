@@ -12,6 +12,7 @@ import {
   LogoutIcon,
   MailIcon,
   MenuIcon,
+  SendIcon,
   TargetIcon,
   UsersIcon,
 } from "../../app/icons";
@@ -42,6 +43,7 @@ const GROUPS: { title: string; items: Item[] }[] = [
     title: "Operations",
     items: [
       { to: "/admin/quality", label: "Quality", icon: <GaugeIcon /> },
+      { to: "/admin/auto-apply", label: "Auto-Apply", icon: <SendIcon /> },
       { to: "/admin/usage", label: "Cost", icon: <CoinIcon /> },
     ],
   },

@@ -81,7 +81,38 @@ def validate_settings(s: Settings) -> list[str]:
         problems.append("RESEND_API_KEY and EMAIL_FROM must be set (sign-in links are emailed).")
     if s.environment == "production" and not s.openai_api_key.get_secret_value():
         problems.append("OPENAI_API_KEY is not set (research, transcription and answers need it).")
+    problems += _autoapply_problems(s)
     return problems
+
+
+def _autoapply_problems(s: Settings) -> list[str]:
+    """Auto-Apply writes to real employers: a half-configured server must not start."""
+    if not s.autoapply_enabled:
+        return []
+    out: list[str] = []
+    real_mail = s.autoapply_mailbox_provider == "gmail"
+    if real_mail and not (s.gmail_client_id and s.gmail_client_secret.get_secret_value()):
+        out.append(
+            "AUTOAPPLY_MAILBOX_PROVIDER=gmail needs GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET."
+        )
+    if (
+        real_mail or s.autoapply_email_dispatch or s.autoapply_outreach_dispatch
+    ) and s.environment == "production":
+        if not s.mailbox_encryption_key.get_secret_value():
+            out.append("MAILBOX_ENCRYPTION_KEY must be set: mailbox tokens are stored encrypted.")
+    if s.environment != "production" and (
+        s.autoapply_form_dispatch or s.autoapply_email_dispatch or s.autoapply_outreach_dispatch
+    ):
+        if not s.autoapply_allowed_recipients:
+            out.append(
+                "Real Auto-Apply sending outside production needs AUTOAPPLY_ALLOWED_RECIPIENTS, "
+                "so a test can never reach a real employer."
+            )
+    if s.environment == "production" and "fixture" in s.autoapply_discovery_sources.split(","):
+        out.append("AUTOAPPLY_DISCOVERY_SOURCES must not include the fixture in production.")
+    if s.autoapply_mailbox_provider not in ("fixture", "gmail"):
+        out.append("AUTOAPPLY_MAILBOX_PROVIDER must be fixture or gmail.")
+    return out
 
 
 def assert_safe(s: Settings) -> None:

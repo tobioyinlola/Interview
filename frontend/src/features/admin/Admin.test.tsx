@@ -875,3 +875,118 @@ describe("admin console: emails", () => {
     );
   });
 });
+
+describe("admin console: Auto-Apply", () => {
+  const data = (over: object = {}) => ({
+    enabled: true,
+    dispatch: { form: false, email: true, outreach: false },
+    provider: "gmail",
+    campaigns_active: 4,
+    campaigns_paused: 1,
+    campaigns_started: 6,
+    campaigns_ended: 2,
+    applications_by_status: { submitted: 30, needs_input: 3 },
+    applications_sent: 30,
+    interviews: 5,
+    invitations_per_100: 12.5,
+    cohort_size: 40,
+    hours_to_first_application: 3.4,
+    attempts_unresolved: 1,
+    attempts_failed: 2,
+    unresolved: [
+      {
+        application_id: "a1",
+        person: "ada@example.com",
+        company: "Acme",
+        title: "PM",
+        channel: "email",
+        state: "ambiguous",
+        age_hours: 7.5,
+      },
+    ],
+    mailboxes: { connected: 3, reauth_needed: 1 },
+    discovery_runs: { done: 4 },
+    events_needing_review: 2,
+    switches: [
+      { name: "channel:email", on: true, reason: "testing", set_at: null },
+    ],
+    ...over,
+  });
+
+  it("shows how it is going and what is stuck", async () => {
+    base({ "GET /api/admin/autoapply": () => ({ json: data() }) });
+    renderApp(<App />, "/admin/auto-apply");
+    const totals = within(
+      await screen
+        .findByRole("group", { name: "Auto-Apply totals" })
+        .catch(() => screen.getByLabelText("Auto-Apply totals")),
+    );
+    expect(totals.getByText("12.5")).toBeInTheDocument();
+    expect(
+      totals.getByText("of 40 sent 30 to 60 days ago"),
+    ).toBeInTheDocument();
+    const stuck = within(
+      screen.getByRole("table", { name: "Unknown outcomes" }),
+    );
+    expect(stuck.getByText("ada@example.com")).toBeInTheDocument();
+    expect(stuck.getByText("7.5 h")).toBeInTheDocument();
+    expect(screen.getByText(/1 reauth needed/)).toBeInTheDocument();
+  });
+
+  it("turns a switch on or off with a reason", async () => {
+    const calls = base({
+      "GET /api/admin/autoapply": () => ({ json: data() }),
+      "PUT /api/admin/autoapply/switches/global": () => ({ json: {} }),
+      "PUT /api/admin/autoapply/switches/channel:email": () => ({ json: {} }),
+    });
+    renderApp(<App />, "/admin/auto-apply");
+    await userEvent.type(
+      await screen.findByLabelText("Reason (shown to the team)"),
+      "bad batch",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Turn on: Stop all new sends" }),
+    );
+    await waitFor(() =>
+      expect(
+        calls.find((c) => c.key === "PUT /api/admin/autoapply/switches/global")
+          ?.body,
+      ).toEqual({ on: true, reason: "bad batch" }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "Turn off: Stop emailed applications",
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        calls.find(
+          (c) => c.key === "PUT /api/admin/autoapply/switches/channel:email",
+        )?.body,
+      ).toEqual({ on: false, reason: "bad batch" }),
+    );
+  });
+
+  it("says when the feature is off and when there is no rate yet", async () => {
+    base({
+      "GET /api/admin/autoapply": () => ({
+        json: data({
+          enabled: false,
+          invitations_per_100: null,
+          unresolved: [],
+          switches: [],
+        }),
+      }),
+    });
+    renderApp(<App />, "/admin/auto-apply");
+    expect(
+      await screen.findByText(/switched off on this server/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Needs applications a month old"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Everything that went out has been confirmed/),
+    ).toBeInTheDocument();
+  });
+});

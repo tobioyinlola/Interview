@@ -512,7 +512,8 @@ def test_every_alert_uses_only_metrics_the_api_exports():
         m.name + "_total" for m in metrics.REGISTRY.collect()
     }
     words = {"rate", "sum", "by", "le", "histogram_quantile", "increase", "max_over_time", "up", "job",
-             "stage", "outcome", "status", "provider", "operation", "route", "code", "direction"}  # fmt: skip
+             "stage", "outcome", "status", "provider", "operation", "route", "code", "direction",
+             "and", "time", "channel"}  # fmt: skip
     seen = set()
     for group in rules["groups"]:
         for rule in group["rules"]:

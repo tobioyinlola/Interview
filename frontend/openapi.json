@@ -114,6 +114,465 @@
         "title": "ActivityOut",
         "type": "object"
       },
+      "AnswerApplicationIn": {
+        "properties": {
+          "field": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Field",
+            "type": "string"
+          },
+          "save_for_reuse": {
+            "default": false,
+            "title": "Save For Reuse",
+            "type": "boolean"
+          },
+          "value": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "value"
+        ],
+        "title": "AnswerApplicationIn",
+        "type": "object"
+      },
+      "AnswerIn": {
+        "properties": {
+          "question": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Question",
+            "type": "string"
+          },
+          "reusable": {
+            "default": false,
+            "title": "Reusable",
+            "type": "boolean"
+          },
+          "value": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "title": "AnswerIn",
+        "type": "object"
+      },
+      "AnswerOut": {
+        "properties": {
+          "confirmed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed At"
+          },
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "provenance": {
+            "title": "Provenance",
+            "type": "string"
+          },
+          "question": {
+            "title": "Question",
+            "type": "string"
+          },
+          "reusable": {
+            "title": "Reusable",
+            "type": "boolean"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "field",
+          "question",
+          "value",
+          "provenance",
+          "reusable",
+          "confirmed_at",
+          "version"
+        ],
+        "title": "AnswerOut",
+        "type": "object"
+      },
+      "ApplicationDetail": {
+        "properties": {
+          "attempts": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/AttemptOut"
+            },
+            "title": "Attempts",
+            "type": "array"
+          },
+          "channel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channel"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/ApplicationEventOut"
+            },
+            "title": "History",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "match": {
+            "additionalProperties": true,
+            "title": "Match",
+            "type": "object"
+          },
+          "needs_input": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Needs Input",
+            "type": "array"
+          },
+          "outreach": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OutreachOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "package": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Package"
+          },
+          "package_frozen_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Package Frozen At"
+          },
+          "posting": {
+            "$ref": "#/components/schemas/PostingOut"
+          },
+          "recruiting_stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recruiting Stage"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "skip_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skip Reason"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "channel",
+          "posting",
+          "score",
+          "needs_input",
+          "skip_reason",
+          "recruiting_stage",
+          "created_at",
+          "updated_at",
+          "match",
+          "package",
+          "package_frozen_at",
+          "history"
+        ],
+        "title": "ApplicationDetail",
+        "type": "object"
+      },
+      "ApplicationEventOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "detail": {
+            "additionalProperties": true,
+            "title": "Detail",
+            "type": "object"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "detail",
+          "created_at"
+        ],
+        "title": "ApplicationEventOut",
+        "type": "object"
+      },
+      "ApplicationOut": {
+        "properties": {
+          "channel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channel"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "needs_input": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Needs Input",
+            "type": "array"
+          },
+          "posting": {
+            "$ref": "#/components/schemas/PostingOut"
+          },
+          "recruiting_stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recruiting Stage"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "skip_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skip Reason"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "channel",
+          "posting",
+          "score",
+          "needs_input",
+          "skip_reason",
+          "recruiting_stage",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ApplicationOut",
+        "type": "object"
+      },
+      "ApplicationPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ApplicationOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "ApplicationPage",
+        "type": "object"
+      },
+      "ApproveIn": {
+        "properties": {
+          "rule": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Rule",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rule"
+        ],
+        "title": "ApproveIn",
+        "type": "object"
+      },
+      "AttemptOut": {
+        "properties": {
+          "channel": {
+            "title": "Channel",
+            "type": "string"
+          },
+          "claimed_at": {
+            "format": "date-time",
+            "title": "Claimed At",
+            "type": "string"
+          },
+          "failure_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Message"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "provider_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Ref"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "channel",
+          "state",
+          "provider_ref",
+          "failure_message",
+          "claimed_at",
+          "finished_at"
+        ],
+        "title": "AttemptOut",
+        "type": "object"
+      },
       "AudioTokenOut": {
         "properties": {
           "audio_token": {
@@ -135,6 +594,146 @@
           "sample_rate"
         ],
         "title": "AudioTokenOut",
+        "type": "object"
+      },
+      "AutoApplyAdminOut": {
+        "properties": {
+          "applications_by_status": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Applications By Status",
+            "type": "object"
+          },
+          "applications_sent": {
+            "title": "Applications Sent",
+            "type": "integer"
+          },
+          "attempts_failed": {
+            "title": "Attempts Failed",
+            "type": "integer"
+          },
+          "attempts_unresolved": {
+            "title": "Attempts Unresolved",
+            "type": "integer"
+          },
+          "campaigns_active": {
+            "title": "Campaigns Active",
+            "type": "integer"
+          },
+          "campaigns_ended": {
+            "title": "Campaigns Ended",
+            "type": "integer"
+          },
+          "campaigns_paused": {
+            "title": "Campaigns Paused",
+            "type": "integer"
+          },
+          "campaigns_started": {
+            "title": "Campaigns Started",
+            "type": "integer"
+          },
+          "cohort_size": {
+            "title": "Cohort Size",
+            "type": "integer"
+          },
+          "discovery_runs": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Discovery Runs",
+            "type": "object"
+          },
+          "dispatch": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Dispatch",
+            "type": "object"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "events_needing_review": {
+            "title": "Events Needing Review",
+            "type": "integer"
+          },
+          "hours_to_first_application": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hours To First Application"
+          },
+          "interviews": {
+            "title": "Interviews",
+            "type": "integer"
+          },
+          "invitations_per_100": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invitations Per 100"
+          },
+          "mailboxes": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Mailboxes",
+            "type": "object"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "switches": {
+            "items": {
+              "$ref": "#/components/schemas/SwitchOut"
+            },
+            "title": "Switches",
+            "type": "array"
+          },
+          "unresolved": {
+            "items": {
+              "$ref": "#/components/schemas/UnresolvedRow"
+            },
+            "title": "Unresolved",
+            "type": "array"
+          }
+        },
+        "required": [
+          "enabled",
+          "dispatch",
+          "provider",
+          "campaigns_active",
+          "campaigns_paused",
+          "campaigns_started",
+          "campaigns_ended",
+          "applications_by_status",
+          "applications_sent",
+          "interviews",
+          "invitations_per_100",
+          "cohort_size",
+          "hours_to_first_application",
+          "attempts_unresolved",
+          "attempts_failed",
+          "unresolved",
+          "mailboxes",
+          "discovery_runs",
+          "events_needing_review",
+          "switches"
+        ],
+        "title": "AutoApplyAdminOut",
         "type": "object"
       },
       "BillingOut": {
@@ -431,6 +1030,99 @@
           "not_found"
         ],
         "title": "BriefSection",
+        "type": "object"
+      },
+      "CampaignOut": {
+        "properties": {
+          "activated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activated At"
+          },
+          "day": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day"
+          },
+          "days_total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days Total"
+          },
+          "ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends At"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "title": "CampaignOut",
+        "type": "object"
+      },
+      "CandidateApp": {
+        "properties": {
+          "company": {
+            "title": "Company",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "company",
+          "title"
+        ],
+        "title": "CandidateApp",
         "type": "object"
       },
       "ChannelRow": {
@@ -734,6 +1426,44 @@
         "title": "CompanySummary",
         "type": "object"
       },
+      "ConfirmTimeIn": {
+        "properties": {
+          "timezone": {
+            "maxLength": 64,
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "timezone"
+        ],
+        "title": "ConfirmTimeIn",
+        "type": "object"
+      },
+      "ConnectOut": {
+        "properties": {
+          "connected": {
+            "title": "Connected",
+            "type": "boolean"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "required": [
+          "connected"
+        ],
+        "title": "ConnectOut",
+        "type": "object"
+      },
       "CreditBreakdown": {
         "properties": {
           "gifted": {
@@ -824,6 +1554,173 @@
           "updated_at"
         ],
         "title": "CvUploadOut",
+        "type": "object"
+      },
+      "DashboardOut": {
+        "properties": {
+          "campaign": {
+            "$ref": "#/components/schemas/CampaignOut"
+          },
+          "channels": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Channels",
+            "type": "object"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "last_run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mailbox": {
+            "$ref": "#/components/schemas/MailboxOut"
+          },
+          "needs_input": {
+            "items": {
+              "$ref": "#/components/schemas/ApplicationOut"
+            },
+            "title": "Needs Input",
+            "type": "array"
+          },
+          "next_interview": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InterviewOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "open_invites": {
+            "items": {
+              "$ref": "#/components/schemas/InterviewOut"
+            },
+            "title": "Open Invites",
+            "type": "array"
+          },
+          "paused": {
+            "title": "Paused",
+            "type": "boolean"
+          },
+          "primary": {
+            "$ref": "#/components/schemas/PrimaryAction"
+          },
+          "recent": {
+            "items": {
+              "$ref": "#/components/schemas/ApplicationOut"
+            },
+            "title": "Recent",
+            "type": "array"
+          },
+          "review_count": {
+            "title": "Review Count",
+            "type": "integer"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UsageOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "state",
+          "primary",
+          "campaign",
+          "paused",
+          "mailbox",
+          "channels",
+          "last_run",
+          "usage",
+          "next_interview",
+          "open_invites",
+          "needs_input",
+          "recent",
+          "counts",
+          "review_count"
+        ],
+        "title": "DashboardOut",
+        "type": "object"
+      },
+      "Disclosure": {
+        "properties": {
+          "channels": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Channels",
+            "type": "object"
+          },
+          "daily_application_cap": {
+            "title": "Daily Application Cap",
+            "type": "integer"
+          },
+          "daily_outreach_cap": {
+            "title": "Daily Outreach Cap",
+            "type": "integer"
+          },
+          "mailbox": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mailbox"
+          },
+          "policy_version": {
+            "title": "Policy Version",
+            "type": "string"
+          },
+          "problems": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "shared": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Shared",
+            "type": "array"
+          }
+        },
+        "required": [
+          "policy_version",
+          "shared",
+          "channels",
+          "daily_application_cap",
+          "daily_outreach_cap",
+          "mailbox",
+          "problems"
+        ],
+        "title": "Disclosure",
         "type": "object"
       },
       "EmailKindRow": {
@@ -926,6 +1823,86 @@
           "items"
         ],
         "title": "EmailsOut",
+        "type": "object"
+      },
+      "EnableIn": {
+        "properties": {
+          "accept": {
+            "title": "Accept",
+            "type": "boolean"
+          },
+          "policy_version": {
+            "maxLength": 20,
+            "title": "Policy Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "policy_version",
+          "accept"
+        ],
+        "title": "EnableIn",
+        "type": "object"
+      },
+      "FactsIn": {
+        "properties": {
+          "data": {
+            "additionalProperties": true,
+            "title": "Data",
+            "type": "object"
+          },
+          "verified": {
+            "default": false,
+            "title": "Verified",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "FactsIn",
+        "type": "object"
+      },
+      "FactsOut": {
+        "properties": {
+          "cv_changed": {
+            "default": false,
+            "title": "Cv Changed",
+            "type": "boolean"
+          },
+          "data": {
+            "additionalProperties": true,
+            "title": "Data",
+            "type": "object"
+          },
+          "from_model": {
+            "default": true,
+            "title": "From Model",
+            "type": "boolean"
+          },
+          "verified_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified At"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "data",
+          "version",
+          "verified_at"
+        ],
+        "title": "FactsOut",
         "type": "object"
       },
       "FeedbackIn": {
@@ -1131,6 +2108,131 @@
         "title": "HeldRow",
         "type": "object"
       },
+      "InterviewOut": {
+        "properties": {
+          "action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action"
+          },
+          "application_id": {
+            "title": "Application Id",
+            "type": "string"
+          },
+          "company": {
+            "title": "Company",
+            "type": "string"
+          },
+          "company_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Id"
+          },
+          "history": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "History",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_event_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Event Id"
+          },
+          "meeting_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meeting Url"
+          },
+          "round": {
+            "title": "Round",
+            "type": "integer"
+          },
+          "scheduled_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scheduled At"
+          },
+          "scheduling_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scheduling Url"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "time_zone_unclear": {
+            "title": "Time Zone Unclear",
+            "type": "boolean"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "application_id",
+          "company",
+          "title",
+          "round",
+          "status",
+          "scheduling_url",
+          "meeting_url",
+          "scheduled_at",
+          "time_zone_unclear",
+          "company_id",
+          "last_event_id",
+          "action",
+          "history"
+        ],
+        "title": "InterviewOut",
+        "type": "object"
+      },
       "JobOut": {
         "properties": {
           "error": {
@@ -1184,6 +2286,21 @@
           "finished_at"
         ],
         "title": "JobOut",
+        "type": "object"
+      },
+      "JobUrlIn": {
+        "properties": {
+          "url": {
+            "maxLength": 2000,
+            "minLength": 8,
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "title": "JobUrlIn",
         "type": "object"
       },
       "LatencyOut": {
@@ -1242,6 +2359,19 @@
         "title": "LatencyOut",
         "type": "object"
       },
+      "LinkEventIn": {
+        "properties": {
+          "application_id": {
+            "title": "Application Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "application_id"
+        ],
+        "title": "LinkEventIn",
+        "type": "object"
+      },
       "LoginIn": {
         "properties": {
           "email": {
@@ -1261,6 +2391,69 @@
           "password"
         ],
         "title": "LoginIn",
+        "type": "object"
+      },
+      "MailboxOut": {
+        "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "can_connect": {
+            "default": true,
+            "title": "Can Connect",
+            "type": "boolean"
+          },
+          "connected": {
+            "title": "Connected",
+            "type": "boolean"
+          },
+          "last_synced_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Synced At"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "required": [
+          "connected"
+        ],
+        "title": "MailboxOut",
         "type": "object"
       },
       "MarketingOut": {
@@ -1349,6 +2542,11 @@
       },
       "MeOut": {
         "properties": {
+          "autoapply": {
+            "default": false,
+            "title": "Autoapply",
+            "type": "boolean"
+          },
           "email": {
             "title": "Email",
             "type": "string"
@@ -1658,6 +2856,106 @@
         "title": "OnboardingIn",
         "type": "object"
       },
+      "OutreachIn": {
+        "properties": {
+          "recipient": {
+            "maxLength": 320,
+            "minLength": 3,
+            "title": "Recipient",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipient"
+        ],
+        "title": "OutreachIn",
+        "type": "object"
+      },
+      "OutreachOut": {
+        "properties": {
+          "application_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Application Id"
+          },
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "company": {
+            "title": "Company",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "recipient": {
+            "title": "Recipient",
+            "type": "string"
+          },
+          "recipient_source": {
+            "title": "Recipient Source",
+            "type": "string"
+          },
+          "sent_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "application_id",
+          "company",
+          "title",
+          "recipient",
+          "recipient_source",
+          "subject",
+          "body",
+          "status",
+          "reason",
+          "sent_at"
+        ],
+        "title": "OutreachOut",
+        "type": "object"
+      },
       "OverviewOut": {
         "properties": {
           "avg_questions_per_session": {
@@ -1791,6 +3089,149 @@
         "title": "PasteIn",
         "type": "object"
       },
+      "PostingOut": {
+        "properties": {
+          "application_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Application Url"
+          },
+          "arrangement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Arrangement"
+          },
+          "company": {
+            "title": "Company",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "company",
+          "title",
+          "region",
+          "arrangement",
+          "application_url",
+          "source"
+        ],
+        "title": "PostingOut",
+        "type": "object"
+      },
+      "PrepareOut": {
+        "properties": {
+          "company_id": {
+            "title": "Company Id",
+            "type": "string"
+          },
+          "interview_id": {
+            "title": "Interview Id",
+            "type": "string"
+          },
+          "research_started": {
+            "title": "Research Started",
+            "type": "boolean"
+          },
+          "session_url": {
+            "title": "Session Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "interview_id",
+          "company_id",
+          "session_url",
+          "research_started"
+        ],
+        "title": "PrepareOut",
+        "type": "object"
+      },
+      "PrimaryAction": {
+        "properties": {
+          "application_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Application Id"
+          },
+          "href": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Href"
+          },
+          "interview_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interview Id"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "label"
+        ],
+        "title": "PrimaryAction",
+        "type": "object"
+      },
       "ProfileIn": {
         "properties": {
           "full_name": {
@@ -1804,6 +3245,61 @@
           "full_name"
         ],
         "title": "ProfileIn",
+        "type": "object"
+      },
+      "ProfileOut": {
+        "properties": {
+          "active_hours": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Active Hours",
+            "type": "object"
+          },
+          "channels": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Channels",
+            "type": "object"
+          },
+          "criteria": {
+            "additionalProperties": true,
+            "title": "Criteria",
+            "type": "object"
+          },
+          "daily_application_cap": {
+            "title": "Daily Application Cap",
+            "type": "integer"
+          },
+          "daily_outreach_cap": {
+            "title": "Daily Outreach Cap",
+            "type": "integer"
+          },
+          "paused": {
+            "title": "Paused",
+            "type": "boolean"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "criteria",
+          "timezone",
+          "active_hours",
+          "channels",
+          "daily_application_cap",
+          "daily_outreach_cap",
+          "paused",
+          "version"
+        ],
+        "title": "ProfileOut",
         "type": "object"
       },
       "ProvidersOut": {
@@ -1918,6 +3414,103 @@
           "scoring_failed_pct"
         ],
         "title": "QualityOut",
+        "type": "object"
+      },
+      "RecruitingOut": {
+        "properties": {
+          "application_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Application Id"
+          },
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/CandidateApp"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "links": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Links",
+            "type": "object"
+          },
+          "matched_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matched By"
+          },
+          "received_at": {
+            "format": "date-time",
+            "title": "Received At",
+            "type": "string"
+          },
+          "scheduled_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scheduled At"
+          },
+          "sender": {
+            "title": "Sender",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "time_zone_unclear": {
+            "title": "Time Zone Unclear",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "received_at",
+          "sender",
+          "subject",
+          "matched_by",
+          "application_id",
+          "candidates",
+          "scheduled_at",
+          "time_zone_unclear",
+          "links"
+        ],
+        "title": "RecruitingOut",
         "type": "object"
       },
       "ReferralsOut": {
@@ -2089,6 +3682,93 @@
         "title": "ResetIn",
         "type": "object"
       },
+      "ResolveIn": {
+        "properties": {
+          "sent": {
+            "title": "Sent",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "sent"
+        ],
+        "title": "ResolveIn",
+        "type": "object"
+      },
+      "RunOut": {
+        "properties": {
+          "eligible": {
+            "title": "Eligible",
+            "type": "integer"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "found": {
+            "title": "Found",
+            "type": "integer"
+          },
+          "local_day": {
+            "title": "Local Day",
+            "type": "string"
+          },
+          "needs_input": {
+            "title": "Needs Input",
+            "type": "integer"
+          },
+          "new": {
+            "title": "New",
+            "type": "integer"
+          },
+          "skipped": {
+            "title": "Skipped",
+            "type": "integer"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "local_day",
+          "status",
+          "found",
+          "new",
+          "eligible",
+          "needs_input",
+          "skipped",
+          "error",
+          "started_at",
+          "finished_at"
+        ],
+        "title": "RunOut",
+        "type": "object"
+      },
       "ScoreOut": {
         "properties": {
           "answer_text": {
@@ -2168,6 +3848,86 @@
           "status"
         ],
         "title": "ScoreStartedOut",
+        "type": "object"
+      },
+      "SearchProfileIn": {
+        "properties": {
+          "active_hours": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Hours"
+          },
+          "channels": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "boolean"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channels"
+          },
+          "criteria": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Criteria"
+          },
+          "daily_application_cap": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Application Cap"
+          },
+          "daily_outreach_cap": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Outreach Cap"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone"
+          }
+        },
+        "title": "SearchProfileIn",
         "type": "object"
       },
       "SegmentOut": {
@@ -2273,6 +4033,18 @@
               }
             ],
             "title": "Consent"
+          },
+          "interview_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interview Id"
           },
           "role": {
             "anyOf": [
@@ -2753,19 +4525,6 @@
         "title": "StaffOut",
         "type": "object"
       },
-      "StatusOut": {
-        "properties": {
-          "status": {
-            "title": "Status",
-            "type": "string"
-          }
-        },
-        "required": [
-          "status"
-        ],
-        "title": "StatusOut",
-        "type": "object"
-      },
       "SuggestIn": {
         "properties": {
           "question_text": {
@@ -2887,6 +4646,60 @@
         "title": "SuggestionOut",
         "type": "object"
       },
+      "SwitchIn": {
+        "properties": {
+          "on": {
+            "title": "On",
+            "type": "boolean"
+          },
+          "reason": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "on"
+        ],
+        "title": "SwitchIn",
+        "type": "object"
+      },
+      "SwitchOut": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "on": {
+            "title": "On",
+            "type": "boolean"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "set_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Set At"
+          }
+        },
+        "required": [
+          "name",
+          "on",
+          "reason"
+        ],
+        "title": "SwitchOut",
+        "type": "object"
+      },
       "TemplateInfo": {
         "properties": {
           "audience": {
@@ -2992,6 +4805,49 @@
         "title": "TourIn",
         "type": "object"
       },
+      "UnresolvedRow": {
+        "properties": {
+          "age_hours": {
+            "title": "Age Hours",
+            "type": "number"
+          },
+          "application_id": {
+            "title": "Application Id",
+            "type": "string"
+          },
+          "channel": {
+            "title": "Channel",
+            "type": "string"
+          },
+          "company": {
+            "title": "Company",
+            "type": "string"
+          },
+          "person": {
+            "title": "Person",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "application_id",
+          "person",
+          "company",
+          "title",
+          "channel",
+          "state",
+          "age_hours"
+        ],
+        "title": "UnresolvedRow",
+        "type": "object"
+      },
       "UsageDay": {
         "properties": {
           "active_users": {
@@ -3043,6 +4899,34 @@
           "estimated_cost_usd"
         ],
         "title": "UsageDay",
+        "type": "object"
+      },
+      "UsageOut": {
+        "properties": {
+          "applications_cap": {
+            "title": "Applications Cap",
+            "type": "integer"
+          },
+          "applications_used": {
+            "title": "Applications Used",
+            "type": "integer"
+          },
+          "outreach_cap": {
+            "title": "Outreach Cap",
+            "type": "integer"
+          },
+          "outreach_used": {
+            "title": "Outreach Used",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "applications_used",
+          "applications_cap",
+          "outreach_used",
+          "outreach_cap"
+        ],
+        "title": "UsageOut",
         "type": "object"
       },
       "UsageSummary": {
@@ -3540,6 +5424,36 @@
         ],
         "title": "VerifyIn",
         "type": "object"
+      },
+      "app__autoapply__schemas__StatusOut": {
+        "properties": {
+          "campaign": {
+            "$ref": "#/components/schemas/CampaignOut"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled",
+          "campaign"
+        ],
+        "title": "StatusOut",
+        "type": "object"
+      },
+      "app__schemas__api__StatusOut": {
+        "properties": {
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "StatusOut",
+        "type": "object"
       }
     }
   },
@@ -3558,7 +5472,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StatusOut"
+                  "$ref": "#/components/schemas/app__schemas__api__StatusOut"
                 }
               }
             },
@@ -3851,7 +5765,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StatusOut"
+                  "$ref": "#/components/schemas/app__schemas__api__StatusOut"
                 }
               }
             },
@@ -3904,7 +5818,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StatusOut"
+                  "$ref": "#/components/schemas/app__schemas__api__StatusOut"
                 }
               }
             },
@@ -3966,6 +5880,104 @@
         "summary": "Verify",
         "tags": [
           "staff"
+        ]
+      }
+    },
+    "/api/admin/autoapply": {
+      "get": {
+        "operationId": "overview_api_admin_autoapply_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 365,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutoApplyAdminOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Overview",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/autoapply/switches/{name}": {
+      "put": {
+        "description": "Turn a kill switch on or off. Takes effect on the next claim, without a deploy; attempts\nalready sent are still settled.",
+        "operationId": "flip_api_admin_autoapply_switches__name__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SwitchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwitchOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Flip",
+        "tags": [
+          "admin"
         ]
       }
     },
@@ -4807,7 +6819,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StatusOut"
+                  "$ref": "#/components/schemas/app__schemas__api__StatusOut"
                 }
               }
             },
@@ -4861,7 +6873,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StatusOut"
+                  "$ref": "#/components/schemas/app__schemas__api__StatusOut"
                 }
               }
             },
@@ -4903,7 +6915,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StatusOut"
+                  "$ref": "#/components/schemas/app__schemas__api__StatusOut"
                 }
               }
             },
@@ -4987,7 +6999,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StatusOut"
+                  "$ref": "#/components/schemas/app__schemas__api__StatusOut"
                 }
               }
             },
@@ -5049,6 +7061,1357 @@
         "summary": "Verify",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/autoapply/answers": {
+      "get": {
+        "operationId": "list_answers_api_autoapply_answers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AnswerOut"
+                  },
+                  "title": "Response List Answers Api Autoapply Answers Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Answers",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/answers/{field}": {
+      "delete": {
+        "operationId": "delete_answer_api_autoapply_answers__field__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "field",
+            "required": true,
+            "schema": {
+              "title": "Field",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__schemas__api__StatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Answer",
+        "tags": [
+          "autoapply"
+        ]
+      },
+      "put": {
+        "operationId": "save_answer_api_autoapply_answers__field__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "field",
+            "required": true,
+            "schema": {
+              "title": "Field",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnswerOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Answer",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/applications": {
+      "get": {
+        "operationId": "list_applications_api_autoapply_applications_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Before"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Applications",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/applications/{application_id}": {
+      "get": {
+        "operationId": "application_detail_api_autoapply_applications__application_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "application_id",
+            "required": true,
+            "schema": {
+              "title": "Application Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Application Detail",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/applications/{application_id}/answer": {
+      "post": {
+        "description": "Answer the question the application is waiting on, then prepare it again.",
+        "operationId": "answer_question_api_autoapply_applications__application_id__answer_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "application_id",
+            "required": true,
+            "schema": {
+              "title": "Application Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerApplicationIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Answer Question",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/applications/{application_id}/approve": {
+      "post": {
+        "description": "The candidate has looked at a criterion the listing did not settle and says to go ahead.",
+        "operationId": "approve_rule_api_autoapply_applications__application_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "application_id",
+            "required": true,
+            "schema": {
+              "title": "Application Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve Rule",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/applications/{application_id}/outreach": {
+      "post": {
+        "description": "Name a hiring contact for this role. One note per role, under its own daily limit.",
+        "operationId": "request_outreach_api_autoapply_applications__application_id__outreach_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "application_id",
+            "required": true,
+            "schema": {
+              "title": "Application Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutreachIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutreachOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Request Outreach",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/applications/{application_id}/resolve": {
+      "post": {
+        "description": "The candidate says what really happened to an application we could not confirm.",
+        "operationId": "resolve_unknown_api_autoapply_applications__application_id__resolve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "application_id",
+            "required": true,
+            "schema": {
+              "title": "Application Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resolve Unknown",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/applications/{application_id}/retry": {
+      "post": {
+        "description": "Check an application again, including one the candidate skipped earlier.",
+        "operationId": "retry_application_api_autoapply_applications__application_id__retry_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "application_id",
+            "required": true,
+            "schema": {
+              "title": "Application Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Retry Application",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/applications/{application_id}/skip": {
+      "post": {
+        "operationId": "skip_application_api_autoapply_applications__application_id__skip_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "application_id",
+            "required": true,
+            "schema": {
+              "title": "Application Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Skip Application",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/authorization": {
+      "get": {
+        "description": "What the person is agreeing to, and what is still missing, shown before they switch on.",
+        "operationId": "disclosure_api_autoapply_authorization_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Disclosure"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Disclosure",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/campaign/enable": {
+      "post": {
+        "operationId": "enable_api_autoapply_campaign_enable_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnableIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Enable",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/campaign/pause": {
+      "post": {
+        "operationId": "pause_api_autoapply_campaign_pause_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Pause",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/campaign/resume": {
+      "post": {
+        "operationId": "resume_api_autoapply_campaign_resume_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Resume",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/dashboard": {
+      "get": {
+        "description": "Next interview, what needs the candidate, and recent applications, in that order.",
+        "operationId": "read_dashboard_api_autoapply_dashboard_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Dashboard",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/discovery/last": {
+      "get": {
+        "operationId": "last_run_api_autoapply_discovery_last_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/RunOut"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Last Run Api Autoapply Discovery Last Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Last Run",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/discovery/run": {
+      "post": {
+        "description": "Run today's search now. If it already ran today, nothing changes and that run is returned.",
+        "operationId": "run_discovery_api_autoapply_discovery_run_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/RunOut"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Run Discovery Api Autoapply Discovery Run Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Run Discovery",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/facts": {
+      "get": {
+        "operationId": "read_facts_api_autoapply_facts_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/FactsOut"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Read Facts Api Autoapply Facts Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Facts",
+        "tags": [
+          "autoapply"
+        ]
+      },
+      "put": {
+        "operationId": "write_facts_api_autoapply_facts_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FactsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Write Facts",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/facts/extract": {
+      "post": {
+        "description": "Read the CV into a draft for the person to check. Nothing is confirmed by this call.",
+        "operationId": "extract_facts_api_autoapply_facts_extract_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Extract Facts",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/interviews": {
+      "get": {
+        "operationId": "list_interviews_api_autoapply_interviews_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InterviewOut"
+                  },
+                  "title": "Response List Interviews Api Autoapply Interviews Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Interviews",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/interviews/{interview_id}/prepare": {
+      "post": {
+        "description": "Open this interview in the preparation part of the app: its company is created (or found)\nand researched, and the session starts with the submitted CV and application.",
+        "operationId": "prepare_interview_api_autoapply_interviews__interview_id__prepare_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "interview_id",
+            "required": true,
+            "schema": {
+              "title": "Interview Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrepareOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Prepare Interview",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/jobs": {
+      "post": {
+        "description": "A job address pasted by the candidate goes through the same checks as a discovered one.",
+        "operationId": "add_job_api_autoapply_jobs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobUrlIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Job",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/mailbox": {
+      "get": {
+        "operationId": "read_mailbox_api_autoapply_mailbox_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MailboxOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Mailbox",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/mailbox/callback": {
+      "get": {
+        "description": "Google sends the browser back here. The state must match the cookie set when this person\nstarted, and that cookie must name this very account.",
+        "operationId": "mailbox_callback_api_autoapply_mailbox_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "State",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "error",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Error",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mailbox Callback",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/mailbox/connect": {
+      "post": {
+        "description": "Gmail: returns the Google address to approve access at. Fixture mode connects at once.",
+        "operationId": "connect_mailbox_api_autoapply_mailbox_connect_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Connect Mailbox",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/mailbox/disconnect": {
+      "post": {
+        "description": "Stop sends and reads, revoke access, delete the credential. Other channels stay on.",
+        "operationId": "disconnect_mailbox_api_autoapply_mailbox_disconnect_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MailboxOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Disconnect Mailbox",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/outreach": {
+      "get": {
+        "operationId": "list_outreach_api_autoapply_outreach_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OutreachOut"
+                  },
+                  "title": "Response List Outreach Api Autoapply Outreach Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Outreach",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/profile": {
+      "get": {
+        "operationId": "read_profile_api_autoapply_profile_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Profile",
+        "tags": [
+          "autoapply"
+        ]
+      },
+      "put": {
+        "operationId": "write_profile_api_autoapply_profile_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchProfileIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Write Profile",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/recruiting": {
+      "get": {
+        "operationId": "list_recruiting_api_autoapply_recruiting_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RecruitingOut"
+                  },
+                  "title": "Response List Recruiting Api Autoapply Recruiting Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Recruiting",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/recruiting/{event_id}/confirm-time": {
+      "post": {
+        "description": "The message named no clear time zone, so the candidate says which one it was written in.",
+        "operationId": "confirm_time_api_autoapply_recruiting__event_id__confirm_time_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmTimeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecruitingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm Time",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/recruiting/{event_id}/dismiss": {
+      "post": {
+        "operationId": "dismiss_event_api_autoapply_recruiting__event_id__dismiss_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecruitingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Dismiss Event",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/recruiting/{event_id}/link": {
+      "post": {
+        "description": "Settle an ambiguous employer message by choosing the application it belongs to.",
+        "operationId": "link_event_api_autoapply_recruiting__event_id__link_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkEventIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecruitingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Link Event",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/status": {
+      "get": {
+        "operationId": "status_api_autoapply_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__autoapply__schemas__StatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Status",
+        "tags": [
+          "autoapply"
         ]
       }
     },
@@ -5199,7 +8562,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StatusOut"
+                  "$ref": "#/components/schemas/app__schemas__api__StatusOut"
                 }
               }
             },
@@ -5540,7 +8903,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StatusOut"
+                  "$ref": "#/components/schemas/app__schemas__api__StatusOut"
                 }
               }
             },
