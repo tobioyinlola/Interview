@@ -113,8 +113,8 @@ export function NotesPage() {
           }}
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
-          className={`rounded-2xl border-2 border-dashed p-8 text-center transition-colors ${
-            dragging ? "border-accent bg-accent-soft" : "border-line-strong"
+          className={`rounded-2xl p-8 text-center transition-colors ${
+            dragging ? "bg-accent-soft shadow-lift" : "bg-canvas"
           }`}
         >
           <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-accent-soft text-accent-dark">

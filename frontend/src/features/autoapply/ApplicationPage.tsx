@@ -34,7 +34,7 @@ function NeedForm({ need, id }: { need: Need; id: string }) {
   };
   const error = act.answer.error ?? act.approve.error ?? act.resolve.error;
   return (
-    <li className="space-y-2 rounded-xl border border-line p-3">
+    <li className="space-y-2 rounded-xl bg-canvas p-3">
       <p className="font-medium">{need.question}</p>
       <p className="text-sm text-muted">{need.reason}</p>
       {(need.kind === "answer" || need.kind === "declaration") && (

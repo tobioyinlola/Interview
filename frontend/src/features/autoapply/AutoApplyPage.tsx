@@ -287,7 +287,7 @@ export function AutoApplyPage() {
             Nothing has been sent yet. Applications appear here as they go out.
           </p>
         ) : (
-          <ul className="divide-y divide-line">
+          <ul className="space-y-1">
             {d.recent.map((a) => (
               <li
                 key={a.id}

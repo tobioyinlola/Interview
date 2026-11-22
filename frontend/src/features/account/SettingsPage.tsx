@@ -53,7 +53,7 @@ export function DeleteAccountButton() {
     <div
       role="alertdialog"
       aria-label="Confirm deletion"
-      className="card space-y-2 border border-red-200"
+      className="card space-y-2 !bg-red-50"
     >
       <p>
         This permanently deletes your CV, companies, sessions and account. It
@@ -144,10 +144,7 @@ export function SettingsPage() {
       <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
       <NameForm />
       <PrivacyNotice />
-      <section
-        aria-labelledby="danger"
-        className="card space-y-2 !border !border-red-200"
-      >
+      <section aria-labelledby="danger" className="card space-y-2 !bg-red-50">
         <h2 id="danger" className="text-lg font-semibold">
           Delete my data
         </h2>

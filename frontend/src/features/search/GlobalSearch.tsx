@@ -121,11 +121,11 @@ export function GlobalSearch() {
         }}
         onFocus={() => setOpen(true)}
         onKeyDown={onKeyDown}
-        className="input w-full !rounded-full !border-transparent bg-surface !pl-10 !pr-12 shadow-card [&::-webkit-search-cancel-button]:hidden"
+        className="input w-full !rounded-full !bg-surface !pl-10 !pr-12 shadow-card [&::-webkit-search-cancel-button]:hidden"
       />
       <kbd
         aria-hidden="true"
-        className="pointer-events-none absolute right-3.5 top-1/2 hidden -translate-y-1/2 rounded-md border border-line-strong px-1.5 text-xs text-muted sm:block"
+        className="pointer-events-none absolute right-3.5 top-1/2 hidden -translate-y-1/2 rounded-md bg-canvas px-1.5 text-xs text-muted sm:block"
       >
         /
       </kbd>
@@ -134,7 +134,7 @@ export function GlobalSearch() {
           id={listId}
           role="listbox"
           aria-label="Search results"
-          className="absolute left-0 right-0 z-30 mt-2 max-h-[70vh] overflow-auto rounded-2xl bg-surface p-2 shadow-card ring-1 ring-line"
+          className="absolute left-0 right-0 z-30 mt-2 max-h-[70vh] overflow-auto rounded-2xl bg-surface p-2 shadow-lift"
         >
           {results.length === 0 ? (
             <p className="px-3 py-4 text-sm text-muted">

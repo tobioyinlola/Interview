@@ -97,7 +97,7 @@ function ReadinessCard() {
       </ul>
       <Link
         to="/session/new"
-        className={`inline-block rounded-xl px-4 py-2.5 font-medium ${ready ? "bg-accent text-surface hover:bg-accent-dark" : "border border-line"}`}
+        className={`inline-block rounded-xl px-4 py-2.5 font-medium ${ready ? "bg-accent text-surface hover:bg-accent-dark" : "bg-accent-soft text-accent-dark"}`}
       >
         Start interview
       </Link>
@@ -143,7 +143,7 @@ function InterviewTargetCard() {
   return (
     <section
       aria-labelledby="target-h"
-      className="space-y-3 rounded-2xl bg-surface p-5 shadow-card ring-1 ring-accent/30"
+      className="space-y-3 rounded-2xl bg-surface p-5 shadow-lift"
     >
       <div>
         <h2 id="target-h" className="text-lg font-semibold">
@@ -469,7 +469,7 @@ export function DashboardPage() {
             {companies.isSuccess && companies.data.length === 0 && (
               <p className="mt-3 text-muted">No companies yet.</p>
             )}
-            <ul className="mt-3 divide-y divide-line">
+            <ul className="mt-3 space-y-1">
               {(companies.data ?? []).slice(0, 5).map((c) => (
                 <li key={c.id} className="flex justify-between gap-3 py-2.5">
                   <Link
@@ -540,7 +540,7 @@ export function DashboardPage() {
             {sessions.isSuccess && recent.length === 0 && (
               <p className="mt-3 text-muted">No sessions yet.</p>
             )}
-            <ul className="mt-3 divide-y divide-line">
+            <ul className="mt-3 space-y-1">
               {recent.map((s) => (
                 <li key={s.id} className="py-2.5">
                   <Link

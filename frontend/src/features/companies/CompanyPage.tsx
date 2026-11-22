@@ -75,7 +75,7 @@ export function CompanyPage() {
       {saved && (
         <p
           role="status"
-          className="rounded-xl border border-green-300 bg-green-50 p-3 text-sm text-green-900"
+          className="rounded-xl bg-green-50 p-3 text-sm text-green-900"
         >
           Saved. Press <strong>Research again</strong> to use these changes.
         </p>
@@ -176,7 +176,7 @@ export function CompanyPage() {
         />
       )}
 
-      <section aria-labelledby="del-h" className="border-t pt-4">
+      <section aria-labelledby="del-h" className="pt-6">
         <h2 id="del-h" className="sr-only">
           Delete company
         </h2>

@@ -82,9 +82,7 @@ function Group({
       >
         {title}
       </p>
-      {collapsed && (
-        <hr className="mx-3 mb-2 hidden border-surface/15 lg:block" />
-      )}
+      {collapsed && <div className="mb-2 hidden lg:block" />}
       <ul className="space-y-1">
         {items.map((i) => (
           <li key={i.to}>
@@ -219,7 +217,7 @@ export function Layout() {
             <Group title="Account" items={account} collapsed={collapsed} />
             <Group title="Support" items={support} collapsed={collapsed} />
           </nav>
-          <div className="mt-6 border-t border-surface/15 pt-4">
+          <div className="mt-6 pt-4">
             <p
               className={`truncate px-3 text-xs text-surface/60 ${collapsed ? "lg:sr-only" : ""}`}
             >

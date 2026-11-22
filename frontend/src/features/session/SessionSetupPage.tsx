@@ -168,7 +168,7 @@ export function SessionSetupPage() {
       {noCredit && (
         <section
           aria-labelledby="pay-h"
-          className="card space-y-2 !border !border-amber-300 !bg-amber-50"
+          className="card space-y-2 !bg-amber-50"
         >
           <h2 id="pay-h" className="text-lg font-semibold">
             You have used your free session

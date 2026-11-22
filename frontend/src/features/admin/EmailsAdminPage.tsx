@@ -125,7 +125,7 @@ export function EmailsAdminPage() {
                   title={`Preview of ${p.data.subject}`}
                   sandbox=""
                   srcDoc={p.data.html}
-                  className="h-[640px] w-full rounded-xl border border-line bg-white"
+                  className="h-[640px] w-full rounded-xl bg-white shadow-card"
                 />
               ) : (
                 <pre className="max-h-[640px] overflow-auto whitespace-pre-wrap rounded-xl bg-canvas p-4 text-sm">

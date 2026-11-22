@@ -155,7 +155,7 @@ export function LandingPage() {
             </Link>
             <a
               href="#how"
-              className="w-full rounded-xl border border-line bg-surface px-7 py-3.5 font-medium shadow-card hover:border-accent sm:w-auto"
+              className="w-full rounded-xl bg-surface px-7 py-3.5 font-medium shadow-card hover:shadow-lift sm:w-auto"
             >
               See how it works
             </a>
@@ -173,10 +173,7 @@ export function LandingPage() {
         </section>
 
         {/* Principles in place of logos and statistics */}
-        <section
-          id="principles"
-          className="border-y border-line bg-canvas py-16"
-        >
+        <section id="principles" className="bg-canvas py-16">
           <div className="mx-auto max-w-5xl px-4 sm:px-6">
             <p className="text-center font-mono text-xs uppercase tracking-[0.2em] text-muted">
               Built around
@@ -338,7 +335,7 @@ export function LandingPage() {
               </Link>
               <a
                 href="#features"
-                className="w-full rounded-xl border border-surface/40 px-7 py-3.5 font-medium text-surface hover:border-surface sm:w-auto"
+                className="w-full rounded-xl bg-surface/10 px-7 py-3.5 font-medium text-surface hover:bg-surface/20 sm:w-auto"
               >
                 See features
               </a>
@@ -389,7 +386,7 @@ export function LandingPage() {
             </ul>
           </div>
         </div>
-        <div className="mx-auto max-w-5xl border-t border-line px-4 py-6 text-xs text-muted sm:px-6">
+        <div className="mx-auto max-w-5xl px-4 py-8 text-xs text-muted sm:px-6">
           © 2026 InterviewMeet
         </div>
       </footer>

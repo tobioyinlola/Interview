@@ -64,7 +64,7 @@ export function UsagePage() {
         ) : (
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b">
+              <tr>
                 <th className="py-1">Day</th>
                 <th>Sessions</th>
                 <th>Users</th>
@@ -76,7 +76,7 @@ export function UsagePage() {
             </thead>
             <tbody>
               {d.days.map((r) => (
-                <tr key={r.day} className="border-b">
+                <tr key={r.day}>
                   <td className="py-1">{r.day}</td>
                   <td>{r.sessions}</td>
                   <td>{r.active_users}</td>
