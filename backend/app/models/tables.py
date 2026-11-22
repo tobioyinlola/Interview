@@ -566,6 +566,7 @@ class Application(Base):
     package: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)  # frozen
     package_frozen_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
     profile_version: Mapped[int] = mapped_column(Integer, default=0)
+    not_before: Mapped[datetime | None] = mapped_column(_TS, nullable=True)  # retry no sooner
     skip_reason: Mapped[str | None] = mapped_column(String(300), nullable=True)
     recruiting_stage: Mapped[str | None] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
@@ -582,3 +583,72 @@ class ApplicationEvent(Base):
     kind: Mapped[str] = mapped_column(String(30))
     detail: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+
+
+class MailboxConnection(Base):
+    """A candidate's own mailbox. The token is encrypted; a disconnect removes it."""
+
+    __tablename__ = "aa_mailboxes"
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = _fk("users.id", unique=True)
+    provider: Mapped[str] = mapped_column(String(20))  # gmail | fixture
+    address: Mapped[str] = mapped_column(String(320))
+    capabilities: Mapped[list[Any]] = mapped_column(
+        JSONB, default=list, server_default=text("'[]'::jsonb")
+    )  # send, read
+    token_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(14), default="connected")
+    # connected | reauth_needed | disconnected
+    cursor: Mapped[str | None] = mapped_column(Text, nullable=True)  # where reading resumes
+    last_synced_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    connected_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+
+
+class SubmissionAttempt(Base):
+    """One try at sending one application (or one outreach note). The unique idempotency key means
+    the same intent can never be dispatched twice, and an attempt whose outcome is unknown keeps
+    counting against the daily limit until it is reconciled."""
+
+    __tablename__ = "aa_attempts"
+    __table_args__ = (
+        Index("ix_aa_attempts_user_day", "user_id", "local_day"),
+        Index("ix_aa_attempts_state", "state"),
+    )
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = _fk("users.id")
+    application_id: Mapped[uuid.UUID] = _fk("aa_applications.id", index=True)
+    channel: Mapped[str] = mapped_column(String(8))  # form | email | outreach
+    idempotency_key: Mapped[str] = mapped_column(String(120), unique=True)
+    # claimed | dispatched | confirmed | ambiguous | failed | cancelled
+    state: Mapped[str] = mapped_column(String(10), default="claimed")
+    local_day: Mapped[date] = mapped_column(Date)
+    provider_ref: Mapped[str | None] = mapped_column(String(200), nullable=True)  # message id etc.
+    thread_ref: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    receipt: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    failure_class: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    failure_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    claimed_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+    dispatched_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+
+
+class Outreach(Base):
+    """A first-contact note to a hiring contact. At most one per candidate and role."""
+
+    __tablename__ = "aa_outreach"
+    __table_args__ = (UniqueConstraint("user_id", "posting_id"),)
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = _fk("users.id")
+    posting_id: Mapped[uuid.UUID] = _fk("aa_postings.id")
+    application_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("aa_applications.id", ondelete="SET NULL"), nullable=True
+    )
+    recipient: Mapped[str] = mapped_column(String(320))
+    recipient_source: Mapped[str] = mapped_column(String(20))  # listing | candidate
+    subject: Mapped[str] = mapped_column(String(300))
+    body: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(10), default="queued")
+    # queued | sending | sent | failed | skipped
+    reason: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+    sent_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)

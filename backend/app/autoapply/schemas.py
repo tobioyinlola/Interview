@@ -115,6 +115,8 @@ class ApplicationEventOut(BaseModel):
 
 class ApplicationDetail(ApplicationOut):
     match: dict[str, Any]
+    attempts: list["AttemptOut"] = []
+    outreach: "OutreachOut | None" = None
     package: dict[str, Any] | None  # the exact package: what was or will be sent
     package_frozen_at: datetime | None
     history: list[ApplicationEventOut]
@@ -150,3 +152,48 @@ class RunOut(BaseModel):
     error: str | None
     started_at: datetime
     finished_at: datetime | None
+
+
+class MailboxOut(BaseModel):
+    connected: bool
+    provider: str | None = None
+    address: str | None = None
+    status: str | None = None  # connected | reauth_needed | disconnected
+    last_synced_at: datetime | None = None
+    can_connect: bool = True
+
+
+class ConnectOut(BaseModel):
+    connected: bool
+    url: str | None = None  # where to send the browser to approve access
+
+
+class AttemptOut(BaseModel):
+    channel: str
+    state: str
+    provider_ref: str | None
+    failure_message: str | None
+    claimed_at: datetime
+    finished_at: datetime | None
+
+
+class OutreachIn(BaseModel):
+    recipient: str = Field(min_length=3, max_length=320)
+
+
+class OutreachOut(BaseModel):
+    id: str
+    application_id: str | None
+    company: str
+    title: str
+    recipient: str
+    recipient_source: str
+    subject: str
+    body: str
+    status: str
+    reason: str | None
+    sent_at: datetime | None
+
+
+class ResolveIn(BaseModel):
+    sent: bool  # true: it did go through; false: it did not, so it may be sent again

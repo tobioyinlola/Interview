@@ -81,6 +81,13 @@ def test_remote_alone_does_not_make_a_candidate_eligible_from_their_country():
     assert wrong.decision == "skip" and "United States" in wrong.reason
 
 
+def test_a_different_country_on_the_same_continent_is_not_a_match():
+    assert decide(CRITERIA, posting(region="Kenya")).decision == "skip"
+    assert decide(CRITERIA, posting(region="Kenya or Nigeria")).decision == "eligible"
+    continent = {**CRITERIA, "locations": [{"value": "Africa", "required": True}]}
+    assert decide(continent, posting(region="Kenya")).decision == "eligible"
+
+
 def test_a_region_that_contains_the_country_or_is_worldwide_passes():
     for region in ("Africa", "Worldwide", "Lagos, Nigeria", "Anywhere"):
         assert decide(CRITERIA, posting(region=region)).decision == "eligible", region
@@ -90,6 +97,13 @@ def test_a_required_rule_that_fails_means_skip_and_names_why():
     m = decide(CRITERIA, posting(arrangement="onsite"))
     assert m.decision == "skip" and "onsite" in m.reason
     assert decide(CRITERIA, posting(title="Marketing Director")).decision == "skip"
+
+
+def test_industries_are_judged_too():
+    crit = {**CRITERIA, "industries": [{"value": "fintech", "required": True}]}
+    assert decide(crit, posting(industry="Fintech")).decision == "eligible"
+    assert decide(crit, posting(industry="Retail")).decision == "skip"
+    assert decide(crit, posting()).decision == "review"
 
 
 def test_a_preference_never_blocks_but_changes_the_ranking():

@@ -7,15 +7,18 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
+from fastapi.responses import RedirectResponse
 from sqlalchemy import select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.interfaces import LlmProvider
 from app.autoapply import campaign as camp
-from app.autoapply import clock, discovery, facts, pipeline, rules
-from app.autoapply.adapters import DiscoveryAdapter, FormAdapter
-from app.autoapply.fixtures import FixtureForm
+from app.autoapply import clock, discovery, facts, outbox, outreach, pipeline, rules
+from app.autoapply import mailbox as mbx
+from app.autoapply.adapters import AdapterError, DiscoveryAdapter, FormAdapter, MailboxAdapter
+from app.autoapply.fixtures import FixtureForm, FixtureMailbox
+from app.autoapply.gmail import STATE_COOKIE, GmailAdapter, GmailOAuth
 from app.autoapply.schemas import (
     AnswerApplicationIn,
     AnswerIn,
@@ -25,15 +28,21 @@ from app.autoapply.schemas import (
     ApplicationOut,
     ApplicationPage,
     ApproveIn,
+    AttemptOut,
     CampaignOut,
+    ConnectOut,
     Disclosure,
     EnableIn,
     FactsIn,
     FactsOut,
     JobUrlIn,
+    MailboxOut,
+    OutreachIn,
+    OutreachOut,
     PostingOut,
     ProfileIn,
     ProfileOut,
+    ResolveIn,
     RunOut,
     StatusOut,
 )
@@ -48,7 +57,9 @@ from app.models import (
     DiscoveryRun,
     JobPosting,
     Note,
+    Outreach,
     SearchProfile,
+    SubmissionAttempt,
     User,
 )
 from app.schemas.api import StatusOut as Ok
@@ -83,6 +94,21 @@ def get_form(request: Request) -> FormAdapter:
         form = FixtureForm()
         request.app.state.autoapply_form = form
     return form
+
+
+def get_mailbox_adapter(
+    request: Request,
+    settings: Settings = Depends(get_settings),  # noqa: B008
+) -> MailboxAdapter:
+    """Gmail when it is configured and chosen, else the fixture (which touches nobody)."""
+    adapter = getattr(request.app.state, "autoapply_mailbox_adapter", None)
+    if adapter is None:
+        wants_gmail = (
+            settings.autoapply_mailbox_provider == "gmail" and GmailOAuth(settings).enabled
+        )
+        adapter = GmailAdapter(settings) if wants_gmail else FixtureMailbox()
+        request.app.state.autoapply_mailbox_adapter = adapter
+    return adapter
 
 
 def feature_on(settings: Settings = Depends(get_settings)) -> None:  # noqa: B008
@@ -584,8 +610,36 @@ async def application_detail(
         .scalars()
         .all()
     )
+    attempts = (
+        (
+            await db.execute(
+                select(SubmissionAttempt)
+                .where(SubmissionAttempt.application_id == a.id)
+                .order_by(SubmissionAttempt.claimed_at)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    note = (
+        await db.execute(
+            select(Outreach).where(Outreach.user_id == user.id, Outreach.posting_id == p.id)
+        )
+    ).scalar_one_or_none()
     return ApplicationDetail(
         **_app_out(a, p).model_dump(),
+        attempts=[
+            AttemptOut(
+                channel=t.channel,
+                state=t.state,
+                provider_ref=t.provider_ref,
+                failure_message=t.failure_message,
+                claimed_at=t.claimed_at,
+                finished_at=t.finished_at,
+            )
+            for t in attempts
+        ],
+        outreach=_outreach_out(note, p) if note else None,
         match=a.match,
         package=a.package,
         package_frozen_at=a.package_frozen_at,
@@ -703,3 +757,179 @@ async def retry_application(
     if a.status == "skipped" and a.skip_reason == pipeline.USER_SKIPPED:
         a.skip_reason = None
     return await _rerun(db, user.id, a, p, llm, form, now)
+
+
+# ----------------------------------------------------------------------------------- mailbox
+
+
+@router.get("/mailbox")
+async def read_mailbox(
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    settings: Settings = Depends(get_settings),  # noqa: B008
+) -> MailboxOut:
+    conn = await mbx.get(db, user.id)
+    can = settings.autoapply_mailbox_provider != "gmail" or GmailOAuth(settings).enabled
+    if conn is None or conn.status == "disconnected":
+        return MailboxOut(connected=False, status="disconnected" if conn else None, can_connect=can)
+    return MailboxOut(
+        connected=conn.status == "connected",
+        provider=conn.provider,
+        address=conn.address,
+        status=conn.status,
+        last_synced_at=conn.last_synced_at,
+        can_connect=can,
+    )
+
+
+@router.post("/mailbox/connect")
+async def connect_mailbox(
+    response: Response,
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    settings: Settings = Depends(get_settings),  # noqa: B008
+    now: datetime = Depends(get_now),  # noqa: B008
+) -> ConnectOut:
+    """Gmail: returns the Google address to approve access at. Fixture mode connects at once."""
+    if settings.autoapply_mailbox_provider == "gmail":
+        oauth = GmailOAuth(settings)
+        if not oauth.enabled:
+            raise ApiError(503, "mailbox_unavailable", "Email connection is not set up yet.")
+        url, cookie = oauth.begin(str(user.id))
+        response.set_cookie(
+            STATE_COOKIE,
+            cookie,
+            max_age=600,
+            httponly=True,
+            samesite="lax",
+            secure=settings.environment != "local",
+            path="/api/autoapply/mailbox",
+        )
+        return ConnectOut(connected=False, url=url)
+    if settings.environment == "production":
+        raise ApiError(503, "mailbox_unavailable", "Email connection is not set up yet.")
+    await mbx.connect(
+        db, settings, user.id, provider="fixture", address=user.email, credential="fixture", now=now
+    )
+    return ConnectOut(connected=True)
+
+
+@router.get("/mailbox/callback")
+async def mailbox_callback(
+    request: Request,
+    code: str = "",
+    state: str = "",
+    error: str = "",
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    settings: Settings = Depends(get_settings),  # noqa: B008
+    now: datetime = Depends(get_now),  # noqa: B008
+) -> RedirectResponse:
+    """Google sends the browser back here. The state must match the cookie set when this person
+    started, and that cookie must name this very account."""
+    oauth = GmailOAuth(settings)
+    back = f"{settings.web_origin}/auto-apply"
+    resp = RedirectResponse(f"{back}?mailbox=failed", status_code=303)
+    if not oauth.check_state(request.cookies.get(STATE_COOKIE), state, str(user.id)):
+        return resp  # not from the flow this browser started: leave that flow alone
+    resp.delete_cookie(STATE_COOKIE, path="/api/autoapply/mailbox")  # a state works only once
+    if error or not code:
+        return resp
+    try:
+        address, credential = await oauth.exchange(code)
+    except AdapterError:
+        return resp
+    await mbx.connect(
+        db, settings, user.id, provider="gmail", address=address, credential=credential, now=now
+    )
+    resp.headers["location"] = f"{back}?mailbox=connected"
+    return resp
+
+
+@router.post("/mailbox/disconnect")
+async def disconnect_mailbox(
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    settings: Settings = Depends(get_settings),  # noqa: B008
+    adapter: MailboxAdapter = Depends(get_mailbox_adapter),  # noqa: B008
+    llm: LlmProvider = Depends(get_llm),  # noqa: B008
+    form: FormAdapter = Depends(get_form),  # noqa: B008
+    now: datetime = Depends(get_now),  # noqa: B008
+) -> MailboxOut:
+    """Stop sends and reads, revoke access, delete the credential. Other channels stay on."""
+    await mbx.disconnect(db, settings, adapter, user.id)
+    prof = await camp.get_profile(db, user.id)
+    if prof is not None and any((prof.channels or {}).get(c) for c in ("email", "outreach")):
+        channels = {**rules.clean_channels(prof.channels), "email": False, "outreach": False}
+        await camp.save_profile(db, user.id, channels=channels)
+        await _recheck(db, user.id, llm, form, now)  # email-only work is given up or re-judged
+    return MailboxOut(connected=False, status="disconnected", can_connect=True)
+
+
+# ---------------------------------------------------------------- outreach and unknown outcomes
+
+
+def _outreach_out(o: Outreach, p: JobPosting) -> OutreachOut:
+    return OutreachOut(
+        id=str(o.id),
+        application_id=str(o.application_id) if o.application_id else None,
+        company=p.company,
+        title=p.title,
+        recipient=o.recipient,
+        recipient_source=o.recipient_source,
+        subject=o.subject,
+        body=o.body,
+        status=o.status,
+        reason=o.reason,
+        sent_at=o.sent_at,
+    )
+
+
+@router.get("/outreach")
+async def list_outreach(
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> list[OutreachOut]:
+    rows = (
+        await db.execute(
+            select(Outreach, JobPosting)
+            .join(JobPosting, JobPosting.id == Outreach.posting_id)
+            .where(Outreach.user_id == user.id)
+            .order_by(Outreach.created_at.desc())
+            .limit(100)
+        )
+    ).all()
+    return [_outreach_out(o, p) for o, p in rows]
+
+
+@router.post("/applications/{application_id}/outreach", status_code=201)
+async def request_outreach(
+    application_id: str,
+    body: OutreachIn,
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    now: datetime = Depends(get_now),  # noqa: B008
+) -> OutreachOut:
+    """Name a hiring contact for this role. One note per role, under its own daily limit."""
+    a, p = await _owned(db, user.id, application_id)
+    try:
+        row = await outreach.request(db, user.id, a, p, body.recipient, now)
+    except outreach.OutreachError as exc:
+        raise ApiError(exc.status, exc.code, exc.message) from None
+    return _outreach_out(row, p)
+
+
+@router.post("/applications/{application_id}/resolve")
+async def resolve_unknown(
+    application_id: str,
+    body: ResolveIn,
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    now: datetime = Depends(get_now),  # noqa: B008
+) -> ApplicationOut:
+    """The candidate says what really happened to an application we could not confirm."""
+    a, p = await _owned(db, user.id, application_id)
+    if a.status != "confirmation_pending":
+        raise ApiError(409, "not_waiting", "This application is not waiting to be confirmed.")
+    await outbox.resolve_by_candidate(db, a, sent=body.sent, now=now)
+    return _app_out(a, p)

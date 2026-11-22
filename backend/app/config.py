@@ -123,6 +123,12 @@ class Settings(BaseSettings):
     autoapply_outreach_dispatch: bool = False  # kill switch: hiring outreach from a mailbox
     autoapply_mailbox_provider: str = "fixture"  # fixture | gmail
     autoapply_discovery_sources: str = "fixture"  # comma-separated adapter names
+    autoapply_reconcile_hours: int = (
+        24  # how long an unknown outcome waits before asking the person
+    )
+    autoapply_claim_timeout_minutes: int = (
+        10  # a claim older than this was abandoned by a dead worker
+    )
     autoapply_greenhouse_boards: str = ""  # comma-separated Greenhouse board tokens to read
     autoapply_allowed_recipients: str = ""  # comma-separated; set outside production to test sends
     autoapply_tick_seconds: int = 60  # how often the scheduler looks for work (0 = never)

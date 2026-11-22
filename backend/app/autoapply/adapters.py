@@ -83,6 +83,7 @@ class FormReceipt:
 
 class FormAdapter(Protocol):
     name: str
+    real: bool  # a real form reaches a real employer; the fixture does not
 
     def supports(self, application_url: str) -> bool:
         """Is this one of the employer forms this adapter is approved to submit?"""
@@ -108,3 +109,62 @@ class FormAdapter(Protocol):
     ) -> FormReceipt | None:
         """After a timeout: did the employer record this submission? None means it did not."""
         ...
+
+
+@dataclass
+class MailAttachment:
+    filename: str
+    content: bytes
+    mime: str = "application/pdf"
+
+
+@dataclass
+class SentMessage:
+    message_id: str  # the Message-ID we set, so a sent message can be found again
+    thread_id: str | None = None
+    provider_id: str | None = None
+
+
+@dataclass
+class InboundMessage:
+    """A message that arrived in the candidate's mailbox. `snippet` is the provider's short
+    preview and is read to classify the message; it is never stored."""
+
+    provider_id: str
+    thread_id: str | None
+    message_id: str
+    from_addr: str
+    subject: str
+    snippet: str
+    received_at: datetime
+    in_reply_to: str | None = None
+    references: list[str] = field(default_factory=list)
+
+
+class MailboxAdapter(Protocol):
+    name: str
+    real: bool  # a real mailbox reaches real people; the fixture does not
+
+    async def send(
+        self,
+        token: str,
+        *,
+        sender: str,
+        to: str,
+        subject: str,
+        body: str,
+        attachments: list[MailAttachment],
+        message_id: str,
+    ) -> SentMessage:
+        """Send. A timeout after the request left must raise AdapterError(code='ambiguous')."""
+        ...
+
+    async def find_sent(self, token: str, message_id: str) -> SentMessage | None:
+        """Is there a sent message with this Message-ID? Used to settle an unknown outcome."""
+        ...
+
+    async def read_since(self, token: str, cursor: str | None) -> tuple[list[InboundMessage], str]:
+        """New messages since `cursor` and the cursor to use next."""
+        ...
+
+    async def revoke(self, token: str) -> None: ...

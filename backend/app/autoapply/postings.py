@@ -206,22 +206,23 @@ async def upsert(
         seen.seen_at = now
     dup: uuid.UUID | None = None
     if created:
-        other = (
-            (
-                await db.execute(
-                    select(JobPosting.id).where(
-                        func.lower(JobPosting.company) == fields["company"].lower(),
-                        func.lower(JobPosting.title) == fields["title"].lower(),
-                        func.lower(func.coalesce(JobPosting.region, ""))
-                        == (fields["region"] or "").lower(),
-                        JobPosting.id != posting.id,
-                    )
+        # Two openings with different requisition ids are different jobs, however alike they look.
+        # It is only a possible duplicate when one side has no firm identity to tell them apart.
+        others = (
+            await db.execute(
+                select(JobPosting.id, JobPosting.canonical_key).where(
+                    func.lower(JobPosting.company) == fields["company"].lower(),
+                    func.lower(JobPosting.title) == fields["title"].lower(),
+                    func.lower(func.coalesce(JobPosting.region, ""))
+                    == (fields["region"] or "").lower(),
+                    JobPosting.id != posting.id,
                 )
             )
-            .scalars()
-            .first()
-        )
-        dup = other
+        ).all()
+        for other_id, other_key in others:
+            if not confident or other_key.startswith("title:"):
+                dup = other_id
+                break
     await db.flush()
     return posting, created, dup
 

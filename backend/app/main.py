@@ -7,7 +7,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import metrics
-from app.config import get_settings
+from app.autoapply.adapters import MailboxAdapter
+from app.config import Settings, get_settings
 from app.db import dispose_engine, get_sessionmaker
 from app.deps import build_email_sender
 from app.errors import install_error_handlers
@@ -74,10 +75,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     runner.notifier = notifier
     scorer.notifier = notifier
     await purge_old_events(get_sessionmaker(), settings.event_retention_days)
+    autoapply_task: asyncio.Task[None] | None = None
+    if settings.autoapply_enabled and settings.autoapply_tick_seconds > 0:
+        autoapply_task = asyncio.create_task(start_autoapply(settings))
+
     await scorer.fail_interrupted()
     await runner.recover_stale()  # requeue jobs a restart interrupted
     yield
     monitor.cancel()
+    if autoapply_task is not None:
+        autoapply_task.cancel()
     # open audio sockets close with 1012 so clients reconnect to the new replica
     await hub.shutdown()
     try:  # give running jobs a moment; anything unfinished is recovered on the next boot
@@ -85,6 +92,25 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except TimeoutError:
         pass
     await dispose_engine()
+
+
+async def start_autoapply(settings: Settings) -> None:
+    """Run the Auto-Apply scheduler for the life of the server."""
+    from app.autoapply import discovery, scheduler
+    from app.autoapply.fixtures import FixtureForm, FixtureMailbox
+    from app.autoapply.gmail import GmailAdapter, GmailOAuth
+
+    mailbox_adapter: MailboxAdapter = FixtureMailbox()
+    if settings.autoapply_mailbox_provider == "gmail" and GmailOAuth(settings).enabled:
+        mailbox_adapter = GmailAdapter(settings)
+    await scheduler.loop(
+        get_sessionmaker(),
+        settings=settings,
+        sources=discovery.build_sources(settings),
+        form=FixtureForm(),
+        mailbox_adapter=mailbox_adapter,
+        llm=build_answer_llm(settings),
+    )
 
 
 def create_app() -> FastAPI:

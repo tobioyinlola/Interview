@@ -16,13 +16,16 @@ from app.models.tables import (
     JobPosting,
     LoginFailure,
     LoginToken,
+    MailboxConnection,
     Note,
+    Outreach,
     PracticeSession,
     Referral,
     ResearchJob,
     Score,
     SearchProfile,
     SessionCredit,
+    SubmissionAttempt,
     Suggestion,
     Usage,
     User,
@@ -31,6 +34,9 @@ from app.models.tables import (
 )
 
 __all__ = [
+    "MailboxConnection",
+    "Outreach",
+    "SubmissionAttempt",
     "ApplicationEvent",
     "Application",
     "DiscoveryRun",

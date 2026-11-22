@@ -136,6 +136,12 @@ async def build(
     answers, missing = resolve_answers(posting.questions or [], facts, app.answers or {}, saved)
     if missing:
         return None, missing
+    # The contact details every form asks for always travel with the package, taken from the
+    # facts the candidate verified, so a form that asks for them later can be filled honestly.
+    for field, (section, key) in FROM_FACTS.items():
+        value = facts.get(section, {}).get(key, "")
+        if value and field not in answers:
+            answers[field] = {"value": value, "source": "your verified CV"}
     cv_out, note = await tailor.tailor_cv(llm, facts, cv_text, posting)
     cover = await tailor.cover_note(llm, facts, cv_text, posting)
     destination = (

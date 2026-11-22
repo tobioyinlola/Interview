@@ -34,16 +34,34 @@ def words(text: str) -> list[str]:
     return [w for w in re.findall(r"[a-z0-9+#]+", text.lower()) if w not in STOP]
 
 
-def _place(text: str) -> set[str]:
-    """The countries and regions a text names, with the continents that contain them."""
+def _named(text: str) -> set[str]:
+    """The countries and regions a text names (no guessing about what else they contain)."""
     low = " " + re.sub(r"[^a-z ]+", " ", text.lower()) + " "
-    found = {c for c in _all_places() if f" {c} " in low}
+    return {COUNTRY_ALIASES.get(c, c) for c in _all_places() if f" {c} " in low}
+
+
+def _continent_of(place: str) -> str | None:
     for cont, countries in CONTINENT.items():
-        if cont in found:
-            found |= set(countries)
-        if found & set(countries):
-            found.add(cont)
-    return {COUNTRY_ALIASES.get(f, f) for f in found}
+        if place in countries:
+            return cont
+    return None
+
+
+def _covers(have: set[str], target: str) -> bool:
+    """Does a listing that names the places `have` accept someone from `target`?
+
+    A country is accepted by itself or by the continent that holds it. A continent is accepted by
+    itself or by a country inside it. Two different countries on one continent do not match."""
+    wanted = _named(target)
+    for t in wanted or {target.lower()}:
+        if t in have:
+            return True
+        cont = _continent_of(t)
+        if cont and cont in have:
+            return True
+        if t in CONTINENT and any(c in have for c in CONTINENT[t]):
+            return True
+    return False
 
 
 def _all_places() -> set[str]:
@@ -130,10 +148,10 @@ def _where(posting: JobPosting) -> Any:
         low = region.lower()
         if any(g in low for g in GLOBAL_REGION):
             return PASS, f"open to candidates anywhere ('{region}')"
-        want, have = _place(target), _place(region)
+        have = _named(region)
         if not have:
             return UNKNOWN, f"'{region}' could not be compared with '{target}'"
-        if want & have or target.lower() in low:
+        if _covers(have, target):
             return PASS, f"'{region}' includes '{target}'"
         return FAIL, f"the role is for '{region}', not '{target}'"
 
@@ -230,7 +248,7 @@ def evaluate(
         ("contract", "Contract type", _same(posting.contract, "contract type")),
         ("industry", "Industry", _industry(posting)),
     ):
-        source = "locations" if key == "location" else key if key != "role" else "roles"
+        source = {"role": "roles", "location": "locations", "industry": "industries"}.get(key, key)
         items = criteria.get(source) or []
         if items:
             status, evidence, required = _any_of(items, judge_for)

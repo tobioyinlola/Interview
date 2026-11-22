@@ -44,6 +44,7 @@ class FixtureForm:
     or time out *after* recording the submission, which is the dangerous case."""
 
     name = "fixture"
+    real = False
 
     def __init__(self) -> None:
         self.schemas: dict[str, FormSchema] = {}
@@ -102,3 +103,60 @@ class FixtureForm:
         self, application_url: str, *, idempotency_key: str
     ) -> FormReceipt | None:
         return self.receipts.get(idempotency_key)
+
+
+class FixtureMailbox:
+    """A mailbox in memory. Tests drop messages into `inbox`, and can make a send fail or time
+    out after the message was already accepted."""
+
+    name = "fixture"
+    real = False
+
+    def __init__(self) -> None:
+        from app.autoapply.adapters import InboundMessage, SentMessage
+
+        self.sent: list[dict[str, Any]] = []
+        self.inbox: list[InboundMessage] = []
+        self.mode = "ok"  # ok | fail | timeout_after | timeout_before | reauth
+        self.revoked = 0
+        self.calls = 0
+        self._sent_cls = SentMessage
+
+    async def send(self, token: str, *, sender, to, subject, body, attachments, message_id):  # type: ignore[no-untyped-def]
+        self.calls += 1
+        if self.mode == "reauth":
+            raise AdapterError("reauth", "The mailbox needs to be reconnected.")
+        if self.mode == "fail":
+            raise AdapterError("rejected", "The mailbox refused the message.")
+        if self.mode == "timeout_before":
+            raise AdapterError("ambiguous", "The mailbox did not answer in time.")
+        if any(m["message_id"] == message_id for m in self.sent):
+            return self._sent_cls(message_id, "thread-" + message_id, "p-" + message_id)
+        self.sent.append(
+            {
+                "from": sender,
+                "to": to,
+                "subject": subject,
+                "body": body,
+                "attachments": attachments,
+                "message_id": message_id,
+            }
+        )
+        if self.mode == "timeout_after":
+            raise AdapterError("ambiguous", "The mailbox did not answer in time.")
+        return self._sent_cls(message_id, "thread-" + message_id, "p-" + message_id)
+
+    async def find_sent(self, token: str, message_id: str):  # type: ignore[no-untyped-def]
+        for m in self.sent:
+            if m["message_id"] == message_id:
+                return self._sent_cls(message_id, "thread-" + message_id, "p-" + message_id)
+        return None
+
+    async def read_since(self, token: str, cursor: str | None):  # type: ignore[no-untyped-def]
+        if self.mode == "reauth":
+            raise AdapterError("reauth", "The mailbox needs to be reconnected.")
+        start = int(cursor or 0)
+        return self.inbox[start:], str(len(self.inbox))
+
+    async def revoke(self, token: str) -> None:
+        self.revoked += 1

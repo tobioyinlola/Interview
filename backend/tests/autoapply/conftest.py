@@ -5,6 +5,7 @@ import json
 from datetime import UTC, datetime
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.adapters.fakes import FakeLlmProvider
@@ -141,9 +142,9 @@ def adapters(app, discovery_source, form):
     app.dependency_overrides[get_form] = lambda: form
 
 
-async def start(c) -> dict:
-    """Profile saved, CV facts confirmed, campaign running."""
-    assert (await c.put("/api/autoapply/profile", json=PROFILE)).status_code == 200
+async def start(c, **over) -> dict:
+    """Profile saved (with any overrides), CV facts confirmed, campaign running."""
+    assert (await c.put("/api/autoapply/profile", json={**PROFILE, **over})).status_code == 200
     await c.put("/api/autoapply/facts", json={"data": FACTS, "verified": True})
     r = await c.post(
         "/api/autoapply/campaign/enable", json={"policy_version": "2026-11", "accept": True}
@@ -161,3 +162,74 @@ async def run(c) -> dict:
 async def apps(c, status: str | None = None) -> list[dict]:
     q = f"?status={status}" if status else ""
     return (await c.get(f"/api/autoapply/applications{q}")).json()["items"]
+
+
+# ------------------------------------------------------------------ phase 3: sending fixtures
+
+from app.autoapply import scheduler  # noqa: E402
+from app.autoapply.fixtures import FixtureMailbox  # noqa: E402
+from app.routers.autoapply import get_mailbox_adapter  # noqa: E402
+
+
+@pytest.fixture
+def mailbox() -> FixtureMailbox:
+    return FixtureMailbox()
+
+
+@pytest.fixture(autouse=True)
+def mailbox_adapter(app, mailbox):
+    app.dependency_overrides[get_mailbox_adapter] = lambda: mailbox
+
+
+@pytest.fixture
+def tick(maker, settings, discovery_source, form, mailbox, cv_llm, clock):
+    """Run one pass of the background scheduler at the test clock's time."""
+
+    async def _tick(now=None):
+        return await scheduler.tick(
+            maker,
+            now or clock.now,
+            settings=settings,
+            sources=[discovery_source],
+            form=form,
+            mailbox_adapter=mailbox,
+            llm=cv_llm,
+        )
+
+    return _tick
+
+
+@pytest.fixture
+def outbox_adapters(settings, form, mailbox):
+    from app.autoapply.outbox import Adapters
+
+    return Adapters(form=form, mailbox=mailbox, settings=settings)
+
+
+def email_job(n: int = 1, **over) -> RawPosting:
+    """A listing whose only way to apply is an email address, with the evidence that it says so."""
+    base = dict(
+        application_url=None,
+        apply_email=f"jobs{n}@acme.test",
+        apply_instructions="Email your CV. Subject: PM application",
+        evidence={
+            "apply_email": "How to apply: email jobs@acme.test",
+            "region": "the location line",
+        },
+    )
+    base.update(over)
+    return job(n, **base)
+
+
+async def connect_mailbox(c, *, email=True, outreach=False, form_on=True):
+    r = await c.post("/api/autoapply/mailbox/connect")
+    assert r.status_code == 200 and r.json()["connected"] is True, r.text
+    ch = {"form": form_on, "email": email, "outreach": outreach}
+    assert (await c.put("/api/autoapply/profile", json={"channels": ch})).status_code == 200
+
+
+async def user_id(maker):
+    from app.models import User
+
+    async with maker() as db:
+        return (await db.execute(select(User.id))).scalars().first()
