@@ -379,3 +379,86 @@ class Event(Base):
     data: Mapped[dict[str, Any]] = mapped_column(
         JSONB, default=dict, server_default=text("'{}'::jsonb")
     )
+
+
+# ------------------------------------------------------------------------------ Auto-Apply
+# Everything below belongs to one user. Mailbox credentials are encrypted before they are stored.
+
+
+class CandidateFacts(Base):
+    """The CV facts the candidate has checked: contact details, skills, links and work history.
+    Applications and tailored CVs may only use what is here, so a fact the person never confirmed
+    can never be sent to an employer."""
+
+    __tablename__ = "aa_candidate_facts"
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = _fk("users.id", unique=True)
+    data: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    verified_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    cv_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)  # the CV it came from
+    updated_at: Mapped[datetime] = mapped_column(_TS, default=_now, onupdate=_now)
+
+
+class CandidateAnswer(Base):
+    """A reusable answer to a question employers keep asking (notice period, work authorisation,
+    sponsorship...). It records where the answer came from, and is only reused with approval."""
+
+    __tablename__ = "aa_answers"
+    __table_args__ = (UniqueConstraint("user_id", "field"),)
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = _fk("users.id", index=True)
+    field: Mapped[str] = mapped_column(String(60))  # a short key such as "notice_period"
+    question: Mapped[str] = mapped_column(String(300), default="")
+    value: Mapped[str] = mapped_column(Text, default="")
+    normalized: Mapped[str] = mapped_column(String(200), default="")
+    provenance: Mapped[str] = mapped_column(String(20), default="candidate")  # candidate | cv
+    confirmed_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    reusable: Mapped[bool] = mapped_column(Boolean, default=False)  # approved for reuse
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    updated_at: Mapped[datetime] = mapped_column(_TS, default=_now, onupdate=_now)
+
+
+class SearchProfile(Base):
+    """What to look for, where and how, and what the candidate authorised. One per person."""
+
+    __tablename__ = "aa_profiles"
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = _fk("users.id", unique=True)
+    criteria: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    timezone: Mapped[str] = mapped_column(String(64), default="UTC")
+    active_hours: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    channels: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)  # form, email, outreach
+    daily_application_cap: Mapped[int] = mapped_column(Integer, default=10)
+    daily_outreach_cap: Mapped[int] = mapped_column(Integer, default=3)
+    policy_version: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    authorized_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    paused: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    paused_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    version: Mapped[int] = mapped_column(Integer, default=1)  # bumps when criteria change
+    updated_at: Mapped[datetime] = mapped_column(_TS, default=_now, onupdate=_now)
+
+
+class Campaign(Base):
+    """One 30-day run. Day 1 is the activation date in the candidate's timezone; outbound work
+    closes at the start of day 31. Renewing means a new activation, so a new row."""
+
+    __tablename__ = "aa_campaigns"
+    __table_args__ = (
+        Index(
+            "uq_aa_campaign_active", "user_id", unique=True, postgresql_where="status = 'active'"
+        ),
+    )
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = _fk("users.id", index=True)
+    profile_id: Mapped[uuid.UUID] = _fk("aa_profiles.id")
+    timezone: Mapped[str] = mapped_column(String(64))
+    activated_at: Mapped[datetime] = mapped_column(_TS)
+    ends_at: Mapped[datetime] = mapped_column(_TS)  # the start of local day 31
+    status: Mapped[str] = mapped_column(String(10), default="active")  # active | ended
+    ended_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    daily_application_cap: Mapped[int] = mapped_column(Integer)
+    daily_outreach_cap: Mapped[int] = mapped_column(Integer)
+    channels: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    policy_version: Mapped[str] = mapped_column(String(20))
+    authorization: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)  # what was shown

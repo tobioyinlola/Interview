@@ -114,6 +114,21 @@ class Settings(BaseSettings):
     price_llm_input_per_million: float = 0.40
     price_llm_output_per_million: float = 1.60
 
+    # Auto-Apply. Everything is off by default. Real submissions need the environment to be
+    # production AND the matching flag; development and staging only ever use the fixture adapters.
+    autoapply_enabled: bool = False  # the feature flag: routes answer 404 and no job runs
+    autoapply_policy_version: str = "2026-11"  # recorded with every authorisation
+    autoapply_form_dispatch: bool = False  # kill switch: employer form submissions
+    autoapply_email_dispatch: bool = False  # kill switch: applications sent from a mailbox
+    autoapply_outreach_dispatch: bool = False  # kill switch: hiring outreach from a mailbox
+    autoapply_mailbox_provider: str = "fixture"  # fixture | gmail
+    autoapply_discovery_sources: str = "fixture"  # comma-separated adapter names
+    autoapply_allowed_recipients: str = ""  # comma-separated; set outside production to test sends
+    autoapply_tick_seconds: int = 60  # how often the scheduler looks for work (0 = never)
+    mailbox_encryption_key: SecretStr = SecretStr("")  # Fernet key; encrypts mailbox tokens
+    gmail_client_id: str = ""
+    gmail_client_secret: SecretStr = SecretStr("")
+
     log_level: str = "INFO"
 
     @field_validator("database_url")

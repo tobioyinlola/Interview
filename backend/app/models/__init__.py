@@ -1,6 +1,9 @@
 from app.models.tables import (
     AudioToken,
     AuthSession,
+    Campaign,
+    CandidateAnswer,
+    CandidateFacts,
     Company,
     CompanyBrief,
     CompanySource,
@@ -13,6 +16,7 @@ from app.models.tables import (
     Referral,
     ResearchJob,
     Score,
+    SearchProfile,
     SessionCredit,
     Suggestion,
     Usage,
@@ -22,6 +26,10 @@ from app.models.tables import (
 )
 
 __all__ = [
+    "Campaign",
+    "CandidateAnswer",
+    "CandidateFacts",
+    "SearchProfile",
     "AudioToken",
     "AuthSession",
     "Company",
