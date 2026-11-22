@@ -37,7 +37,6 @@ import { ReviewPage } from "../features/session/ReviewPage";
 import { SessionsPage } from "../features/session/SessionsPage";
 import { SessionSetupPage } from "../features/session/SessionSetupPage";
 import { OnboardingPage } from "../features/onboarding/OnboardingPage";
-import { NotesPage } from "../features/notes/NotesPage";
 import { BrowserNotice } from "./BrowserNotice";
 import { currentEnv, isSupported } from "./browserSupport";
 import { Layout } from "./Layout";
@@ -84,7 +83,10 @@ export function App() {
           <Route path="/onboarding" element={<OnboardingPage />} />
           <Route element={<Layout />}>
             <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/notes" element={<NotesPage />} />
+            <Route
+              path="/notes"
+              element={<Navigate to="/settings/cv" replace />}
+            />
             <Route path="/companies" element={<CompaniesPage />} />
             <Route path="/companies/:id" element={<CompanyPage />} />
             <Route path="/session/new" element={<SessionSetupPage />} />
@@ -103,7 +105,11 @@ export function App() {
             />
             <Route path="/referrals" element={<ReferralPage />} />
             <Route path="/help" element={<HelpPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
+            <Route
+              path="/settings"
+              element={<Navigate to="/settings/profile" replace />}
+            />
+            <Route path="/settings/:tab" element={<SettingsPage />} />
           </Route>
         </Route>
       </Route>

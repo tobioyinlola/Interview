@@ -362,7 +362,7 @@ describe("ReviewPage: gap finder (FR-37)", () => {
     expect(g.getByText("Tell me about a failure?")).toBeInTheDocument();
     expect(g.getByRole("link", { name: "Add a note" })).toHaveAttribute(
       "href",
-      "/notes",
+      "/settings/cv",
     );
     expect(
       g.getByText("Company questions without brief facts"),

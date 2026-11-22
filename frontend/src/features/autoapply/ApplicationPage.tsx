@@ -49,7 +49,7 @@ function NeedForm({ need, id }: { need: Need; id: string }) {
             onChange={(e) => setValue(e.target.value)}
           />
           {need.kind === "answer" && (
-            <label className="flex items-center gap-1.5 text-xs text-muted">
+            <label className="check text-xs text-muted">
               <input
                 type="checkbox"
                 checked={reuse}

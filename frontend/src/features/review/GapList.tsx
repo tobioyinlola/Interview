@@ -27,7 +27,7 @@ export function GapList({ gaps }: { gaps: Gap[] }) {
           </ul>
           <p className="mt-1 text-sm">{g.hint}</p>
           <Link
-            to={g.kind === "experience" ? "/notes" : "/companies"}
+            to={g.kind === "experience" ? "/settings/cv" : "/companies"}
             className="mt-1 inline-block text-sm text-accent-dark underline"
           >
             {g.kind === "experience" ? "Add a note" : "Open companies"}

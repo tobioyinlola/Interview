@@ -22,9 +22,9 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: "cv",
-    target: "nav-notes",
+    target: "nav-settings",
     title: "1. Upload your CV",
-    body: "Your own stories and numbers in an answer come only from your CV. Set your target role here too.",
+    body: "Open Settings, then the CV tab. Your own stories and numbers in an answer come only from your CV. Set your target role there too, along with your details and password.",
   },
   {
     id: "companies",

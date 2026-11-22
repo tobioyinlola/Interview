@@ -35,7 +35,7 @@ describe("DashboardPage (FR-33)", () => {
     expect(c.getAllByText("Not done:").length).toBeGreaterThanOrEqual(2); // CV and brief
     expect(c.getByRole("link", { name: "Upload your CV" })).toHaveAttribute(
       "href",
-      "/notes",
+      "/settings/cv",
     );
     expect(c.getByRole("link", { name: "Add a company" })).toHaveAttribute(
       "href",

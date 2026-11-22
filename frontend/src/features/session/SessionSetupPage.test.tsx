@@ -64,7 +64,7 @@ describe("SessionSetupPage", () => {
     expect(start()).toBeDisabled();
     expect(
       screen.getByRole("link", { name: "Upload your CV" }),
-    ).toHaveAttribute("href", "/notes");
+    ).toHaveAttribute("href", "/settings/cv");
   });
 
   it("tells the person the practice-only rule and where their data goes, without asking for consent again", async () => {

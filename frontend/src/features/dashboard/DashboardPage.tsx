@@ -76,7 +76,7 @@ function ReadinessCard() {
         <Item ok={cvUploaded}>
           CV uploaded{" "}
           {!cvUploaded && (
-            <Link to="/notes" className="text-accent-dark underline">
+            <Link to="/settings/cv" className="text-accent-dark underline">
               Upload your CV
             </Link>
           )}
@@ -515,7 +515,7 @@ export function DashboardPage() {
                 sub="Research a role and get a cited brief"
               />
               <Action
-                to="/notes"
+                to="/settings/cv"
                 title="Upload your CV"
                 sub="What outlines are built from"
               />

@@ -11,7 +11,7 @@ from app.models import User
 from app.repositories import NotesRepo, ProfileRepo
 from app.schemas.api import MeOut, OnboardingIn, ProfileIn, TourIn
 from app.services.events import record_from
-from app.services.names import clean_name
+from app.services.names import clean_line, clean_name, clean_phone, clean_profile_url
 
 router = APIRouter(prefix="/api", tags=["profile"])
 
@@ -25,11 +25,26 @@ async def save_profile(
     db: AsyncSession = Depends(get_db),  # noqa: B008
     settings: Settings = Depends(get_settings),  # noqa: B008
 ) -> MeOut:
-    name = clean_name(body.full_name)
-    if name is None:
-        raise INVALID_NAME
-    await ProfileRepo(db, user).update(full_name=name)
-    await record_from(db, "user.profile_updated", user_id=user.id)
+    values: dict[str, object] = {}
+    if "full_name" in body.model_fields_set:
+        name = clean_name(body.full_name)
+        if name is None:
+            raise INVALID_NAME
+        values["full_name"] = name
+    try:
+        if "phone" in body.model_fields_set:
+            values["phone"] = clean_phone(body.phone)
+        if "location" in body.model_fields_set:
+            values["location"] = clean_line(body.location)
+        if "headline" in body.model_fields_set:
+            values["headline"] = clean_line(body.headline)
+        if "linkedin_url" in body.model_fields_set:
+            values["linkedin_url"] = clean_profile_url(body.linkedin_url)
+    except ValueError as exc:
+        raise ApiError(422, "invalid_profile", str(exc)) from None
+    if values:
+        await ProfileRepo(db, user).update(**values)
+        await record_from(db, "user.profile_updated", user_id=user.id, fields=sorted(values))
     return me_out(user, settings)
 
 

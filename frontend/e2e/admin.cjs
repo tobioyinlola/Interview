@@ -319,7 +319,7 @@ const staffLinks = () =>
   // signing out ends it
   await page.getByRole("button", { name: "Sign out" }).click();
   await page.waitForURL("**/admin/login");
-  await page.goto(BASE + "/admin/users");
+  await page.goto(BASE + "/admin/users").catch(() => {}); // it is sent on to the sign-in page
   await page.waitForURL("**/admin/login");
   ok(true, "signing out closes the back office");
 

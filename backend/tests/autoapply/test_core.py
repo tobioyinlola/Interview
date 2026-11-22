@@ -343,3 +343,14 @@ async def test_pause_and_resume_are_recorded_once_each(ada, maker):
     async with maker() as db:
         kinds = list((await db.execute(select(Event.kind))).scalars().all())
     assert kinds.count("autoapply.paused") == 1 and kinds.count("autoapply.resumed") == 1
+
+
+async def test_details_from_settings_fill_gaps_the_cv_left(ada, cv_llm):
+    cv_llm.json_reply = "not json"  # only patterns read the CV: no location, no history
+    await ada.put(
+        "/api/profile",
+        json={"location": "Lagos, Nigeria", "linkedin_url": "https://linkedin.com/in/ada"},
+    )
+    d = (await ada.post("/api/autoapply/facts/extract")).json()["data"]
+    assert d["contact"]["location"] == "Lagos, Nigeria"
+    assert "https://linkedin.com/in/ada" in d["links"]

@@ -371,7 +371,7 @@ describe("finishing", () => {
     await screen.findByRole("heading", { name: /You're all set/ });
     const hrefs = (n: string) =>
       screen.getByRole("link", { name: new RegExp(n) }).getAttribute("href");
-    expect(hrefs("Upload your CV")).toBe("/notes");
+    expect(hrefs("Upload your CV")).toBe("/settings/cv");
     expect(hrefs("Add a company")).toBe("/companies");
     expect(hrefs("Start an interview")).toBe("/session/new");
     expect(hrefs("Go to your dashboard")).toBe("/dashboard");

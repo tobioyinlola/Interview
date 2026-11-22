@@ -104,7 +104,9 @@ async def test_after_confirming_the_password_logs_in_and_is_stored_only_as_a_has
     async with new_client() as other:
         r = await login(other)
         assert r.status_code == 200 and r.json()["email"] == EMAIL
-        assert "password" not in r.text and "hash" not in r.text
+        # only whether one is set is shown (has_password); never the password or its hash
+        assert "scrypt" not in r.text and "hash" not in r.text and GOOD not in r.text
+        assert r.json()["has_password"] is True
         assert (await other.get("/api/me")).status_code == 200
     (user,) = await rows(engine, User)
     assert (

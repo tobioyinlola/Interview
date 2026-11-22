@@ -269,6 +269,17 @@ async def extract_facts(
     if not cv.strip():
         raise ApiError(422, "no_cv", "Upload your CV first.")
     draft, from_model = await facts.extract(llm, cv, email=user.email, name=user.full_name)
+    contact = draft["contact"]
+    # what the person already told us in Settings fills any gap the CV left
+    for key, known in (
+        ("name", user.full_name),
+        ("phone", user.phone),
+        ("location", user.location),
+    ):
+        if not contact.get(key) and known:
+            contact[key] = known
+    if user.linkedin_url and user.linkedin_url not in draft["links"]:
+        draft["links"] = [*draft["links"], user.linkedin_url][:10]
     return FactsOut(data=draft, version=0, verified_at=None, from_model=from_model)
 
 

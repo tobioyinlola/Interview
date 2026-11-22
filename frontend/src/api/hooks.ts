@@ -87,13 +87,35 @@ export function useLogin() {
   });
 }
 
+/** What a person can change about themselves. Only the fields sent are changed; "" clears one. */
+export interface ProfileChange {
+  full_name?: string;
+  phone?: string;
+  location?: string;
+  headline?: string;
+  linkedin_url?: string;
+}
+
 export function useSaveProfile() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (full_name: string) =>
+    mutationFn: (change: ProfileChange) =>
       apiFetch<Me>("/api/profile", {
         method: "PUT",
-        body: json({ full_name }),
+        body: json(change),
+      }),
+    onSuccess: (me) => qc.setQueryData(["me"], me),
+  });
+}
+
+/** Change the password, or set a first one (no current password then). */
+export function useChangePassword() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { current_password?: string; new_password: string }) =>
+      apiFetch<Me>("/api/account/password", {
+        method: "PUT",
+        body: json(v),
       }),
     onSuccess: (me) => qc.setQueryData(["me"], me),
   });

@@ -24,7 +24,7 @@ describe("HelpPage", () => {
     );
     expect(qs.getByRole("link", { name: "Upload your CV" })).toHaveAttribute(
       "href",
-      "/notes",
+      "/settings/cv",
     );
     expect(qs.getByRole("link", { name: "Add the company" })).toHaveAttribute(
       "href",

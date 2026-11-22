@@ -5,7 +5,7 @@ import { FileIcon } from "../../app/icons";
 import { formatWhen } from "../review/format";
 import { SaveIndicator } from "./SaveIndicator";
 import { useAutosave } from "./useAutosave";
-import { Loading } from "../../ui/Loading";
+import { LoadingRows } from "../../ui/Loading";
 
 export const MAX_CV_BYTES = 5 * 1024 * 1024;
 const ACCEPT =
@@ -20,7 +20,8 @@ export function checkCvFile(file: File): string | null {
   return null;
 }
 
-export function NotesPage() {
+/** The CV and target role. It lives in Settings, under the CV tab. */
+export function CvPanel() {
   const { data, isPending, isError } = useNotes();
   const upload = useUploadCv();
   const remove = useRemoveCv();
@@ -40,10 +41,12 @@ export function NotesPage() {
 
   const { status, retry } = useAutosave(role, saveRole, { enabled: loaded });
 
-  if (isPending) return <Loading />;
+  if (isPending) return <LoadingRows label="Loading your CV" />;
   if (isError)
     return (
-      <p className="p-8">Couldn&apos;t load your CV. Reload to try again.</p>
+      <p role="alert" className="notice-error">
+        Couldn&apos;t load your CV. Reload to try again.
+      </p>
     );
 
   const hasText = data.content.trim().length > 0;
@@ -65,8 +68,8 @@ export function NotesPage() {
   };
 
   return (
-    <main className="page-narrow">
-      <h1 className="text-3xl font-semibold tracking-tight">Your CV</h1>
+    <div className="space-y-6">
+      <h2 className="text-2xl font-semibold tracking-tight">Your CV</h2>
       <p className="text-sm text-muted">
         Upload your CV. Your own stories and numbers come only from it (and any
         company brief), and each is labelled with where it came from. Everything
@@ -232,6 +235,6 @@ export function NotesPage() {
           {error}
         </p>
       )}
-    </main>
+    </div>
   );
 }

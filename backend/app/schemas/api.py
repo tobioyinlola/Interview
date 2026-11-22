@@ -77,7 +77,21 @@ class OnboardingIn(OnboardingAnswers):
 
 
 class ProfileIn(BaseModel):
-    full_name: str = Field(min_length=1, max_length=400)
+    """What a person can change about themselves. Only fields that are sent are changed; an empty
+    string clears an optional one."""
+
+    full_name: str | None = Field(default=None, min_length=1, max_length=400)
+    phone: str | None = Field(default=None, max_length=60)
+    location: str | None = Field(default=None, max_length=300)
+    headline: str | None = Field(default=None, max_length=300)
+    linkedin_url: str | None = Field(default=None, max_length=600)
+
+
+class PasswordIn(BaseModel):
+    current_password: str | None = Field(
+        default=None, max_length=256
+    )  # not needed to set a first one
+    new_password: str = Field(min_length=1, max_length=256)
 
 
 class MeOut(BaseModel):
@@ -88,6 +102,11 @@ class MeOut(BaseModel):
     onboarding: OnboardingAnswers | None = None
     tour_done: bool = True  # false until the first-time tour was finished or skipped
     autoapply: bool = False  # the Auto-Apply feature is switched on for this server
+    has_password: bool = False  # false for people who only use email links or Google
+    phone: str | None = None
+    location: str | None = None
+    headline: str | None = None
+    linkedin_url: str | None = None
 
 
 class TourIn(BaseModel):

@@ -70,11 +70,11 @@ function Choices({
   onRequired: (r: boolean) => void;
 }) {
   return (
-    <fieldset className="space-y-1">
+    <fieldset className="min-w-0 space-y-1">
       <legend className="text-sm font-medium">{legend}</legend>
       <div className="flex flex-wrap gap-3">
         {options.map((o) => (
-          <label key={o} className="flex items-center gap-1.5 text-sm">
+          <label key={o} className="check text-sm">
             <input
               type="checkbox"
               checked={value.includes(o)}
@@ -90,7 +90,7 @@ function Choices({
           </label>
         ))}
       </div>
-      <label className="flex items-center gap-1.5 text-xs text-muted">
+      <label className="check text-xs text-muted">
         <input
           type="checkbox"
           checked={required}
@@ -197,7 +197,7 @@ function FactsEditor({
           onBlur={(e) => setD({ ...d, skills: lines(e.target.value) })}
         />
       </div>
-      <fieldset className="space-y-3">
+      <fieldset className="min-w-0 space-y-3">
         <legend className="text-sm font-medium">Work history</legend>
         {d.history.map((j, i) => (
           <div key={i} className="space-y-2 rounded-xl bg-canvas p-3">
@@ -422,7 +422,7 @@ function SearchForm({ profile }: { profile: AAProfile }) {
           value={f.roles}
           onChange={(e) => set("roles", e.target.value)}
         />
-        <label className="flex items-center gap-1.5 text-xs text-muted">
+        <label className="check text-xs text-muted">
           <input
             type="checkbox"
             checked={f.rolesReq}
@@ -446,7 +446,7 @@ function SearchForm({ profile }: { profile: AAProfile }) {
           A remote job only counts when the listing says people in your country
           can apply.
         </p>
-        <label className="flex items-center gap-1.5 text-xs text-muted">
+        <label className="check text-xs text-muted">
           <input
             type="checkbox"
             checked={f.locationsReq}
@@ -491,7 +491,7 @@ function SearchForm({ profile }: { profile: AAProfile }) {
           onChange={(e) => set("industries", e.target.value)}
         />
       </div>
-      <fieldset className="space-y-2">
+      <fieldset className="min-w-0 space-y-2">
         <legend className="text-sm font-medium">
           Lowest pay you will take
         </legend>
@@ -536,7 +536,7 @@ function SearchForm({ profile }: { profile: AAProfile }) {
             </select>
           </div>
         </div>
-        <label className="flex items-center gap-1.5 text-xs text-muted">
+        <label className="check text-xs text-muted">
           <input
             type="checkbox"
             checked={f.salaryReq}
@@ -545,7 +545,7 @@ function SearchForm({ profile }: { profile: AAProfile }) {
           This is a must. Jobs that do not say what they pay will wait for you.
         </label>
       </fieldset>
-      <fieldset className="space-y-1">
+      <fieldset className="min-w-0 space-y-1">
         <legend className="text-sm font-medium">Visa sponsorship</legend>
         <select
           aria-label="Visa sponsorship"
@@ -557,7 +557,7 @@ function SearchForm({ profile }: { profile: AAProfile }) {
           <option value="needed">I need sponsorship</option>
           <option value="not_needed">I do not need sponsorship</option>
         </select>
-        <label className="flex items-center gap-1.5 text-xs text-muted">
+        <label className="check text-xs text-muted">
           <input
             type="checkbox"
             checked={f.sponsorReq}
@@ -651,7 +651,7 @@ function ChannelsSection({ profile }: { profile: AAProfile }) {
       hint="Choose each way separately. You can change this any time."
     >
       <div className="space-y-2">
-        <label className="flex items-center gap-2 text-sm">
+        <label className="check text-sm">
           <input
             type="checkbox"
             checked={!!ch.form}
@@ -659,7 +659,7 @@ function ChannelsSection({ profile }: { profile: AAProfile }) {
           />
           Fill in employers' application forms
         </label>
-        <label className="flex items-center gap-2 text-sm">
+        <label className="check text-sm">
           <input
             type="checkbox"
             checked={!!ch.email}
@@ -667,7 +667,7 @@ function ChannelsSection({ profile }: { profile: AAProfile }) {
           />
           Email applications from my own email, when the job says to
         </label>
-        <label className="flex items-center gap-2 text-sm">
+        <label className="check text-sm">
           <input
             type="checkbox"
             checked={!!ch.outreach}
@@ -800,7 +800,7 @@ function AnswersSection() {
             onChange={(e) => setValue(e.target.value)}
           />
         </div>
-        <label className="flex items-center gap-1.5 text-xs text-muted">
+        <label className="check text-xs text-muted">
           <input
             type="checkbox"
             checked={reusable}
@@ -881,7 +881,7 @@ function StartSection() {
         </div>
       ) : (
         <>
-          <label className="flex items-start gap-2 text-sm">
+          <label className="check items-start py-2 text-sm">
             <input
               type="checkbox"
               className="mt-1"
