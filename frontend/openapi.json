@@ -1634,6 +1634,14 @@
             "title": "Review Count",
             "type": "integer"
           },
+          "sources": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
           "state": {
             "title": "State",
             "type": "string"

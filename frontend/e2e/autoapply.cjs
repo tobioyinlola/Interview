@@ -88,7 +88,21 @@ const CV =
   await page.getByRole("link", { name: "Set up Auto-Apply" }).click();
   await page.waitForURL("**/auto-apply/setup");
 
-  // 1. details read from the CV, checked by the person
+  const stepIs = async (title) => {
+    await page.getByRole("heading", { name: title, exact: true }).waitFor();
+  };
+  const next = async () => {
+    const btn = page.getByRole("button", { name: "Next", exact: true });
+    ok(await btn.isEnabled(), "Next is available");
+    await btn.click();
+  };
+
+  // step 1: the details read from the CV, checked by the person
+  await stepIs("Your details");
+  ok(
+    await page.getByRole("button", { name: "Next", exact: true }).isDisabled(),
+    "Next waits until the details are confirmed",
+  );
   await page.getByRole("button", { name: "Read my CV" }).click();
   await page.getByLabel("Full name").waitFor();
   await page.getByRole("button", { name: "Add a role" }).click();
@@ -100,41 +114,64 @@ const CV =
     .getByLabel("What you did (role 1)")
     .fill("Led payments roadmap, grew revenue 30%.");
   await page.getByLabel("Full name").fill("Ada Okoye");
+  await shot("2a-step-1");
   await page.getByRole("button", { name: "These details are right" }).click();
-  await page
-    .getByText(/Confirmed/)
-    .first()
-    .waitFor();
-  ok(true, "the candidate checks and confirms the details read from their CV");
+  await page.getByText(/Your details are confirmed/).waitFor();
+  ok(
+    true,
+    "step 1: the candidate checks and confirms the details read from their CV",
+  );
+  await next();
 
-  // 2. the search
+  // step 2: role and place
+  await stepIs("What you want");
+  ok(
+    await page.getByRole("button", { name: "Next", exact: true }).isDisabled(),
+    "Next waits for a role and a place",
+  );
   await page.fill("#s-roles", "Senior Product Manager");
   await page.getByRole("button", { name: "Add role" }).click();
-  await page.getByLabel("The role must match").check();
   await page.fill("#s-locs", "Nigeria");
   await page.getByRole("button", { name: "Add place" }).click();
-  await page.getByLabel("The location must match").check();
-  await page.getByLabel("remote").check();
-  await page.getByLabel("This is a must (work arrangement)").check();
-  await page.getByLabel("Your time zone").fill("Africa/Lagos");
-  await page.getByRole("button", { name: "Save my search" }).click();
-  await page.getByText(/Saved\. Open applications/).waitFor();
-  ok(true, "the search is saved with must-haves");
+  await page.getByRole("button", { name: /Remote/ }).click();
+  await shot("2b-step-2");
+  await next();
+  ok(true, "step 2: roles, places and work style are chosen and saved");
 
-  // 3. ways to apply, with the mailbox
-  await page.getByLabel(/Fill in employers' application forms/).check();
+  // step 3: preferences are optional
+  await stepIs("Nice to have");
+  await shot("2c-step-3");
+  await page.getByRole("button", { name: "Skip" }).click();
+
+  // step 4: schedule
+  await stepIs("When to apply");
+  await page.selectOption("#s-tz", "Africa/Lagos");
+  await shot("2d-step-4");
+  await next();
+
+  // step 5: ways to apply, with the mailbox
+  await stepIs("How to apply");
+  await page
+    .getByRole("button", { name: /Employers' application forms/ })
+    .click();
   await page.getByRole("button", { name: "Connect my email" }).click();
   await page.getByText(/Connected: /).waitFor();
-  await page.getByLabel(/Email applications from my own email/).check();
-  await sleep(500);
-  ok(true, "forms and email are chosen separately and the mailbox connects");
+  await page.getByRole("button", { name: /Email applications/ }).click();
+  await shot("2e-step-5");
+  await next();
+  ok(
+    true,
+    "steps 3-5: preferences skipped, schedule set, forms and email chosen and the mailbox connected",
+  );
 
-  // 4. a reusable answer
-  await page.getByLabel("Your answer").fill("Two weeks");
-  await page.getByRole("button", { name: "Save answer" }).click();
-  await page.getByText(/notice period:/).waitFor();
+  // step 6: a reusable answer
+  await stepIs("Your quick answers");
+  await page.fill("#qa-notice_period", "Two weeks");
+  await shot("2f-step-6");
+  await next();
 
-  // 5. agree and start
+  // step 7: review, agree and start
+  await stepIs("Review and start");
   const start = page.getByRole("button", { name: "Start Auto-Apply" });
   ok(
     await start.isDisabled(),
@@ -145,7 +182,7 @@ const CV =
   await start.click();
   await page.waitForURL("**/auto-apply");
   await page.getByText(/On · day 1 of 30/).waitFor();
-  ok(true, "the candidate starts a 30-day search and sees day 1 of 30");
+  ok(true, "step 7: the candidate starts a 30-day search and sees day 1 of 30");
 
   // find jobs, then the scheduler sends them
   await page.getByRole("button", { name: "Search for roles now" }).click();

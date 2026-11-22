@@ -28,6 +28,7 @@ from app.autoapply import (
 )
 from app.autoapply import mailbox as mbx
 from app.autoapply.adapters import AdapterError, DiscoveryAdapter, FormAdapter, MailboxAdapter
+from app.autoapply.discovery import source_labels
 from app.autoapply.fixtures import FixtureForm, FixtureMailbox
 from app.autoapply.gmail import STATE_COOKIE, GmailAdapter, GmailOAuth
 from app.autoapply.schemas import (
@@ -1296,6 +1297,7 @@ async def read_dashboard(
     ).scalar_one()
     return DashboardOut(
         demo=settings.autoapply_sample_jobs,
+        sources=source_labels(settings),
         state=state,
         primary=primary,
         campaign=CampaignOut(**progress),

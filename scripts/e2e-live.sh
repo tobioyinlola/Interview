@@ -15,7 +15,7 @@ PROXY="${E2E_PROXY:-0}"
 if [ "$PROXY" = "1" ]; then API_PUBLIC=http://localhost:5173; export API_BASE=""; else API_PUBLIC=http://localhost:8765; export API_BASE="http://localhost:8765"; fi
 # `;` not `&&`: with `cd x && cmd &` the shell backgrounds the whole list, so $! would be a subshell.
 export API_START="cd $ROOT/backend; ENVIRONMENT=local USE_FAKE_PROVIDERS=true WEB_ORIGIN=http://localhost:5173 \
-  RATE_LIMIT_AUTH_PER_MINUTE=1000 LOGIN_REQUESTS_PER_HOUR=1000 ADMIN_EMAILS=admin-e2e@example.com \
+  RATE_LIMIT_PER_MINUTE=100000 RATE_LIMIT_AUTH_PER_MINUTE=1000 LOGIN_REQUESTS_PER_HOUR=1000 ADMIN_EMAILS=admin-e2e@example.com \
   AUTOAPPLY_ENABLED=true AUTOAPPLY_TICK_SECONDS=5 AUTOAPPLY_DISCOVERY_SOURCES=fixture \
   AUTOAPPLY_FIXTURE_JOBS_FILE=$ROOT/frontend/e2e/autoapply-jobs.json \
   GOOGLE_CLIENT_ID=e2e-client GOOGLE_CLIENT_SECRET=e2e-secret API_PUBLIC_URL=$API_PUBLIC \

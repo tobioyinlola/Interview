@@ -241,7 +241,7 @@ export function Layout() {
 
         <div className="min-w-0 flex-1 bg-canvas lg:min-h-screen lg:rounded-l-[2rem]">
           {/* The top bar on every page: search on the left, the person's account on the right. */}
-          <header className="sticky top-0 z-30 flex items-center justify-between gap-3 bg-canvas/85 px-4 py-3 backdrop-blur sm:px-6 lg:rounded-tl-[2rem] lg:px-8">
+          <header className="sticky top-0 z-30 flex items-center justify-between gap-3 bg-canvas/85 px-4 py-3 backdrop-blur sm:px-5 lg:rounded-tl-[2rem] lg:px-5">
             <GlobalSearch />
             <ProfileMenu />
           </header>

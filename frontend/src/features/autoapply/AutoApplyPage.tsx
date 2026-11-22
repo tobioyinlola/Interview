@@ -11,7 +11,16 @@ import {
   useReviewQueue,
   useRunDiscovery,
 } from "./api";
-import { DemoNotice, Fail, Pill, STAGE, Section, day, when } from "./ui";
+import {
+  DemoNotice,
+  Fail,
+  Pill,
+  STAGE,
+  Section,
+  SourceChips,
+  day,
+  when,
+} from "./ui";
 import type { AAInterview } from "../../api/types";
 
 function NextInterview({ iv }: { iv: AAInterview }) {
@@ -88,58 +97,188 @@ function NextInterview({ iv }: { iv: AAInterview }) {
   );
 }
 
-function PrimaryCard({
+function Ring({
+  day,
+  total,
+  active,
+}: {
+  day: number;
+  total: number;
+  active: boolean;
+}) {
+  const r = 46;
+  const circ = 2 * Math.PI * r;
+  const share = active ? Math.min(day / total, 1) : 0;
+  return (
+    <div className="relative h-32 w-32 shrink-0" aria-hidden="true">
+      <svg viewBox="0 0 110 110" className="h-full w-full -rotate-90">
+        <circle
+          cx="55"
+          cy="55"
+          r={r}
+          fill="none"
+          strokeWidth="9"
+          className="stroke-surface/20"
+        />
+        <circle
+          cx="55"
+          cy="55"
+          r={r}
+          fill="none"
+          strokeWidth="9"
+          strokeLinecap="round"
+          strokeDasharray={circ}
+          strokeDashoffset={circ * (1 - share)}
+          className="stroke-surface transition-all duration-700"
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-surface">
+        <span className="text-3xl font-semibold leading-none">
+          {active ? day : total}
+        </span>
+        <span className="mt-1 text-xs text-surface/75">
+          {active ? `of ${total} days` : "days"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+const HEADLINE: Record<string, string> = {
+  none: "Let Auto-Apply do the applying",
+  active: "Auto-Apply is working for you",
+  paused: "Auto-Apply is paused",
+  ended: "Your 30 days are done",
+};
+
+function Hero({
   d,
 }: {
   d: NonNullable<ReturnType<typeof useDashboard>["data"]>;
 }) {
   const p = d.primary;
+  const c = d.campaign;
   const prepare = usePrepareInterview();
   const navigate = useNavigate();
+  const running = c.state === "active" || c.state === "paused";
   const text: Record<string, string> = {
     prepare: "You have an interview coming up.",
     book: "An employer wants to schedule an interview.",
     answer: "One of your applications is waiting for you.",
     reconnect: "Your email needs to be connected again before it can send.",
-    ended: "Your 30-day search has finished.",
-    setup: "Let it find and apply to roles for you for 30 days.",
-    preferences: "Your search is set up.",
-    last_run: "Today's search found no roles that fit.",
+    ended: "Look back at what was sent, or start another 30 days.",
+    setup:
+      "Tell us what you want once. We find roles and apply for you every day for 30 days.",
+    preferences: "Your search is set up and running.",
+    last_run:
+      "Today's search found no roles that fit. You may want to widen it.",
   };
+  const cta = "btn btn-lg bg-surface text-ink hover:bg-canvas";
   return (
-    <section aria-label="What to do next" className="card space-y-3">
-      <p className="text-sm text-muted">{text[p.kind] ?? ""}</p>
-      {p.kind === "prepare" && p.interview_id ? (
-        <button
-          type="button"
-          className="btn-primary btn-lg"
-          disabled={prepare.isPending}
-          onClick={() =>
-            prepare.mutate(p.interview_id as string, {
-              onSuccess: (r) => navigate(r.session_url),
-            })
-          }
-        >
-          {p.label}
-        </button>
-      ) : p.kind === "book" && p.href ? (
-        <a
-          href={p.href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn-primary btn-lg"
-        >
-          {p.label}
-        </a>
-      ) : p.href ? (
-        <Link to={p.href} className="btn-primary btn-lg">
-          {p.label}
-        </Link>
-      ) : null}
-      <Fail error={prepare.error} />
+    <section
+      aria-label="What to do next"
+      className="overflow-hidden rounded-3xl bg-gradient-to-br from-ink via-ink to-accent-dark p-6 text-surface shadow-lift sm:p-8"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-6">
+        <div className="min-w-0 flex-1 basis-72 space-y-3">
+          <span className="inline-flex items-center gap-2 rounded-full bg-surface/15 px-3 py-1 text-xs font-medium">
+            <span
+              aria-hidden="true"
+              className={`h-2 w-2 rounded-full ${
+                c.state === "active"
+                  ? "animate-pulse bg-emerald-400"
+                  : c.state === "paused"
+                    ? "bg-amber-300"
+                    : "bg-surface/60"
+              }`}
+            />
+            {c.state === "active"
+              ? "Running"
+              : c.state === "paused"
+                ? "Paused"
+                : c.state === "ended"
+                  ? "Finished"
+                  : "Not started"}
+          </span>
+          <h1 className="text-3xl font-semibold leading-tight tracking-tight">
+            {HEADLINE[c.state] ?? "Auto-Apply"}
+          </h1>
+          <p role="status" className="text-sm text-surface/80">
+            {c.state === "none" && "Not set up yet."}
+            {running &&
+              `${c.state === "paused" ? "Paused" : "On"} · day ${c.day} of ${c.days_total} · ends ${day(c.ends_at)}`}
+            {c.state === "ended" && `Finished on ${day(c.ends_at)}.`}
+          </p>
+          <p className="text-surface/90">{text[p.kind] ?? ""}</p>
+          <div className="flex flex-wrap gap-2 pt-1">
+            {p.kind === "prepare" && p.interview_id ? (
+              <button
+                type="button"
+                className={cta}
+                disabled={prepare.isPending}
+                onClick={() =>
+                  prepare.mutate(p.interview_id as string, {
+                    onSuccess: (r) => navigate(r.session_url),
+                  })
+                }
+              >
+                {p.label}
+              </button>
+            ) : p.kind === "book" && p.href ? (
+              <a
+                href={p.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cta}
+              >
+                {p.label}
+              </a>
+            ) : p.href ? (
+              <Link to={p.href} className={cta}>
+                {p.label}
+              </Link>
+            ) : null}
+          </div>
+          <Fail error={prepare.error} />
+        </div>
+        <Ring day={c.day ?? 0} total={c.days_total ?? 30} active={running} />
+      </div>
     </section>
   );
 }
+
+function Tile({
+  label,
+  value,
+  hint,
+  bar,
+}: {
+  label: string;
+  value: React.ReactNode;
+  hint?: string;
+  bar?: number;
+}) {
+  return (
+    <div className="rounded-2xl bg-surface p-4 shadow-card">
+      <dt className="text-xs text-muted">{label}</dt>
+      <dd className="mt-1 text-2xl font-semibold tracking-tight">{value}</dd>
+      {bar !== undefined && (
+        <div
+          aria-hidden="true"
+          className="mt-2 h-1.5 overflow-hidden rounded-full bg-line"
+        >
+          <div
+            className="h-full rounded-full bg-accent transition-all"
+            style={{ width: `${Math.min(100, Math.round(bar * 100))}%` }}
+          />
+        </div>
+      )}
+      {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
+    </div>
+  );
+}
+
+const initial = (name: string) => (name.trim()[0] ?? "?").toUpperCase();
 
 export function AutoApplyPage() {
   const dash = useDashboard();
@@ -170,19 +309,53 @@ export function AutoApplyPage() {
 
   return (
     <main className="page-narrow">
-      <header className="space-y-1">
-        <h1 className="text-3xl font-semibold tracking-tight">Auto-Apply</h1>
-        <p role="status" className="text-sm text-muted">
-          {c.state === "none" && "Not set up yet."}
-          {running &&
-            `${c.state === "paused" ? "Paused" : "On"} · day ${c.day} of ${c.days_total} · ends ${day(c.ends_at)}`}
-          {c.state === "ended" && `Finished on ${day(c.ends_at)}.`}
-        </p>
-      </header>
-
       {d.demo && <DemoNotice />}
 
-      <PrimaryCard d={d} />
+      <Hero d={d} />
+
+      <SourceChips sources={d.sources ?? []} />
+
+      <dl
+        className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+        aria-label="At a glance"
+      >
+        <Tile
+          label="Sent so far"
+          value={(d.counts.submitted ?? 0) + (d.counts.sent_email ?? 0)}
+          hint="applications"
+        />
+        <Tile
+          label="Waiting for you"
+          value={d.counts.needs_input ?? 0}
+          hint={
+            d.review_count > 0
+              ? `${d.review_count} reply to match`
+              : "questions to answer"
+          }
+        />
+        <Tile
+          label="Interviews"
+          value={d.open_invites.length + (d.next_interview ? 1 : 0)}
+          hint="invited or booked"
+        />
+        {d.usage ? (
+          <Tile
+            label="Applications today"
+            value={`${d.usage.applications_used} of ${d.usage.applications_cap}`}
+            bar={
+              d.usage.applications_cap
+                ? d.usage.applications_used / d.usage.applications_cap
+                : 0
+            }
+          />
+        ) : (
+          <Tile
+            label="Applications today"
+            value="–"
+            hint="starts once you are set up"
+          />
+        )}
+      </dl>
 
       {d.next_interview && <NextInterview iv={d.next_interview} />}
 
@@ -285,39 +458,54 @@ export function AutoApplyPage() {
 
       <Section id="recent-h" title="Recent applications">
         {d.recent.length === 0 ? (
-          <p className="text-sm text-muted">
-            Nothing has been sent yet. Applications appear here as they go out.
-          </p>
+          <div className="rounded-2xl bg-canvas p-6 text-center">
+            <p aria-hidden="true" className="text-3xl">
+              📨
+            </p>
+            <p className="mt-2 font-medium">Nothing has gone out yet</p>
+            <p className="text-sm text-muted">
+              Applications appear here as they are sent, with what happened
+              next.
+            </p>
+          </div>
         ) : (
-          <ul className="space-y-1">
+          <ul className="space-y-2">
             {d.recent.map((a) => (
-              <li
-                key={a.id}
-                className="flex flex-wrap items-center justify-between gap-2 py-2"
-              >
+              <li key={a.id}>
                 <Link
                   to={`/auto-apply/applications/${a.id}`}
-                  className="text-accent-dark underline"
+                  className="flex items-center gap-3 rounded-2xl bg-canvas p-3 transition-colors hover:bg-accent-soft"
                 >
-                  {a.posting.title} at {a.posting.company}
-                </Link>
-                <span className="flex items-center gap-2">
+                  <span
+                    aria-hidden="true"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-soft font-semibold text-accent-dark"
+                  >
+                    {initial(a.posting.company)}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">
+                      {a.posting.title} at {a.posting.company}
+                    </span>
+                    <span className="block truncate text-sm text-muted">
+                      {a.posting.region ?? "Anywhere"}
+                    </span>
+                  </span>
                   {a.recruiting_stage && (
-                    <span className="text-xs text-muted">
+                    <span className="hidden rounded-full bg-surface px-2.5 py-1 text-xs text-muted sm:inline">
                       {STAGE[a.recruiting_stage] ?? a.recruiting_stage}
                     </span>
                   )}
                   <Pill status={a.status} />
-                </span>
+                </Link>
               </li>
             ))}
           </ul>
         )}
         <Link
           to="/auto-apply/applications"
-          className="text-sm text-accent-dark underline"
+          className="inline-flex min-h-[44px] items-center text-sm text-accent-dark hover:underline"
         >
-          See all applications
+          See all applications →
         </Link>
       </Section>
 
@@ -325,12 +513,6 @@ export function AutoApplyPage() {
         <dl className="grid gap-2 text-sm sm:grid-cols-2">
           {d.usage && (
             <>
-              <div>
-                <dt className="text-muted">Applications today</dt>
-                <dd>
-                  {d.usage.applications_used} of {d.usage.applications_cap}
-                </dd>
-              </div>
               {d.channels.outreach && (
                 <div>
                   <dt className="text-muted">Notes to hiring contacts</dt>
