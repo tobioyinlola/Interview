@@ -38,6 +38,7 @@ const mailbox = {
 };
 
 const dash = (over: object = {}) => ({
+  demo: false,
   state: "running",
   primary: {
     kind: "preferences",
@@ -154,6 +155,14 @@ describe("the dashboard", () => {
     ).toHaveAttribute("href", "/auto-apply/applications/a1");
     expect(screen.getByText("Shortlisted")).toBeInTheDocument();
     expect(screen.getByText("Submitted")).toBeInTheDocument();
+  });
+
+  it("shows the demo notice on the dashboard too", async () => {
+    onDash(dash({ demo: true }));
+    renderApp(<App />, "/auto-apply");
+    expect(await screen.findByRole("note")).toHaveTextContent(
+      "sample jobs and sending is simulated",
+    );
   });
 
   it("invites a new person to set up", async () => {
@@ -837,13 +846,56 @@ describe("setting up", () => {
     ).toBeInTheDocument();
   });
 
-  it("saves the search with must-haves and a salary floor", async () => {
+  it("picks roles and places from lists, and saves them with the must-haves and a salary floor", async () => {
     const calls = setup({
       "PUT /api/autoapply/profile": () => ({ json: profile({ version: 2 }) }),
     });
     renderApp(<App />, "/auto-apply/setup");
-    const roles = await screen.findByLabelText("Roles you want (one per line)");
-    expect(roles).toHaveValue("Senior Product Manager");
+    const chosen = within(
+      await screen.findByRole("list", { name: "Roles you want: chosen" }),
+    );
+    expect(chosen.getByText("Senior Product Manager")).toBeInTheDocument();
+    // a role from the dropdown list, then one typed by hand
+    const roles = screen.getByLabelText("Roles you want", {
+      selector: "input",
+    }) as HTMLInputElement;
+    const options = [
+      ...document
+        .getElementById(roles.getAttribute("list")!)!
+        .querySelectorAll("option"),
+    ].map((o) => o.getAttribute("value"));
+    expect(options).toContain("Data Analyst");
+    await userEvent.type(roles, "Data Analyst");
+    await userEvent.click(screen.getByRole("button", { name: "Add role" }));
+    await userEvent.type(roles, "Head of Chaos{Enter}");
+    expect(
+      within(
+        screen.getByRole("list", { name: "Roles you want: chosen" }),
+      ).getAllByRole("listitem"),
+    ).toHaveLength(3);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Remove Head of Chaos" }),
+    );
+    // places: countries and wider regions are both offered
+    const places = screen.getByLabelText(
+      "Where you can work: a country or region",
+      { selector: "input" },
+    ) as HTMLInputElement;
+    const placeOptions = [
+      ...document
+        .getElementById(places.getAttribute("list")!)!
+        .querySelectorAll("option"),
+    ].map((o) => o.getAttribute("value"));
+    expect(placeOptions).toEqual(
+      expect.arrayContaining([
+        "Kenya",
+        "Africa",
+        "Worldwide",
+        "United Kingdom",
+      ]),
+    );
+    await userEvent.type(places, "Kenya");
+    await userEvent.click(screen.getByRole("button", { name: "Add place" }));
     await userEvent.click(screen.getByLabelText("remote"));
     await userEvent.click(
       screen.getByLabelText("This is a must (work arrangement)"),
@@ -864,6 +916,11 @@ describe("setting up", () => {
       };
       expect(body.criteria.roles).toEqual([
         { value: "Senior Product Manager", required: true },
+        { value: "Data Analyst", required: true },
+      ]);
+      expect(body.criteria.locations).toEqual([
+        { value: "Nigeria", required: true },
+        { value: "Kenya", required: true },
       ]);
       expect(body.criteria.arrangement).toEqual([
         { value: "remote", required: true },
@@ -877,6 +934,19 @@ describe("setting up", () => {
       expect(body.timezone).toBe("Africa/Lagos");
       expect(body.daily_application_cap).toBe(5);
     });
+  });
+
+  it("says plainly when the server is in demo mode", async () => {
+    setup({
+      "GET /api/autoapply/dashboard": () => ({
+        json: dash({ demo: true, campaign: { state: "none" } }),
+      }),
+    });
+    renderApp(<App />, "/auto-apply/setup");
+    expect(await screen.findByRole("note")).toHaveTextContent("Demo mode");
+    expect(screen.getByRole("note")).toHaveTextContent(
+      "Nothing is sent to a real employer",
+    );
   });
 
   it("chooses each way to apply separately and connects email", async () => {

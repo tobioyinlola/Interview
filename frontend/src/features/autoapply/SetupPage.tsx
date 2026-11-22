@@ -1,7 +1,10 @@
 import { type FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
+import { COUNTRIES, REGIONS } from "../../data/countries";
+import { ROLES } from "../../data/roles";
 import { Loading } from "../../ui/Loading";
+import { MultiPick } from "../../ui/Pickers";
 import type { AAFacts, AAProfile } from "../../api/types";
 import {
   useAAProfile,
@@ -18,7 +21,7 @@ import {
   useSaveFacts,
   useSaveProfile,
 } from "./api";
-import { Fail, Section, day } from "./ui";
+import { DemoNotice, Fail, Section, day } from "./ui";
 
 type Item = { value: string; required: boolean };
 type Criteria = Record<string, unknown>;
@@ -42,13 +45,13 @@ const lines = (text: string): string[] =>
     .map((s) => s.trim())
     .filter(Boolean);
 
-const toItems = (text: string, required: boolean): Item[] =>
-  lines(text).map((value) => ({ value, required }));
+const toItems = (values: string[], required: boolean): Item[] =>
+  values.map((value) => ({ value, required }));
 
-const fromItems = (items: unknown): { text: string; required: boolean } => {
+const fromItems = (items: unknown): { values: string[]; required: boolean } => {
   const list = (items as Item[] | undefined) ?? [];
   return {
-    text: list.map((i) => i.value).join("\n"),
+    values: list.map((i) => i.value),
     required: list.some((i) => i.required),
   };
 };
@@ -345,17 +348,17 @@ function SearchForm({ profile }: { profile: AAProfile }) {
     | undefined;
   const spon = c.sponsorship as { need: string; required: boolean } | undefined;
   const [f, setF] = useState({
-    roles: roles.text,
+    roles: roles.values,
     rolesReq: roles.required,
-    locations: locs.text,
+    locations: locs.values,
     locationsReq: locs.required,
-    industries: inds.text,
+    industries: inds.values.join("\n"),
     industriesReq: inds.required,
-    arrangement: arr.text ? arr.text.split("\n") : [],
+    arrangement: arr.values,
     arrangementReq: arr.required,
-    seniority: sen.text ? sen.text.split("\n") : [],
+    seniority: sen.values,
     seniorityReq: sen.required,
-    contract: con.text ? con.text.split("\n") : [],
+    contract: con.values,
     contractReq: con.required,
     floor: sal ? String(sal.floor) : "",
     currency: sal?.currency ?? "USD",
@@ -379,7 +382,7 @@ function SearchForm({ profile }: { profile: AAProfile }) {
     const criteria: Criteria = {
       roles: toItems(f.roles, f.rolesReq),
       locations: toItems(f.locations, f.locationsReq),
-      industries: toItems(f.industries, f.industriesReq),
+      industries: toItems(lines(f.industries), f.industriesReq),
       arrangement: f.arrangement.map((value) => ({
         value,
         required: f.arrangementReq,
@@ -412,15 +415,14 @@ function SearchForm({ profile }: { profile: AAProfile }) {
   return (
     <form onSubmit={submit} className="space-y-4">
       <div>
-        <label htmlFor="s-roles" className="text-sm font-medium">
-          Roles you want (one per line)
-        </label>
-        <textarea
+        <MultiPick
           id="s-roles"
-          rows={2}
-          className="input w-full"
-          value={f.roles}
-          onChange={(e) => set("roles", e.target.value)}
+          label="Roles you want"
+          values={f.roles}
+          onChange={(v) => set("roles", v)}
+          suggestions={ROLES}
+          addLabel="Add role"
+          hint="Pick from the list or type your own, then add it. Add as many as you like."
         />
         <label className="check text-xs text-muted">
           <input
@@ -432,20 +434,15 @@ function SearchForm({ profile }: { profile: AAProfile }) {
         </label>
       </div>
       <div>
-        <label htmlFor="s-locs" className="text-sm font-medium">
-          Where you can work: a country or region (one per line)
-        </label>
-        <textarea
+        <MultiPick
           id="s-locs"
-          rows={2}
-          className="input w-full"
-          value={f.locations}
-          onChange={(e) => set("locations", e.target.value)}
+          label="Where you can work: a country or region"
+          values={f.locations}
+          onChange={(v) => set("locations", v)}
+          suggestions={[...REGIONS, ...COUNTRIES]}
+          addLabel="Add place"
+          hint="A remote job only counts when the listing says people in your country can apply."
         />
-        <p className="text-xs text-muted">
-          A remote job only counts when the listing says people in your country
-          can apply.
-        </p>
         <label className="check text-xs text-muted">
           <input
             type="checkbox"
@@ -913,6 +910,11 @@ function StartSection() {
   );
 }
 
+function DemoNoticeFromDashboard() {
+  const dash = useDashboard();
+  return dash.data?.demo ? <DemoNotice /> : null;
+}
+
 export function SetupPage() {
   const profile = useAAProfile();
   if (profile.isPending) return <Loading label="Loading your search" />;
@@ -929,6 +931,7 @@ export function SetupPage() {
       <h1 className="text-3xl font-semibold tracking-tight">
         Set up Auto-Apply
       </h1>
+      <DemoNoticeFromDashboard />
       <p className="text-sm text-muted">
         It finds roles that fit every day for 30 days and applies for you. You
         can follow along on the{" "}

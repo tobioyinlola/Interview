@@ -1,0 +1,183 @@
+[
+  {
+    "source": "sample",
+    "source_url": "https://board.sample.test/jobs/1",
+    "company": "Sample Payments (demo)",
+    "title": "Senior Product Manager",
+    "description": "Lead the payments roadmap for a fintech. Remote.",
+    "requisition_id": "SAMPLE-1",
+    "region": "Nigeria",
+    "arrangement": "remote",
+    "application_url": "https://jobs.fixture.test/sample/1",
+    "evidence": {
+      "region": "the listing's location line"
+    }
+  },
+  {
+    "source": "sample",
+    "source_url": "https://board.sample.test/jobs/2",
+    "company": "Sample Commerce (demo)",
+    "title": "Product Manager",
+    "description": "Own checkout and onboarding. Remote across Africa.",
+    "requisition_id": "SAMPLE-2",
+    "region": "Africa",
+    "arrangement": "remote",
+    "application_url": "https://jobs.fixture.test/sample/2",
+    "evidence": {
+      "region": "the listing's location line"
+    }
+  },
+  {
+    "source": "sample",
+    "source_url": "https://board.sample.test/jobs/3",
+    "company": "Sample Cloud (demo)",
+    "title": "Senior Software Engineer",
+    "description": "Build backend services in Python and Go. Remote.",
+    "requisition_id": "SAMPLE-3",
+    "region": "Worldwide",
+    "arrangement": "remote",
+    "application_url": "https://jobs.fixture.test/sample/3",
+    "evidence": {
+      "region": "the listing's location line"
+    },
+    "industry": "software"
+  },
+  {
+    "source": "sample",
+    "source_url": "https://board.sample.test/jobs/4",
+    "company": "Sample Health (demo)",
+    "title": "Data Analyst",
+    "description": "Analyse patient flow data with SQL and dashboards.",
+    "requisition_id": "SAMPLE-4",
+    "region": "Kenya",
+    "arrangement": "hybrid",
+    "application_url": "https://jobs.fixture.test/sample/4",
+    "evidence": {
+      "region": "the listing's location line"
+    }
+  },
+  {
+    "source": "sample",
+    "source_url": "https://board.sample.test/jobs/5",
+    "company": "Sample Studio (demo)",
+    "title": "UX Designer",
+    "description": "Design mobile product flows. Remote.",
+    "requisition_id": "SAMPLE-5",
+    "region": "Ghana",
+    "arrangement": "remote",
+    "application_url": "https://jobs.fixture.test/sample/5",
+    "evidence": {
+      "region": "the listing's location line"
+    }
+  },
+  {
+    "source": "sample",
+    "source_url": "https://board.sample.test/jobs/6",
+    "company": "Sample Growth (demo)",
+    "title": "Marketing Manager",
+    "description": "Run campaigns and lifecycle email. Remote.",
+    "requisition_id": "SAMPLE-6",
+    "region": "United Kingdom",
+    "arrangement": "remote",
+    "application_url": "https://jobs.fixture.test/sample/6",
+    "evidence": {
+      "region": "the listing's location line"
+    }
+  },
+  {
+    "source": "sample",
+    "source_url": "https://board.sample.test/jobs/7",
+    "company": "Sample Retail (demo)",
+    "title": "Customer Success Manager",
+    "description": "Keep large customers happy and growing.",
+    "requisition_id": "SAMPLE-7",
+    "region": "South Africa",
+    "arrangement": "remote",
+    "application_url": "https://jobs.fixture.test/sample/7",
+    "evidence": {
+      "region": "the listing's location line"
+    }
+  },
+  {
+    "source": "sample",
+    "source_url": "https://board.sample.test/jobs/8",
+    "company": "Sample Labs (demo)",
+    "title": "Backend Engineer",
+    "description": "APIs and data pipelines. Remote, Africa.",
+    "requisition_id": "SAMPLE-8",
+    "region": "Africa",
+    "arrangement": "remote",
+    "application_url": null,
+    "evidence": {
+      "apply_email": "How to apply: email jobs@sample-labs.test",
+      "region": "the location line"
+    },
+    "apply_email": "jobs@sample-labs.test",
+    "apply_instructions": "Email your CV. Subject: Backend Engineer"
+  },
+  {
+    "source": "sample",
+    "source_url": "https://board.sample.test/jobs/9",
+    "company": "Sample Logistics (demo)",
+    "title": "Operations Manager",
+    "description": "Run daily operations across three hubs.",
+    "requisition_id": "SAMPLE-9",
+    "region": "Nigeria",
+    "arrangement": "onsite",
+    "application_url": "https://jobs.fixture.test/sample/9",
+    "evidence": {
+      "region": "the listing's location line"
+    },
+    "questions": [
+      {
+        "field": "notice_period",
+        "label": "What is your notice period?",
+        "required": true
+      }
+    ]
+  },
+  {
+    "source": "sample",
+    "source_url": "https://board.sample.test/jobs/10",
+    "company": "Sample Media (demo)",
+    "title": "Senior Product Manager",
+    "description": "Lead a consumer app. Remote, US only.",
+    "requisition_id": "SAMPLE-10",
+    "region": "United States",
+    "arrangement": "remote",
+    "application_url": "https://jobs.fixture.test/sample/10",
+    "evidence": {
+      "region": "the listing's location line"
+    }
+  },
+  {
+    "source": "sample",
+    "source_url": "https://board.sample.test/jobs/11",
+    "company": "Sample Finance (demo)",
+    "title": "Financial Analyst",
+    "description": "Model revenue and costs. Remote.",
+    "requisition_id": "SAMPLE-11",
+    "region": "Worldwide",
+    "arrangement": "remote",
+    "application_url": "https://jobs.fixture.test/sample/11",
+    "evidence": {
+      "region": "the location line",
+      "hiring_contact": "named on the listing"
+    },
+    "hiring_contact": "people@sample-finance.test"
+  },
+  {
+    "source": "sample",
+    "source_url": "https://board.sample.test/jobs/12",
+    "company": "Sample Edu (demo)",
+    "title": "Product Designer",
+    "description": "Design learning tools for teachers.",
+    "requisition_id": "SAMPLE-12",
+    "region": "Nigeria",
+    "arrangement": "remote",
+    "application_url": "https://jobs.fixture.test/sample/12",
+    "evidence": {
+      "region": "the listing's location line"
+    }
+  }
+]

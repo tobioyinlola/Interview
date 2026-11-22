@@ -81,6 +81,7 @@ class CampaignOut(BaseModel):
 
 class StatusOut(BaseModel):
     enabled: bool
+    demo: bool = False
     campaign: CampaignOut
 
 
@@ -268,6 +269,7 @@ class PrimaryAction(BaseModel):
 
 
 class DashboardOut(BaseModel):
+    demo: bool  # sample jobs and simulated sending only: nothing reaches a real employer
     state: str
     primary: PrimaryAction
     campaign: CampaignOut

@@ -130,6 +130,7 @@ class Settings(BaseSettings):
         10  # a claim older than this was abandoned by a dead worker
     )
     autoapply_greenhouse_boards: str = ""  # comma-separated Greenhouse board tokens to read
+    autoapply_sample_jobs: bool = False  # demo mode: the fixture source offers built-in sample jobs
     autoapply_fixture_jobs_file: str = (
         ""  # JSON list of listings for the fixture source (not production)
     )

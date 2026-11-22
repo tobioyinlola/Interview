@@ -66,8 +66,9 @@ const PW2 = "second brand new passphrase";
   // bio data
   await page.getByLabel("Full name").fill("Ada Okoye");
   await page.getByLabel("Phone number").fill("+234 801 234 5678");
-  await page.getByLabel("Where you live").fill("Lagos, Nigeria");
-  await page.getByLabel("What you do").fill("Senior product manager");
+  await page.selectOption("#profile-country", "Nigeria");
+  await page.getByLabel("City or town").fill("Lagos");
+  await page.fill("#profile-headline", "Senior Product Manager");
   await page
     .getByLabel("LinkedIn or portfolio link")
     .fill("linkedin.com/in/adaokoye");

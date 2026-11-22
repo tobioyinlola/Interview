@@ -3,6 +3,7 @@ import { type DragEvent, useEffect, useRef, useState } from "react";
 import { useNotes, useRemoveCv, useUploadCv, saveRole } from "../../api/hooks";
 import { FileIcon } from "../../app/icons";
 import { formatWhen } from "../review/format";
+import { RoleInput } from "../../ui/Pickers";
 import { SaveIndicator } from "./SaveIndicator";
 import { useAutosave } from "./useAutosave";
 import { LoadingRows } from "../../ui/Loading";
@@ -78,15 +79,11 @@ export function CvPanel() {
       </p>
 
       <div>
-        <label htmlFor="role" className="block text-sm font-medium">
-          Target role
-        </label>
-        <input
+        <RoleInput
           id="role"
-          maxLength={200}
+          label="Target role"
           value={role}
-          onChange={(e) => setRole(e.target.value)}
-          className="input mt-1 w-full"
+          onChange={setRole}
           placeholder="e.g. Senior Product Manager"
         />
         <div className="mt-1">

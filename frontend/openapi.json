@@ -1575,6 +1575,10 @@
             "title": "Counts",
             "type": "object"
           },
+          "demo": {
+            "title": "Demo",
+            "type": "boolean"
+          },
           "last_run": {
             "anyOf": [
               {
@@ -1646,6 +1650,7 @@
           }
         },
         "required": [
+          "demo",
           "state",
           "primary",
           "campaign",
@@ -5558,6 +5563,11 @@
         "properties": {
           "campaign": {
             "$ref": "#/components/schemas/CampaignOut"
+          },
+          "demo": {
+            "default": false,
+            "title": "Demo",
+            "type": "boolean"
           },
           "enabled": {
             "title": "Enabled",

@@ -108,13 +108,11 @@ const CV =
   ok(true, "the candidate checks and confirms the details read from their CV");
 
   // 2. the search
-  await page
-    .getByLabel("Roles you want (one per line)")
-    .fill("Senior Product Manager");
+  await page.fill("#s-roles", "Senior Product Manager");
+  await page.getByRole("button", { name: "Add role" }).click();
   await page.getByLabel("The role must match").check();
-  await page
-    .getByLabel("Where you can work: a country or region (one per line)")
-    .fill("Nigeria");
+  await page.fill("#s-locs", "Nigeria");
+  await page.getByRole("button", { name: "Add place" }).click();
   await page.getByLabel("The location must match").check();
   await page.getByLabel("remote").check();
   await page.getByLabel("This is a must (work arrangement)").check();

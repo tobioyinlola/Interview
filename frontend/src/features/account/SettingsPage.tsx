@@ -8,7 +8,9 @@ import {
   useSaveProfile,
 } from "../../api/hooks";
 import { CvPanel } from "../notes/NotesPage";
+import { COUNTRIES } from "../../data/countries";
 import { PasswordField } from "../../ui/PasswordField";
+import { CountrySelect, RoleInput } from "../../ui/Pickers";
 
 export function PrivacyNotice() {
   return (
@@ -118,13 +120,30 @@ function Field({
   );
 }
 
+/** "Lagos, Nigeria" becomes a city and a country from the list; anything else stays as the city. */
+function splitPlace(place: string): { city: string; country: string } {
+  const text = place.trim();
+  const hit = COUNTRIES.find(
+    (c) => text === c || text.toLowerCase().endsWith(`, ${c.toLowerCase()}`),
+  );
+  if (!hit) return { city: text, country: "" };
+  return {
+    city: text.slice(0, text.length - hit.length).replace(/,\s*$/, ""),
+    country: hit,
+  };
+}
+const joinPlace = (city: string, country: string) =>
+  [city.trim(), country].filter(Boolean).join(", ");
+
 function ProfileTab() {
   const { data: me } = useMe();
   const save = useSaveProfile();
+  const place = splitPlace(me?.location ?? "");
   const start = {
     name: me?.full_name ?? "",
     phone: me?.phone ?? "",
-    location: me?.location ?? "",
+    city: place.city,
+    country: place.country,
     headline: me?.headline ?? "",
     linkedin: me?.linkedin_url ?? "",
   };
@@ -140,7 +159,7 @@ function ProfileTab() {
       {
         full_name: f.name.trim(),
         phone: f.phone.trim(),
-        location: f.location.trim(),
+        location: joinPlace(f.city, f.country),
         headline: f.headline.trim(),
         linkedin_url: f.linkedin.trim(),
       },
@@ -150,7 +169,7 @@ function ProfileTab() {
           setF({
             name: m.full_name ?? "",
             phone: m.phone ?? "",
-            location: m.location ?? "",
+            ...splitPlace(m.location ?? ""),
             headline: m.headline ?? "",
             linkedin: m.linkedin_url ?? "",
           }),
@@ -196,22 +215,27 @@ function ProfileTab() {
             autoComplete="tel"
             placeholder="+234 801 234 5678"
           />
-          <Field
-            id="profile-location"
-            label="Where you live"
-            value={f.location}
-            onChange={(e) => set("location", e.target.value)}
-            autoComplete="address-level2"
-            maxLength={120}
-            placeholder="Lagos, Nigeria"
+          <CountrySelect
+            id="profile-country"
+            label="Country"
+            value={f.country}
+            onChange={(v) => set("country", v)}
           />
           <Field
+            id="profile-city"
+            label="City or town"
+            value={f.city}
+            onChange={(e) => set("city", e.target.value)}
+            autoComplete="address-level2"
+            maxLength={80}
+            placeholder="Lagos"
+          />
+          <RoleInput
             id="profile-headline"
             label="What you do"
             value={f.headline}
-            onChange={(e) => set("headline", e.target.value)}
-            maxLength={120}
-            placeholder="Senior product manager"
+            onChange={(v) => set("headline", v)}
+            hint="Pick a role from the list, or type your own."
           />
           <Field
             id="profile-linkedin"

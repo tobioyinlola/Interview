@@ -80,7 +80,7 @@ describe("Settings: profile", () => {
     ...ME,
     full_name: "Jordan Reyes",
     phone: "+234 801 234 5678",
-    location: "Lagos",
+    location: "Lagos, Nigeria",
     headline: null,
     linkedin_url: null,
     has_password: true,
@@ -95,7 +95,8 @@ describe("Settings: profile", () => {
     expect(screen.getByLabelText("Phone number")).toHaveValue(
       "+234 801 234 5678",
     );
-    expect(screen.getByLabelText("Where you live")).toHaveValue("Lagos");
+    expect(screen.getByLabelText("City or town")).toHaveValue("Lagos");
+    expect(screen.getByLabelText("Country")).toHaveValue("Nigeria");
     const email = screen.getByLabelText("Email address");
     expect(email).toHaveValue("me@example.com");
     expect(email).toHaveAttribute("readonly");
@@ -132,6 +133,9 @@ describe("Settings: profile", () => {
     });
     renderApp(<App />, "/settings/profile");
     const name = await screen.findByLabelText("Full name");
+    await userEvent.selectOptions(screen.getByLabelText("Country"), "Kenya");
+    await userEvent.clear(screen.getByLabelText("City or town"));
+    await userEvent.type(screen.getByLabelText("City or town"), "Nairobi");
     await userEvent.clear(name);
     await userEvent.type(name, "  Ada Lovelace ");
     await userEvent.type(
@@ -147,7 +151,7 @@ describe("Settings: profile", () => {
     expect(calls.find((c) => c.key === "PUT /api/profile")!.body).toEqual({
       full_name: "Ada Lovelace",
       phone: "+234 801 234 5678",
-      location: "Lagos",
+      location: "Nairobi, Kenya",
       headline: "Product manager",
       linkedin_url: "linkedin.com/in/ada",
     });
@@ -170,6 +174,69 @@ describe("Settings: profile", () => {
     await userEvent.type(await screen.findByLabelText("Phone number"), "x");
     await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/phone number/i);
+  });
+});
+
+describe("Settings: countries and roles are picked from lists", () => {
+  it("offers every country in a dropdown and common roles as suggestions", async () => {
+    mockApi({ "GET /api/me": () => ({ json: ME }) });
+    renderApp(<App />, "/settings/profile");
+    const country = await screen.findByLabelText("Country");
+    expect(country.tagName).toBe("SELECT");
+    const names = within(country)
+      .getAllByRole("option")
+      .map((o) => o.textContent);
+    for (const c of [
+      "Nigeria",
+      "Ghana",
+      "Kenya",
+      "United Kingdom",
+      "United States",
+      "South Africa",
+      "India",
+    ])
+      expect(names).toContain(c);
+    expect(names.length).toBeGreaterThan(195);
+    const role = screen.getByLabelText("What you do") as HTMLInputElement;
+    const list = document.getElementById(role.getAttribute("list")!)!;
+    const roles = [...list.querySelectorAll("option")].map((o) =>
+      o.getAttribute("value"),
+    );
+    for (const r of [
+      "Product Manager",
+      "Software Engineer",
+      "Data Analyst",
+      "UX Designer",
+    ])
+      expect(roles).toContain(r);
+  });
+
+  it("keeps a place that is not 'City, Country' as the city", async () => {
+    mockApi({
+      "GET /api/me": () => ({ json: { ...ME, location: "Somewhere remote" } }),
+    });
+    renderApp(<App />, "/settings/profile");
+    expect(await screen.findByLabelText("City or town")).toHaveValue(
+      "Somewhere remote",
+    );
+    expect(screen.getByLabelText("Country")).toHaveValue("");
+  });
+
+  it("uses the same role list for the target role on the CV tab", async () => {
+    mockApi({
+      "GET /api/me": () => ({ json: ME }),
+      "GET /api/notes": () => ({ json: notes() }),
+    });
+    renderApp(<App />, "/settings/cv");
+    const role = (await screen.findByLabelText(
+      "Target role",
+    )) as HTMLInputElement;
+    expect(role.getAttribute("list")).toBeTruthy();
+    expect(
+      document
+        .getElementById(role.getAttribute("list")!)!
+        .querySelectorAll("option").length,
+    ).toBeGreaterThan(80);
   });
 });
 

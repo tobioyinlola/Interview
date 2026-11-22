@@ -89,3 +89,13 @@ export function Fail({ error }: { error: unknown }) {
     </p>
   );
 }
+
+/** Shown while the server offers sample jobs and simulated sending only. */
+export function DemoNotice() {
+  return (
+    <p role="note" className="notice-warn">
+      <span className="font-medium">Demo mode.</span> These are sample jobs and
+      sending is simulated. Nothing is sent to a real employer.
+    </p>
+  );
+}

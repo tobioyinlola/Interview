@@ -2393,6 +2393,8 @@ export interface components {
             counts: {
                 [key: string]: number;
             };
+            /** Demo */
+            demo: boolean;
             last_run: components["schemas"]["RunOut"] | null;
             mailbox: components["schemas"]["MailboxOut"];
             /** Needs Input */
@@ -3709,6 +3711,11 @@ export interface components {
         /** StatusOut */
         app__autoapply__schemas__StatusOut: {
             campaign: components["schemas"]["CampaignOut"];
+            /**
+             * Demo
+             * @default false
+             */
+            demo: boolean;
             /** Enabled */
             enabled: boolean;
         };
