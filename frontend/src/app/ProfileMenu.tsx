@@ -121,7 +121,7 @@ export function ProfileMenu() {
         aria-controls={open ? menuId : undefined}
         aria-label={`Account menu${name ? ` for ${name}` : ""}`}
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2.5 rounded-full bg-surface py-1.5 pl-1.5 pr-3 shadow-card hover:ring-1 hover:ring-accent sm:pr-4"
+        className="flex items-center gap-2.5 rounded-full bg-surface py-1.5 pl-1.5 pr-3 shadow-card hover:shadow-lift sm:pr-4"
       >
         <span
           aria-hidden="true"
@@ -150,13 +150,13 @@ export function ProfileMenu() {
           id={menuId}
           role="menu"
           aria-label="Account"
-          className="absolute right-0 z-40 mt-2 w-64 rounded-2xl bg-surface p-2 shadow-card ring-1 ring-line"
+          className="absolute right-0 z-40 mt-2 w-64 rounded-2xl bg-surface p-2 shadow-lift"
         >
           <div className="px-3 pb-2 pt-1.5">
             {name && <p className="truncate text-sm font-semibold">{name}</p>}
             <p className="truncate text-xs text-muted">{me?.email}</p>
           </div>
-          <hr className="mb-1 border-line" />
+          <div className="mb-1" />
           {ITEMS.map((i) => (
             <Link
               key={i.to}
@@ -184,7 +184,7 @@ export function ProfileMenu() {
             </span>
             Take the tour
           </button>
-          <hr className="my-1 border-line" />
+          <div className="my-1" />
           <button
             type="button"
             role="menuitem"

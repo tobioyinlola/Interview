@@ -206,7 +206,7 @@ export function ReviewPage() {
         </ol>
       </section>
 
-      <section aria-labelledby="del-h" className="border-t pt-4">
+      <section aria-labelledby="del-h" className="pt-6">
         <h2 id="del-h" className="sr-only">
           Delete session
         </h2>

@@ -106,7 +106,7 @@ export function DesktopSyncPanel({
           </button>
         </div>
       ) : (
-        <div className="flex flex-wrap items-center gap-3 bg-canvas p-2.5 rounded-lg border border-line">
+        <div className="flex flex-wrap items-center gap-3 bg-canvas p-2.5 rounded-lg">
           <div>
             <div className="text-[10px] uppercase tracking-wider text-muted font-medium">
               Sync PIN

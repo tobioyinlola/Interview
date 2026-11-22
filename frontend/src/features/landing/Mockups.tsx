@@ -42,9 +42,9 @@ export function Window({
   return (
     <div
       aria-hidden="true"
-      className={`overflow-hidden rounded-2xl border border-line bg-surface shadow-card ${className}`}
+      className={`overflow-hidden rounded-2xl bg-surface shadow-card ${className}`}
     >
-      <div className="flex items-center gap-1.5 border-b border-line px-4 py-2.5">
+      <div className="flex items-center gap-1.5 bg-canvas px-4 py-2.5">
         <span className="h-2.5 w-2.5 rounded-full bg-[#FF6B7A]" />
         <span className="h-2.5 w-2.5 rounded-full bg-[#B58CFF]" />
         <span className="h-2.5 w-2.5 rounded-full bg-accent" />
@@ -63,11 +63,11 @@ export function HeroDevice() {
   return (
     <div
       aria-hidden="true"
-      className="mx-auto w-full max-w-3xl rounded-[28px] border-[10px] border-ink bg-ink shadow-lift"
+      className="mx-auto w-full max-w-3xl rounded-[28px] bg-ink p-[10px] shadow-lift"
     >
       <div className="overflow-hidden rounded-[18px] bg-surface">
         <div className="grid grid-cols-[150px_1fr] max-sm:grid-cols-1">
-          <div className="border-r border-line p-4 max-sm:hidden">
+          <div className="bg-canvas p-4 max-sm:hidden">
             <div className="mb-5 text-sm font-semibold">InterviewMeet</div>
             {["Dashboard", "CV", "Companies", "Interview", "Sessions"].map(
               (x, i) => (
@@ -92,7 +92,7 @@ export function HeroDevice() {
               </div>
               <ExampleTag />
             </div>
-            <div className="rounded-xl border border-line bg-surface p-4">
+            <div className="rounded-xl bg-canvas p-4">
               <p className="font-mono text-[10px] uppercase tracking-wider text-muted">
                 Partner asked
               </p>
@@ -101,7 +101,7 @@ export function HeroDevice() {
               </p>
               <Waveform className="mt-3 h-7" />
             </div>
-            <div className="rounded-xl border border-line bg-surface p-4 text-left">
+            <div className="rounded-xl bg-canvas p-4 text-left">
               <p className="font-mono text-[10px] uppercase tracking-wider text-accent-dark">
                 Answer
               </p>
@@ -135,7 +135,7 @@ export function PhoneMock() {
   return (
     <div
       aria-hidden="true"
-      className="mx-auto w-[250px] rounded-[34px] border-[9px] border-ink bg-ink shadow-lift"
+      className="mx-auto w-[250px] rounded-[34px] bg-ink p-[9px] shadow-lift"
     >
       <div className="rounded-[25px] bg-canvas p-4">
         <div className="mx-auto mb-3 h-1.5 w-16 rounded-full bg-ink/80" />

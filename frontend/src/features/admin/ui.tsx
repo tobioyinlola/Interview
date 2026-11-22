@@ -143,7 +143,7 @@ export function Table({
         className="w-full min-w-[560px] text-left text-sm"
         aria-label={label}
       >
-        <thead className="border-b border-line text-xs uppercase tracking-wide text-muted">
+        <thead className="text-xs uppercase tracking-wide text-muted">
           <tr>
             {head.map((h) => (
               <th key={h} scope="col" className="px-4 py-3 font-medium">
@@ -152,7 +152,9 @@ export function Table({
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-line">{children}</tbody>
+        <tbody className="[&>tr:nth-child(even)]:bg-canvas/70">
+          {children}
+        </tbody>
       </table>
     </div>
   );

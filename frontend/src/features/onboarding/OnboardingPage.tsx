@@ -41,10 +41,8 @@ function Option({
 }) {
   return (
     <label
-      className={`relative flex min-h-[64px] cursor-pointer items-center gap-3 rounded-2xl border-2 px-4 py-3 transition-colors ${
-        checked
-          ? "border-accent bg-accent-soft"
-          : "border-line-strong bg-surface hover:border-accent"
+      className={`relative flex min-h-[64px] cursor-pointer items-center gap-3 rounded-2xl px-4 py-3 shadow-card transition-all ${
+        checked ? "bg-accent-soft shadow-lift" : "bg-surface hover:shadow-lift"
       } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
     >
       <input
@@ -68,10 +66,8 @@ function Option({
       </span>
       <span
         aria-hidden="true"
-        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${
-          checked
-            ? "border-accent bg-accent text-surface"
-            : "border-line-strong text-transparent"
+        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
+          checked ? "bg-accent text-surface" : "bg-line text-transparent"
         }`}
       >
         <CheckIcon className="h-3.5 w-3.5" />

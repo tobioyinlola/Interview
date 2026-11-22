@@ -38,7 +38,7 @@ export function SourceList({ sources, onPaste, onRemove, removingId }: Props) {
           <li
             key={s.id}
             id={`source-${s.id}`}
-            className="rounded-xl border border-line p-2 text-sm"
+            className="rounded-xl bg-canvas p-2 text-sm"
           >
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-muted">[{i + 1}]</span>

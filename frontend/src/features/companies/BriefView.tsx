@@ -86,7 +86,7 @@ function PinToggle({
       aria-pressed={pinned}
       disabled={disabled}
       onClick={onToggle}
-      className={`tap rounded-lg border border-line px-1.5 text-xs hover:border-accent ${pinned ? "bg-yellow-100" : ""}`}
+      className={`tap rounded-lg bg-canvas px-1.5 text-xs hover:bg-accent-soft ${pinned ? "bg-yellow-100" : ""}`}
     >
       {pinned ? "Unpin" : "Pin"}
     </button>
@@ -193,7 +193,7 @@ function Fact({
               />
               <button
                 type="button"
-                className="tap rounded-lg border border-line px-1.5 text-xs hover:border-accent"
+                className="tap rounded-lg bg-canvas px-1.5 text-xs hover:bg-accent-soft"
                 aria-label={`Edit fact: ${fact.text.slice(0, 40)}`}
                 onClick={() => setEditingText(true)}
               >
@@ -201,7 +201,7 @@ function Fact({
               </button>
               <button
                 type="button"
-                className="tap rounded-lg border border-line px-1.5 text-xs text-red-700 hover:border-red-300 disabled:opacity-50"
+                className="tap rounded-lg bg-red-50 px-1.5 text-xs text-red-700 hover:bg-red-100 disabled:opacity-50"
                 aria-label={`Delete fact: ${fact.text.slice(0, 40)}`}
                 disabled={editing.pending}
                 onClick={() => change({ delete: true })}
@@ -291,10 +291,7 @@ function Section({
     section.facts.length > 0 &&
     section.facts.every((f) => f.label === "suggestion");
   return (
-    <section
-      aria-labelledby={`sec-${section.key}`}
-      className="border-t border-line pt-3"
-    >
+    <section aria-labelledby={`sec-${section.key}`} className="pt-5">
       <h3 id={`sec-${section.key}`} className="font-medium">
         {section.title}
       </h3>

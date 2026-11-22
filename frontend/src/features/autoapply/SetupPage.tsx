@@ -200,7 +200,7 @@ function FactsEditor({
       <fieldset className="space-y-3">
         <legend className="text-sm font-medium">Work history</legend>
         {d.history.map((j, i) => (
-          <div key={i} className="space-y-2 rounded-xl border border-line p-3">
+          <div key={i} className="space-y-2 rounded-xl bg-canvas p-3">
             <div className="grid gap-2 sm:grid-cols-4">
               {(
                 [
@@ -676,7 +676,7 @@ function ChannelsSection({ profile }: { profile: AAProfile }) {
           Send one short note to the hiring contact, when the job lists one
         </label>
       </div>
-      <div id="email" className="space-y-2 rounded-xl border border-line p-3">
+      <div id="email" className="space-y-2 rounded-xl bg-canvas p-3">
         <p className="text-sm font-medium">Your email</p>
         {connected ? (
           <p className="text-sm">

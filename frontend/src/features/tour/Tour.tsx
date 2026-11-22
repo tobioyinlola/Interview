@@ -143,7 +143,7 @@ export function Tour({
         aria-modal="true"
         aria-labelledby="tour-title"
         aria-describedby="tour-body"
-        className="fixed w-[min(360px,calc(100vw-2rem))] rounded-2xl bg-surface p-5 shadow-card ring-1 ring-line"
+        className="fixed w-[min(360px,calc(100vw-2rem))] rounded-2xl bg-surface p-5 shadow-lift"
         style={{ top: pos.top, left: pos.left }}
       >
         <p className="text-xs font-medium text-muted">
