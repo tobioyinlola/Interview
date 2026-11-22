@@ -11,6 +11,10 @@ import { SignUpForm } from "../features/auth/SignUpForm";
 import { VerifyPage } from "../features/auth/VerifyPage";
 import { CompaniesPage } from "../features/companies/CompaniesPage";
 import { CompanyPage } from "../features/companies/CompanyPage";
+import { ApplicationPage } from "../features/autoapply/ApplicationPage";
+import { ApplicationsPage } from "../features/autoapply/ApplicationsPage";
+import { AutoApplyPage } from "../features/autoapply/AutoApplyPage";
+import { SetupPage } from "../features/autoapply/SetupPage";
 import { ActivityPage } from "../features/admin/ActivityPage";
 import { AdminLayout } from "../features/admin/AdminLayout";
 import { EmailsAdminPage } from "../features/admin/EmailsAdminPage";
@@ -85,6 +89,16 @@ export function App() {
             <Route path="/session/:id" element={<LiveSessionPage />} />
             <Route path="/sessions" element={<SessionsPage />} />
             <Route path="/sessions/:id" element={<ReviewPage />} />
+            <Route path="/auto-apply" element={<AutoApplyPage />} />
+            <Route path="/auto-apply/setup" element={<SetupPage />} />
+            <Route
+              path="/auto-apply/applications"
+              element={<ApplicationsPage />}
+            />
+            <Route
+              path="/auto-apply/applications/:id"
+              element={<ApplicationPage />}
+            />
             <Route path="/referrals" element={<ReferralPage />} />
             <Route path="/help" element={<HelpPage />} />
             <Route path="/settings" element={<SettingsPage />} />

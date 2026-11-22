@@ -6,7 +6,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
-class ProfileIn(BaseModel):
+class SearchProfileIn(BaseModel):
     criteria: dict[str, Any] | None = None
     timezone: str | None = Field(default=None, max_length=64)
     active_hours: dict[str, int] | None = None
@@ -211,6 +211,7 @@ class InterviewOut(BaseModel):
     scheduled_at: datetime | None
     time_zone_unclear: bool
     company_id: str | None
+    last_event_id: str | None  # the message to confirm a time zone against
     action: str | None  # book | prepare | confirm_time
     history: list[dict[str, Any]]
 

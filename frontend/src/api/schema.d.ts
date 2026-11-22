@@ -2482,6 +2482,8 @@ export interface components {
             }[];
             /** Id */
             id: string;
+            /** Last Event Id */
+            last_event_id: string | null;
             /** Meeting Url */
             meeting_url: string | null;
             /** Round */
@@ -2596,6 +2598,11 @@ export interface components {
         };
         /** MeOut */
         MeOut: {
+            /**
+             * Autoapply
+             * @default false
+             */
+            autoapply: boolean;
             /** Email */
             email: string;
             /** Full Name */
@@ -2792,6 +2799,11 @@ export interface components {
             kind: string;
             /** Label */
             label: string;
+        };
+        /** ProfileIn */
+        ProfileIn: {
+            /** Full Name */
+            full_name: string;
         };
         /** ProfileOut */
         ProfileOut: {
@@ -3013,6 +3025,27 @@ export interface components {
         ScoreStartedOut: {
             /** Status */
             status: string;
+        };
+        /** SearchProfileIn */
+        SearchProfileIn: {
+            /** Active Hours */
+            active_hours?: {
+                [key: string]: number;
+            } | null;
+            /** Channels */
+            channels?: {
+                [key: string]: boolean;
+            } | null;
+            /** Criteria */
+            criteria?: {
+                [key: string]: unknown;
+            } | null;
+            /** Daily Application Cap */
+            daily_application_cap?: number | null;
+            /** Daily Outreach Cap */
+            daily_outreach_cap?: number | null;
+            /** Timezone */
+            timezone?: string | null;
         };
         /** SegmentOut */
         SegmentOut: {
@@ -3492,37 +3525,11 @@ export interface components {
             /** Token */
             token: string;
         };
-        /** ProfileIn */
-        app__autoapply__schemas__ProfileIn: {
-            /** Active Hours */
-            active_hours?: {
-                [key: string]: number;
-            } | null;
-            /** Channels */
-            channels?: {
-                [key: string]: boolean;
-            } | null;
-            /** Criteria */
-            criteria?: {
-                [key: string]: unknown;
-            } | null;
-            /** Daily Application Cap */
-            daily_application_cap?: number | null;
-            /** Daily Outreach Cap */
-            daily_outreach_cap?: number | null;
-            /** Timezone */
-            timezone?: string | null;
-        };
         /** StatusOut */
         app__autoapply__schemas__StatusOut: {
             campaign: components["schemas"]["CampaignOut"];
             /** Enabled */
             enabled: boolean;
-        };
-        /** ProfileIn */
-        app__schemas__api__ProfileIn: {
-            /** Full Name */
-            full_name: string;
         };
         /** StatusOut */
         app__schemas__api__StatusOut: {
@@ -5247,7 +5254,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["app__autoapply__schemas__ProfileIn"];
+                "application/json": components["schemas"]["SearchProfileIn"];
             };
         };
         responses: {
@@ -5934,7 +5941,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["app__schemas__api__ProfileIn"];
+                "application/json": components["schemas"]["ProfileIn"];
             };
         };
         responses: {

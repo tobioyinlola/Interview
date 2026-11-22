@@ -58,7 +58,7 @@ from app.autoapply.schemas import (
     PostingOut,
     PrepareOut,
     PrimaryAction,
-    ProfileIn,
+    SearchProfileIn,
     ProfileOut,
     RecruitingOut,
     ResolveIn,
@@ -217,7 +217,7 @@ async def read_profile(
 
 @router.put("/profile")
 async def write_profile(
-    body: ProfileIn,
+    body: SearchProfileIn,
     user: User = Depends(current_user),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008
     llm: LlmProvider = Depends(get_llm),  # noqa: B008
@@ -975,6 +975,7 @@ def _interview_out(link: InterviewLink, p: JobPosting, now: datetime) -> Intervi
         scheduled_at=link.scheduled_at,
         time_zone_unclear=link.time_zone_unclear,
         company_id=str(link.company_id) if link.company_id else None,
+        last_event_id=str(link.last_event_id) if link.last_event_id else None,
         action=dashboard.action_for(link, now),
         history=link.history or [],
     )

@@ -87,6 +87,7 @@ class MeOut(BaseModel):
     onboarded: bool = True  # false until onboarding is finished or skipped
     onboarding: OnboardingAnswers | None = None
     tour_done: bool = True  # false until the first-time tour was finished or skipped
+    autoapply: bool = False  # the Auto-Apply feature is switched on for this server
 
 
 class TourIn(BaseModel):

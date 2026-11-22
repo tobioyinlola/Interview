@@ -9,7 +9,6 @@ from sqlalchemy import func, select
 from app.autoapply import mailsync, recruiting
 from app.autoapply.adapters import InboundMessage
 from app.models import (
-    Application,
     Company,
     InterviewLink,
     PracticeSession,
@@ -17,13 +16,11 @@ from app.models import (
     SubmissionAttempt,
 )
 from tests.autoapply.conftest import (
-    CV,
     apps,
     connect_mailbox,
     email_job,
     job,
     start,
-    user_id,
 )
 
 NOW = datetime(2026, 11, 2, 9, 0, tzinfo=UTC)

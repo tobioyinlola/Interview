@@ -2012,6 +2012,17 @@
             "title": "Id",
             "type": "string"
           },
+          "last_event_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Event Id"
+          },
           "meeting_url": {
             "anyOf": [
               {
@@ -2075,6 +2086,7 @@
           "scheduled_at",
           "time_zone_unclear",
           "company_id",
+          "last_event_id",
           "action",
           "history"
         ],
@@ -2390,6 +2402,11 @@
       },
       "MeOut": {
         "properties": {
+          "autoapply": {
+            "default": false,
+            "title": "Autoapply",
+            "type": "boolean"
+          },
           "email": {
             "title": "Email",
             "type": "string"
@@ -3075,6 +3092,21 @@
         "title": "PrimaryAction",
         "type": "object"
       },
+      "ProfileIn": {
+        "properties": {
+          "full_name": {
+            "maxLength": 400,
+            "minLength": 1,
+            "title": "Full Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "full_name"
+        ],
+        "title": "ProfileIn",
+        "type": "object"
+      },
       "ProfileOut": {
         "properties": {
           "active_hours": {
@@ -3676,6 +3708,86 @@
           "status"
         ],
         "title": "ScoreStartedOut",
+        "type": "object"
+      },
+      "SearchProfileIn": {
+        "properties": {
+          "active_hours": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Hours"
+          },
+          "channels": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "boolean"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channels"
+          },
+          "criteria": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Criteria"
+          },
+          "daily_application_cap": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Application Cap"
+          },
+          "daily_outreach_cap": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Outreach Cap"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone"
+          }
+        },
+        "title": "SearchProfileIn",
         "type": "object"
       },
       "SegmentOut": {
@@ -5076,86 +5188,6 @@
         "title": "VerifyIn",
         "type": "object"
       },
-      "app__autoapply__schemas__ProfileIn": {
-        "properties": {
-          "active_hours": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "type": "integer"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Active Hours"
-          },
-          "channels": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "type": "boolean"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Channels"
-          },
-          "criteria": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Criteria"
-          },
-          "daily_application_cap": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Daily Application Cap"
-          },
-          "daily_outreach_cap": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Daily Outreach Cap"
-          },
-          "timezone": {
-            "anyOf": [
-              {
-                "maxLength": 64,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Timezone"
-          }
-        },
-        "title": "ProfileIn",
-        "type": "object"
-      },
       "app__autoapply__schemas__StatusOut": {
         "properties": {
           "campaign": {
@@ -5171,21 +5203,6 @@
           "campaign"
         ],
         "title": "StatusOut",
-        "type": "object"
-      },
-      "app__schemas__api__ProfileIn": {
-        "properties": {
-          "full_name": {
-            "maxLength": 400,
-            "minLength": 1,
-            "title": "Full Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "full_name"
-        ],
-        "title": "ProfileIn",
         "type": "object"
       },
       "app__schemas__api__StatusOut": {
@@ -7807,7 +7824,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/app__autoapply__schemas__ProfileIn"
+                "$ref": "#/components/schemas/SearchProfileIn"
               }
             }
           },
@@ -8746,7 +8763,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/app__schemas__api__ProfileIn"
+                "$ref": "#/components/schemas/ProfileIn"
               }
             }
           },

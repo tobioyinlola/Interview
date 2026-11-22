@@ -50,3 +50,21 @@ export type AdminQuality = S["QualityOut"];
 export type AdminEmails = S["EmailsOut"];
 export type AdminTemplate = S["TemplateInfo"];
 export type AdminTemplatePreview = S["TemplatePreview"];
+
+// Auto-Apply
+export type AAProfile = S["ProfileOut"];
+export type AAProfileIn = S["SearchProfileIn"];
+export type AAFacts = S["FactsOut"];
+export type AAAnswer = S["AnswerOut"];
+export type AADisclosure = S["Disclosure"];
+export type AACampaign = S["CampaignOut"];
+export type AADashboard = S["DashboardOut"];
+export type AAApplication = S["ApplicationOut"];
+export type AAApplicationDetail = S["ApplicationDetail"];
+export type AAApplicationPage = S["ApplicationPage"];
+export type AAInterview = S["InterviewOut"];
+export type AARecruiting = S["RecruitingOut"];
+export type AAMailbox = S["MailboxOut"];
+export type AARun = S["RunOut"];
+export type AAOutreach = S["OutreachOut"];
+export type AAPrepared = S["PrepareOut"];
