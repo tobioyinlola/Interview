@@ -1862,6 +1862,28 @@
         "title": "Disclosure",
         "type": "object"
       },
+      "EditIn": {
+        "properties": {
+          "body": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Body",
+            "type": "string"
+          },
+          "subject": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Subject",
+            "type": "string"
+          }
+        },
+        "required": [
+          "subject",
+          "body"
+        ],
+        "title": "EditIn",
+        "type": "object"
+      },
       "EmailKindRow": {
         "properties": {
           "failed_30d": {
@@ -2245,6 +2267,53 @@
           "reason"
         ],
         "title": "HeldRow",
+        "type": "object"
+      },
+      "ImportIn": {
+        "properties": {
+          "directory": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Directory",
+            "type": "string"
+          },
+          "startups": {
+            "items": {
+              "$ref": "#/components/schemas/StartupIn"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Startups",
+            "type": "array"
+          }
+        },
+        "required": [
+          "directory",
+          "startups"
+        ],
+        "title": "ImportIn",
+        "type": "object"
+      },
+      "IngestIn": {
+        "properties": {
+          "directory": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Directory",
+            "type": "string"
+          },
+          "url": {
+            "maxLength": 500,
+            "minLength": 8,
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "directory",
+          "url"
+        ],
+        "title": "IngestIn",
         "type": "object"
       },
       "InterviewOut": {
@@ -2769,6 +2838,11 @@
               }
             ],
             "title": "Phone"
+          },
+          "startup_outreach": {
+            "default": false,
+            "title": "Startup Outreach",
+            "type": "boolean"
           },
           "tour_done": {
             "default": true,
@@ -4625,6 +4699,144 @@
         "title": "SessionSummary",
         "type": "object"
       },
+      "SettingsIn": {
+        "properties": {
+          "auto_send": {
+            "default": false,
+            "title": "Auto Send",
+            "type": "boolean"
+          },
+          "daily_cap": {
+            "default": 8,
+            "maximum": 25.0,
+            "minimum": 1.0,
+            "title": "Daily Cap",
+            "type": "integer"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "pitch": {
+            "default": "",
+            "maxLength": 1200,
+            "title": "Pitch",
+            "type": "string"
+          },
+          "postal_address": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Postal Address",
+            "type": "string"
+          },
+          "regions": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 3,
+            "title": "Regions",
+            "type": "array"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 5,
+            "title": "Roles",
+            "type": "array"
+          },
+          "sender_name": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Sender Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "SettingsIn",
+        "type": "object"
+      },
+      "SettingsOut": {
+        "properties": {
+          "auto_send": {
+            "default": false,
+            "title": "Auto Send",
+            "type": "boolean"
+          },
+          "daily_cap": {
+            "default": 8,
+            "maximum": 25.0,
+            "minimum": 1.0,
+            "title": "Daily Cap",
+            "type": "integer"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "mailbox": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mailbox"
+          },
+          "pitch": {
+            "default": "",
+            "maxLength": 1200,
+            "title": "Pitch",
+            "type": "string"
+          },
+          "postal_address": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Postal Address",
+            "type": "string"
+          },
+          "ready": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Ready",
+            "type": "array"
+          },
+          "regions": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 3,
+            "title": "Regions",
+            "type": "array"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 5,
+            "title": "Roles",
+            "type": "array"
+          },
+          "sender_name": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Sender Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "enabled",
+          "mailbox",
+          "ready"
+        ],
+        "title": "SettingsOut",
+        "type": "object"
+      },
       "SignUpIn": {
         "properties": {
           "app_challenge": {
@@ -4817,6 +5029,52 @@
         "title": "StaffOut",
         "type": "object"
       },
+      "StartupIn": {
+        "properties": {
+          "batch": {
+            "default": "",
+            "maxLength": 60,
+            "title": "Batch",
+            "type": "string"
+          },
+          "country": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Country",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "one_liner": {
+            "default": "",
+            "maxLength": 500,
+            "title": "One Liner",
+            "type": "string"
+          },
+          "sector": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Sector",
+            "type": "string"
+          },
+          "website": {
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Website",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "website"
+        ],
+        "title": "StartupIn",
+        "type": "object"
+      },
       "SuggestIn": {
         "properties": {
           "question_text": {
@@ -4990,6 +5248,113 @@
           "reason"
         ],
         "title": "SwitchOut",
+        "type": "object"
+      },
+      "TargetOut": {
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "contact": {
+            "title": "Contact",
+            "type": "string"
+          },
+          "contact_kind": {
+            "title": "Contact Kind",
+            "type": "string"
+          },
+          "contact_source": {
+            "title": "Contact Source",
+            "type": "string"
+          },
+          "fit": {
+            "title": "Fit",
+            "type": "integer"
+          },
+          "fit_reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Fit Reasons",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "one_liner": {
+            "title": "One Liner",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "region": {
+            "title": "Region",
+            "type": "string"
+          },
+          "sent_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent At"
+          },
+          "startup": {
+            "title": "Startup",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "step": {
+            "title": "Step",
+            "type": "integer"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "website": {
+            "title": "Website",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "startup",
+          "website",
+          "one_liner",
+          "region",
+          "contact",
+          "contact_kind",
+          "contact_source",
+          "fit",
+          "fit_reasons",
+          "step",
+          "subject",
+          "body",
+          "status",
+          "reason",
+          "sent_at"
+        ],
+        "title": "TargetOut",
         "type": "object"
       },
       "TemplateInfo": {
@@ -9366,6 +9731,422 @@
         "summary": "Remove Source",
         "tags": [
           "companies"
+        ]
+      }
+    },
+    "/api/hunt/admin/import": {
+      "post": {
+        "operationId": "import_startups_api_hunt_admin_import_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Import Startups Api Hunt Admin Import Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import Startups",
+        "tags": [
+          "hunt"
+        ]
+      }
+    },
+    "/api/hunt/admin/ingest": {
+      "post": {
+        "operationId": "ingest_api_hunt_admin_ingest_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Ingest Api Hunt Admin Ingest Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ingest",
+        "tags": [
+          "hunt"
+        ]
+      }
+    },
+    "/api/hunt/admin/research": {
+      "post": {
+        "operationId": "run_research_api_hunt_admin_research_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Run Research Api Hunt Admin Research Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Run Research",
+        "tags": [
+          "hunt"
+        ]
+      }
+    },
+    "/api/hunt/directories": {
+      "get": {
+        "operationId": "directories_api_hunt_directories_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Directories Api Hunt Directories Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Directories",
+        "tags": [
+          "hunt"
+        ]
+      }
+    },
+    "/api/hunt/settings": {
+      "get": {
+        "operationId": "read_settings_api_hunt_settings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Settings",
+        "tags": [
+          "hunt"
+        ]
+      },
+      "put": {
+        "operationId": "save_settings_api_hunt_settings_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Settings",
+        "tags": [
+          "hunt"
+        ]
+      }
+    },
+    "/api/hunt/summary": {
+      "get": {
+        "operationId": "summary_api_hunt_summary_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Summary Api Hunt Summary Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Summary",
+        "tags": [
+          "hunt"
+        ]
+      }
+    },
+    "/api/hunt/targets": {
+      "get": {
+        "operationId": "targets_api_hunt_targets_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 10,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TargetOut"
+                  },
+                  "title": "Response Targets Api Hunt Targets Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Targets",
+        "tags": [
+          "hunt"
+        ]
+      }
+    },
+    "/api/hunt/targets/{tid}": {
+      "put": {
+        "operationId": "edit_target_api_hunt_targets__tid__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Tid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TargetOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Edit Target",
+        "tags": [
+          "hunt"
+        ]
+      }
+    },
+    "/api/hunt/targets/{tid}/approve": {
+      "post": {
+        "operationId": "approve_api_hunt_targets__tid__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Tid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TargetOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve",
+        "tags": [
+          "hunt"
+        ]
+      }
+    },
+    "/api/hunt/targets/{tid}/skip": {
+      "post": {
+        "operationId": "skip_api_hunt_targets__tid__skip_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Tid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TargetOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Skip",
+        "tags": [
+          "hunt"
         ]
       }
     },

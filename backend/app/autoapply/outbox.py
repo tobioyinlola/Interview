@@ -63,6 +63,7 @@ def dispatch_allowed(settings: Settings, channel: str, real: bool, recipient: st
         "form": settings.autoapply_form_dispatch,
         "email": settings.autoapply_email_dispatch,
         "outreach": settings.autoapply_outreach_dispatch,
+        "hunt": settings.startup_outreach_dispatch,
     }[channel]
     if not switch:
         return False

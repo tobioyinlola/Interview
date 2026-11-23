@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import KillSwitch
 
-CHANNELS = ("form", "email", "outreach")
+CHANNELS = ("form", "email", "outreach", "hunt")
 KNOWN = ("global", *(f"channel:{c}" for c in CHANNELS))
 
 

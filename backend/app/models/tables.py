@@ -753,3 +753,99 @@ class KillSwitch(Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     set_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+
+
+# ---------------------------------------------------------------- startup outreach
+
+
+class Startup(Base):
+    """A company read from an accelerator's public directory. Shared by every candidate: the
+    facts are public, so each is researched once."""
+
+    __tablename__ = "aa_startups"
+    id: Mapped[uuid.UUID] = _pk()
+    name: Mapped[str] = mapped_column(String(200))
+    domain: Mapped[str] = mapped_column(String(253), unique=True)
+    website: Mapped[str] = mapped_column(String(500))
+    directory: Mapped[str] = mapped_column(String(120))  # which accelerator listed it
+    directory_url: Mapped[str] = mapped_column(String(500))
+    batch: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    one_liner: Mapped[str] = mapped_column(String(500), default="")
+    sector: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    region: Mapped[str] = mapped_column(String(8), default="other")  # us | eu | uk | other
+    country: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    status: Mapped[str] = mapped_column(String(12), default="new")  # new | researched | dead
+    research: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    researched_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+
+
+class StartupContact(Base):
+    """A way to reach a startup that the startup itself published, with the page it came from.
+    Nothing is guessed, bought or derived."""
+
+    __tablename__ = "aa_startup_contacts"
+    __table_args__ = (UniqueConstraint("startup_id", "email"),)
+    id: Mapped[uuid.UUID] = _pk()
+    startup_id: Mapped[uuid.UUID] = _fk("aa_startups.id", index=True)
+    email: Mapped[str] = mapped_column(String(320))
+    name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    title: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    kind: Mapped[str] = mapped_column(String(8))  # person | role (jobs@, careers@) | general
+    source_url: Mapped[str] = mapped_column(String(500))
+    found_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+
+
+class HuntSettings(Base):
+    """A candidate's own choices for startup outreach. Off until they turn it on."""
+
+    __tablename__ = "aa_hunt_settings"
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = _fk("users.id", unique=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    regions: Mapped[list[str]] = mapped_column(JSONB, default=list)  # us | eu | uk
+    roles: Mapped[list[str]] = mapped_column(JSONB, default=list)  # what they want to be hired as
+    pitch: Mapped[str] = mapped_column(Text, default="")  # their own value proposition
+    daily_cap: Mapped[int] = mapped_column(Integer, default=8)
+    auto_send: Mapped[bool] = mapped_column(Boolean, default=False)  # false: approve each one
+    sender_name: Mapped[str] = mapped_column(String(120), default="")
+    postal_address: Mapped[str] = mapped_column(String(300), default="")  # CAN-SPAM
+    updated_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+
+
+class HuntTarget(Base):
+    """One note to one published contact at one startup, from one candidate."""
+
+    __tablename__ = "aa_hunt_targets"
+    __table_args__ = (UniqueConstraint("user_id", "contact_id", "step"),)
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = _fk("users.id", index=True)
+    startup_id: Mapped[uuid.UUID] = _fk("aa_startups.id")
+    contact_id: Mapped[uuid.UUID] = _fk("aa_startup_contacts.id")
+    step: Mapped[int] = mapped_column(Integer, default=1)  # 1 first note, 2 one follow-up
+    fit: Mapped[int] = mapped_column(Integer, default=0)
+    fit_reasons: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    subject: Mapped[str] = mapped_column(String(300), default="")
+    body: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(10), default="drafted")
+    # drafted | approved | sending | sent | failed | skipped | replied | declined
+    reason: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    message_id: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    thread_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    claimed_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    sent_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+
+
+class Suppression(Base):
+    """An address or domain nobody may write to again. user_id empty means for every candidate."""
+
+    __tablename__ = "aa_suppressions"
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    email: Mapped[str | None] = mapped_column(String(320), nullable=True, index=True)
+    domain: Mapped[str | None] = mapped_column(String(253), nullable=True, index=True)
+    reason: Mapped[str] = mapped_column(String(12))  # opt_out | bounce | declined | manual
+    created_at: Mapped[datetime] = mapped_column(_TS, default=_now)

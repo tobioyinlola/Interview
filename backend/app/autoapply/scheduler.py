@@ -186,6 +186,10 @@ async def tick(
             failures += 1
             log.exception("mailbox read failed", extra={"fields": {"user": str(uid)}})
     settled = await outbox.reconcile(maker, adapters, now)
+    if settings.startup_outreach_enabled:
+        from app.hunt import jobs
+
+        await jobs.run(maker, now, settings=settings, adapter=mailbox_adapter, llm=llm)
     await observe(maker, now)
     metrics.autoapply_tick_timestamp.set(now.timestamp())
     return {

@@ -267,6 +267,10 @@ async def sync_user(
         zone = prof.timezone if prof else "UTC"
         for msg in sorted(messages, key=lambda m: m.received_at):
             stats["read"] += 1
+            if settings.startup_outreach_enabled:
+                from app.hunt import engine as hunt_engine  # local: optional feature
+
+                await hunt_engine.on_inbound(db, user_id, msg, now)
             outcome = await process_message(db, conn, msg, known, zone, now)
             stats[outcome] += 1
         conn.cursor, conn.last_synced_at = cursor, now
