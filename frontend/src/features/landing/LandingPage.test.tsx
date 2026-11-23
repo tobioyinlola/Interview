@@ -8,7 +8,11 @@ import {
   stubSupportedBrowser,
 } from "../../test-utils";
 import { App } from "../../app/App";
-import { WINDOWS_DOWNLOAD_URL } from "./LandingPage";
+import {
+  MAC_ARM_DOWNLOAD_URL,
+  MAC_INTEL_DOWNLOAD_URL,
+  WINDOWS_DOWNLOAD_URL,
+} from "./LandingPage";
 import main from "../../main.tsx?raw";
 import tailwindConfig from "../../../tailwind.config.js?raw";
 
@@ -117,6 +121,17 @@ describe("the desktop download", () => {
     expect(WINDOWS_DOWNLOAD_URL).toMatch(
       /^https:\/\/github\.com\/.+\/releases\/latest\/download\/InterviewMeet-Setup\.exe$/,
     );
-    expect(screen.getByText(/Mac version coming soon/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Download for Mac (Apple silicon)" }),
+    ).toHaveAttribute("href", MAC_ARM_DOWNLOAD_URL);
+    expect(
+      screen.getByRole("link", { name: "Mac with an Intel chip" }),
+    ).toHaveAttribute("href", MAC_INTEL_DOWNLOAD_URL);
+    expect(MAC_ARM_DOWNLOAD_URL).toMatch(
+      /releases\/latest\/download\/InterviewMeet-mac-arm64\.dmg$/,
+    );
+    expect(
+      screen.getByText(/right-click it and choose Open/),
+    ).toBeInTheDocument();
   });
 });
