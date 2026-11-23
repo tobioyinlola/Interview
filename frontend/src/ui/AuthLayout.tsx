@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 
+import { isNativeApp } from "../app/native";
 import { Wordmark } from "../features/landing/Logo";
 import { AuthCarousel } from "./AuthCarousel";
 import { PublicShell } from "./PublicShell";
@@ -56,12 +57,15 @@ export function AuthLayout({
             >
               <Wordmark />
             </Link>
-            <Link
-              to="/"
-              className="inline-flex min-h-[44px] items-center text-sm text-muted hover:text-ink"
-            >
-              Back to home
-            </Link>
+            {/* an installed app starts at sign-in; there is no website home to go back to */}
+            {!isNativeApp() && (
+              <Link
+                to="/"
+                className="inline-flex min-h-[44px] items-center text-sm text-muted hover:text-ink"
+              >
+                Back to home
+              </Link>
+            )}
           </div>
         </header>
         <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-5 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-4 sm:px-6">

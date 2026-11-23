@@ -1,4 +1,4 @@
-import { isDesktopApp } from "../../app/desktop";
+import { isNativeApp } from "../../app/native";
 import { type FormEvent, useId, useRef, useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
 
@@ -114,6 +114,27 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
 
   return (
     <AuthLayout>
+      {isNativeApp() && (
+        <nav
+          aria-label="Sign in or get started"
+          className="mb-6 grid grid-cols-2 gap-1 rounded-2xl bg-accent-soft p-1 text-sm font-medium"
+        >
+          <Link
+            to="/login"
+            aria-current={signup ? undefined : "page"}
+            className={`flex min-h-[44px] items-center justify-center rounded-xl ${signup ? "text-accent-dark" : "bg-surface shadow-card"}`}
+          >
+            Log in
+          </Link>
+          <Link
+            to="/signup"
+            aria-current={signup ? "page" : undefined}
+            className={`flex min-h-[44px] items-center justify-center rounded-xl ${signup ? "bg-surface shadow-card" : "text-accent-dark"}`}
+          >
+            Get started
+          </Link>
+        </nav>
+      )}
       <div>
         <h1 className="text-[1.75rem] font-semibold leading-tight tracking-tight sm:text-3xl">
           {signup ? "Create your account" : "Sign in"}
@@ -281,13 +302,13 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
               </div>
             )}
 
-            {providers.data?.google && isDesktopApp() && (
+            {providers.data?.google && isNativeApp() && (
               <p className="mt-4 text-center text-xs text-muted">
-                Google sign-in is not available in the desktop app yet. Use your
-                email and password, or a sign-in link.
+                Google sign-in is not available in the app yet. Use your email
+                and password, or a sign-in link.
               </p>
             )}
-            {providers.data?.google && !isDesktopApp() && (
+            {providers.data?.google && !isNativeApp() && (
               <>
                 <Divider />
                 <button

@@ -69,6 +69,7 @@ function createWindow() {
     backgroundColor: "#f7f4ff",
     show: false,
     title: "InterviewMeet",
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -79,6 +80,8 @@ function createWindow() {
     },
   });
   win.once("ready-to-show", () => win.show());
+  // The title bar always says the app's name, not whatever the current web page is called.
+  win.on("page-title-updated", (event) => event.preventDefault());
   win.webContents.setUserAgent(
     `${win.webContents.getUserAgent()} InterviewMeetDesktop/${app.getVersion()}`,
   );
@@ -107,6 +110,13 @@ function createWindow() {
 
 function buildMenu() {
   const mac = process.platform === "darwin";
+  // Windows apps do not show a menu bar: the app looks like a program, not a web page. Copy, paste
+  // and the other editing keys still work in text boxes without it. Mac keeps its menu, which the
+  // system expects (and which carries Quit, Hide and the edit shortcuts).
+  if (!mac) {
+    Menu.setApplicationMenu(null);
+    return;
+  }
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
       ...(mac ? [{ role: "appMenu" }] : []),
