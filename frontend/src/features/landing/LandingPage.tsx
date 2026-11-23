@@ -3,6 +3,11 @@ import { Link } from "react-router-dom";
 import { Wordmark } from "./Logo";
 import { Cite, HeroDevice, PhoneMock, Waveform, Window } from "./Mockups";
 
+/** The installer on the latest GitHub release. The file name is fixed in desktop/electron-builder.yml
+ *  so this address never changes between versions. */
+export const WINDOWS_DOWNLOAD_URL =
+  "https://github.com/tobioyinlola/Interview/releases/latest/download/InterviewMeet-Setup.exe";
+
 const FEATURES = [
   {
     n: "01",
@@ -112,6 +117,9 @@ export function LandingPage() {
             <a href="#principles" className="hover:text-ink">
               Principles
             </a>
+            <a href="#download" className="hover:text-ink">
+              Download
+            </a>
           </div>
           <div className="flex items-center gap-2">
             <Link
@@ -160,7 +168,15 @@ export function LandingPage() {
               See how it works
             </a>
           </div>
-          <p className="mt-5 text-sm text-muted">
+          <p className="mt-4 text-sm">
+            <a
+              href="#download"
+              className="font-medium text-accent-dark hover:underline"
+            >
+              Download the Windows app
+            </a>
+          </p>
+          <p className="mt-3 text-sm text-muted">
             Sign up with Google or just your email. For mock interviews with a
             partner who knows it is on.
           </p>
@@ -168,6 +184,56 @@ export function LandingPage() {
             <HeroDevice />
             <div className="hidden lg:block">
               <PhoneMock />
+            </div>
+          </div>
+        </section>
+
+        {/* The desktop app */}
+        <section
+          id="download"
+          aria-labelledby="download-h"
+          className="mx-auto max-w-5xl px-4 pb-16 sm:px-6"
+        >
+          <div className="rounded-3xl bg-gradient-to-br from-ink via-ink to-accent-dark p-6 text-surface shadow-lift sm:p-10">
+            <div className="grid items-center gap-8 md:grid-cols-[1fr_auto]">
+              <div>
+                <h2
+                  id="download-h"
+                  className="text-2xl font-semibold tracking-tight sm:text-3xl"
+                >
+                  Get the desktop app
+                </h2>
+                <p className="mt-3 max-w-xl text-surface/80">
+                  It hears the interviewer from Meet, Zoom or Teams without
+                  picking a browser tab. Everything else works exactly as it
+                  does on the website, and it updates itself.
+                </p>
+                <ul className="mt-4 space-y-1 text-sm text-surface/80">
+                  <li>For Windows 10 and 11.</li>
+                  <li>
+                    Mac version coming soon. On a Mac, use Chrome or Edge for
+                    now.
+                  </li>
+                  <li>
+                    Windows may show a &ldquo;protected your PC&rdquo; notice
+                    while we finish signing the app. Choose{" "}
+                    <strong>More info</strong>, then <strong>Run anyway</strong>
+                    .
+                  </li>
+                </ul>
+              </div>
+              <div className="flex flex-col items-start gap-2 md:items-end">
+                <a
+                  href={WINDOWS_DOWNLOAD_URL}
+                  rel="noopener"
+                  className="btn btn-lg bg-surface text-ink hover:bg-canvas"
+                >
+                  Download for Windows
+                </a>
+                <span className="text-xs text-surface/70">
+                  Free &middot; about 90 MB
+                </span>
+              </div>
             </div>
           </div>
         </section>

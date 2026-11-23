@@ -8,6 +8,7 @@ import {
   stubSupportedBrowser,
 } from "../../test-utils";
 import { App } from "../../app/App";
+import { WINDOWS_DOWNLOAD_URL } from "./LandingPage";
 import main from "../../main.tsx?raw";
 import tailwindConfig from "../../../tailwind.config.js?raw";
 
@@ -101,5 +102,21 @@ describe("header", () => {
     renderApp(<App />, "/");
     const nav = await screen.findByRole("navigation", { name: "Main" });
     expect(nav.className).not.toMatch(/bg-surface|shadow|rounded/);
+  });
+});
+
+describe("the desktop download", () => {
+  it("offers the Windows installer from the landing page", async () => {
+    stubSupportedBrowser();
+    mockApi({ "GET /api/me": () => UNAUTH });
+    renderApp(<App />, "/");
+    const link = await screen.findByRole("link", {
+      name: "Download for Windows",
+    });
+    expect(link).toHaveAttribute("href", WINDOWS_DOWNLOAD_URL);
+    expect(WINDOWS_DOWNLOAD_URL).toMatch(
+      /^https:\/\/github\.com\/.+\/releases\/latest\/download\/InterviewMeet-Setup\.exe$/,
+    );
+    expect(screen.getByText(/Mac version coming soon/)).toBeInTheDocument();
   });
 });
