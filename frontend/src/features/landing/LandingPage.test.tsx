@@ -9,6 +9,7 @@ import {
 } from "../../test-utils";
 import { App } from "../../app/App";
 import {
+  ANDROID_DOWNLOAD_URL,
   MAC_ARM_DOWNLOAD_URL,
   MAC_INTEL_DOWNLOAD_URL,
   WINDOWS_DOWNLOAD_URL,
@@ -127,6 +128,12 @@ describe("the desktop download", () => {
     expect(
       screen.getByRole("link", { name: "Mac with an Intel chip" }),
     ).toHaveAttribute("href", MAC_INTEL_DOWNLOAD_URL);
+    expect(
+      screen.getByRole("link", { name: "Download for Android" }),
+    ).toHaveAttribute("href", ANDROID_DOWNLOAD_URL);
+    expect(ANDROID_DOWNLOAD_URL).toMatch(
+      /releases\/download\/android-latest\/InterviewMeet-android\.apk$/,
+    );
     expect(MAC_ARM_DOWNLOAD_URL).toMatch(
       /releases\/latest\/download\/InterviewMeet-mac-arm64\.dmg$/,
     );
