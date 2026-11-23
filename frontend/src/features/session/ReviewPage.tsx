@@ -94,7 +94,7 @@ export function ReviewPage() {
   const ended = data.status !== "active";
 
   return (
-    <main className="page-narrow">
+    <main className="page-reading">
       <div>
         <Link to="/sessions" className="text-sm text-accent-dark underline">
           ← Sessions

@@ -53,7 +53,7 @@ export function CompanyPage() {
 
   const { company, brief, sources, job } = data;
   return (
-    <main className="page-narrow">
+    <main className="page-reading">
       <div>
         <Link to="/companies" className="text-sm text-accent-dark underline">
           ← Companies

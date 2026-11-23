@@ -6,8 +6,18 @@
   .page {
     @apply mx-auto max-w-5xl space-y-6 p-4 sm:p-6 lg:p-8;
   }
+  /* The frame for every signed-in page: fluid up to a comfortable maximum, so a laptop uses all of the
+     width next to the sidebar and a big monitor keeps even margins. Pages lay themselves out in
+     columns inside it (see the `xl:` grids); long reading text caps its own width. */
+  .page-wide {
+    @apply mx-auto w-full max-w-[1480px] space-y-5 p-4 sm:p-5 lg:px-6 lg:py-6;
+  }
   .page-narrow {
-    @apply max-w-4xl space-y-6 p-4 sm:p-5 lg:px-5 lg:py-6;
+    @apply page-wide;
+  }
+  /* For a single form or a long document: still starts at the sidebar, but lines stay readable. */
+  .page-reading {
+    @apply w-full max-w-5xl space-y-5 p-4 sm:p-5 lg:px-6 lg:py-6;
   }
   .card {
     @apply rounded-2xl bg-surface p-5 shadow-card;
@@ -96,7 +106,7 @@
     }
   }
   .page,
-  .page-narrow {
+  .page-wide {
     animation: page-in 0.22s ease-out both;
   }
   @keyframes slide-in {

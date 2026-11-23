@@ -91,65 +91,67 @@ export function HelpPage() {
         </button>
       </div>
 
-      <section aria-labelledby="qs-h" className="card space-y-3">
-        <h2 id="qs-h" className="text-lg font-semibold">
-          Quick start
-        </h2>
-        <ol className="space-y-3">
-          {QUICK_START.map((s, i) => (
-            <li key={s.title} className="flex gap-3">
-              <span
-                aria-hidden="true"
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-accent-dark"
-              >
-                {i + 1}
-              </span>
-              <div>
-                <Link
-                  to={s.to}
-                  className="font-medium text-accent-dark underline"
+      <div className="grid gap-5 xl:grid-cols-2 xl:items-start">
+        <section aria-labelledby="qs-h" className="card space-y-3">
+          <h2 id="qs-h" className="text-lg font-semibold">
+            Quick start
+          </h2>
+          <ol className="space-y-3">
+            {QUICK_START.map((s, i) => (
+              <li key={s.title} className="flex gap-3">
+                <span
+                  aria-hidden="true"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-accent-dark"
                 >
-                  {s.title}
-                </Link>
-                <p className="text-sm text-muted">{s.text}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
-      </section>
+                  {i + 1}
+                </span>
+                <div>
+                  <Link
+                    to={s.to}
+                    className="font-medium text-accent-dark underline"
+                  >
+                    {s.title}
+                  </Link>
+                  <p className="text-sm text-muted">{s.text}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
 
-      <section aria-labelledby="panel-h" className="card space-y-2">
-        <h2 id="panel-h" className="text-lg font-semibold">
-          How the live panel works
-        </h2>
-        <ul className="list-disc space-y-1.5 pl-5 text-sm">
-          <li>
-            The question appears word by word as your partner says it, then the
-            answer follows.
-          </li>
-          <li>
-            The answer is written at your level, ties in what the company does
-            and your relevant experience, and uses the language of your role.
-          </li>
-          <li>
-            Once an answer is up it stays. It changes only for a genuinely new
-            question, or when you press <strong>Done, next question</strong>.
-          </li>
-          <li>
-            Remarks that are not questions change nothing, on the answer or on
-            the question.
-          </li>
-          <li>
-            <strong>Answer-first</strong> blurs each answer until you click it,
-            so you can try before you peek. <strong>Regenerate</strong> asks
-            again for the same question.
-          </li>
-          <li>
-            The panel can float over your Meet window: press{" "}
-            <strong>Float the answer panel</strong> in Chrome or Edge.
-          </li>
-        </ul>
-      </section>
+        <section aria-labelledby="panel-h" className="card space-y-2">
+          <h2 id="panel-h" className="text-lg font-semibold">
+            How the live panel works
+          </h2>
+          <ul className="list-disc space-y-1.5 pl-5 text-sm">
+            <li>
+              The question appears word by word as your partner says it, then
+              the answer follows.
+            </li>
+            <li>
+              The answer is written at your level, ties in what the company does
+              and your relevant experience, and uses the language of your role.
+            </li>
+            <li>
+              Once an answer is up it stays. It changes only for a genuinely new
+              question, or when you press <strong>Done, next question</strong>.
+            </li>
+            <li>
+              Remarks that are not questions change nothing, on the answer or on
+              the question.
+            </li>
+            <li>
+              <strong>Answer-first</strong> blurs each answer until you click
+              it, so you can try before you peek. <strong>Regenerate</strong>{" "}
+              asks again for the same question.
+            </li>
+            <li>
+              The panel can float over your Meet window: press{" "}
+              <strong>Float the answer panel</strong> in Chrome or Edge.
+            </li>
+          </ul>
+        </section>
+      </div>
 
       <section aria-labelledby="faq-h" className="space-y-2">
         <h2 id="faq-h" className="text-lg font-semibold">
