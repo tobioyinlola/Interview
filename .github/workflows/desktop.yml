@@ -10,6 +10,8 @@ name: desktop
 #    which is also where the app looks for updates.
 on:
   push:
+    # Branch pushes need `branches` named here: with only `tags` listed, GitHub ignores ordinary pushes.
+    branches: [Staging]
     paths: ["desktop/**", ".github/workflows/desktop.yml"]
     tags: ["desktop-v*"]
   pull_request:
