@@ -36,6 +36,11 @@ navigation blocked) was run under a virtual display with Playwright's Electron s
 
 ## Building installers
 
+**To publish a release (the easy way):** GitHub, Actions, **desktop**, **Run workflow**. Pick the `Staging` branch, tick
+**Publish a GitHub release**, enter a version like `0.1.0`, and run it. It tests, builds, checks the packaged app
+launches, then creates the tag `desktop-v<version>` and the release. The landing page's download button points at
+the latest release. Pushing a tag by hand still works too.
+
 `.github/workflows/desktop.yml` builds the Mac (Apple Silicon and Intel) and Windows installers when
 a tag like `desktop-v0.1.0` is pushed, and attaches them to a GitHub release. The app checks that
 release for updates when it starts.
