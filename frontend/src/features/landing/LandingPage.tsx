@@ -12,6 +12,9 @@ const RELEASE =
   "https://github.com/tobioyinlola/Interview/releases/latest/download";
 export const MAC_ARM_DOWNLOAD_URL = `${RELEASE}/InterviewMeet-mac-arm64.dmg`;
 export const MAC_INTEL_DOWNLOAD_URL = `${RELEASE}/InterviewMeet-mac-x64.dmg`;
+/** The Android app lives on its own fixed release so a new desktop release never hides it. */
+export const ANDROID_DOWNLOAD_URL =
+  "https://github.com/tobioyinlola/Interview/releases/download/android-latest/InterviewMeet-android.apk";
 
 const FEATURES = [
   {
@@ -231,6 +234,11 @@ export function LandingPage() {
                     Mac: &ldquo;Apple M&rdquo; means Apple silicon, otherwise
                     Intel.
                   </li>
+                  <li>
+                    On Android, open the downloaded file and allow installs from
+                    your browser if asked. Android may call the app
+                    &ldquo;unknown&rdquo; until it is on Google Play.
+                  </li>
                 </ul>
               </div>
               <div className="flex flex-col items-start gap-2 md:items-end">
@@ -247,6 +255,13 @@ export function LandingPage() {
                   className="btn btn-lg bg-surface/15 text-surface hover:bg-surface/25"
                 >
                   Download for Mac (Apple silicon)
+                </a>
+                <a
+                  href={ANDROID_DOWNLOAD_URL}
+                  rel="noopener"
+                  className="btn btn-lg bg-surface/15 text-surface hover:bg-surface/25"
+                >
+                  Download for Android
                 </a>
                 <a
                   href={MAC_INTEL_DOWNLOAD_URL}
