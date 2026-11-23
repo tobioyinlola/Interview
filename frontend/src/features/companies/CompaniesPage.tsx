@@ -52,7 +52,7 @@ export function CompaniesPage() {
       </div>
 
       {adding && (
-        <section aria-labelledby="add-h" className="card">
+        <section aria-labelledby="add-h" className="card max-w-3xl">
           <h2 id="add-h" className="mb-3 text-lg font-semibold">
             Add a company
           </h2>
@@ -85,17 +85,29 @@ export function CompaniesPage() {
           interview.
         </p>
       )}
-      <ul className="list-card">
+      <ul className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
         {items.map((c) => (
-          <li key={c.id} className="flex items-center justify-between p-3">
-            <Link
-              to={`/companies/${c.id}`}
-              className="font-medium text-accent-dark underline"
+          <li
+            key={c.id}
+            className="relative flex items-center gap-3 rounded-2xl bg-surface p-4 shadow-card transition-shadow focus-within:ring-2 focus-within:ring-accent hover:shadow-lift"
+          >
+            <span
+              aria-hidden="true"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-soft font-semibold text-accent-dark"
             >
-              {c.name}
-            </Link>
-            <span className="text-sm text-muted">
-              {statusText(c.job_status, c.last_researched_at)}
+              {(c.name.trim()[0] ?? "?").toUpperCase()}
+            </span>
+            <span className="min-w-0">
+              {/* the whole card is the click target, but the link is just the name */}
+              <Link
+                to={`/companies/${c.id}`}
+                className="block truncate font-medium after:absolute after:inset-0 after:rounded-2xl focus:outline-none"
+              >
+                {c.name}
+              </Link>
+              <span className="block text-sm text-muted">
+                {statusText(c.job_status, c.last_researched_at)}
+              </span>
             </span>
           </li>
         ))}

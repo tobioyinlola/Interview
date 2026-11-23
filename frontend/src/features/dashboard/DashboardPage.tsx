@@ -524,7 +524,7 @@ export function DashboardPage() {
   ).length;
 
   return (
-    <main className="max-w-6xl space-y-5 p-4 sm:p-5 lg:px-5 lg:py-6">
+    <main className="page-wide">
       <Hero
         name={firstName(me?.full_name)}
         cv={notes.data ? notes.data.content.trim().length > 0 : true}
@@ -532,9 +532,9 @@ export function DashboardPage() {
         sessions={all.length}
       />
 
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-5">
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 2xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             <Stat
               label="Sessions"
               value={`${all.length}${more}`}

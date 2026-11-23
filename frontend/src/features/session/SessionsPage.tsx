@@ -30,9 +30,9 @@ export function SessionsPage() {
           transcript and scores.
         </p>
       )}
-      <ul className="list-card">
+      <ul className="grid gap-3 xl:grid-cols-2">
         {items.map((s) => (
-          <li key={s.id} className="p-3">
+          <li key={s.id} className="rounded-2xl bg-surface p-4 shadow-card">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <Link

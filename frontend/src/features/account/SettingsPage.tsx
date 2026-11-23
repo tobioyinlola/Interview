@@ -379,19 +379,22 @@ export function SettingsPage() {
   if (!TABS.some((t) => t.id === tab))
     return <Navigate to="/settings/profile" replace />;
   return (
-    <main className="page-narrow">
-      <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
+    <main className="page-wide lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-x-8 lg:gap-y-5 lg:space-y-0">
+      <h1 className="text-3xl font-semibold tracking-tight lg:col-span-2">
+        Settings
+      </h1>
       <nav
         aria-label="Settings sections"
-        className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0"
+        data-settings-nav=""
+        className="lg:col-start-1 lg:row-start-2 lg:self-start -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0 lg:overflow-visible"
       >
-        <ul className="flex min-w-max gap-1">
+        <ul className="flex min-w-max gap-1 lg:min-w-0 lg:flex-col">
           {TABS.map((t) => (
             <li key={t.id}>
               <NavLink
                 to={`/settings/${t.id}`}
                 className={({ isActive }) =>
-                  `inline-flex min-h-[44px] items-center rounded-full px-4 text-sm transition-colors ${
+                  `inline-flex min-h-[44px] items-center rounded-full px-4 text-sm transition-colors lg:flex lg:rounded-xl ${
                     isActive
                       ? "bg-ink font-medium text-surface"
                       : "bg-surface text-muted shadow-card hover:text-ink"
@@ -404,10 +407,12 @@ export function SettingsPage() {
           ))}
         </ul>
       </nav>
-      {tab === "profile" && <ProfileTab />}
-      {tab === "password" && <PasswordTab />}
-      {tab === "cv" && <CvPanel />}
-      {tab === "privacy" && <PrivacyTab />}
+      <div className="min-w-0 max-w-4xl space-y-5 lg:col-start-2 lg:row-start-2">
+        {tab === "profile" && <ProfileTab />}
+        {tab === "password" && <PasswordTab />}
+        {tab === "cv" && <CvPanel />}
+        {tab === "privacy" && <PrivacyTab />}
+      </div>
     </main>
   );
 }

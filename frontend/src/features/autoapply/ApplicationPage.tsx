@@ -116,7 +116,7 @@ export function ApplicationPage() {
   if (q.isPending) return <Loading label="Loading application" />;
   if (q.isError || !q.data)
     return (
-      <main className="page-narrow">
+      <main className="page-reading">
         <p role="alert" className="notice-error">
           That application could not be found.
         </p>
@@ -143,7 +143,7 @@ export function ApplicationPage() {
     a.status,
   );
   return (
-    <main className="page-narrow">
+    <main className="page-reading">
       <p className="text-sm">
         <Link
           to="/auto-apply/applications"

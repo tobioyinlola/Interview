@@ -11,7 +11,7 @@ function Shell({
 }) {
   return (
     <PublicShell>
-      <main className="page-narrow">
+      <main className="page-reading">
         <p role="note" className="notice-warn">
           Draft. This wording needs review by a lawyer before the app is opened
           to the public.

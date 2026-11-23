@@ -58,7 +58,7 @@ export function ApplicationsPage() {
       {q.data && items.length === 0 && (
         <p className="card text-sm text-muted">Nothing here yet.</p>
       )}
-      <ul className="space-y-2">
+      <ul className="grid gap-3 xl:grid-cols-2">
         {items.map((a) => (
           <li
             key={a.id}

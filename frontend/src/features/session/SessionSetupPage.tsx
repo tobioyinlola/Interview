@@ -66,7 +66,7 @@ export function SessionSetupPage() {
   };
 
   return (
-    <main className="page-narrow">
+    <main className="page-reading">
       <h1 className="text-3xl font-semibold tracking-tight">
         Start an interview
       </h1>
