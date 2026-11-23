@@ -1,45 +1,65 @@
 name: desktop
 
-# Builds the Mac and Windows installers. Tests run on every change to desktop/. Installers are built
-# when a tag like desktop-v0.1.0 is pushed, and attached to a GitHub release (which is also where
-# the app checks for updates).
+# Tests and builds the desktop app on real Windows and Mac machines.
+#  - Any change to desktop/ (or a manual run): tests, and a Windows installer you can download from
+#    the run page under "Artifacts" (unsigned, for trying out).
+#  - A tag like desktop-v0.1.0: builds Mac and Windows installers and attaches them to a GitHub release,
+#    which is also where the app looks for updates.
 on:
   push:
-    branches: [main]
     paths: ["desktop/**", ".github/workflows/desktop.yml"]
     tags: ["desktop-v*"]
   pull_request:
     paths: ["desktop/**", ".github/workflows/desktop.yml"]
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: desktop
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    defaults: { run: { working-directory: desktop } }
+  windows:
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, cache-dependency-path: desktop/package-lock.json }
       - run: npm ci
       - run: npm test
+      # Starts the real app from source and checks what the page can and cannot do.
+      - run: npm run smoke
+      # Signing: set repository secrets CSC_LINK (base64 .pfx) and CSC_KEY_PASSWORD. Without them
+      # the installer is built UNSIGNED and Windows SmartScreen warns before running it.
+      - name: Build installer
+        run: npx electron-builder --win nsis --x64 --publish ${{ startsWith(github.ref, 'refs/tags/desktop-v') && 'always' || 'never' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+      # The same checks again, this time against the packaged app that people would install.
+      - name: Smoke test the packaged app
+        run: npm run smoke
+        env:
+          SMOKE_EXE: ${{ github.workspace }}\desktop\dist\win-unpacked\InterviewMeet.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: InterviewMeet-windows
+          path: desktop/dist/*.exe
+          if-no-files-found: error
 
-  build:
+  mac:
+    # Mac installers are built only for releases, until the Windows app has been tried.
     if: startsWith(github.ref, 'refs/tags/desktop-v')
-    needs: test
-    strategy:
-      matrix:
-        os: [macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-    defaults: { run: { working-directory: desktop } }
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, cache-dependency-path: desktop/package-lock.json }
       - run: npm ci
-      # Signing: set these repository secrets. Without them the installers are built UNSIGNED and
-      # Mac / Windows will warn people before opening them.
-      #   macOS:   CSC_LINK (base64 .p12), CSC_KEY_PASSWORD, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID
-      #   Windows: CSC_LINK (base64 .pfx), CSC_KEY_PASSWORD
-      - run: npx electron-builder --publish always
+      - run: npm test
+      # Signing and notarization secrets: CSC_LINK (base64 .p12), CSC_KEY_PASSWORD, APPLE_ID,
+      # APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID. Without them the build is unsigned.
+      - run: npx electron-builder --mac --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
