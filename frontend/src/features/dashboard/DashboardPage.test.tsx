@@ -538,3 +538,34 @@ describe("inside the desktop app", () => {
     expect(screen.queryByText("Browser can share tab audio")).toBeNull();
   });
 });
+
+describe("inside the phone app", () => {
+  afterEach(() => {
+    delete window.Capacitor;
+  });
+
+  it("points to Auto-Apply and hides the live-interview checklist", async () => {
+    window.Capacitor = { isNativePlatform: () => true };
+    mockApi(
+      base({
+        "GET /api/notes": () => ({
+          json: { content: "my cv", role: "PM", updated_at: null },
+        }),
+      }),
+    );
+    renderApp(<App />, "/dashboard");
+    expect(
+      await screen.findByRole("link", { name: /Open Auto-Apply/ }),
+    ).toHaveAttribute("href", "/auto-apply");
+    expect(screen.queryByRole("region", { name: "Readiness" })).toBeNull();
+  });
+
+  it("explains that live interviews run on a computer", async () => {
+    window.Capacitor = { isNativePlatform: () => true };
+    mockApi(base());
+    renderApp(<App />, "/session/new");
+    expect(
+      await screen.findByText("Live interviews run on your computer"),
+    ).toBeInTheDocument();
+  });
+});

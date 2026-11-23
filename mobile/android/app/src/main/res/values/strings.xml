@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">InterviewMeet</string>
+    <string name="title_activity_main">InterviewMeet</string>
+    <string name="package_name">com.interviewmeet.app</string>
+    <string name="custom_url_scheme">com.interviewmeet.app</string>
+</resources>

@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { currentEnv, isSupported } from "../../app/browserSupport";
 import { isDesktopApp } from "../../app/desktop";
+import { isMobileApp } from "../../app/native";
 import {
   useBilling,
   useCompanies,
@@ -61,7 +62,12 @@ function Item({
 }
 
 /** What to do next: CV uploaded, a fresh brief, a browser that can share tab audio. */
+/** The checklist is about starting a live interview, which a phone cannot do. */
 function ReadinessCard() {
+  return isMobileApp() ? null : <ReadinessChecklist />;
+}
+
+function ReadinessChecklist() {
   const notes = useNotes();
   const companies = useCompanies();
   const cvUploaded = (notes.data?.content ?? "").trim().length > 0;
@@ -410,14 +416,20 @@ function Hero({
           cta: "Add the company",
           line: "Tell us who is interviewing you and we will research them.",
         }
-      : {
-          to: "/session/new",
-          cta: "New interview",
-          line:
-            sessions === 0
-              ? "You are all set. Start your first interview when you are ready."
-              : "Pick a company and share your Meet tab to get live help.",
-        };
+      : isMobileApp()
+        ? {
+            to: "/auto-apply",
+            cta: "Open Auto-Apply",
+            line: "Review what we found and approve applications. Live interviews run on your computer.",
+          }
+        : {
+            to: "/session/new",
+            cta: "New interview",
+            line:
+              sessions === 0
+                ? "You are all set. Start your first interview when you are ready."
+                : "Pick a company and share your Meet tab to get live help.",
+          };
   return (
     <section
       aria-label="What to do next"
