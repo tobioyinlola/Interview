@@ -13,6 +13,7 @@ publish:
   provider: github
   owner: tobioyinlola
   repo: Interview
+  releaseType: release
 mac:
   category: public.app-category.productivity
   target:
@@ -34,5 +35,6 @@ win:
     - target: nsis
       arch: [x64]
 nsis:
+  artifactName: InterviewMeet-Setup.exe
   oneClick: true
   perMachine: false
