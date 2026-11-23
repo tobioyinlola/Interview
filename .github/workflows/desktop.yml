@@ -3,6 +3,9 @@ name: desktop
 # Tests and builds the desktop app on real Windows and Mac machines.
 #  - Any change to desktop/ (or a manual run): tests, and a Windows installer you can download from
 #    the run page under "Artifacts" (unsigned, for trying out).
+#  - A change to desktop/ that lands on Staging: builds the Windows and Mac installers and publishes them
+#    as a new release by itself (version 0.2.<run number>). Installed Windows apps find it and update
+#    themselves. Changes to the website itself need no release: the apps load the live site.
 #  - A tag like desktop-v0.1.0: builds Mac and Windows installers and attaches them to a GitHub release,
 #    which is also where the app looks for updates.
 on:
@@ -36,8 +39,8 @@ jobs:
     permissions:
       contents: write   # needed to create the release and its tag
     env:
-      RELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.release }}
-      VERSION: ${{ inputs.version }}
+      RELEASE: ${{ (github.event_name == 'workflow_dispatch' && inputs.release) || (github.event_name == 'push' && github.ref == 'refs/heads/Staging') }}
+      VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || format('0.2.{0}', github.run_number) }}
     steps:
       - name: Check the version before building
         if: env.RELEASE == 'true'
@@ -99,15 +102,16 @@ jobs:
             --notes "Windows installer. It is not code-signed yet, so Windows may show a protected-your-PC notice: choose More info, then Run anyway."
 
   mac:
-    # Mac installers: on request ("Also build the Mac app") and for tagged releases.
-    if: ${{ always() && needs.windows.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.mac) || startsWith(github.ref, 'refs/tags/desktop-v')) }}
+    # Mac installers: on request ("Also build the Mac app"), for every automatic release on Staging, and
+    # for tagged releases.
+    if: ${{ always() && needs.windows.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.mac) || (github.event_name == 'push' && github.ref == 'refs/heads/Staging') || startsWith(github.ref, 'refs/tags/desktop-v')) }}
     needs: windows
     runs-on: macos-latest
     permissions:
       contents: write
     env:
-      RELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.release }}
-      VERSION: ${{ inputs.version }}
+      RELEASE: ${{ (github.event_name == 'workflow_dispatch' && inputs.release) || (github.event_name == 'push' && github.ref == 'refs/heads/Staging') }}
+      VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || format('0.2.{0}', github.run_number) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

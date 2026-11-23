@@ -114,6 +114,24 @@
         "title": "ActivityOut",
         "type": "object"
       },
+      "AndroidRelease": {
+        "properties": {
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "url"
+        ],
+        "title": "AndroidRelease",
+        "type": "object"
+      },
       "AnswerApplicationIn": {
         "properties": {
           "field": {
@@ -238,6 +256,32 @@
           "verifier"
         ],
         "title": "AppExchangeIn",
+        "type": "object"
+      },
+      "AppReleasesOut": {
+        "properties": {
+          "android": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AndroidRelease"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "desktop": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DesktopRelease"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "AppReleasesOut",
         "type": "object"
       },
       "ApplicationDetail": {
@@ -1697,6 +1741,52 @@
           "review_count"
         ],
         "title": "DashboardOut",
+        "type": "object"
+      },
+      "DesktopRelease": {
+        "properties": {
+          "mac_arm64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mac Arm64"
+          },
+          "mac_x64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mac X64"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          },
+          "windows": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Windows"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "DesktopRelease",
         "type": "object"
       },
       "Disclosure": {
@@ -6803,6 +6893,28 @@
         "summary": "Grant Credits",
         "tags": [
           "admin"
+        ]
+      }
+    },
+    "/api/app/releases": {
+      "get": {
+        "description": "The newest downloadable version of each app. Public: the same list as the releases page.",
+        "operationId": "app_releases_api_app_releases_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppReleasesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "App Releases",
+        "tags": [
+          "apps"
         ]
       }
     },

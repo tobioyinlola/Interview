@@ -3,7 +3,8 @@ apply plugin: 'com.android.application'
 // The version comes from the build (APP_VERSION=1.2.3), so every release has a higher number.
 def appVersion = System.getenv("APP_VERSION") ?: "0.1.0"
 def versionParts = appVersion.tokenize('.')
-def appVersionCode = versionParts[0].toInteger() * 10000 + versionParts[1].toInteger() * 100 + versionParts[2].toInteger()
+// CI passes a build number that only ever grows; by hand it falls back to one worked out from the version
+def appVersionCode = System.getenv("APP_VERSION_CODE")?.toInteger() ?: (versionParts[0].toInteger() * 10000 + versionParts[1].toInteger() * 100 + versionParts[2].toInteger())
 // A real signing key arrives through these variables (CI secrets). Without one, the app is signed with
 // a throwaway debug key: fine for trying it on a phone, not for the Play Store.
 def hasReleaseKey = System.getenv("ANDROID_KEYSTORE_FILE") != null

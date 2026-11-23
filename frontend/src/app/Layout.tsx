@@ -12,6 +12,7 @@ import { LogoMark } from "../features/landing/Logo";
 import { GlobalSearch } from "../features/search/GlobalSearch";
 import { ProfileMenu } from "./ProfileMenu";
 import { isMobileApp } from "./native";
+import { UpdateBanner } from "./UpdateBanner";
 import { TourProvider } from "../features/tour/TourProvider";
 import {
   BuildingIcon,
@@ -278,6 +279,7 @@ export function Layout() {
         </aside>
 
         <div className="min-w-0 flex-1 bg-canvas lg:min-h-screen lg:rounded-l-[2rem]">
+          <UpdateBanner />
           {/* The top bar on every page: search on the left, the person's account on the right. */}
           <header className="sticky top-0 z-30 flex items-center justify-between gap-3 bg-canvas/85 px-4 py-3 backdrop-blur sm:px-5 lg:rounded-tl-[2rem] lg:px-5">
             <GlobalSearch />

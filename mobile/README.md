@@ -4,6 +4,15 @@ A Capacitor shell around the live site. Everything in the web app (Auto-Apply, c
 CV, settings) is the same code, so it stays in step with the website, and the login cookie stays
 first-party. The app address is in `capacitor.config.ts`; change it for a build with `INTERVIEWMEET_URL`.
 
+## Updates
+
+* **The website and everything inside the app** update for everyone the moment the site is deployed: the app
+  loads the live site.
+* **The Android shell** is released automatically: a change to `mobile/` that lands on `Staging` builds the
+  app and replaces the file at the download address (`android-latest`), with a build number that always grows.
+* An Android app installed from a file cannot update itself, so it shows an "update available" banner with the
+  download. Google Play (a signed app) would make updates silent.
+
 ## What works on a phone, and what does not
 
 * Works: Auto-Apply (setup, approvals, dashboard), companies and briefs, past sessions and reviews, CV, settings.

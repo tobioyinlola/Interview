@@ -11,7 +11,7 @@ export function NativeLinks() {
   useEffect(() => {
     if (!isMobileApp()) return;
     void Promise.resolve(
-      capacitorPlugins()?.App?.addListener("appUrlOpen", ({ url }) => {
+      capacitorPlugins()?.App?.addListener?.("appUrlOpen", ({ url }) => {
         let link: URL;
         try {
           link = new URL(url);

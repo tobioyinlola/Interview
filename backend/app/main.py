@@ -26,6 +26,7 @@ from app.routers import (
     account,
     admin,
     admin_autoapply,
+    app_releases,
     audio_ws,
     auth,
     autoapply,
@@ -151,6 +152,7 @@ def create_app() -> FastAPI:
         staff_auth.router,
         admin.router,
         admin_autoapply.router,
+        app_releases.router,
     ):
         app.include_router(r)
     return app

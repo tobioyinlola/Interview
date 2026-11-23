@@ -5,6 +5,7 @@ const {
   BrowserWindow,
   Menu,
   desktopCapturer,
+  dialog,
   ipcMain,
   session,
   shell,
@@ -186,13 +187,41 @@ function buildMenu() {
   );
 }
 
+const UPDATE_EVERY_MS = 4 * 60 * 60 * 1000;
+
+/** New versions arrive by themselves: the app looks for one when it starts and every few hours,
+ *  downloads it quietly, and offers a restart when it is ready (otherwise it installs when the app is
+ *  next closed). Mac apps that are not yet signed cannot install updates this way: the website shows
+ *  an "update available" banner with the download instead. */
 function startUpdates() {
   if (!app.isPackaged) return;
   try {
     const { autoUpdater } = require("electron-updater");
-    autoUpdater.checkForUpdatesAndNotify().catch(() => {});
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = true;
+    autoUpdater.on("error", () => {}); // updates are a convenience; the app works without them
+    autoUpdater.on("update-downloaded", (info) => {
+      if (!win) return;
+      dialog
+        .showMessageBox(win, {
+          type: "info",
+          title: "InterviewMeet",
+          message: `Version ${info.version} is ready.`,
+          detail: "Restart now to finish updating, or it will update the next time you close the app.",
+          buttons: ["Restart now", "Later"],
+          defaultId: 0,
+          cancelId: 1,
+        })
+        .then(({ response }) => {
+          if (response === 0) autoUpdater.quitAndInstall();
+        })
+        .catch(() => {});
+    });
+    const check = () => autoUpdater.checkForUpdates().catch(() => {});
+    check();
+    setInterval(check, UPDATE_EVERY_MS).unref();
   } catch {
-    /* updates are a convenience; the app works without them */
+    /* no updater available */
   }
 }
 

@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld(
   Object.freeze({
     isDesktop: true,
     platform: process.platform,
+    arch: process.arch,
     systemAudio: true,
     // Google sign-in has to happen in the person's real browser (Google refuses embedded windows).
     // The main process only opens the app's own sign-in address, nothing else.

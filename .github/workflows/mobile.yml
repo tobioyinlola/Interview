@@ -3,6 +3,8 @@ name: mobile
 # Builds the phone apps on GitHub's machines (this repo's sandbox cannot).
 #  - Android: a debug APK you can download from the run page and install on a phone to try.
 #    It is signed with a throwaway debug key, so it cannot go on the Play Store.
+#  - A change to mobile/ that lands on Staging publishes the Android app to the download release by
+#    itself (version 0.2.<run number>). Changes to the website itself need no new app: it loads the live site.
 #  - iOS: a build for the simulator, to prove the project compiles. A real iPhone build and the
 #    App Store need an Apple Developer account and signing certificates (see mobile/README.md).
 on:
@@ -31,8 +33,8 @@ jobs:
     permissions:
       contents: write   # needed to publish the download
     env:
-      APP_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || '0.1.0' }}
-      RELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.release }}
+      APP_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || format('0.2.{0}', github.run_number) }}
+      RELEASE: ${{ (github.event_name == 'workflow_dispatch' && inputs.release) || (github.event_name == 'push' && github.ref == 'refs/heads/Staging') }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -45,6 +47,10 @@ jobs:
       # A real signing key (for the Play Store) goes in as repository secrets ANDROID_KEYSTORE_BASE64,
       # ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD. Without them the app is
       # signed with a throwaway debug key, which is fine for installing on a phone to try it.
+      # Android only installs an app over an older one if its build number is higher. This one grows with
+      # every run, whatever the version text says.
+      - name: Build number
+        run: echo "APP_VERSION_CODE=$((100000 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
       - name: Use the signing key, if there is one
         env:
           KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}

@@ -29,7 +29,7 @@ interface CapacitorPlugins {
   Plugins?: {
     Browser?: { open: (o: { url: string }) => Promise<void> };
     App?: {
-      addListener: (
+      addListener?: (
         name: string,
         fn: (e: { url: string }) => void,
       ) => Promise<unknown> | unknown;

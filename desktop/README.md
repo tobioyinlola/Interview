@@ -34,6 +34,18 @@ npm test      # the rules in policy.js
 A real-window check (bridge present, no Node in the page, audio capture returns an audio track, off-site
 navigation blocked) was run under a virtual display with Playwright's Electron support.
 
+## Updates
+
+* **The website and everything inside the app** (pages, features, fixes) update for everyone the moment the
+  site is deployed: the app loads the live site. No release is needed for those.
+* **The app shell** (this folder) is released automatically: a change to `desktop/` that lands on `Staging`
+  builds the Windows and Mac installers and publishes release `desktop-v0.2.<run number>`.
+* **Windows** apps look for a new release when they start and every 4 hours, download it quietly, and offer
+  a restart (or install it when the app is next closed).
+* **Mac** apps that are not yet signed cannot install updates by themselves. The app shows an
+  "update available" banner with the right download for the Mac's chip. Signing and notarization (an
+  Apple Developer account) turns on silent updates there too.
+
 ## Building installers
 
 **To publish a release (the easy way):** GitHub, Actions, **desktop**, **Run workflow**. Pick the `Staging` branch, tick

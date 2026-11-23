@@ -453,6 +453,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/app/releases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * App Releases
+         * @description The newest downloadable version of each app. Public: the same list as the releases page.
+         */
+        get: operations["app_releases_api_app_releases_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/app-exchange": {
         parameters: {
             query?: never;
@@ -1882,6 +1902,13 @@ export interface components {
             /** Next Before */
             next_before: string | null;
         };
+        /** AndroidRelease */
+        AndroidRelease: {
+            /** Url */
+            url: string;
+            /** Version */
+            version: string;
+        };
         /** AnswerApplicationIn */
         AnswerApplicationIn: {
             /** Field */
@@ -1935,6 +1962,11 @@ export interface components {
             code: string;
             /** Verifier */
             verifier: string;
+        };
+        /** AppReleasesOut */
+        AppReleasesOut: {
+            android?: components["schemas"]["AndroidRelease"] | null;
+            desktop?: components["schemas"]["DesktopRelease"] | null;
         };
         /** ApplicationDetail */
         ApplicationDetail: {
@@ -2448,6 +2480,17 @@ export interface components {
             /** State */
             state: string;
             usage: components["schemas"]["UsageOut"] | null;
+        };
+        /** DesktopRelease */
+        DesktopRelease: {
+            /** Mac Arm64 */
+            mac_arm64?: string | null;
+            /** Mac X64 */
+            mac_x64?: string | null;
+            /** Version */
+            version: string;
+            /** Windows */
+            windows?: string | null;
         };
         /** Disclosure */
         Disclosure: {
@@ -4464,6 +4507,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    app_releases_api_app_releases_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppReleasesOut"];
                 };
             };
         };
