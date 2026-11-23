@@ -690,3 +690,61 @@ describe("campaign tags on the link", () => {
     expect(url.searchParams.get("utm_source")).toBe("linkedin");
   });
 });
+
+describe("inside an installed app", () => {
+  afterEach(() => {
+    delete window.interviewMeetDesktop;
+    delete window.Capacitor;
+  });
+
+  it("opens on sign-in instead of the website's landing page", async () => {
+    window.interviewMeetDesktop = {
+      isDesktop: true,
+      platform: "win32",
+      systemAudio: true,
+    };
+    mockApi({
+      "GET /api/me": () => UNAUTH,
+      "GET /api/auth/providers": () => ({ json: { google: false } }),
+    });
+    renderApp(<App />, "/");
+    expect(
+      await screen.findByRole("heading", { name: "Sign in" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Back to home")).toBeNull();
+    const nav = screen.getByRole("navigation", {
+      name: "Sign in or get started",
+    });
+    expect(within(nav).getByRole("link", { name: "Log in" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(
+      within(nav).getByRole("link", { name: "Get started" }),
+    ).toHaveAttribute("href", "/signup");
+  });
+
+  it("the phone app does the same", async () => {
+    window.Capacitor = { isNativePlatform: () => true };
+    mockApi({
+      "GET /api/me": () => UNAUTH,
+      "GET /api/auth/providers": () => ({ json: { google: false } }),
+    });
+    renderApp(<App />, "/");
+    expect(
+      await screen.findByRole("heading", { name: "Sign in" }),
+    ).toBeInTheDocument();
+  });
+
+  it("a normal browser still gets the landing page and Back to home", async () => {
+    mockApi({
+      "GET /api/me": () => UNAUTH,
+      "GET /api/auth/providers": () => ({ json: { google: false } }),
+    });
+    renderApp(<App />, "/login");
+    expect(await screen.findByText("Back to home")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("navigation", { name: "Sign in or get started" }),
+    ).toBeNull();
+  });
+});

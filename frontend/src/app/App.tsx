@@ -41,13 +41,15 @@ import { BrowserNotice } from "./BrowserNotice";
 import { currentEnv, isSupported } from "./browserSupport";
 import { Layout } from "./Layout";
 import { MobileLiveNotice } from "./MobileLiveNotice";
-import { isMobileApp } from "./native";
+import { isMobileApp, isNativeApp } from "./native";
 
 /** The landing page is for signed-out visitors; signed-in users go straight to the dashboard. */
 function Home() {
   const { data: me, isPending } = useMe();
   if (isPending) return null;
-  return me ? <Navigate to="/dashboard" replace /> : <LandingPage />;
+  if (me) return <Navigate to="/dashboard" replace />;
+  // The installed apps are not a website: they open straight on sign-in, not the marketing page.
+  return isNativeApp() ? <Navigate to="/login" replace /> : <LandingPage />;
 }
 
 /** The website needs desktop Chromium (tab audio capture); the phone app is allowed in too, without

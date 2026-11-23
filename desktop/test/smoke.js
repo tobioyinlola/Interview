@@ -43,6 +43,13 @@ async function main() {
     if (!r.noNode) failures.push("the page can reach Node");
     // Audio capture needs a sound device. A CI machine may have none, so this is reported, not required.
     if (!r.capture || r.capture.error) console.log("note: capture did not return audio here:", JSON.stringify(r.capture));
+    // It should look like a program, not a web page: no menu bar (Windows and Linux) and a fixed title.
+    if (process.platform !== "darwin") {
+      const hasMenu = await app.evaluate(({ Menu }) => Menu.getApplicationMenu() !== null);
+      if (hasMenu) failures.push("the window still has a menu bar");
+    }
+    const title = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getTitle());
+    if (title !== "InterviewMeet") failures.push("window title is not fixed: " + title);
     await w.evaluate(() => { location.href = "https://example.com/"; });
     await new Promise((res) => setTimeout(res, 2000));
     if (!w.url().startsWith("http://localhost:5199")) failures.push("window left the app: " + w.url());
