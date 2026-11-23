@@ -1,3 +1,4 @@
+import { isDesktopApp } from "../../app/desktop";
 import { type FormEvent, useId, useRef, useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
 
@@ -280,7 +281,13 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
               </div>
             )}
 
-            {providers.data?.google && (
+            {providers.data?.google && isDesktopApp() && (
+              <p className="mt-4 text-center text-xs text-muted">
+                Google sign-in is not available in the desktop app yet. Use your
+                email and password, or a sign-in link.
+              </p>
+            )}
+            {providers.data?.google && !isDesktopApp() && (
               <>
                 <Divider />
                 <button

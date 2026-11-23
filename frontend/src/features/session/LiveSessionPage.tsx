@@ -1,3 +1,4 @@
+import { isDesktopApp } from "../../app/desktop";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useParams } from "react-router-dom";
@@ -141,13 +142,20 @@ function CapturePanel({
           </button>
         )}
       </div>
-      {status === "idle" && (
-        <p className="text-xs text-muted">
-          In the share window, pick your Meet tab and tick{" "}
-          <strong>Also share tab audio</strong>. Keep this tab visible, or
-          Chrome may slow it down.
-        </p>
-      )}
+      {status === "idle" &&
+        (isDesktopApp() ? (
+          <p className="text-xs text-muted">
+            Press Share and we listen to the sound your computer plays, so the
+            interviewer is heard from Meet, Zoom or Teams. Use headphones so
+            your own voice is not picked up twice.
+          </p>
+        ) : (
+          <p className="text-xs text-muted">
+            In the share window, pick your Meet tab and tick{" "}
+            <strong>Also share tab audio</strong>. Keep this tab visible, or
+            Chrome may slow it down.
+          </p>
+        ))}
     </section>
   );
 }

@@ -2,6 +2,7 @@ import { type FormEvent, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { currentEnv, isSupported } from "../../app/browserSupport";
+import { isDesktopApp } from "../../app/desktop";
 import {
   useBilling,
   useCompanies,
@@ -123,7 +124,11 @@ function ReadinessCard() {
             </Link>
           )}
         </Item>
-        <Item ok={canCapture}>Browser can share tab audio</Item>
+        <Item ok={canCapture}>
+          {isDesktopApp()
+            ? "App can listen to your computer's audio"
+            : "Browser can share tab audio"}
+        </Item>
       </ul>
       <Link
         to="/session/new"

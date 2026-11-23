@@ -1,0 +1,49 @@
+name: desktop
+
+# Builds the Mac and Windows installers. Tests run on every change to desktop/. Installers are built
+# when a tag like desktop-v0.1.0 is pushed, and attached to a GitHub release (which is also where
+# the app checks for updates).
+on:
+  push:
+    branches: [main]
+    paths: ["desktop/**", ".github/workflows/desktop.yml"]
+    tags: ["desktop-v*"]
+  pull_request:
+    paths: ["desktop/**", ".github/workflows/desktop.yml"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: desktop } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: desktop/package-lock.json }
+      - run: npm ci
+      - run: npm test
+
+  build:
+    if: startsWith(github.ref, 'refs/tags/desktop-v')
+    needs: test
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults: { run: { working-directory: desktop } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: desktop/package-lock.json }
+      - run: npm ci
+      # Signing: set these repository secrets. Without them the installers are built UNSIGNED and
+      # Mac / Windows will warn people before opening them.
+      #   macOS:   CSC_LINK (base64 .p12), CSC_KEY_PASSWORD, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID
+      #   Windows: CSC_LINK (base64 .pfx), CSC_KEY_PASSWORD
+      - run: npx electron-builder --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
