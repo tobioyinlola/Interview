@@ -236,6 +236,20 @@
         "title": "AnswerOut",
         "type": "object"
       },
+      "AppCodeOut": {
+        "description": "The answer to opening an emailed link that an installed app asked for: not a session in the\nbrowser it was opened in, but a one-time code for the app.",
+        "properties": {
+          "app_code": {
+            "title": "App Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "app_code"
+        ],
+        "title": "AppCodeOut",
+        "type": "object"
+      },
       "AppExchangeIn": {
         "description": "An installed app swapping its one-time code (and the secret it made) for a session.",
         "properties": {
@@ -3866,6 +3880,18 @@
       },
       "RequestLinkIn": {
         "properties": {
+          "app_challenge": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9_-]{43}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "App Challenge"
+          },
           "email": {
             "format": "email",
             "title": "Email",
@@ -4601,6 +4627,18 @@
       },
       "SignUpIn": {
         "properties": {
+          "app_challenge": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9_-]{43}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "App Challenge"
+          },
           "email": {
             "format": "email",
             "title": "Email",
@@ -7421,7 +7459,7 @@
     },
     "/api/auth/verify": {
       "post": {
-        "description": "Exchange the emailed token for a session cookie. POST (not GET) so a mail scanner that\nprefetches the link cannot burn the token.",
+        "description": "Exchange the emailed token for a session cookie. POST (not GET) so a mail scanner that\nprefetches the link cannot burn the token. If an installed app asked for the link, the browser\nis not signed in: the app is handed a one-time code instead (see /auth/app-exchange).",
         "operationId": "verify_api_auth_verify_post",
         "requestBody": {
           "content": {
@@ -7438,7 +7476,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MeOut"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/MeOut"
+                    },
+                    {
+                      "$ref": "#/components/schemas/AppCodeOut"
+                    }
+                  ],
+                  "title": "Response Verify Api Auth Verify Post"
                 }
               }
             },

@@ -142,3 +142,115 @@ async def test_a_malformed_exchange_is_rejected(new_client) -> None:
     async with new_client() as c:
         r = await c.post("/api/auth/app-exchange", json={"code": "x", "verifier": "short"})
     assert r.status_code == 422
+
+
+# ----------------------------------------------------------- emailed links asked for by an app
+
+
+def sender(app):  # type: ignore[no-untyped-def]
+    from app.deps import get_email_sender
+
+    return app.dependency_overrides[get_email_sender]()
+
+
+async def test_a_signup_started_in_the_app_hands_the_app_a_code_when_the_link_is_opened(
+    new_client, app
+) -> None:
+    verifier, challenge = pair()
+    body = {
+        "email": "newcomer@example.com",
+        "full_name": "New Comer",
+        "password": "correct horse battery staple 91",
+        "app_challenge": challenge,
+    }
+    async with new_client() as the_app:
+        assert (await the_app.post("/api/auth/signup", json=body)).status_code == 202
+    token = sender(app).token_for("newcomer@example.com")
+    async with new_client() as phone_browser:  # the link opens here, not in the app
+        r = await phone_browser.post("/api/auth/verify", json={"token": token})
+        assert r.status_code == 200 and set(r.json()) == {"app_code"}
+        assert "set-cookie" not in r.headers or "session" not in r.headers["set-cookie"].lower()
+        assert (
+            await phone_browser.get("/api/me")
+        ).status_code == 401  # the browser stays signed out
+        code = r.json()["app_code"]
+    async with new_client() as the_app:
+        done = await the_app.post(
+            "/api/auth/app-exchange", json={"code": code, "verifier": verifier}
+        )
+        assert done.status_code == 200
+        me = await the_app.get("/api/me")
+    assert me.status_code == 200
+    assert me.json()["email"] == "newcomer@example.com"
+    assert me.json()["full_name"] == "New Comer"  # the account really was created with its details
+
+
+async def test_the_new_accounts_password_works_afterwards(new_client, app) -> None:
+    verifier, challenge = pair()
+    async with new_client() as the_app:
+        await the_app.post(
+            "/api/auth/signup",
+            json={
+                "email": "pw@example.com",
+                "full_name": "Pass Word",
+                "password": "correct horse battery staple 91",
+                "app_challenge": challenge,
+            },
+        )
+    token = sender(app).token_for("pw@example.com")
+    async with new_client() as b:
+        await b.post("/api/auth/verify", json={"token": token})
+    async with new_client() as c:
+        r = await c.post(
+            "/api/auth/login",
+            json={"email": "pw@example.com", "password": "correct horse battery staple 91"},
+        )
+    assert r.status_code == 200
+
+
+async def test_a_sign_in_link_asked_for_by_the_app_works_the_same_way(new_client, app) -> None:
+    verifier, challenge = pair()
+    async with new_client() as the_app:
+        r = await the_app.post(
+            "/api/auth/request-link", json={"email": "link@example.com", "app_challenge": challenge}
+        )
+        assert r.status_code == 202
+    token = sender(app).token_for("link@example.com")
+    async with new_client() as b:
+        out = await b.post("/api/auth/verify", json={"token": token})
+        assert set(out.json()) == {"app_code"}
+    async with new_client() as the_app:
+        ok = await the_app.post(
+            "/api/auth/app-exchange", json={"code": out.json()["app_code"], "verifier": verifier}
+        )
+    assert ok.status_code == 200
+
+
+async def test_a_normal_signup_still_signs_the_browser_in(new_client, app) -> None:
+    async with new_client() as c:
+        await c.post(
+            "/api/auth/signup",
+            json={
+                "email": "plain@example.com",
+                "full_name": "Plain Person",
+                "password": "correct horse battery staple 91",
+            },
+        )
+        token = sender(app).token_for("plain@example.com")
+        r = await c.post("/api/auth/verify", json={"token": token})
+        assert r.status_code == 200 and r.json()["email"] == "plain@example.com"
+        assert (await c.get("/api/me")).status_code == 200
+
+
+async def test_a_bad_challenge_is_refused_at_signup(new_client) -> None:
+    async with new_client() as c:
+        r = await c.post(
+            "/api/auth/signup",
+            json={
+                "email": "x@example.com",
+                "full_name": "Ex Ample",
+                "password": "correct horse battery staple 91",
+                "app_challenge": "short",
+            },
+        )
+    assert r.status_code == 422

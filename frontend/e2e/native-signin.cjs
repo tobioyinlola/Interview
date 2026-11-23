@@ -75,6 +75,57 @@ const ok = (cond, msg) => {
   await again.getByRole("alert").waitFor();
   ok(true, "the same code cannot be used a second time");
 
+  // ---- creating an account in the app: the confirmation link opens in the browser, the app ends up signed in
+  const fs = require("fs");
+  const lastLink = () =>
+    [...fs.readFileSync(process.env.API_LOG, "utf8").matchAll(/http:\/\/localhost:5173\/login\/verify\?token=[\w-]+/g)].pop()?.[0];
+  for (const shell of ["desktop", "android"]) {
+    const email = `${shell}${Date.now()}@example.com`;
+    const ctx = await browser.newContext({ viewport: { width: shell === "android" ? 390 : 1280, height: 860 }, isMobile: shell === "android", hasTouch: shell === "android" });
+    await ctx.addInitScript((kind) => {
+      if (kind === "desktop")
+        window.interviewMeetDesktop = { isDesktop: true, platform: "win32", systemAudio: true, openInBrowser: () => {} };
+      else
+        window.Capacitor = { isNativePlatform: () => true, getPlatform: () => "android", Plugins: {} };
+    }, shell);
+    const inApp = await ctx.newPage();
+    await inApp.goto(BASE + "/signup");
+    await inApp.getByLabel("Full name").fill("App Person");
+    await inApp.getByLabel("Email address").fill(email);
+    await inApp.getByLabel("Password", { exact: true }).fill("correct horse battery staple 91");
+    await inApp.getByLabel("Confirm password", { exact: true }).fill("correct horse battery staple 91");
+    await inApp.getByRole("checkbox", { name: /i agree/i }).check();
+    await inApp.getByRole("button", { name: "Create account" }).click();
+    await inApp.getByText(/bring you back here/i).waitFor();
+    ok(true, `${shell} app: sign-up sent, the app says the link will bring the person back`);
+    await new Promise((r) => setTimeout(r, 400));
+    const verifyLink = lastLink();
+    ok(verifyLink, `${shell} app: the confirmation email carries a link`);
+
+    // the link opens in the real browser, not the app
+    const browserPage = await (await browser.newContext()).newPage();
+    await browserPage.goto(verifyLink);
+    const open = browserPage.getByRole("link", { name: "Open InterviewMeet" });
+    await open.waitFor();
+    const back = new URL(await open.getAttribute("href"));
+    ok(back.protocol === "interviewmeet:" && back.searchParams.get("code"), `${shell} app: the browser offers to open the app`);
+    await browserPage.goto(BASE + "/dashboard");
+    await browserPage.waitForURL("**/login");
+    ok(true, `${shell} app: the browser itself was not signed in`);
+
+    // the app picks the hand-back up and the account is signed in inside the app
+    await inApp.goto(BASE + "/auth/app?code=" + back.searchParams.get("code"));
+    // a new account goes to onboarding first; either way the app must end up signed in
+    await inApp.locator("text=/^Hello, App|Skip for now/").first().waitFor();
+    if (await inApp.getByRole("button", { name: "Skip for now" }).isVisible()) {
+      await inApp.getByRole("button", { name: "Skip for now" }).click();
+      await inApp.waitForURL("**/dashboard");
+    }
+    await inApp.getByText(/^Hello, App/).waitFor({ timeout: 8000 });
+    ok(true, `${shell} app: the new account is signed in inside the app, with the name from the form`);
+    await ctx.close();
+  }
+
   await browser.close();
   console.log("native-signin: ok");
 })().catch((e) => {

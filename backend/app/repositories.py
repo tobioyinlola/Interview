@@ -51,6 +51,7 @@ class ConsumedToken(NamedTuple):
     referral_code: str | None = None
     device: DeviceInfo = DeviceInfo()
     attribution: dict[str, Any] | None = None
+    app_challenge: str | None = None  # an installed app asked for this link
 
 
 class AuthRepo:
@@ -82,6 +83,7 @@ class AuthRepo:
         referral_code: str | None = None,
         device: DeviceInfo | None = None,
         attribution: dict[str, Any] | None = None,
+        app_challenge: str | None = None,
     ) -> str:
         token = new_token()
         device = device or DeviceInfo()
@@ -98,6 +100,7 @@ class AuthRepo:
                 device_cookie_hash=device.cookie_hash,
                 device_print_hash=device.print_hash,
                 device_ip_hash=device.ip_hash,
+                app_challenge=app_challenge,
             )
         )
         await self.db.commit()
@@ -126,13 +129,21 @@ class AuthRepo:
                 LoginToken.device_print_hash,
                 LoginToken.device_ip_hash,
                 LoginToken.attribution,
+                LoginToken.app_challenge,
             )
         )
         row = (await self.db.execute(stmt)).one_or_none()
         await self.db.commit()
         return (
             ConsumedToken(
-                row[0], row[1], row[2], row[3], row[4], DeviceInfo(row[5], row[6], row[7]), row[8]
+                row[0],
+                row[1],
+                row[2],
+                row[3],
+                row[4],
+                DeviceInfo(row[5], row[6], row[7]),
+                row[8],
+                row[9],
             )
             if row
             else None

@@ -6,6 +6,8 @@ import {
 } from "@tanstack/react-query";
 
 import { ApiError, apiFetch } from "./client";
+import { isNativeApp } from "../app/native";
+import { newAppChallenge } from "../features/auth/nativeGoogle";
 import { savedInvite, savedUtm } from "../features/referral/invite";
 import { POLL_MS, isActive } from "./polling";
 import type {
@@ -58,22 +60,41 @@ export function useProviders() {
   });
 }
 
+/** In an installed app the emailed link opens in the phone's or computer's browser. Sending a
+ *  challenge with the request lets that browser hand the person back to the app, signed in. */
+const appChallenge = async () =>
+  isNativeApp() ? { app_challenge: await newAppChallenge() } : {};
+
 export function useRequestLink() {
   return useMutation({
-    mutationFn: (email: string) =>
+    mutationFn: async (email: string) =>
       apiFetch<{ status: string }>("/api/auth/request-link", {
         method: "POST",
-        body: json({ email, ref: savedInvite(), utm: savedUtm() }),
+        body: json({
+          email,
+          ref: savedInvite(),
+          utm: savedUtm(),
+          ...(await appChallenge()),
+        }),
       }),
   });
 }
 
 export function useSignUp() {
   return useMutation({
-    mutationFn: (v: { email: string; password: string; full_name: string }) =>
+    mutationFn: async (v: {
+      email: string;
+      password: string;
+      full_name: string;
+    }) =>
       apiFetch<{ status: string }>("/api/auth/signup", {
         method: "POST",
-        body: json({ ...v, ref: savedInvite(), utm: savedUtm() }),
+        body: json({
+          ...v,
+          ref: savedInvite(),
+          utm: savedUtm(),
+          ...(await appChallenge()),
+        }),
       }),
   });
 }
@@ -179,15 +200,19 @@ export function useResetPassword() {
   });
 }
 
+/** Opening an emailed link signs this browser in, unless an installed app asked for the link: then
+ *  the browser gets a one-time code to hand back to the app instead. */
 export function useVerifyLink() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (token: string) =>
-      apiFetch<Me>("/api/auth/verify", {
+      apiFetch<Me | { app_code: string }>("/api/auth/verify", {
         method: "POST",
         body: json({ token }),
       }),
-    onSuccess: (me) => qc.setQueryData(["me"], me),
+    onSuccess: (result) => {
+      if (!("app_code" in result)) qc.setQueryData(["me"], result);
+    },
   });
 }
 

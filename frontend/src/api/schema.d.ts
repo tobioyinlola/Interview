@@ -681,7 +681,8 @@ export interface paths {
         /**
          * Verify
          * @description Exchange the emailed token for a session cookie. POST (not GET) so a mail scanner that
-         *     prefetches the link cannot burn the token.
+         *     prefetches the link cannot burn the token. If an installed app asked for the link, the browser
+         *     is not signed in: the app is handed a one-time code instead (see /auth/app-exchange).
          */
         post: operations["verify_api_auth_verify_post"];
         delete?: never;
@@ -1954,6 +1955,15 @@ export interface components {
             version: number;
         };
         /**
+         * AppCodeOut
+         * @description The answer to opening an emailed link that an installed app asked for: not a session in the
+         *     browser it was opened in, but a one-time code for the app.
+         */
+        AppCodeOut: {
+            /** App Code */
+            app_code: string;
+        };
+        /**
          * AppExchangeIn
          * @description An installed app swapping its one-time code (and the secret it made) for a session.
          */
@@ -3159,6 +3169,8 @@ export interface components {
         };
         /** RequestLinkIn */
         RequestLinkIn: {
+            /** App Challenge */
+            app_challenge?: string | null;
             /**
              * Email
              * Format: email
@@ -3416,6 +3428,8 @@ export interface components {
         };
         /** SignUpIn */
         SignUpIn: {
+            /** App Challenge */
+            app_challenge?: string | null;
             /**
              * Email
              * Format: email
@@ -4857,7 +4871,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MeOut"];
+                    "application/json": components["schemas"]["MeOut"] | components["schemas"]["AppCodeOut"];
                 };
             };
             /** @description Validation Error */

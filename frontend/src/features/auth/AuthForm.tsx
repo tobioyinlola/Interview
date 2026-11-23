@@ -173,6 +173,12 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
               ? "link to confirm your address and finish creating your account"
               : "sign-in link"}
             . It works once and expires in 15 minutes.
+            {isNativeApp() && (
+              <>
+                {" "}
+                Open it on this device: it will bring you back here, signed in.
+              </>
+            )}
           </p>
         ) : (
           <>
