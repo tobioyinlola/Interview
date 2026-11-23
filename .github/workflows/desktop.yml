@@ -21,6 +21,10 @@ on:
         description: "Version number for the release, like 0.1.0 (only used when releasing)"
         type: string
         default: "0.1.0"
+      mac:
+        description: "Also build the Mac app (a download on the run page; attached to the release too when releasing)"
+        type: boolean
+        default: false
 
 defaults:
   run:
@@ -95,22 +99,53 @@ jobs:
             --notes "Windows installer. It is not code-signed yet, so Windows may show a protected-your-PC notice: choose More info, then Run anyway."
 
   mac:
-    # Mac installers are built only for releases, until the Windows app has been tried.
-    if: startsWith(github.ref, 'refs/tags/desktop-v')
+    # Mac installers: on request ("Also build the Mac app") and for tagged releases.
+    if: ${{ always() && needs.windows.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.mac) || startsWith(github.ref, 'refs/tags/desktop-v')) }}
+    needs: windows
     runs-on: macos-latest
+    permissions:
+      contents: write
+    env:
+      RELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.release }}
+      VERSION: ${{ inputs.version }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, cache-dependency-path: desktop/package-lock.json }
       - run: npm ci
       - run: npm test
-      # Signing and notarization secrets: CSC_LINK (base64 .p12), CSC_KEY_PASSWORD, APPLE_ID,
-      # APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID. Without them the build is unsigned.
-      - run: npx electron-builder --mac --publish always
+      # Starts the real app and checks what the page can and cannot do. Computer-audio capture is
+      # skipped: a CI Mac cannot grant the screen-recording permission it needs.
+      - run: npm run smoke
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SMOKE_SKIP_CAPTURE: "1"
+      # Signing and notarization secrets: CSC_LINK (base64 .p12), CSC_KEY_PASSWORD, APPLE_ID,
+      # APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID. Without them the app is built UNSIGNED, and a Mac
+      # will refuse to open it until the person right-clicks it and chooses Open.
+      - name: Build Mac app
+        run: |
+          EXTRA=""
+          if [ "$RELEASE" = "true" ]; then EXTRA="--config.extraMetadata.version=$VERSION"; fi
+          npx electron-builder --mac $EXTRA --publish never
+        env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.CSC_LINK != '' }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      - run: ls -la dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: InterviewMeet-mac
+          path: |
+            desktop/dist/*.dmg
+            desktop/dist/*.zip
+          if-no-files-found: error
+      - name: Attach to the release
+        if: env.RELEASE == 'true'
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "desktop-v$VERSION" desktop/dist/*.dmg desktop/dist/*.zip --repo "$GITHUB_REPOSITORY" --clobber
