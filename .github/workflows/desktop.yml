@@ -124,6 +124,9 @@ jobs:
       # will refuse to open it until the person right-clicks it and chooses Open.
       - name: Build Mac app
         run: |
+          # GitHub passes a missing secret as an EMPTY variable, and electron-builder reads an empty
+          # CSC_LINK as a file name. Remove the signing variables entirely when there is no certificate.
+          if [ -z "$CSC_LINK" ]; then unset CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; export CSC_IDENTITY_AUTO_DISCOVERY=false; fi
           EXTRA=""
           if [ "$RELEASE" = "true" ]; then EXTRA="--config.extraMetadata.version=$VERSION"; fi
           npx electron-builder --mac $EXTRA --publish never
