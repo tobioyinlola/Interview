@@ -725,6 +725,7 @@ describe("inside an installed app", () => {
   });
 
   it("the phone app does the same", async () => {
+    localStorage.setItem("im-welcome-done", "1"); // not a first install
     window.Capacitor = { isNativePlatform: () => true };
     mockApi({
       "GET /api/me": () => UNAUTH,

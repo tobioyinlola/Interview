@@ -110,7 +110,7 @@ function createWindow() {
     height: 860,
     minWidth: 900,
     minHeight: 640,
-    backgroundColor: "#f7f4ff",
+    backgroundColor: "#1c1b2e", // the colour of the opening animation, so nothing flashes before it
     show: false,
     title: "InterviewMeet",
     autoHideMenuBar: true,

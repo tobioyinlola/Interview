@@ -4,6 +4,15 @@ A Capacitor shell around the live site. Everything in the web app (Auto-Apply, c
 CV, settings) is the same code, so it stays in step with the website, and the login cookie stays
 first-party. The app address is in `capacitor.config.ts`; change it for a build with `INTERVIEWMEET_URL`.
 
+## How the app opens
+
+Every app (Windows, Mac, Android) opens with a short logo animation (`frontend/src/features/splash/`), once per
+launch, then goes to sign-in (new accounts are created from there). A tap skips it, it is shorter for people who
+ask their phone for less motion, and it is skipped when the browser is handing a sign-in back to the app.
+
+A **new Android install** first shows three illustrated welcome slides (`features/phone/Welcome.tsx`) with
+"Get started" (create an account), "I already have an account" and Skip. It is remembered, so it shows once.
+
 ## How the phone app looks
 
 The phone app is not the website squeezed down. When the page runs inside this app it gets its own layout

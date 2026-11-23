@@ -86,7 +86,9 @@ describe("tapping the emailed link on a phone", () => {
   it("a password reset link opened on a phone says to sign in in the app", async () => {
     mockApi({
       "GET /api/me": () => UNAUTH,
-      "POST /api/auth/reset-password": () => ({ json: { id: "u", email: "a@b.c" } }),
+      "POST /api/auth/reset-password": () => ({
+        json: { id: "u", email: "a@b.c" },
+      }),
     });
     renderApp(<App />, `/reset-password?token=${TOKEN}`);
     await userEvent.type(

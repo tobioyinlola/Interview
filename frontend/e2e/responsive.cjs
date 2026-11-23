@@ -172,7 +172,11 @@ const probe = () => {
   // cover the content's last line.
   for (const [w, h] of [[360, 740], [390, 844]]) {
     const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, storageState: state });
-    await ctx.addInitScript(() => { window.Capacitor = { isNativePlatform: () => true }; });
+    await ctx.addInitScript(() => {
+      window.Capacitor = { isNativePlatform: () => true };
+      sessionStorage.setItem("im-splash", "done"); // these checks are about the pages, not the opening animation
+      localStorage.setItem("im-welcome-done", "1");
+    });
     const page = await ctx.newPage();
     for (const p of [...IN.filter((x) => !x.startsWith("/session/new") && x !== "/onboarding"), "/me"]) {
       await page.goto(B + p);

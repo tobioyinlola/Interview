@@ -18,10 +18,10 @@ const config: CapacitorConfig = {
     // Only the app's own address stays inside the app. Any other link opens in the phone's browser.
     allowNavigation: [url.hostname],
   },
-  ios: { contentInset: "automatic", backgroundColor: "#f7f4ff" },
-  android: { backgroundColor: "#f7f4ff", allowMixedContent: false },
+  ios: { contentInset: "automatic", backgroundColor: "#1c1b2e" },
+  android: { backgroundColor: "#1c1b2e", allowMixedContent: false },
   plugins: {
-    SplashScreen: { launchAutoHide: true, backgroundColor: "#7b47f3", showSpinner: false },
+    SplashScreen: { launchAutoHide: true, backgroundColor: "#1c1b2e", showSpinner: false },
     StatusBar: { style: "DARK", backgroundColor: "#f7f4ff" },
   },
 };
