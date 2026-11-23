@@ -16,6 +16,8 @@ publish:
   releaseType: release
 mac:
   category: public.app-category.productivity
+  # fixed names so the website can link to the latest release without knowing the version
+  artifactName: InterviewMeet-mac-${arch}.${ext}
   target:
     - target: dmg
       arch: [arm64, x64]

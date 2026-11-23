@@ -12,6 +12,7 @@ window.__r = {};
   __r.bridge = window.interviewMeetDesktop ? JSON.parse(JSON.stringify(window.interviewMeetDesktop)) : null;
   __r.ua = navigator.userAgent.includes("InterviewMeetDesktop/");
   __r.noNode = typeof require === "undefined" && typeof process === "undefined";
+  if (location.pathname === "/nocapture") { __r.capture = { skipped: true }; __r.done = true; return; }
   try {
     const s = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 1 }, audio: true });
     __r.capture = { video: s.getVideoTracks().length, audio: s.getAudioTracks().length };
@@ -27,7 +28,7 @@ async function main() {
     r.end(PAGE);
   });
   await new Promise((r) => srv.listen(5199, "127.0.0.1", r));
-  const env = { ...process.env, NODE_OPTIONS: "", INTERVIEWMEET_URL: "http://localhost:5199" };
+  const env = { ...process.env, NODE_OPTIONS: "", INTERVIEWMEET_URL: process.env.SMOKE_SKIP_CAPTURE ? "http://localhost:5199/nocapture" : "http://localhost:5199" };
   const launch = process.env.SMOKE_EXE
     ? { executablePath: process.env.SMOKE_EXE, args: ["--no-sandbox"], env }
     : { args: [path.join(__dirname, ".."), "--no-sandbox"], env };
