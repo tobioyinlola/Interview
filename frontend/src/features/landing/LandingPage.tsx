@@ -8,6 +8,11 @@ import { Cite, HeroDevice, PhoneMock, Waveform, Window } from "./Mockups";
 export const WINDOWS_DOWNLOAD_URL =
   "https://github.com/tobioyinlola/Interview/releases/latest/download/InterviewMeet-Setup.exe";
 
+const RELEASE =
+  "https://github.com/tobioyinlola/Interview/releases/latest/download";
+export const MAC_ARM_DOWNLOAD_URL = `${RELEASE}/InterviewMeet-mac-arm64.dmg`;
+export const MAC_INTEL_DOWNLOAD_URL = `${RELEASE}/InterviewMeet-mac-x64.dmg`;
+
 const FEATURES = [
   {
     n: "01",
@@ -209,16 +214,22 @@ export function LandingPage() {
                   does on the website, and it updates itself.
                 </p>
                 <ul className="mt-4 space-y-1 text-sm text-surface/80">
-                  <li>For Windows 10 and 11.</li>
                   <li>
-                    Mac version coming soon. On a Mac, use Chrome or Edge for
-                    now.
+                    For Windows 10 and 11, and Macs on macOS 14.2 or later.
                   </li>
                   <li>
                     Windows may show a &ldquo;protected your PC&rdquo; notice
                     while we finish signing the app. Choose{" "}
                     <strong>More info</strong>, then <strong>Run anyway</strong>
                     .
+                  </li>
+                  <li>
+                    On a Mac, open the downloaded file, drag InterviewMeet to
+                    Applications, then{" "}
+                    <strong>right-click it and choose Open</strong> the first
+                    time. Not sure which Mac you have? Apple menu, About This
+                    Mac: &ldquo;Apple M&rdquo; means Apple silicon, otherwise
+                    Intel.
                   </li>
                 </ul>
               </div>
@@ -230,8 +241,22 @@ export function LandingPage() {
                 >
                   Download for Windows
                 </a>
+                <a
+                  href={MAC_ARM_DOWNLOAD_URL}
+                  rel="noopener"
+                  className="btn btn-lg bg-surface/15 text-surface hover:bg-surface/25"
+                >
+                  Download for Mac (Apple silicon)
+                </a>
+                <a
+                  href={MAC_INTEL_DOWNLOAD_URL}
+                  rel="noopener"
+                  className="text-sm text-surface/80 underline hover:text-surface"
+                >
+                  Mac with an Intel chip
+                </a>
                 <span className="text-xs text-surface/70">
-                  Free &middot; about 90 MB
+                  Free &middot; about 100 MB
                 </span>
               </div>
             </div>
