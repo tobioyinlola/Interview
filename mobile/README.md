@@ -4,13 +4,25 @@ A Capacitor shell around the live site. Everything in the web app (Auto-Apply, c
 CV, settings) is the same code, so it stays in step with the website, and the login cookie stays
 first-party. The app address is in `capacitor.config.ts`; change it for a build with `INTERVIEWMEET_URL`.
 
+## Updates
+
+* **The website and everything inside the app** update for everyone the moment the site is deployed: the app
+  loads the live site.
+* **The Android shell** is released automatically: a change to `mobile/` that lands on `Staging` builds the
+  app and replaces the file at the download address (`android-latest`), with a build number that always grows.
+* An Android app installed from a file cannot update itself, so it shows an "update available" banner with the
+  download. Google Play (a signed app) would make updates silent.
+
 ## What works on a phone, and what does not
 
 * Works: Auto-Apply (setup, approvals, dashboard), companies and briefs, past sessions and reviews, CV, settings.
 * **Live interviews do not work on a phone.** They capture the call's audio, which iOS and Android do not let an
   app do. The app says so and points to the desktop app. A microphone-only mode and a "companion" view that shows
   a desktop interview's answers on the phone are planned, not built.
-* **Google sign-in is hidden** (Google blocks it in embedded browsers). Use email and password or an email link.
+* **Google sign-in** opens the phone's browser (Google refuses to run inside an app's own window), and the
+  browser hands the app a one-time code back through `interviewmeet://auth` (registered in the Android manifest
+  and iOS `Info.plist`). It uses the `@capacitor/browser` and `@capacitor/app` plugins through the Capacitor
+  bridge. Not yet tried on a real phone.
 
 ## Build
 
@@ -46,4 +58,4 @@ npx cap open android   # or: npx cap open ios
 * Nothing has been run on a real phone: status bar and notch spacing, the keyboard, and the back button
   are unchecked.
 * The icon is a placeholder, and there is no splash artwork.
-* Push notifications, biometric unlock, share-sheet and the system-browser Google sign-in are not built.
+* Push notifications, biometric unlock and the share-sheet are not built.

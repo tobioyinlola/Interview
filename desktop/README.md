@@ -34,6 +34,18 @@ npm test      # the rules in policy.js
 A real-window check (bridge present, no Node in the page, audio capture returns an audio track, off-site
 navigation blocked) was run under a virtual display with Playwright's Electron support.
 
+## Updates
+
+* **The website and everything inside the app** (pages, features, fixes) update for everyone the moment the
+  site is deployed: the app loads the live site. No release is needed for those.
+* **The app shell** (this folder) is released automatically: a change to `desktop/` that lands on `Staging`
+  builds the Windows and Mac installers and publishes release `desktop-v0.2.<run number>`.
+* **Windows** apps look for a new release when they start and every 4 hours, download it quietly, and offer
+  a restart (or install it when the app is next closed).
+* **Mac** apps that are not yet signed cannot install updates by themselves. The app shows an
+  "update available" banner with the right download for the Mac's chip. Signing and notarization (an
+  Apple Developer account) turns on silent updates there too.
+
 ## Building installers
 
 **To publish a release (the easy way):** GitHub, Actions, **desktop**, **Run workflow**. Pick the `Staging` branch, tick
@@ -51,9 +63,11 @@ add these repository secrets: `CSC_LINK`, `CSC_KEY_PASSWORD` (certificate), and 
 
 ## Known limits
 
-* **Google sign-in does not work inside the app** (Google blocks embedded browsers). The sign-in page
-  says so and offers email and password or an email link. A hand-off through the system browser is the
-  planned fix.
+* **Google sign-in opens your normal browser.** Google refuses to run inside an app's own window, so the
+  button opens the browser, and after sign-in the browser hands the app a one-time code through the
+  `interviewmeet://` address, which this app registers with Windows or macOS. The code only works with a
+  secret the app made before leaving (PKCE-style), lives two minutes and works once. No Google Cloud
+  change is needed: it uses the same return address as the website.
 * **macOS 14.2 or later is needed** for computer-audio capture, and the person must allow "System
   Audio Recording" the first time. Older macOS cannot capture it. The usage text is in
   `electron-builder.yml`; without it macOS returns a silent stream with no error.

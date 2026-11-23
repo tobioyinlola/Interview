@@ -1,6 +1,7 @@
 from app.models.tables import (
     Application,
     ApplicationEvent,
+    AppLoginCode,
     AudioToken,
     AuthSession,
     Campaign,
@@ -52,6 +53,7 @@ __all__ = [
     "CandidateAnswer",
     "CandidateFacts",
     "SearchProfile",
+    "AppLoginCode",
     "AudioToken",
     "AuthSession",
     "Company",

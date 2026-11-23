@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, Request, Response
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.email import EmailSender
@@ -15,6 +15,7 @@ from app.errors import ApiError
 from app.models import User
 from app.repositories import AuthRepo
 from app.schemas.api import (
+    AppExchangeIn,
     LoginIn,
     MeOut,
     ProvidersOut,
@@ -49,6 +50,9 @@ log = logging.getLogger("app.auth")
 router = APIRouter(prefix="/api", tags=["auth"])
 REF_COOKIE = "invite_code"
 UTM_COOKIE = "utm_tags"
+APP_COOKIE = "oauth_app"  # an installed app started this sign-in; holds the app's challenge
+APP_SCHEME = "interviewmeet"  # the address the system browser hands the result to
+CHALLENGE = re.compile(r"^[A-Za-z0-9_-]{43}$")  # base64url of a SHA-256 hash
 
 
 _TAG_OK = re.compile(r"[^A-Za-z0-9_.\- ]")
@@ -377,6 +381,71 @@ async def providers(google: GoogleOAuth = Depends(get_google)) -> ProvidersOut: 
     return ProvidersOut(google=google.enabled)
 
 
+def _app_handoff(params: dict[str, str]) -> HTMLResponse:
+    """The page the system browser shows after Google, which passes the result to the installed app
+    through its own address (interviewmeet://...). It opens by itself, and has a button for browsers
+    that want a tap first. Plain markup only: no script, no stylesheet."""
+    from html import escape
+    from urllib.parse import urlencode
+
+    link = escape(f"{APP_SCHEME}://auth?{urlencode(params)}", quote=True)
+    ok = "code" in params
+    body = (
+        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">'
+        "<title>InterviewMeet</title>"
+        f'<meta http-equiv="refresh" content="0;url={link}"></head>'
+        '<body style="font-family:system-ui,sans-serif;background:#f7f4ff;color:#1b1830;margin:0;'
+        'min-height:100vh;display:grid;place-items:center;text-align:center">'
+        '<main style="max-width:24rem;padding:1.5rem">'
+        f"<h1>{'You are signed in' if ok else 'Sign-in did not finish'}</h1>"
+        f"<p>{'Return to the app to continue.' if ok else 'Go back to the app to try again.'}</p>"
+        f'<p><a href="{link}" style="display:inline-block;background:#7b47f3;color:#fff;'
+        'text-decoration:none;padding:.9rem 1.6rem;border-radius:12px">Open InterviewMeet</a></p>'
+        "</main></body></html>"
+    )
+    r = HTMLResponse(body)
+    r.headers["Cache-Control"] = "no-store"
+    r.headers["Referrer-Policy"] = "no-referrer"
+    return r
+
+
+@router.post("/auth/app-exchange")
+async def app_exchange(
+    body: AppExchangeIn,
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    settings: Settings = Depends(get_settings),  # noqa: B008
+) -> StatusOut:
+    """An installed app swaps the one-time code from the system browser, plus the secret it made
+    before leaving, for its own session. The code alone is worthless."""
+    import base64
+    import hashlib
+
+    challenge = (
+        base64.urlsafe_b64encode(hashlib.sha256(body.verifier.encode()).digest())
+        .rstrip(b"=")
+        .decode()
+    )
+    repo = AuthRepo(db, settings.cookie_secret.get_secret_value())
+    user_id = await repo.redeem_app_code(body.code, challenge)
+    if user_id is None:
+        raise ApiError(400, "invalid_code", "That sign-in has expired. Please try again.")
+    ttl = timedelta(days=settings.session_ttl_days)
+    cookie = await repo.create_session(user_id, ttl=ttl)
+    response.set_cookie(
+        COOKIE_NAME,
+        cookie,
+        max_age=int(ttl.total_seconds()),
+        httponly=True,
+        secure=settings.environment != "local",
+        samesite="lax",
+        path="/",
+    )
+    return StatusOut(status="ok")
+
+
 @router.get("/auth/google/start")
 async def google_start(
     request: Request,
@@ -384,11 +453,15 @@ async def google_start(
     utm_source: str | None = None,
     utm_medium: str | None = None,
     utm_campaign: str | None = None,
+    app: str | None = None,
+    challenge: str | None = None,
     settings: Settings = Depends(get_settings),  # noqa: B008
     google: GoogleOAuth = Depends(get_google),  # noqa: B008
 ) -> RedirectResponse:
     if not google.enabled:
         raise ApiError(404, "google_not_configured", "Google sign-in is not available.")
+    if app == "1" and not (challenge and CHALLENGE.match(challenge)):
+        raise ApiError(400, "bad_request", "That sign-in request is not valid.")
     url, cookie = google.begin()
     response = RedirectResponse(url, status_code=302)
     observe_device(request, response, settings)  # gives the browser its device id if it has none
@@ -401,6 +474,16 @@ async def google_start(
         samesite="lax",  # sent on the top-level redirect back from Google
         path=STATE_COOKIE_PATH,
     )
+    if app == "1" and challenge:  # an installed app is waiting: remember to hand back to it
+        response.set_cookie(
+            APP_COOKIE,
+            challenge,
+            max_age=600,
+            httponly=True,
+            secure=settings.environment != "local",
+            samesite="lax",
+            path=STATE_COOKIE_PATH,
+        )
     if code := clean_code(ref):  # remember the invite across the trip to Google and back
         response.set_cookie(
             REF_COOKIE,
@@ -436,15 +519,27 @@ async def google_callback(
     google: GoogleOAuth = Depends(get_google),  # noqa: B008
     sender: EmailSender = Depends(get_email_sender),  # noqa: B008
     notifier: Notifier = Depends(get_notifier),  # noqa: B008
-) -> RedirectResponse:
+) -> Response:
     """Google sends the browser here. Whatever happens, the browser lands back on the web app, and
     the state cookie is used once."""
 
-    def back(path: str) -> RedirectResponse:
-        r = RedirectResponse(f"{settings.web_origin}{path}", status_code=303)
-        r.delete_cookie(STATE_COOKIE, path=STATE_COOKIE_PATH)
-        r.delete_cookie(REF_COOKIE, path=STATE_COOKIE_PATH)
-        r.delete_cookie(UTM_COOKIE, path=STATE_COOKIE_PATH)
+    app_challenge = request.cookies.get(APP_COOKIE)
+    if app_challenge and not CHALLENGE.match(app_challenge):
+        app_challenge = None
+
+    def clear(r: Response) -> None:
+        for name in (STATE_COOKIE, REF_COOKIE, UTM_COOKIE, APP_COOKIE):
+            r.delete_cookie(name, path=STATE_COOKIE_PATH)
+
+    def back(path: str) -> Response:
+        r: Response
+        if app_challenge:
+            # the app is waiting, so tell it what went wrong instead of showing a page
+            reason = path.split("error=")[-1] if "error=" in path else "google_failed"
+            r = _app_handoff({"error": reason})
+        else:
+            r = RedirectResponse(f"{settings.web_origin}{path}", status_code=303)
+        clear(r)
         return r
 
     if not google.enabled:
@@ -484,6 +579,10 @@ async def google_callback(
     await _log_arrival(
         db, repo, notifier, user, existed=existed, method="google", attribution=attribution
     )
+    if app_challenge:  # an installed app is waiting: give it a code, not a cookie in this browser
+        handoff = _app_handoff({"code": await repo.issue_app_code(user.id, app_challenge)})
+        clear(handoff)
+        return handoff
     ttl = timedelta(days=settings.session_ttl_days)
     cookie = await repo.create_session(user.id, ttl=ttl)
     response = back("/dashboard")

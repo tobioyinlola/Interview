@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/meetpractice"
     web_origin: str = "http://localhost:5173"
     cookie_secret: SecretStr = SecretStr("dev-only-change-me")
+    github_repo: str = "tobioyinlola/Interview"  # where the downloadable apps are published
 
     openai_api_key: SecretStr = SecretStr("")
     openai_answer_model: str = "gpt-4.1-mini"

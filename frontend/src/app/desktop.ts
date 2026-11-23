@@ -2,7 +2,10 @@
 interface DesktopBridge {
   isDesktop: true;
   platform: string;
+  arch?: string;
   systemAudio: boolean;
+  /** Opens an address in the person's normal browser (used for Google sign-in). */
+  openInBrowser?: (url: string) => void;
 }
 
 declare global {

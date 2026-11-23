@@ -99,6 +99,21 @@ class LoginToken(Base):
     full_name: Mapped[str | None] = mapped_column(String(120), nullable=True)  # signup only
 
 
+class AppLoginCode(Base):
+    """The hand-off from the system browser back to an installed app after Google sign-in. The app
+    made a secret (the verifier) and sent only its hash (the challenge); the code is useless without
+    the verifier, lives two minutes and works once. Only a hash of the code is stored."""
+
+    __tablename__ = "app_login_codes"
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = _fk("users.id", index=True)
+    code_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    challenge: Mapped[str] = mapped_column(String(64))
+    expires_at: Mapped[datetime] = mapped_column(_TS)
+    used_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+
+
 class LoginFailure(Base):
     """One wrong password. Counted per email to slow guessing; contains no password."""
 

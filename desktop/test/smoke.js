@@ -9,7 +9,7 @@ const { _electron: electron } = require("playwright-core");
 const PAGE = `<!doctype html><title>smoke</title><a id="ext" href="https://example.com/" target="_blank">x</a><script>
 window.__r = {};
 (async () => {
-  __r.bridge = window.interviewMeetDesktop ? JSON.parse(JSON.stringify(window.interviewMeetDesktop)) : null;
+  __r.bridge = window.interviewMeetDesktop ? { isDesktop: window.interviewMeetDesktop.isDesktop, platform: window.interviewMeetDesktop.platform, openInBrowser: typeof window.interviewMeetDesktop.openInBrowser } : null;
   __r.ua = navigator.userAgent.includes("InterviewMeetDesktop/");
   __r.noNode = typeof require === "undefined" && typeof process === "undefined";
   if (location.pathname === "/nocapture") { __r.capture = { skipped: true }; __r.done = true; return; }
@@ -40,6 +40,7 @@ async function main() {
     const r = await w.evaluate(() => window.__r);
     console.log("page saw:", JSON.stringify(r));
     if (!r.bridge || r.bridge.isDesktop !== true) failures.push("desktop bridge missing");
+    if (!r.bridge || r.bridge.openInBrowser !== "function") failures.push("browser hand-off missing");
     if (!r.ua) failures.push("user agent not tagged");
     if (!r.noNode) failures.push("the page can reach Node");
     // Audio capture needs a sound device. A CI machine may have none, so this is reported, not required.
@@ -51,6 +52,15 @@ async function main() {
     }
     const title = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getTitle());
     if (title !== "InterviewMeet") failures.push("window title is not fixed: " + title);
+    // The browser hands Google sign-in back through interviewmeet://: the window must carry on in the app
+    const code = "A".repeat(43);
+    await app.evaluate(({ app: a }, link) => a.emit("second-instance", {}, ["app", link]), `interviewmeet://auth?code=${code}`);
+    await new Promise((res) => setTimeout(res, 1500));
+    if (!w.url().includes(`/auth/app?code=${code}`)) failures.push("sign-in link did not reach the app: " + w.url());
+    // a link that is not exactly that shape is ignored
+    await app.evaluate(({ app: a }) => a.emit("second-instance", {}, ["app", "interviewmeet://auth?code=short"]));
+    await new Promise((res) => setTimeout(res, 500));
+    if (w.url().includes("short")) failures.push("a malformed sign-in link was followed");
     await w.evaluate(() => { location.href = "https://example.com/"; });
     await new Promise((res) => setTimeout(res, 2000));
     if (!w.url().startsWith("http://localhost:5199")) failures.push("window left the app: " + w.url());

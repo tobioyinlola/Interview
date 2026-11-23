@@ -28,3 +28,15 @@ test("Android does not allow plain http and asks for no risky permissions", () =
 test("there is an offline page to show when the site cannot be reached", () => {
   assert.match(read("www/index.html"), /Try again/);
 });
+
+test("both phone apps can be opened by interviewmeet:// (the hand-back after Google sign-in)", () => {
+  assert.match(read("android/app/src/main/AndroidManifest.xml"), /android:scheme="interviewmeet" android:host="auth"/);
+  assert.match(read("android/app/src/main/AndroidManifest.xml"), /android.intent.category.BROWSABLE/);
+  assert.match(read("ios/App/App/Info.plist"), /<key>CFBundleURLSchemes<\/key>\s*<array>\s*<string>interviewmeet<\/string>/);
+});
+
+test("the browser and app plugins the sign-in uses are installed", () => {
+  const pkg = JSON.parse(read("package.json"));
+  assert.ok(pkg.dependencies["@capacitor/browser"]);
+  assert.ok(pkg.dependencies["@capacitor/app"]);
+});

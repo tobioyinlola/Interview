@@ -40,6 +40,8 @@ import { OnboardingPage } from "../features/onboarding/OnboardingPage";
 import { BrowserNotice } from "./BrowserNotice";
 import { currentEnv, isSupported } from "./browserSupport";
 import { Layout } from "./Layout";
+import { AppReturnPage } from "../features/auth/AppReturnPage";
+import { NativeLinks } from "./NativeLinks";
 import { MobileLiveNotice } from "./MobileLiveNotice";
 import { isMobileApp, isNativeApp } from "./native";
 
@@ -63,6 +65,15 @@ function SupportedBrowser() {
 }
 
 export function App() {
+  return (
+    <>
+      <NativeLinks />
+      <AppRoutes />
+    </>
+  );
+}
+
+function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
@@ -88,6 +99,7 @@ export function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/login/verify" element={<VerifyPage />} />
+        <Route path="/auth/app" element={<AppReturnPage />} />
         <Route element={<AuthGuard />}>
           <Route path="/onboarding" element={<OnboardingPage />} />
           <Route element={<Layout />}>

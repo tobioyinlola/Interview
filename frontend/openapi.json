@@ -114,6 +114,24 @@
         "title": "ActivityOut",
         "type": "object"
       },
+      "AndroidRelease": {
+        "properties": {
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "url"
+        ],
+        "title": "AndroidRelease",
+        "type": "object"
+      },
       "AnswerApplicationIn": {
         "properties": {
           "field": {
@@ -216,6 +234,54 @@
           "version"
         ],
         "title": "AnswerOut",
+        "type": "object"
+      },
+      "AppExchangeIn": {
+        "description": "An installed app swapping its one-time code (and the secret it made) for a session.",
+        "properties": {
+          "code": {
+            "maxLength": 200,
+            "minLength": 20,
+            "title": "Code",
+            "type": "string"
+          },
+          "verifier": {
+            "pattern": "^[A-Za-z0-9_-]{43,128}$",
+            "title": "Verifier",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "verifier"
+        ],
+        "title": "AppExchangeIn",
+        "type": "object"
+      },
+      "AppReleasesOut": {
+        "properties": {
+          "android": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AndroidRelease"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "desktop": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DesktopRelease"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "AppReleasesOut",
         "type": "object"
       },
       "ApplicationDetail": {
@@ -1675,6 +1741,52 @@
           "review_count"
         ],
         "title": "DashboardOut",
+        "type": "object"
+      },
+      "DesktopRelease": {
+        "properties": {
+          "mac_arm64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mac Arm64"
+          },
+          "mac_x64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mac X64"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          },
+          "windows": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Windows"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "DesktopRelease",
         "type": "object"
       },
       "Disclosure": {
@@ -6784,6 +6896,70 @@
         ]
       }
     },
+    "/api/app/releases": {
+      "get": {
+        "description": "The newest downloadable version of each app. Public: the same list as the releases page.",
+        "operationId": "app_releases_api_app_releases_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppReleasesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "App Releases",
+        "tags": [
+          "apps"
+        ]
+      }
+    },
+    "/api/auth/app-exchange": {
+      "post": {
+        "description": "An installed app swaps the one-time code from the system browser, plus the secret it made\nbefore leaving, for its own session. The code alone is worthless.",
+        "operationId": "app_exchange_api_auth_app_exchange_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppExchangeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__schemas__api__StatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "App Exchange",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/api/auth/google/callback": {
       "get": {
         "description": "Google sends the browser here. Whatever happens, the browser lands back on the web app, and\nthe state cookie is used once.",
@@ -6930,6 +7106,38 @@
                 }
               ],
               "title": "Utm Campaign"
+            }
+          },
+          {
+            "in": "query",
+            "name": "app",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "App"
+            }
+          },
+          {
+            "in": "query",
+            "name": "challenge",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Challenge"
             }
           }
         ],
