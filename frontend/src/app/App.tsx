@@ -42,6 +42,8 @@ import { currentEnv, isSupported } from "./browserSupport";
 import { Layout } from "./Layout";
 import { AppReturnPage } from "../features/auth/AppReturnPage";
 import { VerifiedToast } from "../features/auth/VerifiedToast";
+import { Splash } from "../features/splash/Splash";
+import { Welcome, welcomeSeen } from "../features/phone/Welcome";
 import { PhoneHome } from "../features/phone/PhoneHome";
 import { PhoneLayout } from "../features/phone/PhoneLayout";
 import { ProfilePage } from "../features/phone/ProfilePage";
@@ -55,6 +57,8 @@ function Home() {
   if (isPending) return null;
   if (me) return <Navigate to="/dashboard" replace />;
   // The installed apps are not a website: they open straight on sign-in, not the marketing page.
+  if (isMobileApp() && !welcomeSeen())
+    return <Navigate to="/welcome" replace />;
   return isNativeApp() ? <Navigate to="/login" replace /> : <LandingPage />;
 }
 
@@ -74,6 +78,7 @@ export function App() {
       <NativeLinks />
       <VerifiedToast />
       <AppRoutes />
+      <Splash />
     </>
   );
 }
@@ -85,6 +90,7 @@ function AppRoutes() {
       {/* Pages opened from an email must work in any browser, a phone's included. */}
       <Route path="/login/verify" element={<VerifyPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/welcome" element={<Welcome />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/admin/login" element={<StaffLoginPage />} />

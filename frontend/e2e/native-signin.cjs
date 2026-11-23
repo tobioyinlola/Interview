@@ -19,6 +19,8 @@ const ok = (cond, msg) => {
   // --- the app: its window cannot run Google, so it asks the shell to open the real browser
   const appCtx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   await appCtx.addInitScript(() => {
+    sessionStorage.setItem("im-splash", "done"); // not testing the opening animation here
+    localStorage.setItem("im-welcome-done", "1");
     window.interviewMeetDesktop = {
       isDesktop: true,
       platform: "win32",
@@ -84,6 +86,8 @@ const ok = (cond, msg) => {
     const email = `${shell}${Date.now()}@example.com`;
     const ctx = await browser.newContext({ viewport: { width: shell === "android" ? 390 : 1280, height: 860 }, isMobile: shell === "android", hasTouch: shell === "android" });
     await ctx.addInitScript((kind) => {
+      sessionStorage.setItem("im-splash", "done");
+      localStorage.setItem("im-welcome-done", "1");
       if (kind === "desktop")
         window.interviewMeetDesktop = { isDesktop: true, platform: "win32", systemAudio: true, openInBrowser: () => {} };
       else
