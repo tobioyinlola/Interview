@@ -1,0 +1,38 @@
+appId: com.interviewmeet.desktop
+productName: InterviewMeet
+copyright: InterviewMeet
+directories:
+  output: dist
+  buildResources: build
+files:
+  - src/**
+  - app-config.json
+  - package.json
+asar: true
+publish:
+  provider: github
+  owner: tobioyinlola
+  repo: Interview
+mac:
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  extendInfo:
+    # Without NSAudioCaptureUsageDescription macOS 14.2+ gives a silent stream with no error.
+    NSAudioCaptureUsageDescription: InterviewMeet listens to your computer's sound so it can hear the interviewer and suggest answers.
+    NSMicrophoneUsageDescription: InterviewMeet uses your microphone during live interviews.
+    NSCameraUsageDescription: InterviewMeet does not use your camera.
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+nsis:
+  oneClick: true
+  perMachine: false

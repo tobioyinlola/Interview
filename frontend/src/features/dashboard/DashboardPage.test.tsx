@@ -518,3 +518,23 @@ describe("DashboardPage: who is interviewing you", () => {
     );
   });
 });
+
+describe("inside the desktop app", () => {
+  afterEach(() => {
+    delete window.interviewMeetDesktop;
+  });
+
+  it("says the app listens to the computer's audio, not a browser tab", async () => {
+    window.interviewMeetDesktop = {
+      isDesktop: true,
+      platform: "darwin",
+      systemAudio: true,
+    };
+    mockApi(base());
+    renderApp(<App />, "/dashboard");
+    expect(
+      await screen.findByText("App can listen to your computer's audio"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Browser can share tab audio")).toBeNull();
+  });
+});
