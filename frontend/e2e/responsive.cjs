@@ -168,6 +168,33 @@ const probe = () => {
       await ctx.close();
     }
   }
+  // The phone app: same pages with the app's tab bar. Nothing may overflow, and the bar must not
+  // cover the content's last line.
+  for (const [w, h] of [[360, 740], [390, 844]]) {
+    const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, storageState: state });
+    await ctx.addInitScript(() => { window.Capacitor = { isNativePlatform: () => true }; });
+    const page = await ctx.newPage();
+    for (const p of IN.filter((x) => !x.startsWith("/session/new") && x !== "/onboarding")) {
+      await page.goto(B + p);
+      await page.waitForSelector("nav[aria-label=Tabs]", { timeout: 15000 });
+      await page.waitForTimeout(300);
+      const issues = await page.evaluate(probe);
+      const bar = await page.evaluate(() => {
+        const r = document.querySelector("nav[aria-label=Tabs]").getBoundingClientRect();
+        const links = [...document.querySelectorAll("nav[aria-label=Tabs] a")].map((a) => a.getBoundingClientRect());
+        let lastEl = ""; const last = [...document.querySelectorAll("main *")].filter((e) => !e.closest("details:not([open])") || e.tagName === "SUMMARY").reduce((m, e) => { const b = e.getBoundingClientRect().bottom; if (b > m) { lastEl = e.tagName + "." + String(e.className).slice(0, 30); return b; } return m; }, 0);
+        const pageBottom = document.documentElement.scrollHeight;
+        return { lastEl, atBottom: Math.abs(r.bottom - innerHeight) < 2, minTap: Math.min(...links.map((l) => Math.min(l.width, l.height))), room: pageBottom - last };
+      });
+      checks++;
+      if (!bar.atBottom) issues.push("tab bar is not at the bottom");
+      if (bar.minTap < 44) issues.push(`tab target ${Math.round(bar.minTap)}px`);
+      if (bar.room < 60) issues.push(`page ends under the tab bar (room ${Math.round(bar.room)}, ${bar.lastEl})`);
+      if (issues.length) { bad++; console.log(`[app ${w}x${h}] ${p}: ${[...new Set(issues)].join(" // ")}`); }
+      if (process.env.E2E_SHOTS && (p === "/dashboard" || p === "/help")) { await page.evaluate(() => window.scrollTo(0, 1e6)); await page.waitForTimeout(150); await page.screenshot({ path: `${process.env.E2E_SHOTS}/app-tabs-${p.replace(/\W/g, "")}-${w}.png` }); }
+    }
+    await ctx.close();
+  }
   console.log(`responsive: ${checks} page-size checks, ${bad} with problems`);
   await browser.close();
   process.exit(bad ? 1 : 0);

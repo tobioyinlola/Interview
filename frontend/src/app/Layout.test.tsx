@@ -299,3 +299,35 @@ describe("initials", () => {
     expect(initials(name, email)).toBe(expected);
   });
 });
+
+describe("the phone app's tab bar", () => {
+  afterEach(() => {
+    delete window.Capacitor;
+  });
+
+  it("shows tabs in the phone app", async () => {
+    window.Capacitor = { isNativePlatform: () => true };
+    signedIn({ ...ME, onboarded: true, autoapply: true });
+    renderApp(<App />, "/dashboard");
+    const tabs = await screen.findByRole("navigation", { name: "Tabs" });
+    for (const name of [
+      "Home",
+      "Auto-Apply",
+      "Companies",
+      "Sessions",
+      "Settings",
+    ])
+      expect(within(tabs).getByRole("link", { name })).toBeInTheDocument();
+    expect(within(tabs).getByRole("link", { name: "Home" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  });
+
+  it("has no tab bar on the website", async () => {
+    signedIn({ ...ME, onboarded: true });
+    renderApp(<App />, "/dashboard");
+    await screen.findAllByText(/Overview/);
+    expect(screen.queryByRole("navigation", { name: "Tabs" })).toBeNull();
+  });
+});
