@@ -135,7 +135,7 @@ describe("the desktop download", () => {
       /releases\/download\/android-latest\/InterviewMeet-android\.apk$/,
     );
     expect(MAC_ARM_DOWNLOAD_URL).toMatch(
-      /releases\/download\/desktop-v[\d.]+\/InterviewMeet-mac-arm64\.dmg$/,
+      /releases\/download\/desktop-latest\/InterviewMeet-mac-arm64\.dmg$/,
     );
     expect(
       screen.getByText(/right-click it and choose Open/),
