@@ -15,6 +15,7 @@ from app.errors import ApiError
 from app.models import User
 from app.repositories import AuthRepo
 from app.schemas.api import (
+    AppCodeOut,
     AppExchangeIn,
     LoginIn,
     MeOut,
@@ -164,6 +165,7 @@ async def request_link(
         referral_code=clean_code(body.ref),
         device=observe_device(request, response, settings),
         attribution=_attribution("email_link", body.utm),
+        app_challenge=body.app_challenge,
     )
     known = await repo.find_user(email)
     link = f"{settings.web_origin}/login/verify?token={token}"
@@ -183,9 +185,10 @@ async def verify(
     settings: Settings = Depends(get_settings),  # noqa: B008
     sender: EmailSender = Depends(get_email_sender),  # noqa: B008
     notifier: Notifier = Depends(get_notifier),  # noqa: B008
-) -> MeOut:
+) -> MeOut | AppCodeOut:
     """Exchange the emailed token for a session cookie. POST (not GET) so a mail scanner that
-    prefetches the link cannot burn the token."""
+    prefetches the link cannot burn the token. If an installed app asked for the link, the browser
+    is not signed in: the app is handed a one-time code instead (see /auth/app-exchange)."""
     repo = AuthRepo(db, settings.cookie_secret.get_secret_value())
     used = await repo.consume_token(body.token, ("login", "signup"))
     if used is None:
@@ -209,14 +212,18 @@ async def verify(
         # exists (someone else registered this address meanwhile) the password is ignored, so a
         # sign-up started by a stranger can never set the password on a real person's account.
         await repo.set_password(user.id, password_hash)
-    _open_session(response, await repo.create_session(user.id, ttl=_ttl(settings)), settings)
+    app_code = (
+        await repo.issue_app_code(user.id, used.app_challenge) if used.app_challenge else None
+    )
+    if app_code is None:
+        _open_session(response, await repo.create_session(user.id, ttl=_ttl(settings)), settings)
     if not existed:
         await sender.send(emails.welcome(email_brand(settings), user.email, user.full_name))
     method = (used.attribution or {}).get("method") or "email_link"
     await _log_arrival(
         db, repo, notifier, user, existed=existed, method=method, attribution=used.attribution
     )
-    return me_out(user, settings)
+    return AppCodeOut(app_code=app_code) if app_code else me_out(user, settings)
 
 
 @router.post("/auth/logout")
@@ -279,11 +286,14 @@ async def signup(
             referral_code=clean_code(body.ref),
             device=observe_device(request, response, settings),
             attribution=_attribution("password", body.utm),
+            app_challenge=body.app_challenge,
         )
         link = f"{settings.web_origin}/login/verify?token={token}"
         await sender.send(emails.signup_confirmation(brand, email, full_name, link, ttl))
     else:
-        token = await repo.create_login_token(email, ttl=timedelta(minutes=ttl))
+        token = await repo.create_login_token(
+            email, ttl=timedelta(minutes=ttl), app_challenge=body.app_challenge
+        )
         link = f"{settings.web_origin}/login/verify?token={token}"
         await sender.send(emails.sign_in_link(brand, email, existing.full_name, link, ttl))
     return StatusOut(status="sent")

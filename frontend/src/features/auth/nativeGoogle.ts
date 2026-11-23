@@ -25,6 +25,22 @@ export function takeVerifier(now = Date.now()): string | null {
   }
 }
 
+/** Makes the one-time secret for a sign-in that will finish in the browser (Google, or an emailed
+ *  link opened there) and keeps it in this app. Returns only its hash, the "challenge", to send ahead. */
+export async function newAppChallenge(): Promise<string> {
+  const verifier = b64url(crypto.getRandomValues(new Uint8Array(48)));
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(verifier),
+  );
+  try {
+    localStorage.setItem(KEY, JSON.stringify({ v: verifier, t: Date.now() }));
+  } catch {
+    throw new Error("This device will not let the app save a sign-in.");
+  }
+  return b64url(new Uint8Array(digest));
+}
+
 interface CapacitorPlugins {
   Plugins?: {
     Browser?: { open: (o: { url: string }) => Promise<void> };
@@ -44,19 +60,10 @@ export const capacitorPlugins = (): CapacitorPlugins["Plugins"] =>
  *  interviewmeet:// address. The code only works together with `verifier`, which never leaves this
  *  app, so another program that catches the address gets nothing. */
 export async function startNativeGoogle(extra: URLSearchParams): Promise<void> {
-  const verifier = b64url(crypto.getRandomValues(new Uint8Array(48)));
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(verifier),
-  );
-  try {
-    localStorage.setItem(KEY, JSON.stringify({ v: verifier, t: Date.now() }));
-  } catch {
-    throw new Error("This device will not let the app save a sign-in.");
-  }
+  const challenge = await newAppChallenge();
   const query = new URLSearchParams(extra);
   query.set("app", "1");
-  query.set("challenge", b64url(new Uint8Array(digest)));
+  query.set("challenge", challenge);
   const url = new URL(
     `${API_BASE_URL}/api/auth/google/start?${query}`,
     window.location.origin,

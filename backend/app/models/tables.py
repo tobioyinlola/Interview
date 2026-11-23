@@ -97,6 +97,9 @@ class LoginToken(Base):
     # signup only: the chosen password, hashed, applied only once the email address is proven
     password_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     full_name: Mapped[str | None] = mapped_column(String(120), nullable=True)  # signup only
+    # Set when an installed app asked for this link: the app's challenge (a hash). Opening the link
+    # then hands the app a one-time code instead of signing in the browser it was opened in.
+    app_challenge: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
 class AppLoginCode(Base):

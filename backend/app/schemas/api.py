@@ -21,10 +21,19 @@ class RequestLinkIn(BaseModel):
     email: EmailStr
     ref: str | None = Field(default=None, max_length=40)  # an invite code from a link
     utm: Utm | None = None
+    # set by an installed app: after the emailed link is opened, the app is handed a one-time code
+    app_challenge: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_-]{43}$")
 
 
 class StatusOut(BaseModel):
     status: str
+
+
+class AppCodeOut(BaseModel):
+    """The answer to opening an emailed link that an installed app asked for: not a session in the
+    browser it was opened in, but a one-time code for the app."""
+
+    app_code: str
 
 
 class AppExchangeIn(BaseModel):
@@ -40,6 +49,7 @@ class SignUpIn(BaseModel):
     password: str = Field(min_length=1, max_length=256)  # the real rules are checked server-side
     ref: str | None = Field(default=None, max_length=40)  # an invite code from a link
     utm: Utm | None = None
+    app_challenge: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_-]{43}$")
 
 
 class LoginIn(BaseModel):
