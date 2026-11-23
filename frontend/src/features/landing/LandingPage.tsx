@@ -3,15 +3,20 @@ import { Link } from "react-router-dom";
 import { Wordmark } from "./Logo";
 import { Cite, HeroDevice, PhoneMock, Waveform, Window } from "./Mockups";
 
-/** The installer on the latest GitHub release. The file name is fixed in desktop/electron-builder.yml
- *  so this address never changes between versions. */
-export const WINDOWS_DOWNLOAD_URL =
-  "https://github.com/tobioyinlola/Interview/releases/latest/download/InterviewMeet-Setup.exe";
+/** The installers live on one fixed release ("desktop-latest") that every desktop build refreshes, so
+ *  these addresses never depend on which build is newest. The file names are fixed in
+ *  desktop/electron-builder.yml. */
+const DOWNLOADS =
+  "https://github.com/tobioyinlola/Interview/releases/download/desktop-latest";
+export const WINDOWS_DOWNLOAD_URL = `${DOWNLOADS}/InterviewMeet-Setup.exe`;
 
-const RELEASE =
-  "https://github.com/tobioyinlola/Interview/releases/latest/download";
-export const MAC_ARM_DOWNLOAD_URL = `${RELEASE}/InterviewMeet-mac-arm64.dmg`;
-export const MAC_INTEL_DOWNLOAD_URL = `${RELEASE}/InterviewMeet-mac-x64.dmg`;
+/** The Mac files join "desktop-latest" when the Mac build gets a Mac machine from GitHub, which can
+ *  take a while. Until the first one has, these point at a release known to have them. Switch both to
+ *  DOWNLOADS once desktop-latest lists the .dmg files. */
+const MAC_RELEASE =
+  "https://github.com/tobioyinlola/Interview/releases/download/desktop-v0.2.14";
+export const MAC_ARM_DOWNLOAD_URL = `${MAC_RELEASE}/InterviewMeet-mac-arm64.dmg`;
+export const MAC_INTEL_DOWNLOAD_URL = `${MAC_RELEASE}/InterviewMeet-mac-x64.dmg`;
 /** The Android app lives on its own fixed release so a new desktop release never hides it. */
 export const ANDROID_DOWNLOAD_URL =
   "https://github.com/tobioyinlola/Interview/releases/download/android-latest/InterviewMeet-android.apk";

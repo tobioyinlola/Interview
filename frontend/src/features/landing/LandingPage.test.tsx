@@ -120,7 +120,7 @@ describe("the desktop download", () => {
     });
     expect(link).toHaveAttribute("href", WINDOWS_DOWNLOAD_URL);
     expect(WINDOWS_DOWNLOAD_URL).toMatch(
-      /^https:\/\/github\.com\/.+\/releases\/latest\/download\/InterviewMeet-Setup\.exe$/,
+      /^https:\/\/github\.com\/.+\/releases\/download\/desktop-latest\/InterviewMeet-Setup\.exe$/,
     );
     expect(
       screen.getByRole("link", { name: "Download for Mac (Apple silicon)" }),
@@ -135,7 +135,7 @@ describe("the desktop download", () => {
       /releases\/download\/android-latest\/InterviewMeet-android\.apk$/,
     );
     expect(MAC_ARM_DOWNLOAD_URL).toMatch(
-      /releases\/latest\/download\/InterviewMeet-mac-arm64\.dmg$/,
+      /releases\/download\/desktop-v[\d.]+\/InterviewMeet-mac-arm64\.dmg$/,
     );
     expect(
       screen.getByText(/right-click it and choose Open/),
