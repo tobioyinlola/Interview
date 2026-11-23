@@ -51,9 +51,11 @@ add these repository secrets: `CSC_LINK`, `CSC_KEY_PASSWORD` (certificate), and 
 
 ## Known limits
 
-* **Google sign-in does not work inside the app** (Google blocks embedded browsers). The sign-in page
-  says so and offers email and password or an email link. A hand-off through the system browser is the
-  planned fix.
+* **Google sign-in opens your normal browser.** Google refuses to run inside an app's own window, so the
+  button opens the browser, and after sign-in the browser hands the app a one-time code through the
+  `interviewmeet://` address, which this app registers with Windows or macOS. The code only works with a
+  secret the app made before leaving (PKCE-style), lives two minutes and works once. No Google Cloud
+  change is needed: it uses the same return address as the website.
 * **macOS 14.2 or later is needed** for computer-audio capture, and the person must allow "System
   Audio Recording" the first time. Older macOS cannot capture it. The usage text is in
   `electron-builder.yml`; without it macOS returns a silent stream with no error.

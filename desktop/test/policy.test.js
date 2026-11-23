@@ -55,3 +55,42 @@ test("an insecure or broken app address is ignored", () => {
   assert.equal(p.resolveAppUrl({ INTERVIEWMEET_URL: "nonsense" }, null, dflt), dflt);
   assert.equal(p.resolveAppUrl({ INTERVIEWMEET_URL: "http://localhost:5173" }, null, dflt), "http://localhost:5173");
 });
+
+test("only a properly shaped interviewmeet://auth link is accepted", () => {
+  const code = "A".repeat(43);
+  assert.equal(p.parseAuthLink(`interviewmeet://auth?code=${code}`), `code=${code}`);
+  assert.equal(p.parseAuthLink("interviewmeet://auth?error=google_cancelled"), "error=google_cancelled");
+  for (const bad of [
+    "interviewmeet://auth?code=short",
+    "interviewmeet://auth?code=" + "A".repeat(43) + "&next=https://evil.test",
+    "interviewmeet://elsewhere?code=" + code,
+    "interviewmeet://auth",
+    "interviewmeet://auth?error=Bad Value",
+    "https://app.example.com/auth?code=" + code,
+    "javascript:alert(1)",
+    "",
+    "nonsense",
+  ]) {
+    if (bad.includes("&next=")) {
+      // extra parameters are dropped, never passed on
+      assert.equal(p.parseAuthLink(bad), `code=${code}`);
+    } else {
+      assert.equal(p.parseAuthLink(bad), null, bad);
+    }
+  }
+});
+
+test("a page may only ask for the app's own Google sign-in address", () => {
+  assert.equal(p.isGoogleStartUrl("https://app.example.com/api/auth/google/start?app=1&challenge=x", APP), true);
+  assert.equal(p.isGoogleStartUrl("https://app.example.com/api/auth/google/start", APP), false);
+  assert.equal(p.isGoogleStartUrl("https://evil.test/api/auth/google/start?app=1", APP), false);
+  assert.equal(p.isGoogleStartUrl("https://app.example.com/other?app=1", APP), false);
+  assert.equal(p.isGoogleStartUrl("file:///etc/passwd", APP), false);
+  assert.equal(p.isGoogleStartUrl("nope", APP), false);
+});
+
+test("a link used to start the app is found among its arguments", () => {
+  assert.equal(p.linkFromArgv(["app.exe", "interviewmeet://auth?code=x"]), "interviewmeet://auth?code=x");
+  assert.equal(p.linkFromArgv(["app.exe", "--flag"]), null);
+  assert.equal(p.linkFromArgv(undefined), null);
+});

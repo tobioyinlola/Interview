@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import metrics
 from app.models import (
+    AppLoginCode,
     AudioToken,
     AuthSession,
     Company,
@@ -297,6 +298,39 @@ class AuthRepo:
         )
         await self.db.commit()
         return token
+
+    async def issue_app_code(self, user_id: uuid.UUID, challenge: str) -> str:
+        """A single-use code an installed app can swap for a session, but only together with the
+        secret whose hash is `challenge`. Lives two minutes."""
+        code = new_token()
+        self.db.add(
+            AppLoginCode(
+                user_id=user_id,
+                code_hash=hash_token(code, self.secret),
+                challenge=challenge,
+                expires_at=_now() + timedelta(minutes=2),
+            )
+        )
+        await self.db.commit()
+        return code
+
+    async def redeem_app_code(self, code: str, challenge: str) -> uuid.UUID | None:
+        """Atomically use a valid, unused code whose challenge matches, or return None. A wrong
+        verifier burns nothing: the match is part of the same single UPDATE."""
+        stmt = (
+            update(AppLoginCode)
+            .where(
+                AppLoginCode.code_hash == hash_token(code, self.secret),
+                AppLoginCode.challenge == challenge,
+                AppLoginCode.used_at.is_(None),
+                AppLoginCode.expires_at > _now(),
+            )
+            .values(used_at=_now())
+            .returning(AppLoginCode.user_id)
+        )
+        user_id = (await self.db.execute(stmt)).scalar_one_or_none()
+        await self.db.commit()
+        return user_id
 
     async def user_for_session(self, token: str) -> User | None:
         stmt = (

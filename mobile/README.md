@@ -10,7 +10,10 @@ first-party. The app address is in `capacitor.config.ts`; change it for a build 
 * **Live interviews do not work on a phone.** They capture the call's audio, which iOS and Android do not let an
   app do. The app says so and points to the desktop app. A microphone-only mode and a "companion" view that shows
   a desktop interview's answers on the phone are planned, not built.
-* **Google sign-in is hidden** (Google blocks it in embedded browsers). Use email and password or an email link.
+* **Google sign-in** opens the phone's browser (Google refuses to run inside an app's own window), and the
+  browser hands the app a one-time code back through `interviewmeet://auth` (registered in the Android manifest
+  and iOS `Info.plist`). It uses the `@capacitor/browser` and `@capacitor/app` plugins through the Capacitor
+  bridge. Not yet tried on a real phone.
 
 ## Build
 
@@ -46,4 +49,4 @@ npx cap open android   # or: npx cap open ios
 * Nothing has been run on a real phone: status bar and notch spacing, the keyboard, and the back button
   are unchecked.
 * The icon is a placeholder, and there is no splash artwork.
-* Push notifications, biometric unlock, share-sheet and the system-browser Google sign-in are not built.
+* Push notifications, biometric unlock and the share-sheet are not built.

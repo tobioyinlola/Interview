@@ -9,6 +9,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import secrets
 import time
 import uuid
 from datetime import UTC, datetime
@@ -65,10 +66,8 @@ class LiveHub:
     def get_or_create_pin(self, session_id: uuid.UUID) -> str:
         if session_id in self.session_pins:
             return self.session_pins[session_id]
-        import random
-
         while True:
-            pin = f"{random.randint(100000, 999999)}"
+            pin = f"{100000 + secrets.randbelow(900000)}"  # a pairing code: not guessable
             if pin not in self.pin_to_session:
                 break
         self.session_pins[session_id] = pin
@@ -105,7 +104,7 @@ class LiveHub:
             with contextlib.suppress(Exception):
                 await ws.close(code=CLOSE_RESTART)
         self.sockets.clear()
-        for session_id, sock_set in list(self.desktop_sockets.items()):
+        for sock_set in list(self.desktop_sockets.values()):
             for ws in list(sock_set):
                 with contextlib.suppress(Exception):
                     await ws.close(code=CLOSE_RESTART)

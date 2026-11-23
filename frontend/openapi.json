@@ -218,6 +218,28 @@
         "title": "AnswerOut",
         "type": "object"
       },
+      "AppExchangeIn": {
+        "description": "An installed app swapping its one-time code (and the secret it made) for a session.",
+        "properties": {
+          "code": {
+            "maxLength": 200,
+            "minLength": 20,
+            "title": "Code",
+            "type": "string"
+          },
+          "verifier": {
+            "pattern": "^[A-Za-z0-9_-]{43,128}$",
+            "title": "Verifier",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "verifier"
+        ],
+        "title": "AppExchangeIn",
+        "type": "object"
+      },
       "ApplicationDetail": {
         "properties": {
           "attempts": {
@@ -6784,6 +6806,48 @@
         ]
       }
     },
+    "/api/auth/app-exchange": {
+      "post": {
+        "description": "An installed app swaps the one-time code from the system browser, plus the secret it made\nbefore leaving, for its own session. The code alone is worthless.",
+        "operationId": "app_exchange_api_auth_app_exchange_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppExchangeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__schemas__api__StatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "App Exchange",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/api/auth/google/callback": {
       "get": {
         "description": "Google sends the browser here. Whatever happens, the browser lands back on the web app, and\nthe state cookie is used once.",
@@ -6930,6 +6994,38 @@
                 }
               ],
               "title": "Utm Campaign"
+            }
+          },
+          {
+            "in": "query",
+            "name": "app",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "App"
+            }
+          },
+          {
+            "in": "query",
+            "name": "challenge",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Challenge"
             }
           }
         ],

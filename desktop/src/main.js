@@ -5,30 +5,73 @@ const {
   BrowserWindow,
   Menu,
   desktopCapturer,
+  ipcMain,
   session,
   shell,
 } = require("electron");
 const { load } = require("./config");
 const { offlinePage } = require("./offline");
 const {
+  SCHEME,
   navigationDecision,
   permissionAllowed,
   captureAllowed,
+  parseAuthLink,
+  isGoogleStartUrl,
+  linkFromArgv,
 } = require("./policy");
 
 const { appUrl, appOrigin } = load();
 let win = null;
 
+// interviewmeet:// is how the browser hands the app back after Google sign-in. In development the
+// app is run as `electron .`, which needs its path passed along to be registered.
+if (process.defaultApp && process.argv.length >= 2) {
+  app.setAsDefaultProtocolClient(SCHEME, process.execPath, [path.resolve(process.argv[1])]);
+} else {
+  app.setAsDefaultProtocolClient(SCHEME);
+}
+
+let pendingLink = linkFromArgv(process.argv); // the app was started by the link (Windows, Linux)
+
+/** The browser finished Google sign-in: carry on inside the app's window. */
+function handleDeepLink(url) {
+  const query = parseAuthLink(url);
+  if (!query) return;
+  if (!win) {
+    pendingLink = url; // the window is not up yet; use the link once it is
+    return;
+  }
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+  win.loadURL(`${appOrigin}/auth/app?${query}`);
+}
+
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on("second-instance", () => {
-    if (win) {
+  app.on("second-instance", (_event, argv) => {
+    const link = linkFromArgv(argv);
+    if (link) handleDeepLink(link);
+    else if (win) {
       if (win.isMinimized()) win.restore();
       win.focus();
     }
   });
+  app.on("open-url", (event, url) => {
+    event.preventDefault(); // macOS delivers the link here
+    handleDeepLink(url);
+  });
 }
+
+ipcMain.on("im:open-in-browser", (event, url) => {
+  // only the app's own pages may ask, and only for its own Google sign-in address
+  const from = event.senderFrame ? event.senderFrame.url : "";
+  if (captureAllowed(from, appOrigin) && isGoogleStartUrl(url, appOrigin)) {
+    shell.openExternal(url);
+  }
+});
 
 function openExternal(url) {
   if (navigationDecision(url, appOrigin) !== "deny") shell.openExternal(url);
@@ -106,6 +149,13 @@ function createWindow() {
     win = null;
   });
   win.loadURL(appUrl);
+  win.webContents.once("did-finish-load", () => {
+    if (pendingLink) {
+      const link = pendingLink;
+      pendingLink = null;
+      handleDeepLink(link);
+    }
+  });
 }
 
 function buildMenu() {

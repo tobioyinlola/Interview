@@ -27,6 +27,13 @@ class StatusOut(BaseModel):
     status: str
 
 
+class AppExchangeIn(BaseModel):
+    """An installed app swapping its one-time code (and the secret it made) for a session."""
+
+    code: str = Field(min_length=20, max_length=200)
+    verifier: str = Field(pattern=r"^[A-Za-z0-9_-]{43,128}$")
+
+
 class SignUpIn(BaseModel):
     email: EmailStr
     full_name: str = Field(min_length=1, max_length=400)  # the name rules give the message

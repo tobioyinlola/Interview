@@ -58,7 +58,51 @@ function resolveAppUrl(env, fileConfig, fallback) {
   return u.origin + (u.pathname === "/" ? "" : u.pathname);
 }
 
+const SCHEME = "interviewmeet";
+
+/** What the system browser hands back after Google sign-in: interviewmeet://auth?code=... (or
+ *  ?error=...). Returns just the safe query to pass on to the app's own page, or null. Anything that
+ *  is not exactly that shape is ignored, so another program cannot steer the app with a crafted link. */
+function parseAuthLink(url) {
+  let u;
+  try {
+    u = new URL(url);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== `${SCHEME}:` || u.hostname !== "auth") return null;
+  const code = u.searchParams.get("code");
+  const error = u.searchParams.get("error");
+  if (code && /^[A-Za-z0-9_-]{20,200}$/.test(code)) return `code=${code}`;
+  if (error && /^[a-z_]{1,40}$/.test(error)) return `error=${error}`;
+  return null;
+}
+
+/** The address of the app's own Google sign-in start. Only this may be opened in the browser on the
+ *  page's request, so a page cannot ask the shell to open arbitrary addresses. */
+function isGoogleStartUrl(url, appOrigin) {
+  try {
+    const u = new URL(url);
+    return (
+      u.origin === appOrigin &&
+      u.pathname === "/api/auth/google/start" &&
+      u.searchParams.get("app") === "1"
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** A deep link found among a program's start-up arguments (Windows and Linux hand it over there). */
+function linkFromArgv(argv) {
+  return (argv || []).find((a) => typeof a === "string" && a.startsWith(`${SCHEME}://`)) || null;
+}
+
 module.exports = {
+  SCHEME,
+  parseAuthLink,
+  isGoogleStartUrl,
+  linkFromArgv,
   originOf,
   isAppUrl,
   navigationDecision,

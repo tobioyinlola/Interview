@@ -1,4 +1,5 @@
 import { isNativeApp } from "../../app/native";
+import { startNativeGoogle } from "./nativeGoogle";
 import { type FormEvent, useId, useRef, useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
 
@@ -62,6 +63,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const { data: me } = useMe();
   const providers = useProviders();
   const [params] = useSearchParams();
+  const [googleError, setGoogleError] = useState<string | null>(null);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -106,6 +108,16 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     if (utm?.source) query.set("utm_source", utm.source);
     if (utm?.medium) query.set("utm_medium", utm.medium);
     if (utm?.campaign) query.set("utm_campaign", utm.campaign);
+    if (isNativeApp()) {
+      // Google will not run inside an app's own window: sign in in the real browser instead
+      setGoogleError(null);
+      startNativeGoogle(query).catch((e: unknown) =>
+        setGoogleError(
+          e instanceof Error ? e.message : "Google sign-in could not start.",
+        ),
+      );
+      return;
+    }
     const qs = query.toString();
     window.location.assign(
       `${API_BASE_URL}/api/auth/google/start${qs ? `?${qs}` : ""}`,
@@ -302,13 +314,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
               </div>
             )}
 
-            {providers.data?.google && isNativeApp() && (
-              <p className="mt-4 text-center text-xs text-muted">
-                Google sign-in is not available in the app yet. Use your email
-                and password, or a sign-in link.
-              </p>
-            )}
-            {providers.data?.google && !isNativeApp() && (
+            {providers.data?.google && (
               <>
                 <Divider />
                 <button
@@ -322,6 +328,16 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
                 {signup && !agreed && (
                   <p className="mt-2 text-center text-xs text-muted">
                     Accept the terms above to continue with Google.
+                  </p>
+                )}
+                {googleError && (
+                  <p role="alert" className="notice-error mt-2">
+                    {googleError}
+                  </p>
+                )}
+                {isNativeApp() && (
+                  <p className="mt-2 text-center text-xs text-muted">
+                    Google opens in your browser, then brings you back here.
                   </p>
                 )}
               </>

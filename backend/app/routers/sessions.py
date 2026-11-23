@@ -1,4 +1,5 @@
 import base64
+import contextlib
 import json
 import uuid
 from collections.abc import AsyncIterator
@@ -275,7 +276,7 @@ async def test_desktop_stream(
         {
             "type": "test",
             "question": "Tell me about a time you solved a complex engineering challenge.",
-            "text": "ANSWER:\nStructure your answer using STAR:\n1. Situation: High latency in distributed service.\n2. Task: Reduce p99 response times below 100ms.\n3. Action: Profiled system bottlenecks, implemented connection pooling and caching.\n4. Result: Decreased p99 latency by 70% and improved throughput.",
+            "text": "ANSWER:\nStructure your answer using STAR:\n1. Situation: High latency in distributed service.\n2. Task: Reduce p99 response times below 100ms.\n3. Action: Profiled system bottlenecks, implemented connection pooling and caching.\n4. Result: Decreased p99 latency by 70% and improved throughput.",  # noqa: E501
         },
     )
     return {"status": "ok", "delivered_to": count}
@@ -312,12 +313,10 @@ async def desktop_stream(
     try:
         while True:
             msg = await ws.receive_text()
-            try:
+            with contextlib.suppress(Exception):  # a malformed message is ignored
                 data = json.loads(msg)
                 if data.get("type") == "ping":
                     await ws.send_json({"type": "pong"})
-            except Exception:
-                pass
     except WebSocketDisconnect:
         pass
     finally:

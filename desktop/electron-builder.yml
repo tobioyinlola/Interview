@@ -9,6 +9,10 @@ files:
   - app-config.json
   - package.json
 asar: true
+# the address the browser uses to hand Google sign-in back to the app
+protocols:
+  - name: InterviewMeet
+    schemes: [interviewmeet]
 publish:
   provider: github
   owner: tobioyinlola

@@ -453,6 +453,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/app-exchange": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * App Exchange
+         * @description An installed app swaps the one-time code from the system browser, plus the secret it made
+         *     before leaving, for its own session. The code alone is worthless.
+         */
+        post: operations["app_exchange_api_auth_app_exchange_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/google/callback": {
         parameters: {
             query?: never;
@@ -1904,6 +1925,16 @@ export interface components {
             value: string;
             /** Version */
             version: number;
+        };
+        /**
+         * AppExchangeIn
+         * @description An installed app swapping its one-time code (and the secret it made) for a session.
+         */
+        AppExchangeIn: {
+            /** Code */
+            code: string;
+            /** Verifier */
+            verifier: string;
         };
         /** ApplicationDetail */
         ApplicationDetail: {
@@ -4437,6 +4468,39 @@ export interface operations {
             };
         };
     };
+    app_exchange_api_auth_app_exchange_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppExchangeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__schemas__api__StatusOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     google_callback_api_auth_google_callback_get: {
         parameters: {
             query?: {
@@ -4477,6 +4541,8 @@ export interface operations {
                 utm_source?: string | null;
                 utm_medium?: string | null;
                 utm_campaign?: string | null;
+                app?: string | null;
+                challenge?: string | null;
             };
             header?: never;
             path?: never;
