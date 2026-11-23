@@ -305,23 +305,23 @@ describe("the phone app's tab bar", () => {
     delete window.Capacitor;
   });
 
-  it("shows tabs in the phone app", async () => {
+  it("shows three icons in the phone app, the middle one being Auto-Apply", async () => {
     window.Capacitor = { isNativePlatform: () => true };
     signedIn({ ...ME, onboarded: true, autoapply: true });
     renderApp(<App />, "/dashboard");
     const tabs = await screen.findByRole("navigation", { name: "Tabs" });
-    for (const name of [
+    const links = within(tabs).getAllByRole("link");
+    expect(links.map((l) => l.getAttribute("aria-label"))).toEqual([
       "Home",
       "Auto-Apply",
       "Companies",
-      "Sessions",
-      "Settings",
-    ])
-      expect(within(tabs).getByRole("link", { name })).toBeInTheDocument();
+    ]);
     expect(within(tabs).getByRole("link", { name: "Home" })).toHaveAttribute(
       "aria-current",
       "page",
     );
+    // the website's sidebar and search box are not part of the phone app
+    expect(screen.queryByRole("link", { name: "Invite friends" })).toBeNull();
   });
 
   it("has no tab bar on the website", async () => {

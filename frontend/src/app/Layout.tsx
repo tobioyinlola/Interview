@@ -11,7 +11,6 @@ import { useLogout, useMe } from "../api/hooks";
 import { LogoMark } from "../features/landing/Logo";
 import { GlobalSearch } from "../features/search/GlobalSearch";
 import { ProfileMenu } from "./ProfileMenu";
-import { isMobileApp } from "./native";
 import { UpdateBanner } from "./UpdateBanner";
 import { TourProvider } from "../features/tour/TourProvider";
 import {
@@ -101,43 +100,6 @@ function Group({
         ))}
       </ul>
     </div>
-  );
-}
-
-/** The phone app's main navigation: one tap to the five places people use most, like a native app.
- *  (The menu button keeps Help, Invite friends, Privacy and Terms.) */
-function TabBar({ autoapply }: { autoapply: boolean }) {
-  const tabs: Item[] = [
-    item("/dashboard", "Home", <HomeIcon />, true),
-    ...(autoapply ? [item("/auto-apply", "Auto-Apply", <SendIcon />)] : []),
-    item("/companies", "Companies", <BuildingIcon />),
-    item("/sessions", "Sessions", <ListIcon />),
-    item("/settings", "Settings", <GearIcon />),
-  ];
-  return (
-    <nav
-      aria-label="Tabs"
-      className="fixed inset-x-0 bottom-0 z-40 bg-surface pb-[env(safe-area-inset-bottom)] shadow-lift lg:hidden"
-    >
-      <ul className="flex">
-        {tabs.map((t) => (
-          <li key={t.to} className="min-w-0 flex-1">
-            <NavLink
-              to={t.to}
-              end={t.end}
-              className={({ isActive }) =>
-                `flex min-h-[56px] flex-col items-center justify-center gap-0.5 px-1 text-[11px] font-medium ${
-                  isActive ? "text-accent-dark" : "text-muted"
-                }`
-              }
-            >
-              {t.icon}
-              <span className="max-w-full truncate">{t.label}</span>
-            </NavLink>
-          </li>
-        ))}
-      </ul>
-    </nav>
   );
 }
 
@@ -286,11 +248,7 @@ export function Layout() {
             <ProfileMenu />
           </header>
           <Outlet />
-          {isMobileApp() && (
-            <div aria-hidden="true" className="h-20 lg:hidden" />
-          )}
         </div>
-        {isMobileApp() && <TabBar autoapply={!!me?.autoapply} />}
       </div>
     </TourProvider>
   );

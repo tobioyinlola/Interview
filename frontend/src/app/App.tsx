@@ -41,6 +41,9 @@ import { BrowserNotice } from "./BrowserNotice";
 import { currentEnv, isSupported } from "./browserSupport";
 import { Layout } from "./Layout";
 import { AppReturnPage } from "../features/auth/AppReturnPage";
+import { PhoneHome } from "../features/phone/PhoneHome";
+import { PhoneLayout } from "../features/phone/PhoneLayout";
+import { ProfilePage } from "../features/phone/ProfilePage";
 import { NativeLinks } from "./NativeLinks";
 import { MobileLiveNotice } from "./MobileLiveNotice";
 import { isMobileApp, isNativeApp } from "./native";
@@ -102,8 +105,12 @@ function AppRoutes() {
         <Route path="/auth/app" element={<AppReturnPage />} />
         <Route element={<AuthGuard />}>
           <Route path="/onboarding" element={<OnboardingPage />} />
-          <Route element={<Layout />}>
-            <Route path="/dashboard" element={<DashboardPage />} />
+          <Route element={isMobileApp() ? <PhoneLayout /> : <Layout />}>
+            <Route
+              path="/dashboard"
+              element={isMobileApp() ? <PhoneHome /> : <DashboardPage />}
+            />
+            <Route path="/me" element={<ProfilePage />} />
             <Route
               path="/notes"
               element={<Navigate to="/settings/cv" replace />}

@@ -544,20 +544,15 @@ describe("inside the phone app", () => {
     delete window.Capacitor;
   });
 
-  it("points to Auto-Apply and hides the live-interview checklist", async () => {
+  it("shows the phone home instead of the live-interview dashboard", async () => {
     window.Capacitor = { isNativePlatform: () => true };
-    mockApi(
-      base({
-        "GET /api/notes": () => ({
-          json: { content: "my cv", role: "PM", updated_at: null },
-        }),
-      }),
-    );
+    mockApi(base());
     renderApp(<App />, "/dashboard");
     expect(
-      await screen.findByRole("link", { name: /Open Auto-Apply/ }),
-    ).toHaveAttribute("href", "/auto-apply");
+      await screen.findByRole("heading", { name: "Home" }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Readiness" })).toBeNull();
+    expect(screen.queryByText("Interview summary")).toBeNull();
   });
 
   it("explains that live interviews run on a computer", async () => {

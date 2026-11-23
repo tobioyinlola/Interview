@@ -4,6 +4,20 @@ A Capacitor shell around the live site. Everything in the web app (Auto-Apply, c
 CV, settings) is the same code, so it stays in step with the website, and the login cookie stays
 first-party. The app address is in `capacitor.config.ts`; change it for a build with `INTERVIEWMEET_URL`.
 
+## How the phone app looks
+
+The phone app is not the website squeezed down. When the page runs inside this app it gets its own layout
+(`frontend/src/features/phone/`):
+
+* **Three icons** in a floating bar: Home, Auto-Apply (raised, in the middle) and Companies. Everything else
+  (settings, history, invite friends, help, privacy, terms, sign out) is under the profile, reached from the
+  round avatar.
+* **Home** is short: a greeting, one "next step" card, one number (applications sent) with the day ring, four
+  shortcuts and the last few items.
+* **Auto-Apply** is a compact card, three small numbers, and three sections shown one at a time
+  (To do / Sent / Search) instead of one long page.
+* Icons come from Lucide. The website and the desktop app are unchanged.
+
 ## Updates
 
 * **The website and everything inside the app** update for everyone the moment the site is deployed: the app

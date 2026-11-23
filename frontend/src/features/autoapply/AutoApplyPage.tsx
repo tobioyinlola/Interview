@@ -11,6 +11,7 @@ import {
   useReviewQueue,
   useRunDiscovery,
 } from "./api";
+import { isMobileApp } from "../../app/native";
 import {
   DemoNotice,
   Fail,
@@ -174,10 +175,13 @@ function Hero({
       "Today's search found no roles that fit. You may want to widen it.",
   };
   const cta = "btn btn-lg bg-surface text-ink hover:bg-canvas";
+  const phone = isMobileApp(); // the phone app keeps this card short: no long text, no big ring
   return (
     <section
       aria-label="What to do next"
-      className="overflow-hidden rounded-3xl bg-gradient-to-br from-ink via-ink to-accent-dark p-6 text-surface shadow-lift sm:p-8"
+      className={`overflow-hidden bg-gradient-to-br from-ink via-ink to-accent-dark text-surface shadow-lift ${
+        phone ? "rounded-[1.75rem] p-5" : "rounded-3xl p-6 sm:p-8"
+      }`}
     >
       <div className="flex flex-wrap items-center justify-between gap-6">
         <div className="min-w-0 flex-1 basis-72 space-y-3">
@@ -200,7 +204,9 @@ function Hero({
                   ? "Finished"
                   : "Not started"}
           </span>
-          <h1 className="text-3xl font-semibold leading-tight tracking-tight">
+          <h1
+            className={`font-semibold leading-tight tracking-tight ${phone ? "text-2xl" : "text-3xl"}`}
+          >
             {HEADLINE[c.state] ?? "Auto-Apply"}
           </h1>
           <p role="status" className="text-sm text-surface/80">
@@ -209,7 +215,7 @@ function Hero({
               `${c.state === "paused" ? "Paused" : "On"} · day ${c.day} of ${c.days_total} · ends ${day(c.ends_at)}`}
             {c.state === "ended" && `Finished on ${day(c.ends_at)}.`}
           </p>
-          <p className="text-surface/90">{text[p.kind] ?? ""}</p>
+          {!phone && <p className="text-surface/90">{text[p.kind] ?? ""}</p>}
           <div className="flex flex-wrap gap-2 pt-1">
             {p.kind === "prepare" && p.interview_id ? (
               <button
@@ -241,7 +247,9 @@ function Hero({
           </div>
           <Fail error={prepare.error} />
         </div>
-        <Ring day={c.day ?? 0} total={c.days_total ?? 30} active={running} />
+        {!phone && (
+          <Ring day={c.day ?? 0} total={c.days_total ?? 30} active={running} />
+        )}
       </div>
     </section>
   );
@@ -258,8 +266,11 @@ function Tile({
   hint?: string;
   bar?: number;
 }) {
+  const phone = isMobileApp();
   return (
-    <div className="rounded-2xl bg-surface p-4 shadow-card">
+    <div
+      className={`bg-surface shadow-card ${phone ? "rounded-[1.25rem] p-3" : "rounded-2xl p-4"}`}
+    >
       <dt className="text-xs text-muted">{label}</dt>
       <dd className="mt-1 text-2xl font-semibold tracking-tight">{value}</dd>
       {bar !== undefined && (
@@ -273,7 +284,7 @@ function Tile({
           />
         </div>
       )}
-      {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
+      {hint && !phone && <p className="mt-1 text-xs text-muted">{hint}</p>}
     </div>
   );
 }
@@ -281,6 +292,10 @@ function Tile({
 const initial = (name: string) => (name.trim()[0] ?? "?").toUpperCase();
 
 export function AutoApplyPage() {
+  // On the phone app the page is three short sections, one at a time, instead of one long scroll.
+  const phone = isMobileApp();
+  const [part, setPart] = useState<"todo" | "apps" | "search">("todo");
+  const show = (k: "todo" | "apps" | "search") => !phone || part === k;
   const dash = useDashboard();
   const review = useReviewQueue();
   const { pause, resume } = useCampaignActions();
@@ -314,7 +329,7 @@ export function AutoApplyPage() {
       <Hero d={d} />
 
       <dl
-        className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+        className={`grid gap-3 ${phone ? "grid-cols-3 gap-2" : "grid-cols-2 lg:grid-cols-4"}`}
         aria-label="At a glance"
       >
         <Tile
@@ -336,278 +351,336 @@ export function AutoApplyPage() {
           value={d.open_invites.length + (d.next_interview ? 1 : 0)}
           hint="invited or booked"
         />
-        {d.usage ? (
-          <Tile
-            label="Applications today"
-            value={`${d.usage.applications_used} of ${d.usage.applications_cap}`}
-            bar={
-              d.usage.applications_cap
-                ? d.usage.applications_used / d.usage.applications_cap
-                : 0
-            }
-          />
-        ) : (
-          <Tile
-            label="Applications today"
-            value="–"
-            hint="starts once you are set up"
-          />
+        {!phone && (
+          <>
+            {d.usage ? (
+              <Tile
+                label="Applications today"
+                value={`${d.usage.applications_used} of ${d.usage.applications_cap}`}
+                bar={
+                  d.usage.applications_cap
+                    ? d.usage.applications_used / d.usage.applications_cap
+                    : 0
+                }
+              />
+            ) : (
+              <Tile
+                label="Applications today"
+                value="–"
+                hint="starts once you are set up"
+              />
+            )}
+          </>
         )}
       </dl>
 
+      {phone && (
+        <div
+          role="tablist"
+          aria-label="Auto-Apply sections"
+          className="grid grid-cols-3 gap-1 rounded-full bg-surface p-1 shadow-card"
+        >
+          {(
+            [
+              ["todo", "To do"],
+              ["apps", "Sent"],
+              ["search", "Search"],
+            ] as const
+          ).map(([k, label]) => (
+            <button
+              key={k}
+              role="tab"
+              type="button"
+              aria-selected={part === k}
+              onClick={() => setPart(k)}
+              className={`min-h-[44px] rounded-full text-sm font-medium transition-colors ${
+                part === k ? "bg-ink text-surface" : "text-muted"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_400px] xl:items-start">
         <div className="min-w-0 space-y-5">
-          {d.next_interview && <NextInterview iv={d.next_interview} />}
-
-          {d.open_invites.length > 0 && (
-            <Section id="invites-h" title="Interview invitations">
-              <ul className="space-y-2">
-                {d.open_invites.map((iv) => (
-                  <li
-                    key={iv.id}
-                    className="flex flex-wrap items-center justify-between gap-2"
-                  >
-                    <span>
-                      {iv.title} at {iv.company}
-                    </span>
-                    {iv.scheduling_url && (
-                      <a
-                        href={iv.scheduling_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn-secondary"
-                      >
-                        Book interview
-                      </a>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </Section>
-          )}
-
-          {d.needs_input.length > 0 && (
-            <Section id="needs-h" title="Needs your input">
-              <ul className="space-y-3">
-                {d.needs_input.map((a) => (
-                  <li key={a.id} className="space-y-1">
-                    <Link
-                      to={`/auto-apply/applications/${a.id}`}
-                      className="font-medium text-accent-dark underline"
-                    >
-                      {a.posting.title} at {a.posting.company}
-                    </Link>
-                    <ul className="list-disc pl-5 text-sm text-muted">
-                      {(
-                        a.needs_input as { question: string; reason: string }[]
-                      ).map((n, i) => (
-                        <li key={i}>
-                          {n.question}: {n.reason}
-                        </li>
-                      ))}
-                    </ul>
-                  </li>
-                ))}
-              </ul>
-            </Section>
-          )}
-
-          {review.data && review.data.length > 0 && (
-            <Section
-              id="review-h"
-              title="Employer messages to check"
-              hint="These replies could belong to more than one application. Choose the right one."
-            >
-              <ul className="space-y-4">
-                {review.data.map((m) => (
-                  <li key={m.id} className="space-y-2">
-                    <p className="text-sm">
-                      <span className="font-medium">{m.subject}</span> from{" "}
-                      {m.sender}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {m.candidates.map((cand) => (
-                        <button
-                          key={cand.id}
-                          type="button"
-                          className="btn-secondary"
-                          disabled={recruit.link.isPending}
-                          onClick={() =>
-                            recruit.link.mutate({
-                              id: m.id,
-                              application_id: cand.id,
-                            })
-                          }
-                        >
-                          {cand.title} at {cand.company}
-                        </button>
-                      ))}
-                      <button
-                        type="button"
-                        className="text-sm text-muted underline"
-                        onClick={() => recruit.dismiss.mutate(m.id)}
-                      >
-                        Not about my applications
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </Section>
-          )}
-
-          <Section id="recent-h" title="Recent applications">
-            {d.recent.length === 0 ? (
-              <div className="rounded-2xl bg-canvas p-6 text-center">
-                <p aria-hidden="true" className="text-3xl">
-                  📨
-                </p>
-                <p className="mt-2 font-medium">Nothing has gone out yet</p>
-                <p className="text-sm text-muted">
-                  Applications appear here as they are sent, with what happened
-                  next.
-                </p>
-              </div>
-            ) : (
-              <ul className="space-y-2">
-                {d.recent.map((a) => (
-                  <li key={a.id}>
-                    <Link
-                      to={`/auto-apply/applications/${a.id}`}
-                      className="flex items-center gap-3 rounded-2xl bg-canvas p-3 transition-colors hover:bg-accent-soft"
-                    >
-                      <span
-                        aria-hidden="true"
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-soft font-semibold text-accent-dark"
-                      >
-                        {initial(a.posting.company)}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-medium">
-                          {a.posting.title} at {a.posting.company}
-                        </span>
-                        <span className="block truncate text-sm text-muted">
-                          {a.posting.region ?? "Anywhere"}
-                        </span>
-                      </span>
-                      {a.recruiting_stage && (
-                        <span className="hidden rounded-full bg-surface px-2.5 py-1 text-xs text-muted sm:inline">
-                          {STAGE[a.recruiting_stage] ?? a.recruiting_stage}
-                        </span>
-                      )}
-                      <Pill status={a.status} />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+          {phone &&
+            part === "todo" &&
+            !d.next_interview &&
+            d.open_invites.length === 0 &&
+            d.needs_input.length === 0 &&
+            !(review.data && review.data.length > 0) && (
+              <p className="rounded-[1.75rem] bg-surface p-6 text-center text-muted shadow-card">
+                Nothing needs you right now.
+              </p>
             )}
-            <Link
-              to="/auto-apply/applications"
-              className="inline-flex min-h-[44px] items-center text-sm text-accent-dark hover:underline"
-            >
-              See all applications →
-            </Link>
-          </Section>
+          {show("todo") && (
+            <>
+              {d.next_interview && <NextInterview iv={d.next_interview} />}
+
+              {d.open_invites.length > 0 && (
+                <Section id="invites-h" title="Interview invitations">
+                  <ul className="space-y-2">
+                    {d.open_invites.map((iv) => (
+                      <li
+                        key={iv.id}
+                        className="flex flex-wrap items-center justify-between gap-2"
+                      >
+                        <span>
+                          {iv.title} at {iv.company}
+                        </span>
+                        {iv.scheduling_url && (
+                          <a
+                            href={iv.scheduling_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn-secondary"
+                          >
+                            Book interview
+                          </a>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </Section>
+              )}
+
+              {d.needs_input.length > 0 && (
+                <Section id="needs-h" title="Needs your input">
+                  <ul className="space-y-3">
+                    {d.needs_input.map((a) => (
+                      <li key={a.id} className="space-y-1">
+                        <Link
+                          to={`/auto-apply/applications/${a.id}`}
+                          className="font-medium text-accent-dark underline"
+                        >
+                          {a.posting.title} at {a.posting.company}
+                        </Link>
+                        <ul className="list-disc pl-5 text-sm text-muted">
+                          {(
+                            a.needs_input as {
+                              question: string;
+                              reason: string;
+                            }[]
+                          ).map((n, i) => (
+                            <li key={i}>
+                              {n.question}: {n.reason}
+                            </li>
+                          ))}
+                        </ul>
+                      </li>
+                    ))}
+                  </ul>
+                </Section>
+              )}
+
+              {review.data && review.data.length > 0 && (
+                <Section
+                  id="review-h"
+                  title="Employer messages to check"
+                  hint="These replies could belong to more than one application. Choose the right one."
+                >
+                  <ul className="space-y-4">
+                    {review.data.map((m) => (
+                      <li key={m.id} className="space-y-2">
+                        <p className="text-sm">
+                          <span className="font-medium">{m.subject}</span> from{" "}
+                          {m.sender}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {m.candidates.map((cand) => (
+                            <button
+                              key={cand.id}
+                              type="button"
+                              className="btn-secondary"
+                              disabled={recruit.link.isPending}
+                              onClick={() =>
+                                recruit.link.mutate({
+                                  id: m.id,
+                                  application_id: cand.id,
+                                })
+                              }
+                            >
+                              {cand.title} at {cand.company}
+                            </button>
+                          ))}
+                          <button
+                            type="button"
+                            className="text-sm text-muted underline"
+                            onClick={() => recruit.dismiss.mutate(m.id)}
+                          >
+                            Not about my applications
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </Section>
+              )}
+            </>
+          )}
+
+          {show("apps") && (
+            <Section id="recent-h" title="Recent applications">
+              {d.recent.length === 0 ? (
+                <div className="rounded-2xl bg-canvas p-6 text-center">
+                  <p aria-hidden="true" className="text-3xl">
+                    📨
+                  </p>
+                  <p className="mt-2 font-medium">Nothing has gone out yet</p>
+                  <p className="text-sm text-muted">
+                    Applications appear here as they are sent, with what
+                    happened next.
+                  </p>
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  {d.recent.map((a) => (
+                    <li key={a.id}>
+                      <Link
+                        to={`/auto-apply/applications/${a.id}`}
+                        className="flex items-center gap-3 rounded-2xl bg-canvas p-3 transition-colors hover:bg-accent-soft"
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-soft font-semibold text-accent-dark"
+                        >
+                          {initial(a.posting.company)}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-medium">
+                            {a.posting.title} at {a.posting.company}
+                          </span>
+                          <span className="block truncate text-sm text-muted">
+                            {a.posting.region ?? "Anywhere"}
+                          </span>
+                        </span>
+                        {a.recruiting_stage && (
+                          <span className="hidden rounded-full bg-surface px-2.5 py-1 text-xs text-muted sm:inline">
+                            {STAGE[a.recruiting_stage] ?? a.recruiting_stage}
+                          </span>
+                        )}
+                        <Pill status={a.status} />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <Link
+                to="/auto-apply/applications"
+                className="inline-flex min-h-[44px] items-center text-sm text-accent-dark hover:underline"
+              >
+                See all applications →
+              </Link>
+            </Section>
+          )}
         </div>
 
         <aside aria-label="Search and status" className="min-w-0 space-y-5">
-          <SourceChips sources={d.sources ?? []} />
+          {show("search") && (
+            <>
+              <SourceChips sources={d.sources ?? []} />
 
-          <Section id="today-h" title="Today">
-            <dl className="grid gap-2 text-sm sm:grid-cols-2">
-              {d.usage && (
-                <>
-                  {d.channels.outreach && (
-                    <div>
-                      <dt className="text-muted">Notes to hiring contacts</dt>
-                      <dd>
-                        {d.usage.outreach_used} of {d.usage.outreach_cap}
-                      </dd>
-                    </div>
+              <Section id="today-h" title="Today">
+                <dl className="grid gap-2 text-sm sm:grid-cols-2">
+                  {d.usage && (
+                    <>
+                      {d.channels.outreach && (
+                        <div>
+                          <dt className="text-muted">
+                            Notes to hiring contacts
+                          </dt>
+                          <dd>
+                            {d.usage.outreach_used} of {d.usage.outreach_cap}
+                          </dd>
+                        </div>
+                      )}
+                    </>
                   )}
-                </>
-              )}
-              <div>
-                <dt className="text-muted">Last search</dt>
-                <dd>
-                  {d.last_run
-                    ? `${day(d.last_run.started_at)}: ${d.last_run.found} found, ${d.last_run.eligible} matched`
-                    : "Not run yet"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-muted">Email</dt>
-                <dd>
-                  {d.mailbox.connected
-                    ? `Connected (${d.mailbox.address})`
-                    : d.mailbox.status === "reauth_needed"
-                      ? "Needs reconnecting"
-                      : "Not connected"}
-                </dd>
-              </div>
-            </dl>
-            <div className="flex flex-wrap gap-2">
-              {running && c.state === "active" && (
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={pause.isPending}
-                  onClick={() => pause.mutate()}
-                >
-                  Pause Auto-Apply
-                </button>
-              )}
-              {c.state === "paused" && (
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={resume.isPending}
-                  onClick={() => resume.mutate()}
-                >
-                  Resume Auto-Apply
-                </button>
-              )}
-              {running && (
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={run.isPending}
-                  onClick={() => run.mutate()}
-                >
-                  Search for roles now
-                </button>
-              )}
-              <Link to="/auto-apply/setup" className="btn-secondary">
-                Search preferences
-              </Link>
-            </div>
-            <Fail error={pause.error ?? resume.error ?? run.error} />
-          </Section>
+                  <div>
+                    <dt className="text-muted">Last search</dt>
+                    <dd>
+                      {d.last_run
+                        ? `${day(d.last_run.started_at)}: ${d.last_run.found} found, ${d.last_run.eligible} matched`
+                        : "Not run yet"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted">Email</dt>
+                    <dd>
+                      {d.mailbox.connected
+                        ? `Connected (${d.mailbox.address})`
+                        : d.mailbox.status === "reauth_needed"
+                          ? "Needs reconnecting"
+                          : "Not connected"}
+                    </dd>
+                  </div>
+                </dl>
+                <div className="flex flex-wrap gap-2">
+                  {running && c.state === "active" && (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      disabled={pause.isPending}
+                      onClick={() => pause.mutate()}
+                    >
+                      Pause Auto-Apply
+                    </button>
+                  )}
+                  {c.state === "paused" && (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      disabled={resume.isPending}
+                      onClick={() => resume.mutate()}
+                    >
+                      Resume Auto-Apply
+                    </button>
+                  )}
+                  {running && (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      disabled={run.isPending}
+                      onClick={() => run.mutate()}
+                    >
+                      Search for roles now
+                    </button>
+                  )}
+                  <Link to="/auto-apply/setup" className="btn-secondary">
+                    Search preferences
+                  </Link>
+                </div>
+                <Fail error={pause.error ?? resume.error ?? run.error} />
+              </Section>
 
-          {running && (
-            <Section
-              id="job-h"
-              title="Add a job yourself"
-              hint="Paste a link to a job. It is checked against your search like any other."
-            >
-              <form onSubmit={submitJob} className="flex flex-wrap gap-2">
-                <label htmlFor="job-url" className="sr-only">
-                  Job link
-                </label>
-                <input
-                  id="job-url"
-                  type="url"
-                  className="input min-w-0 flex-1"
-                  placeholder="https://…"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                />
-                <button className="btn-secondary" disabled={add.isPending}>
-                  Add job
-                </button>
-              </form>
-              <Fail error={add.error} />
-            </Section>
+              {running && (
+                <Section
+                  id="job-h"
+                  title="Add a job yourself"
+                  hint="Paste a link to a job. It is checked against your search like any other."
+                >
+                  <form onSubmit={submitJob} className="flex flex-wrap gap-2">
+                    <label htmlFor="job-url" className="sr-only">
+                      Job link
+                    </label>
+                    <input
+                      id="job-url"
+                      type="url"
+                      className="input min-w-0 flex-1"
+                      placeholder="https://…"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                    />
+                    <button className="btn-secondary" disabled={add.isPending}>
+                      Add job
+                    </button>
+                  </form>
+                  <Fail error={add.error} />
+                </Section>
+              )}
+            </>
           )}
         </aside>
       </div>
