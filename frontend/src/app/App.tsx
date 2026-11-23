@@ -41,6 +41,7 @@ import { BrowserNotice } from "./BrowserNotice";
 import { currentEnv, isSupported } from "./browserSupport";
 import { Layout } from "./Layout";
 import { AppReturnPage } from "../features/auth/AppReturnPage";
+import { VerifiedToast } from "../features/auth/VerifiedToast";
 import { PhoneHome } from "../features/phone/PhoneHome";
 import { PhoneLayout } from "../features/phone/PhoneLayout";
 import { ProfilePage } from "../features/phone/ProfilePage";
@@ -71,6 +72,7 @@ export function App() {
   return (
     <>
       <NativeLinks />
+      <VerifiedToast />
       <AppRoutes />
     </>
   );
@@ -80,6 +82,9 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
+      {/* Pages opened from an email must work in any browser, a phone's included. */}
+      <Route path="/login/verify" element={<VerifyPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/admin/login" element={<StaffLoginPage />} />
@@ -100,8 +105,6 @@ function AppRoutes() {
         <Route path="/login" element={<SignInForm />} />
         <Route path="/signup" element={<SignUpForm />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route path="/login/verify" element={<VerifyPage />} />
         <Route path="/auth/app" element={<AppReturnPage />} />
         <Route element={<AuthGuard />}>
           <Route path="/onboarding" element={<OnboardingPage />} />

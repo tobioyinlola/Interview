@@ -25,7 +25,9 @@ The phone app is not the website squeezed down. When the page runs inside this a
 * **The Android shell** is released automatically: a change to `mobile/` that lands on `Staging` builds the
   app and replaces the file at the download address (`android-latest`), with a build number that always grows.
 * An Android app installed from a file cannot update itself, so it shows an "update available" banner with the
-  download. Google Play (a signed app) would make updates silent.
+  download, and (in builds that include `@capacitor/local-notifications`) a pop-up notification once per version
+  when the app is opened. A notification while the app is *closed* needs Firebase Cloud Messaging push: not
+  set up yet (it needs a Firebase project and credentials). Google Play (a signed app) would make updates silent.
 
 ## What works on a phone, and what does not
 

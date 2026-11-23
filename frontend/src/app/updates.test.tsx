@@ -3,7 +3,12 @@ import userEvent from "@testing-library/user-event";
 
 import { ME, mockApi, renderApp, stubSupportedBrowser } from "../test-utils";
 import { App } from "./App";
-import { compareVersions, desktopVersion } from "./updates";
+import {
+  compareVersions,
+  desktopVersion,
+  notifyUpdate,
+  openDownloadOnTap,
+} from "./updates";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -145,5 +150,62 @@ describe("the update banner", () => {
     renderApp(<App />, "/dashboard");
     await screen.findAllByText(/Overview/);
     expect(screen.queryByRole("link", { name: "Update" })).toBeNull();
+  });
+});
+
+describe("the update pop-up notification", () => {
+  const url =
+    "https://github.com/o/r/releases/download/android-latest/InterviewMeet-android.apk";
+  const plugin = (display = "granted") => ({
+    requestPermissions: vi.fn().mockResolvedValue({ display }),
+    schedule: vi.fn().mockResolvedValue({}),
+    addListener: vi.fn(),
+  });
+  const withPlugin = (p: ReturnType<typeof plugin>) => {
+    window.Capacitor = {
+      isNativePlatform: () => true,
+      Plugins: { LocalNotifications: p },
+    } as unknown as typeof window.Capacitor;
+  };
+
+  it("pops up once per version when notifications are allowed", async () => {
+    const p = plugin();
+    withPlugin(p);
+    expect(await notifyUpdate("0.2.30", url)).toBe(true);
+    expect(p.schedule).toHaveBeenCalledTimes(1);
+    const sent = p.schedule.mock.calls[0][0].notifications[0];
+    expect(sent.title).toMatch(/update/i);
+    expect(sent.body).toContain("0.2.30");
+    expect(sent.extra.url).toBe(url);
+    expect(await notifyUpdate("0.2.30", url)).toBe(false); // not again for the same version
+    expect(await notifyUpdate("0.2.31", url)).toBe(true); // but for the next one
+  });
+
+  it("stays quiet when the person said no to notifications", async () => {
+    const p = plugin("denied");
+    withPlugin(p);
+    expect(await notifyUpdate("0.2.30", url)).toBe(false);
+    expect(p.schedule).not.toHaveBeenCalled();
+  });
+
+  it("does nothing in an app build without the notification plugin", async () => {
+    window.Capacitor = {
+      isNativePlatform: () => true,
+      Plugins: {},
+    } as unknown as typeof window.Capacitor;
+    expect(await notifyUpdate("0.2.30", url)).toBe(false);
+  });
+
+  it("opens only this project's release downloads when the notification is tapped", () => {
+    const p = plugin();
+    withPlugin(p);
+    const open = vi.fn();
+    openDownloadOnTap(open);
+    const tap = p.addListener.mock.calls[0][1];
+    tap({ notification: { extra: { url } } });
+    tap({ notification: { extra: { url: "https://evil.test/x.apk" } } });
+    tap({ notification: { extra: {} } });
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(open).toHaveBeenCalledWith(url);
   });
 });

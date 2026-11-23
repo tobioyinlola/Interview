@@ -102,6 +102,16 @@ jobs:
             --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
             --title "InterviewMeet desktop $VERSION (Windows)" \
             --notes "Windows installer. It is not code-signed yet, so Windows may show a protected-your-PC notice: choose More info, then Run anyway."
+          # The website's download buttons point at ONE fixed release, so they work whichever build is
+          # newest and never wait for the Mac build. (It is a pre-release so it is never "latest", which
+          # is the release installed apps look at for updates.)
+          gh release view desktop-latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create desktop-latest --repo "$GITHUB_REPOSITORY" --prerelease --target "$GITHUB_SHA" \
+              --title "InterviewMeet downloads" --notes "placeholder"
+          gh release upload desktop-latest desktop/dist/InterviewMeet-Setup.exe --repo "$GITHUB_REPOSITORY" --clobber
+          gh release edit desktop-latest --repo "$GITHUB_REPOSITORY" --prerelease \
+            --title "InterviewMeet downloads" \
+            --notes "The newest installers, at fixed addresses for the website. Windows: $VERSION. Not code-signed yet."
 
   mac:
     # Mac installers: on request ("Also build the Mac app"), for every automatic release on Staging, and
@@ -158,3 +168,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release upload "desktop-v$VERSION" desktop/dist/*.dmg desktop/dist/*.zip --repo "$GITHUB_REPOSITORY" --clobber
+          # and the fixed download release the website links to (see the Windows job)
+          gh release view desktop-latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create desktop-latest --repo "$GITHUB_REPOSITORY" --prerelease --target "$GITHUB_SHA" \
+              --title "InterviewMeet downloads" --notes "placeholder"
+          gh release upload desktop-latest desktop/dist/*.dmg --repo "$GITHUB_REPOSITORY" --clobber
