@@ -1,8 +1,17 @@
-import { useAppUpdate } from "./updates";
+import { useEffect } from "react";
+
+import { isMobileApp } from "./native";
+import { notifyUpdate, useAppUpdate } from "./updates";
 
 /** Shown inside the installed apps when a newer version can be downloaded. */
 export function UpdateBanner() {
   const update = useAppUpdate();
+  const version = update?.version;
+  const url = update?.url;
+  useEffect(() => {
+    if (!isMobileApp() || !version || !url) return;
+    void notifyUpdate(version, url); // a pop-up as well as the banner, once per version
+  }, [version, url]);
   if (!update) return null;
   return (
     <div

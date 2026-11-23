@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 import { capacitorPlugins } from "../features/auth/nativeGoogle";
 import { isMobileApp } from "./native";
+import { openDownloadOnTap } from "./updates";
 
 /** The phone app hears the interviewmeet:// address the browser hands back after Google sign-in
  *  and carries on inside the app. (On desktop the app's main process does the same job.) */
@@ -10,6 +11,7 @@ export function NativeLinks() {
   const navigate = useNavigate();
   useEffect(() => {
     if (!isMobileApp()) return;
+    openDownloadOnTap(); // a tap on the "update available" notification opens the download
     void Promise.resolve(
       capacitorPlugins()?.App?.addListener?.("appUrlOpen", ({ url }) => {
         let link: URL;

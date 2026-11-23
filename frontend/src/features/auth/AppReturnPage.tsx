@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ApiError, apiFetch } from "../../api/client";
 import { AuthLayout } from "../../ui/AuthLayout";
 import { takeVerifier } from "./nativeGoogle";
+import { markVerified } from "./VerifiedToast";
 
 const MESSAGES: Record<string, string> = {
   google_cancelled: "Google sign-in was cancelled.",
@@ -35,7 +36,9 @@ export function AppReturnPage() {
     const verifier = takeVerifier();
     if (!verifier) {
       setState("failed");
-      setMessage("That sign-in expired. Please try again.");
+      setMessage(
+        "That sign-in expired. If you just confirmed your email, your account is ready: sign in.",
+      );
       return;
     }
     apiFetch("/api/auth/app-exchange", {
@@ -44,13 +47,14 @@ export function AppReturnPage() {
     })
       .then(async () => {
         await qc.invalidateQueries({ queryKey: ["me"] });
+        markVerified(); // the next screen says "Your email is verified, you're signed in"
         setState("done");
       })
       .catch((e: unknown) => {
         setState("failed");
         setMessage(
           e instanceof ApiError && e.code === "invalid_code"
-            ? "That sign-in expired. Please try again."
+            ? "That sign-in expired. If you just confirmed your email, your account is ready: sign in."
             : "We couldn't finish signing you in. Please try again.",
         );
       });

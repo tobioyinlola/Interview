@@ -1,6 +1,11 @@
 import { type FormEvent, useId, useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
 
+import { currentEnv, isSupported } from "../../app/browserSupport";
+import { isDesktopApp } from "../../app/desktop";
+import { isMobileApp } from "../../app/native";
+import { VerifiedOnPhone } from "./VerifiedOnPhone";
+
 import { ApiError } from "../../api/client";
 import { useResetPassword } from "../../api/hooks";
 import { PasswordField } from "../../ui/PasswordField";
@@ -13,7 +18,18 @@ export function ResetPasswordPage() {
   const [confirm, setConfirm] = useState("");
   const matchId = useId();
   const reset = useResetPassword();
-  if (reset.isSuccess) return <Navigate to="/" replace />;
+  const canUseSite =
+    isSupported(currentEnv()) || isMobileApp() || isDesktopApp();
+  if (reset.isSuccess && canUseSite) return <Navigate to="/" replace />;
+  if (reset.isSuccess)
+    return (
+      <AuthLayout plain>
+        <VerifiedOnPhone
+          title="Your password is changed"
+          line="Open the InterviewMeet app and sign in with your new password."
+        />
+      </AuthLayout>
+    );
 
   const mismatch = confirm.length > 0 && confirm !== password;
   const ok = password.length >= MIN_PASSWORD && confirm === password;

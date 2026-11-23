@@ -104,14 +104,30 @@ const ok = (cond, msg) => {
     ok(verifyLink, `${shell} app: the confirmation email carries a link`);
 
     // the link opens in the real browser, not the app
-    const browserPage = await (await browser.newContext()).newPage();
+    const ANDROID_UA =
+      "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36";
+    const browserPage = await (
+      await browser.newContext(
+        shell === "android"
+          ? { userAgent: ANDROID_UA, isMobile: true, hasTouch: true, viewport: { width: 390, height: 844 } }
+          : {},
+      )
+    ).newPage();
     await browserPage.goto(verifyLink);
+    if (shell === "android") {
+      await browserPage.getByRole("heading", { name: "Your email is verified" }).waitFor();
+      ok(!(await browserPage.getByText(/isn.t supported/i).count()), "android app: a phone's browser says the email is verified, not 'browser not supported'");
+    }
     const open = browserPage.getByRole("link", { name: "Open InterviewMeet" });
     await open.waitFor();
     const back = new URL(await open.getAttribute("href"));
     ok(back.protocol === "interviewmeet:" && back.searchParams.get("code"), `${shell} app: the browser offers to open the app`);
     await browserPage.goto(BASE + "/dashboard");
-    await browserPage.waitForURL("**/login");
+    if (shell === "android") {
+      await browserPage.getByRole("heading", { name: "Use the InterviewMeet app" }).waitFor();
+    } else {
+      await browserPage.waitForURL("**/login");
+    }
     ok(true, `${shell} app: the browser itself was not signed in`);
 
     // the app picks the hand-back up and the account is signed in inside the app

@@ -109,3 +109,81 @@ export function useAppUpdate(): {
     },
   };
 }
+
+const NOTIFIED = "im-update-notified";
+
+interface LocalNotifications {
+  requestPermissions?: () => Promise<{ display?: string }>;
+  schedule?: (o: {
+    notifications: {
+      id: number;
+      title: string;
+      body: string;
+      schedule: { at: Date };
+      extra: { url: string };
+    }[];
+  }) => Promise<unknown>;
+  addListener?: (
+    name: string,
+    fn: (e: { notification: { extra?: { url?: string } } }) => void,
+  ) => unknown;
+}
+const notifications = (): LocalNotifications | undefined =>
+  (
+    window.Capacitor as
+      { Plugins?: { LocalNotifications?: LocalNotifications } } | undefined
+  )?.Plugins?.LocalNotifications;
+
+/** Pop up a phone notification saying a newer version can be downloaded: once per version, only if
+ *  the person allowed notifications, and only in an app build that has the notification plugin
+ *  (older builds quietly do nothing and keep the banner). Returns whether one was shown. */
+export async function notifyUpdate(
+  version: string,
+  url: string,
+): Promise<boolean> {
+  const plugin = notifications();
+  if (!plugin?.schedule) return false;
+  try {
+    if (localStorage.getItem(NOTIFIED) === version) return false;
+  } catch {
+    /* no memory: at worst it shows again */
+  }
+  try {
+    const allowed = await plugin.requestPermissions?.();
+    if (allowed?.display && allowed.display !== "granted") return false;
+    await plugin.schedule({
+      notifications: [
+        {
+          id: 4201,
+          title: "InterviewMeet update",
+          body: `Version ${version} is ready. Tap to download it.`,
+          schedule: { at: new Date(Date.now() + 1500) },
+          extra: { url },
+        },
+      ],
+    });
+    try {
+      localStorage.setItem(NOTIFIED, version);
+    } catch {
+      /* see above */
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Tapping the notification opens the download. Only this project's release downloads are opened. */
+export function openDownloadOnTap(
+  open: (url: string) => void = (url) => window.open(url, "_blank"),
+): void {
+  void Promise.resolve(
+    notifications()?.addListener?.("localNotificationActionPerformed", (e) => {
+      const url = e.notification.extra?.url ?? "";
+      if (
+        /^https:\/\/github\.com\/[^/]+\/[^/]+\/releases\/download\//.test(url)
+      )
+        open(url);
+    }),
+  );
+}

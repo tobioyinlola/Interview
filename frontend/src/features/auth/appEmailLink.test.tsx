@@ -134,7 +134,7 @@ describe("opening the emailed link in the browser", () => {
     expect(open).toHaveBeenCalledWith(
       `interviewmeet://auth?code=${"c".repeat(40)}`,
     );
-    expect(screen.getByText(/you're confirmed/i)).toBeInTheDocument();
+    expect(screen.getByText(/your email is verified/i)).toBeInTheDocument();
     expect(calls.filter((c) => c.key === "POST /api/auth/verify")).toHaveLength(
       1,
     ); // a token works once
@@ -156,6 +156,6 @@ describe("opening the emailed link in the browser", () => {
     });
     renderApp(<App />, `/login/verify?token=${TOKEN}`);
     await screen.findAllByText(/Overview|Hello/);
-    expect(screen.queryByText(/you're confirmed/i)).toBeNull();
+    expect(screen.queryByText(/your email is verified/i)).toBeNull();
   });
 });
