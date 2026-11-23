@@ -39,11 +39,12 @@ function useRefresh() {
   return () => void qc.invalidateQueries({ queryKey: ["aa"] });
 }
 
-export const useDashboard = () =>
+export const useDashboard = (enabled = true) =>
   useQuery<AADashboard>({
     queryKey: ["aa", "dashboard"],
     queryFn: () => apiFetch(`${P}/dashboard`),
     refetchInterval: 60_000,
+    enabled,
   });
 
 export const useAAProfile = () =>

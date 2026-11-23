@@ -60,8 +60,9 @@ const ok = (cond, msg) => {
   ok(true, "someone who catches the code but has no secret from the app is turned away");
 
   await app.goto(BASE + "/auth/app?code=" + code);
-  await app.waitForURL(/\/(onboarding|dashboard)/);
-  if (app.url().includes("onboarding")) {
+  // a new account goes to onboarding first; either way the app must end up signed in
+  await app.locator("text=/^Hello|Skip for now/").first().waitFor();
+  if (await app.getByRole("button", { name: "Skip for now" }).isVisible()) {
     await app.getByRole("button", { name: "Skip for now" }).click();
     await app.waitForURL("**/dashboard");
   }
@@ -116,12 +117,13 @@ const ok = (cond, msg) => {
     // the app picks the hand-back up and the account is signed in inside the app
     await inApp.goto(BASE + "/auth/app?code=" + back.searchParams.get("code"));
     // a new account goes to onboarding first; either way the app must end up signed in
-    await inApp.locator("text=/^Hello, App|Skip for now/").first().waitFor();
+    await inApp.locator("text=/^Hello, App|Skip for now|Good (morning|afternoon|evening),/").first().waitFor();
     if (await inApp.getByRole("button", { name: "Skip for now" }).isVisible()) {
       await inApp.getByRole("button", { name: "Skip for now" }).click();
       await inApp.waitForURL("**/dashboard");
     }
-    await inApp.getByText(/^Hello, App/).waitFor({ timeout: 8000 });
+    // the website greets "Hello, App"; the phone app shows "Good evening," then the first name
+    await inApp.getByText(shell === "android" ? "App" : /^Hello, App/, { exact: shell === "android" }).first().waitFor({ timeout: 8000 });
     ok(true, `${shell} app: the new account is signed in inside the app, with the name from the form`);
     await ctx.close();
   }

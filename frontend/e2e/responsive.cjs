@@ -174,7 +174,7 @@ const probe = () => {
     const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, storageState: state });
     await ctx.addInitScript(() => { window.Capacitor = { isNativePlatform: () => true }; });
     const page = await ctx.newPage();
-    for (const p of IN.filter((x) => !x.startsWith("/session/new") && x !== "/onboarding")) {
+    for (const p of [...IN.filter((x) => !x.startsWith("/session/new") && x !== "/onboarding"), "/me"]) {
       await page.goto(B + p);
       await page.waitForSelector("nav[aria-label=Tabs]", { timeout: 15000 });
       await page.waitForTimeout(300);
@@ -191,7 +191,7 @@ const probe = () => {
       if (bar.minTap < 44) issues.push(`tab target ${Math.round(bar.minTap)}px`);
       if (bar.room < 60) issues.push(`page ends under the tab bar (room ${Math.round(bar.room)}, ${bar.lastEl})`);
       if (issues.length) { bad++; console.log(`[app ${w}x${h}] ${p}: ${[...new Set(issues)].join(" // ")}`); }
-      if (process.env.E2E_SHOTS && (p === "/dashboard" || p === "/help")) { await page.evaluate(() => window.scrollTo(0, 1e6)); await page.waitForTimeout(150); await page.screenshot({ path: `${process.env.E2E_SHOTS}/app-tabs-${p.replace(/\W/g, "")}-${w}.png` }); }
+      if (process.env.E2E_SHOTS && ["/dashboard", "/auto-apply", "/me", "/companies", "/settings/profile"].includes(p)) { await page.waitForTimeout(250); await page.screenshot({ path: `${process.env.E2E_SHOTS}/app-tabs-${p.replace(/\W/g, "")}-${w}.png` }); }
     }
     await ctx.close();
   }

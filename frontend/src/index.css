@@ -22,6 +22,11 @@
   .card {
     @apply rounded-2xl bg-surface p-5 shadow-card;
   }
+  /* inside the phone app everything is softer and rounder */
+  .phone-app .card,
+  .phone-app .list-card {
+    @apply rounded-[1.75rem];
+  }
   .list-card {
     @apply overflow-hidden rounded-2xl bg-surface shadow-card;
   }
