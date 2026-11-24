@@ -105,6 +105,7 @@ CANDIDATES: list[tuple[str, str, str]] = [
 CANDIDATE_MIN = 3  # startups a trial read must find before a candidate is switched on
 CANDIDATES_PER_DAY = 2
 REFRESH_AFTER = timedelta(days=7)
+RETRY_AFTER = timedelta(hours=6)  # a read that failed is tried again sooner than a good one
 
 SCHEMA: dict[str, object] = {
     "type": "object",
@@ -198,6 +199,7 @@ def page_reader() -> Fetcher:
         text_max_chars=PAGE_CHARS,
         links_max=LINKS_MAX,
         allow_json=True,
+        embedded_data=True,
         max_bytes=8 * 1024 * 1024,
     )
 
@@ -408,39 +410,73 @@ async def resolve_sites(
     return out
 
 
-def parse_feed(text: str, directory_url: str) -> list[Found]:
-    """A directory published as a data feed: a list of companies with a name and a website. Read as
-    data, not by the model. Understands the common field names (and YC's)."""
+_TAGS = re.compile(r"<[^>]+>")
+
+
+def _company_lists(value: Any, minimum: int, depth: int = 0) -> list[list[dict[str, Any]]]:
+    """Each list of `minimum` or more records that look like companies, wherever it sits."""
+    found: list[list[dict[str, Any]]] = []
+    if isinstance(value, list):
+        records = [v for v in value if isinstance(v, dict)]
+        named = [r for r in records if r.get("name") or r.get("title")]
+        if len(records) >= minimum and named and len(named) >= len(records) // 2:
+            found.append(records)
+        elif depth < 4:
+            for v in value[:200]:
+                found += _company_lists(v, minimum, depth + 1)
+    elif isinstance(value, dict) and depth < 4:
+        for v in value.values():
+            found += _company_lists(v, minimum, depth + 1)
+    return found
+
+
+def parse_feed(text: str, directory_url: str, minimum: int = 1) -> list[Found]:
+    """A directory published as data (a feed, or JSON the page carries): companies with a name and
+    a website. Read as data, not by the model. Understands the common field names (and YC's and
+    a16z's). `minimum` is how long a list must be to count, higher for lists found inside a page."""
     try:
         data = json.loads(text)
     except ValueError:
         return []
-    if isinstance(data, dict):
-        data = next((v for v in data.values() if isinstance(v, list)), [])
     host = policy.domain_of(directory_url)
     out: list[Found] = []
     seen: set[str] = set()
-    for item in data if isinstance(data, list) else []:
-        if not isinstance(item, dict) or len(out) >= FEED_MAX:
-            continue
-        place = str(item.get("country") or item.get("all_locations") or item.get("location") or "")
-        country = place.rsplit(",", 1)[-1].strip() if place else ""
-        found = _clean(
-            {
-                "name": item.get("name"),
-                "website": item.get("website") or item.get("website_url"),
-                "one_liner": item.get("one_liner")
+    for records in _company_lists(data, minimum):
+        for item in records:
+            if len(out) >= FEED_MAX:
+                return out
+            place = str(
+                item.get("country") or item.get("all_locations") or item.get("location") or ""
+            )
+            country = place.rsplit(",", 1)[-1].strip() if place else ""
+            site = (
+                item.get("website")
+                or item.get("website_url")
+                or item.get("web")
+                or item.get("site")
+            )
+            blurb = (
+                item.get("one_liner")
                 or item.get("tagline")
-                or item.get("description"),
-                "country": country,
-                "batch": item.get("batch"),
-                "sector": item.get("industry") or item.get("sector"),
-            },
-            host,
-        )
-        if found and found.website and policy.domain_of(found.website) not in seen:
-            seen.add(policy.domain_of(found.website))
-            out.append(found)
+                or item.get("description")
+                or item.get("overview")
+                or item.get("excerpt")
+                or ""
+            )
+            found = _clean(
+                {
+                    "name": item.get("name") or item.get("title"),
+                    "website": site if isinstance(site, str) else "",
+                    "one_liner": _TAGS.sub(" ", str(blurb)).strip(),
+                    "country": country,
+                    "batch": item.get("batch"),
+                    "sector": item.get("industry") or item.get("sector"),
+                },
+                host,
+            )
+            if found and found.website and policy.domain_of(found.website) not in seen:
+                seen.add(policy.domain_of(found.website))
+                out.append(found)
     return out
 
 
@@ -464,6 +500,12 @@ async def ingest(
         found = [f for f in every if f.website]
         named = [f for f in every if not f.website]
         found += await resolve_sites(db, fetcher, named, page.links, directory, url)
+        have = {policy.domain_of(f.website) for f in found}
+        for blob in page.data:  # the list the page itself draws its grid from, when it carries one
+            found += [
+                f for f in parse_feed(blob, url, 5) if policy.domain_of(f.website) not in have
+            ]
+            have = {policy.domain_of(f.website) for f in found}
     added = await save(db, directory, url, found, now, hint)
     if found:
         problem = None
@@ -512,6 +554,17 @@ async def ensure_defaults(db: AsyncSession, now: datetime) -> int:
             await db.delete(d)
         elif d.name in FIXED_URLS and d.url != FIXED_URLS[d.name]:
             d.url, d.last_run_at, d.last_problem = FIXED_URLS[d.name], None, None
+    stale = (
+        (
+            await db.execute(
+                select(Directory).where(Directory.last_problem == "The page is larger than 2 MB.")
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for d in stale:  # read before directory pages were allowed to be 8 MB: try again now
+        d.last_run_at, d.last_problem = None, None
     await db.commit()
     return added
 
@@ -555,7 +608,11 @@ async def refresh_due(
                 .where(
                     Directory.enabled.is_(True),
                     (Directory.last_run_at.is_(None))
-                    | (Directory.last_run_at <= now - REFRESH_AFTER),
+                    | (Directory.last_run_at <= now - REFRESH_AFTER)
+                    | (
+                        Directory.last_problem.is_not(None)
+                        & (Directory.last_run_at <= now - RETRY_AFTER)
+                    ),
                 )
                 .order_by(Directory.last_run_at.asc().nulls_first(), Directory.name)
                 .limit(limit)

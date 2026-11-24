@@ -231,3 +231,8 @@ company with no website found is never stored.
 Startups outside the US, Europe and the UK are listed, researched, and their open roles are shown in the back
 office, but nobody is emailed there (`policy.REGIONS`). Gulf places carry a region label (`uae`, `ksa`, and
 `mena` for a directory that covers the whole region) so they can be filtered.
+
+A directory page that draws its grid from a list inside the page (a `window.x = [...]` assignment, or a JSON
+script tag such as `__NEXT_DATA__`) is read from that list as data (`fetcher.embedded_json`,
+`directory.parse_feed`). Andreessen Horowitz works this way: 891 companies with websites and descriptions in
+one 3.7 MB page. A directory read that failed is tried again after 6 hours instead of a week.

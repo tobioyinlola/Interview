@@ -370,3 +370,47 @@ async def test_a_page_of_mostly_links_is_readable_but_a_bare_one_is_not(site, ma
     assert ok.status == "ok" and len(ok.links) == 25
     bare = await make().fetch("https://example.com/bare")
     assert bare.status == "blocked" and "JavaScript" in bare.reason
+
+
+# --------------------------------------------------------------------- JSON the page carries
+
+
+def _rows(n=40):
+    return ",".join(
+        f'{{"title":"Co{i}","web":"https://co{i}.io","overview":"Builds thing number {i} for people"}}'
+        for i in range(n)
+    )
+
+
+async def test_a_page_that_draws_its_grid_from_a_script_hands_that_list_over(site, make):
+    body = (
+        "<html><body><p>Our portfolio</p><script>window.portfolio_companies = ["
+        + _rows()
+        + "];</script><script>window.tiny = [1];</script></body></html>"
+    )
+    site.add("example.com", "/p", body=body)
+    r = await make(embedded_data=True).fetch("https://example.com/p")
+    assert r.status == "ok" and len(r.data) == 1  # the small one is a setting, not a list
+    assert '"title":"Co39"' in r.data[0] and r.data[0].startswith("[")
+    off = await make().fetch("https://example.com/p")  # asked for only when wanted
+    assert off.data == ()
+
+
+async def test_json_script_tags_are_kept_too_and_a_data_only_page_is_still_readable(site, make):
+    body = (
+        '<html><body><script id="__NEXT_DATA__" type="application/json">{"props":{"companies":['
+        + _rows()
+        + "]}}</script></body></html>"
+    )
+    site.add("example.com", "/n", body=body)
+    r = await make(embedded_data=True).fetch("https://example.com/n")
+    assert r.status == "ok" and '"companies"' in r.data[0]  # almost no text, plenty of data
+
+
+async def test_the_size_message_names_the_real_limit(site, make):
+    site.add(
+        "example.com", "/big", body="x" * 5000, ctype="text/plain", **{"content-length": "99999999"}
+    )
+    assert (await make().fetch("https://example.com/big")).reason == "The page is larger than 2 MB."
+    r = await make(max_bytes=8 * 1024 * 1024).fetch("https://example.com/big")
+    assert r.reason == "The page is larger than 8 MB."

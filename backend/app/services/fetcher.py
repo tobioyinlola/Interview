@@ -7,6 +7,7 @@ stop at the size and time limits; keep only HTML or plain text; obey robots.txt;
 user agent; and send at most one request per second to a host."""
 
 import asyncio
+import json
 import logging
 import re
 import ssl
@@ -52,6 +53,34 @@ class FetchResult:
     final_url: str = ""
     emails: tuple[str, ...] = ()  # addresses the page itself publishes (mailto links and text)
     links: tuple[tuple[str, str], ...] = ()  # (link text, absolute address) for links on the page
+    data: tuple[str, ...] = ()  # JSON the page carries for its own scripts (only when asked for)
+
+
+_ASSIGNED = re.compile(r"\bwindow\.[A-Za-z0-9_$]+\s*=\s*(?=[\[{])")
+_JSON_SCRIPT = re.compile(
+    r"<script\b[^>]*type\s*=\s*[\"'](?:application/json|application/ld\+json)[\"'][^>]*>(.*?)</script>",
+    re.S | re.I,
+)
+EMBEDDED_MAX = 8  # blocks of embedded JSON kept per page
+EMBEDDED_MIN_CHARS = 2_000  # smaller ones are settings, not a list of companies
+
+
+def embedded_json(html: str) -> tuple[str, ...]:
+    """Large JSON a page carries for its own scripts: `window.x = [...]` assignments and JSON script
+    tags (which is where many portfolio pages keep the whole list their grid is drawn from)."""
+    found: list[str] = []
+    for m in _ASSIGNED.finditer(html):
+        try:
+            value, end = json.JSONDecoder().raw_decode(html, m.end())
+        except ValueError:
+            continue
+        if end - m.end() >= EMBEDDED_MIN_CHARS and isinstance(value, (list, dict)):
+            found.append(html[m.end() : end])
+    for m in _JSON_SCRIPT.finditer(html):
+        body = unescape(m.group(1)).strip()
+        if len(body) >= EMBEDDED_MIN_CHARS and body[:1] in "[{":
+            found.append(body)
+    return tuple(sorted(found, key=len, reverse=True)[:EMBEDDED_MAX])
 
 
 _MAILTO = re.compile(r"mailto:([^\"'?<>\s&]+)", re.IGNORECASE)
@@ -114,6 +143,7 @@ class Fetcher:
         text_max_chars: int = 20_000,
         links_max: int = 150,
         allow_json: bool = False,
+        embedded_data: bool = False,
         json_max_chars: int = 8_000_000,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
         clock: Callable[[], float] = time.monotonic,
@@ -129,6 +159,7 @@ class Fetcher:
         self.text_max_chars = text_max_chars
         self.links_max = links_max
         self.allow_json = allow_json
+        self.embedded_data = embedded_data
         self.json_max_chars = json_max_chars
         self._sleep = sleep
         self._clock = clock
@@ -170,7 +201,8 @@ class Fetcher:
             try:
                 raw = await self._request(parts, ips, self.max_bytes)
             except _TooLarge:
-                return FetchResult(url, "too_large", "The page is larger than 2 MB.")
+                limit = f"{self.max_bytes // (1024 * 1024)} MB"
+                return FetchResult(url, "too_large", f"The page is larger than {limit}.")
 
             if raw.status_code in _REDIRECTS:
                 location = raw.headers.get("location")
@@ -214,10 +246,18 @@ class Fetcher:
         text = text[: self.text_max_chars]
         emails = published_emails(html) if ctype != "text/plain" else ()
         links = page_links(html, final_url, self.links_max) if ctype != "text/plain" else ()
+        data = embedded_json(html) if self.embedded_data and ctype != "text/plain" else ()
         # a page that is mostly links (a portfolio of logos) has little text but a lot to read
-        if len(text) < MIN_READABLE_CHARS and (emails or len(links) >= MANY_LINKS):
+        if len(text) < MIN_READABLE_CHARS and (emails or len(links) >= MANY_LINKS or data):
             return FetchResult(
-                url, "ok", title=title, text=text, final_url=final_url, emails=emails, links=links
+                url,
+                "ok",
+                title=title,
+                text=text,
+                final_url=final_url,
+                emails=emails,
+                links=links,
+                data=data,
             )
         if len(text) < MIN_READABLE_CHARS:
             return FetchResult(
@@ -227,7 +267,14 @@ class Fetcher:
                 final_url=final_url,
             )
         return FetchResult(
-            url, "ok", title=title, text=text, final_url=final_url, emails=emails, links=links
+            url,
+            "ok",
+            title=title,
+            text=text,
+            final_url=final_url,
+            emails=emails,
+            links=links,
+            data=data,
         )
 
     async def _public_ips(self, parts: SplitResult) -> list[IPAddress]:
