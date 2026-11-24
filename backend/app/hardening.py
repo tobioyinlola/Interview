@@ -90,12 +90,13 @@ def _autoapply_problems(s: Settings) -> list[str]:
     if not s.autoapply_enabled:
         return []
     out: list[str] = []
-    real_mail = s.autoapply_mailbox_provider == "gmail"
+    real_mail = s.autoapply_mailbox_provider == "gmail" or s.smtp_mailbox_enabled
+    gmail_mail = s.autoapply_mailbox_provider == "gmail"
     has_client = bool(
         (s.gmail_client_id or s.google_client_id)
         and (s.gmail_client_secret.get_secret_value() or s.google_client_secret.get_secret_value())
     )
-    if real_mail and not has_client:
+    if gmail_mail and not has_client:
         out.append(
             "AUTOAPPLY_MAILBOX_PROVIDER=gmail needs GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET "
             "(or the Google sign-in client, GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)."

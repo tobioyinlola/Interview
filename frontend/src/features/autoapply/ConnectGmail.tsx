@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { useMe } from "../../api/hooks";
 import { useMailbox, useMailboxActions } from "./api";
+import { AppPasswordForm } from "./AppPasswordForm";
 
 const KEY = "im-gmail-prompt-dismissed";
 const dismissed = (): boolean => {
@@ -19,14 +20,17 @@ export function ConnectGmail() {
   const box = useMailbox();
   const { connect } = useMailboxActions();
   const [hidden, setHidden] = useState(dismissed);
+  const [password, setPassword] = useState(false);
+  const canPassword = (box.data?.smtp_providers?.length ?? 0) > 0;
   if (
     hidden ||
     !me?.autoapply ||
     !box.data ||
     box.data.connected ||
-    box.data.can_connect === false
+    (box.data.can_connect === false && !canPassword)
   )
     return null;
+  const google = box.data.can_connect !== false;
   return (
     <section
       aria-labelledby="gmail-h"
@@ -40,14 +44,26 @@ export function ConnectGmail() {
         folder. We never read anything else.
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
-        <button
-          type="button"
-          className="btn-primary"
-          disabled={connect.isPending}
-          onClick={() => connect.mutate()}
-        >
-          Connect Gmail
-        </button>
+        {google && (
+          <button
+            type="button"
+            className="btn-primary"
+            disabled={connect.isPending}
+            onClick={() => connect.mutate()}
+          >
+            Connect Gmail
+          </button>
+        )}
+        {canPassword && (
+          <button
+            type="button"
+            className={google ? "btn-secondary" : "btn-primary"}
+            aria-expanded={password || !google}
+            onClick={() => setPassword(true)}
+          >
+            Use an app password
+          </button>
+        )}
         <button
           type="button"
           className="btn-secondary"
@@ -63,6 +79,9 @@ export function ConnectGmail() {
           Not now
         </button>
       </div>
+      {canPassword && (password || !google) && (
+        <AppPasswordForm onDone={() => setPassword(false)} />
+      )}
       {connect.isError && (
         <p role="alert" className="notice-error mt-2">
           Gmail could not be connected right now. Try again in a moment.

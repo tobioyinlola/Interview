@@ -1262,6 +1262,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/autoapply/mailbox/connect-smtp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Connect Smtp Mailbox
+         * @description Connect Gmail, Outlook or Yahoo with an app password. We log in once to check it (nothing is
+         *     sent), then keep it encrypted. It is never logged and never returned.
+         */
+        post: operations["connect_smtp_mailbox_api_autoapply_mailbox_connect_smtp_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/autoapply/mailbox/disconnect": {
         parameters: {
             query?: never;
@@ -2659,6 +2680,15 @@ export interface components {
             /** Url */
             url?: string | null;
         };
+        /** ConnectSmtpIn */
+        ConnectSmtpIn: {
+            /** Address */
+            address: string;
+            /** Password */
+            password: string;
+            /** Provider */
+            provider: string;
+        };
         /** CreditBreakdown */
         CreditBreakdown: {
             /** Gifted */
@@ -3074,6 +3104,11 @@ export interface components {
             last_synced_at?: string | null;
             /** Provider */
             provider?: string | null;
+            /**
+             * Smtp Providers
+             * @default []
+             */
+            smtp_providers: components["schemas"]["SmtpProviderOut"][];
             /** Status */
             status?: string | null;
         };
@@ -3842,6 +3877,15 @@ export interface components {
             /** Ref */
             ref?: string | null;
             utm?: components["schemas"]["Utm"] | null;
+        };
+        /** SmtpProviderOut */
+        SmtpProviderOut: {
+            /** Help */
+            help: string;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
         };
         /** SourceOut */
         SourceOut: {
@@ -6328,6 +6372,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConnectOut"];
+                };
+            };
+        };
+    };
+    connect_smtp_mailbox_api_autoapply_mailbox_connect_smtp_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectSmtpIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MailboxOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

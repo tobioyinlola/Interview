@@ -1,3 +1,4 @@
+import { AppPasswordForm } from "../AppPasswordForm";
 import { useDashboard, useMailbox, useMailboxActions } from "../api";
 import { Fail, SourceChips } from "../ui";
 import { OptionTile } from "./controls";
@@ -107,6 +108,7 @@ export function StepApply({
             You chose an email option, so connect your email to continue.
           </p>
         )}
+        {!connected && <AppPasswordForm />}
         <Fail error={connect.error ?? disconnect.error} />
       </div>
     </div>

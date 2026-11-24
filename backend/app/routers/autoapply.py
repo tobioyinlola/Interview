@@ -20,6 +20,7 @@ from app.autoapply import (
     discovery,
     facts,
     interviews,
+    mailboxes,
     outbox,
     outreach,
     pipeline,
@@ -27,10 +28,11 @@ from app.autoapply import (
     rules,
 )
 from app.autoapply import mailbox as mbx
+from app.autoapply import smtpmail as smtp
 from app.autoapply.adapters import AdapterError, DiscoveryAdapter, FormAdapter, MailboxAdapter
 from app.autoapply.discovery import source_labels
-from app.autoapply.fixtures import FixtureForm, FixtureMailbox
-from app.autoapply.gmail import STATE_COOKIE, GmailAdapter, GmailOAuth
+from app.autoapply.fixtures import FixtureForm
+from app.autoapply.gmail import STATE_COOKIE, GmailOAuth
 from app.autoapply.schemas import (
     AnswerApplicationIn,
     AnswerIn,
@@ -45,6 +47,7 @@ from app.autoapply.schemas import (
     CandidateApp,
     ConfirmTimeIn,
     ConnectOut,
+    ConnectSmtpIn,
     DashboardOut,
     Disclosure,
     EnableIn,
@@ -64,6 +67,7 @@ from app.autoapply.schemas import (
     ResolveIn,
     RunOut,
     SearchProfileIn,
+    SmtpProviderOut,
     StartupSentOut,
     StatusOut,
     UsageOut,
@@ -126,13 +130,11 @@ def get_mailbox_adapter(
     request: Request,
     settings: Settings = Depends(get_settings),  # noqa: B008
 ) -> MailboxAdapter:
-    """Gmail when it is configured and chosen, else the fixture (which touches nobody)."""
+    """Gmail when it is configured and chosen, else the fixture (which touches nobody); app-password
+    mailboxes are added beside either when they are switched on."""
     adapter = getattr(request.app.state, "autoapply_mailbox_adapter", None)
     if adapter is None:
-        wants_gmail = (
-            settings.autoapply_mailbox_provider == "gmail" and GmailOAuth(settings).enabled
-        )
-        adapter = GmailAdapter(settings) if wants_gmail else FixtureMailbox()
+        adapter = mailboxes.build(settings)
         request.app.state.autoapply_mailbox_adapter = adapter
     return adapter
 
@@ -843,8 +845,14 @@ async def read_mailbox(
 ) -> MailboxOut:
     conn = await mbx.get(db, user.id)
     can = settings.autoapply_mailbox_provider != "gmail" or GmailOAuth(settings).enabled
+    options = _smtp_options(settings)
     if conn is None or conn.status == "disconnected":
-        return MailboxOut(connected=False, status="disconnected" if conn else None, can_connect=can)
+        return MailboxOut(
+            connected=False,
+            status="disconnected" if conn else None,
+            can_connect=can,
+            smtp_providers=options,
+        )
     return MailboxOut(
         connected=conn.status == "connected",
         provider=conn.provider,
@@ -852,6 +860,54 @@ async def read_mailbox(
         status=conn.status,
         last_synced_at=conn.last_synced_at,
         can_connect=can,
+        smtp_providers=options,
+    )
+
+
+def _smtp_options(settings: Settings) -> list[SmtpProviderOut]:
+    if not settings.smtp_mailbox_enabled:
+        return []
+    return [SmtpProviderOut(id=k, label=p.label, help=p.help) for k, p in smtp.PROVIDERS.items()]
+
+
+@router.post("/mailbox/connect-smtp")
+async def connect_smtp_mailbox(
+    body: ConnectSmtpIn,
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    settings: Settings = Depends(get_settings),  # noqa: B008
+    now: datetime = Depends(get_now),  # noqa: B008
+) -> MailboxOut:
+    """Connect Gmail, Outlook or Yahoo with an app password. We log in once to check it (nothing is
+    sent), then keep it encrypted. It is never logged and never returned."""
+    if not settings.smtp_mailbox_enabled:
+        raise ApiError(503, "mailbox_unavailable", "Connecting with an app password is not on.")
+    address = body.address.strip().lower()
+    if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", address):
+        raise ApiError(422, "bad_address", "Enter the email address the app password belongs to.")
+    if body.provider not in smtp.PROVIDERS:
+        raise ApiError(422, "bad_provider", "Choose Gmail, Outlook or Yahoo.")
+    password = re.sub(r"\s+", "", body.password)  # providers show app passwords in groups
+    try:
+        await smtp.SmtpAdapter().verify(body.provider, address, password)
+    except AdapterError as exc:
+        status = 503 if exc.transient else 422
+        raise ApiError(status, "mailbox_rejected", str(exc)) from None
+    await mbx.connect(
+        db,
+        settings,
+        user.id,
+        provider="smtp",
+        address=address,
+        credential=smtp.make_token(body.provider, address, password),
+        now=now,
+    )
+    return MailboxOut(
+        connected=True,
+        provider="smtp",
+        address=address,
+        status="connected",
+        smtp_providers=_smtp_options(settings),
     )
 
 

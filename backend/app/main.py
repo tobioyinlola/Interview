@@ -101,13 +101,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 async def start_autoapply(settings: Settings) -> None:
     """Run the Auto-Apply scheduler for the life of the server."""
-    from app.autoapply import discovery, scheduler
-    from app.autoapply.fixtures import FixtureForm, FixtureMailbox
-    from app.autoapply.gmail import GmailAdapter, GmailOAuth
+    from app.autoapply import discovery, mailboxes, scheduler
+    from app.autoapply.fixtures import FixtureForm
 
-    mailbox_adapter: MailboxAdapter = FixtureMailbox()
-    if settings.autoapply_mailbox_provider == "gmail" and GmailOAuth(settings).enabled:
-        mailbox_adapter = GmailAdapter(settings)
+    mailbox_adapter: MailboxAdapter = mailboxes.build(settings)
     await scheduler.loop(
         get_sessionmaker(),
         settings=settings,

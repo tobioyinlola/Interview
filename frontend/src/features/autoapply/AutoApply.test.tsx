@@ -1468,3 +1468,108 @@ describe("the Gmail prompt on the home screens", () => {
     localStorage.removeItem("im-gmail-prompt-dismissed");
   });
 });
+
+describe("connecting with an app password", () => {
+  const options = [
+    {
+      id: "gmail",
+      label: "Gmail or Google Workspace",
+      help: "Google Account, Security, App passwords.",
+    },
+    {
+      id: "outlook",
+      label: "Outlook or Hotmail",
+      help: "Microsoft account, Security.",
+    },
+  ];
+  const off = {
+    connected: false,
+    address: null,
+    status: "none",
+    can_connect: true,
+    smtp_providers: options,
+  };
+
+  it("offers the form on the home card next to the Google button, and connects", async () => {
+    const connect = vi.fn(() => ({
+      json: {
+        ...off,
+        connected: true,
+        provider: "smtp",
+        address: "ada@example.com",
+      },
+    }));
+    base({
+      "GET /api/autoapply/mailbox": () => ({ json: off }),
+      "POST /api/autoapply/mailbox/connect-smtp": connect,
+    });
+    renderApp(<App />, "/dashboard");
+    const card = await screen.findByRole("region", {
+      name: "Send from your own Gmail",
+    });
+    expect(
+      within(card).getByRole("button", { name: "Connect Gmail" }),
+    ).toBeVisible();
+    await userEvent.click(
+      within(card).getByRole("button", { name: "Use an app password" }),
+    );
+    expect(
+      within(card).getByText(/Google Account, Security, App passwords\./),
+    ).toBeVisible();
+    await userEvent.type(
+      within(card).getByLabelText("App password"),
+      "abcd efgh",
+    );
+    await userEvent.click(
+      within(card).getByRole("button", { name: "Connect" }),
+    );
+    await waitFor(() => expect(connect).toHaveBeenCalled());
+  });
+
+  it("shows why a wrong password was refused, and never fills the password back in", async () => {
+    base({
+      "GET /api/autoapply/mailbox": () => ({ json: off }),
+      "POST /api/autoapply/mailbox/connect-smtp": () => ({
+        status: 422,
+        json: {
+          error: {
+            code: "mailbox_rejected",
+            message: "Gmail did not accept that address and app password.",
+          },
+        },
+      }),
+    });
+    renderApp(<App />, "/dashboard");
+    const card = await screen.findByRole("region", {
+      name: "Send from your own Gmail",
+    });
+    await userEvent.click(
+      within(card).getByRole("button", { name: "Use an app password" }),
+    );
+    await userEvent.type(
+      within(card).getByLabelText("App password"),
+      "wrongwrong",
+    );
+    await userEvent.click(
+      within(card).getByRole("button", { name: "Connect" }),
+    );
+    expect(await within(card).findByRole("alert")).toHaveTextContent(
+      "did not accept that address and app password",
+    );
+  });
+
+  it("is not offered when the server has it switched off", async () => {
+    base({
+      "GET /api/autoapply/mailbox": () => ({
+        json: { ...off, smtp_providers: [] },
+      }),
+    });
+    renderApp(<App />, "/dashboard");
+    const card = await screen.findByRole("region", {
+      name: "Send from your own Gmail",
+    });
+    expect(
+      within(card).queryByRole("button", { name: "Use an app password" }),
+    ).toBeNull();
+  });
+});

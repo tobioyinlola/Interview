@@ -166,6 +166,15 @@ export function useMailboxActions() {
       mutationFn: () => post<AAMailbox>("/mailbox/disconnect"),
       onSuccess: refresh,
     }),
+    /** Connect with an app password: Gmail, Outlook or Yahoo. */
+    connectWithPassword: useMutation({
+      mutationFn: (b: {
+        provider: string;
+        address: string;
+        password: string;
+      }) => post<AAMailbox>("/mailbox/connect-smtp", b),
+      onSuccess: refresh,
+    }),
   };
 }
 
