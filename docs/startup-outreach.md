@@ -13,10 +13,15 @@ can be added to Auto-Apply with one tap, and then goes through the same checks a
 
 ## What it does, step by step
 
-1. **Directories.** An operator loads an accelerator's public directory page
-   (`POST /api/hunt/admin/ingest`) or pastes companies in (`POST /api/hunt/admin/import`). A model
+1. **Directories.** 11 accelerators' public portfolio pages are built in (Y Combinator, Techstars,
+   Seedcamp, Antler, Alchemist, 500 Global, Startupbootcamp, Station F, Wayra UK, Village Global,
+   Capital Factory). Each is read a couple at a time and again every week by the scheduler. The
+   back office (Startups page, `/api/admin/startups`) turns each on or off, reads one now, adds
+   more, and takes pasted companies for pages that only show in a browser. A model
    copies out name, website, one-liner, country; websites are validated and de-duplicated by
-   domain. Region (us / eu / uk) comes from the country. Pages built only in the browser may
+   domain. Region (us / eu / uk) comes from the company's country; a regional directory (e.g. Station F)
+   supplies a region only for companies whose page gives no country, and a global directory never
+   does, so a company with no known region is left alone rather than guessed. Pages built only in the browser may
    yield nothing to a polite fetcher: use import for those.
 2. **Research** (`hunt/research.py`, runs in the scheduler, a few startups per pass). Fetches the
    startup's home, about, team, careers, jobs, contact pages (robots.txt respected, one request a

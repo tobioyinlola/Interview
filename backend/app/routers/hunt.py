@@ -3,7 +3,6 @@ loading accelerator directories. The flag STARTUP_OUTREACH_ENABLED turns it all 
 
 import uuid
 from datetime import datetime
-from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
@@ -18,7 +17,15 @@ from app.db import get_db
 from app.deps import current_user, require_admin
 from app.errors import ApiError
 from app.hunt import directory, engine, policy, research
-from app.models import HuntSettings, HuntTarget, SearchProfile, Startup, StartupContact, User
+from app.models import (
+    Directory,
+    HuntSettings,
+    HuntTarget,
+    SearchProfile,
+    Startup,
+    StartupContact,
+    User,
+)
 from app.routers.autoapply import get_llm, get_now
 from app.services.fetcher import Fetcher
 
@@ -80,11 +87,6 @@ class TargetOut(BaseModel):
     sent_at: datetime | None
 
 
-class IngestIn(BaseModel):
-    directory: str = Field(min_length=1, max_length=120)
-    url: str = Field(min_length=8, max_length=500)
-
-
 class StartupIn(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     website: str = Field(min_length=3, max_length=500)
@@ -92,11 +94,6 @@ class StartupIn(BaseModel):
     country: str = Field("", max_length=80)
     batch: str = Field("", max_length=60)
     sector: str = Field("", max_length=120)
-
-
-class ImportIn(BaseModel):
-    directory: str = Field(min_length=1, max_length=120)
-    startups: list[StartupIn] = Field(min_length=1, max_length=200)
 
 
 async def _ready(db: AsyncSession, st: HuntSettings | None, user_id: uuid.UUID) -> list[str]:
@@ -299,23 +296,179 @@ async def skip(
 # --------------------------------------------------------------------- operator tools
 
 
-@router.get("/directories")
-async def directories(_: User = Depends(require_admin)) -> dict[str, str]:  # noqa: B008
-    return directory.DIRECTORIES
+# The back office's staff session is only sent to /api/admin, so the operator tools live there.
+admin_router = APIRouter(
+    prefix="/api/admin/startups", tags=["admin"], dependencies=[Depends(feature_on)]
+)
 
 
-@router.post("/admin/ingest")
-async def ingest(
-    body: IngestIn,
+class DirectoryOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    url: str
+    region_hint: str
+    enabled: bool
+    builtin: bool
+    last_run_at: datetime | None
+    last_found: int
+    last_added: int
+    last_problem: str | None
+
+
+class AdminOverviewOut(BaseModel):
+    startups: int
+    by_status: dict[str, int]
+    by_region: dict[str, int]
+    with_contacts: int
+    with_openings: int
+    directories: list[DirectoryOut]
+
+
+class DirectoryIn(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    url: str = Field(min_length=8, max_length=500)
+    region_hint: str = Field("", max_length=8)
+
+
+class DirectoryPatch(BaseModel):
+    enabled: bool
+
+
+class ImportIn(BaseModel):
+    directory: str = Field(min_length=1, max_length=120)
+    region_hint: str = Field("", max_length=8)
+    startups: list[StartupIn] = Field(min_length=1, max_length=200)
+
+
+def get_fetcher() -> Fetcher:
+    """The polite page reader. Tests replace it so nothing touches the network."""
+    return Fetcher()
+
+
+def _dir_out(d: Directory) -> DirectoryOut:
+    return DirectoryOut(
+        id=d.id,
+        name=d.name,
+        url=d.url,
+        region_hint=d.region_hint,
+        enabled=d.enabled,
+        builtin=d.builtin,
+        last_run_at=d.last_run_at,
+        last_found=d.last_found,
+        last_added=d.last_added,
+        last_problem=d.last_problem,
+    )
+
+
+def _hint(value: str) -> str:
+    if value not in ("", *policy.REGIONS):
+        raise ApiError(422, "invalid_region", "Region can be blank, us, eu or uk.")
+    return value
+
+
+@admin_router.get("/overview")
+async def admin_overview(
+    _: User = Depends(require_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    now: datetime = Depends(get_now),  # noqa: B008
+) -> AdminOverviewOut:
+    await directory.ensure_defaults(db, now)
+    by_status = dict(
+        (await db.execute(select(Startup.status, func.count()).group_by(Startup.status))).all()
+    )
+    by_region = dict(
+        (await db.execute(select(Startup.region, func.count()).group_by(Startup.region))).all()
+    )
+    contacts = (
+        await db.execute(select(func.count(func.distinct(StartupContact.startup_id))))
+    ).scalar_one()
+    openings = (
+        await db.execute(
+            select(func.count())
+            .select_from(Startup)
+            .where(func.jsonb_array_length(Startup.research["openings"]) > 0)
+        )
+    ).scalar_one()
+    dirs = (await db.execute(select(Directory).order_by(Directory.name))).scalars().all()
+    return AdminOverviewOut(
+        startups=sum(by_status.values()),
+        by_status=by_status,
+        by_region=by_region,
+        with_contacts=contacts,
+        with_openings=openings,
+        directories=[_dir_out(d) for d in dirs],
+    )
+
+
+@admin_router.post("/directories", status_code=201)
+async def add_directory(
+    body: DirectoryIn,
+    _: User = Depends(require_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    now: datetime = Depends(get_now),  # noqa: B008
+) -> DirectoryOut:
+    url = body.url.strip()
+    if not url.startswith(("http://", "https://")):
+        raise ApiError(422, "invalid_url", "The address must start with https://.")
+    name = body.name.strip()
+    if (await db.execute(select(Directory.id).where(Directory.name == name))).first():
+        raise ApiError(409, "exists", "A directory with that name already exists.")
+    d = Directory(
+        id=uuid.uuid4(), name=name, url=url, region_hint=_hint(body.region_hint), created_at=now
+    )
+    db.add(d)
+    await db.commit()
+    return _dir_out(d)
+
+
+async def _directory(db: AsyncSession, did: uuid.UUID) -> Directory:
+    d = await db.get(Directory, did)
+    if d is None:
+        raise ApiError(404, "not_found", "Not found.")
+    return d
+
+
+@admin_router.put("/directories/{did}")
+async def patch_directory(
+    did: uuid.UUID,
+    body: DirectoryPatch,
+    _: User = Depends(require_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> DirectoryOut:
+    d = await _directory(db, did)
+    d.enabled = body.enabled
+    await db.commit()
+    return _dir_out(d)
+
+
+@admin_router.delete("/directories/{did}", status_code=204)
+async def delete_directory(
+    did: uuid.UUID,
+    _: User = Depends(require_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> None:
+    d = await _directory(db, did)
+    if d.builtin:
+        raise ApiError(409, "builtin", "Built-in directories can be turned off, not deleted.")
+    await db.delete(d)
+    await db.commit()
+
+
+@admin_router.post("/directories/{did}/refresh")
+async def refresh_directory(
+    did: uuid.UUID,
     _: User = Depends(require_admin),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008
     llm: LlmProvider = Depends(get_llm),  # noqa: B008
     now: datetime = Depends(get_now),  # noqa: B008
-) -> dict[str, Any]:
-    return await directory.ingest(db, Fetcher(), llm, body.directory, body.url, now)
+    fetcher: Fetcher = Depends(get_fetcher),  # noqa: B008
+) -> DirectoryOut:
+    d = await _directory(db, did)
+    await directory.refresh(db, fetcher, llm, d, now)
+    return _dir_out(d)
 
 
-@router.post("/admin/import")
+@admin_router.post("/import")
 async def import_startups(
     body: ImportIn,
     _: User = Depends(require_admin),  # noqa: B008
@@ -327,23 +480,29 @@ async def import_startups(
         for s in body.startups
         if (f := directory._clean(s.model_dump(), "")) is not None  # noqa: SLF001
     ]
-    return {"added": await directory.save(db, body.directory, "manual import", found, now)}
+    added = await directory.save(
+        db, body.directory, "manual import", found, now, _hint(body.region_hint)
+    )
+    return {"added": added, "skipped": len(body.startups) - added}
 
 
-@router.post("/admin/research")
+@admin_router.post("/research")
 async def run_research(
     _: User = Depends(require_admin),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008
     llm: LlmProvider = Depends(get_llm),  # noqa: B008
     now: datetime = Depends(get_now),  # noqa: B008
+    fetcher: Fetcher = Depends(get_fetcher),  # noqa: B008
 ) -> dict[str, int]:
-
     rows = (
-        (await db.execute(select(Startup).where(Startup.status == "new").limit(5))).scalars().all()
+        (
+            await db.execute(
+                select(Startup).where(Startup.status == "new", Startup.region != "other").limit(5)
+            )
+        )
+        .scalars()
+        .all()
     )
-    fetcher = Fetcher()
-    done = 0
     for s in rows:
         await research.research(db, fetcher, llm, s, now)
-        done += 1
-    return {"researched": done}
+    return {"researched": len(rows)}

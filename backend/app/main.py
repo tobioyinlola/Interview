@@ -153,6 +153,7 @@ def create_app() -> FastAPI:
         audio_ws.router,
         autoapply.router,
         hunt.router,
+        hunt.admin_router,
         staff_auth.router,
         admin.router,
         admin_autoapply.router,

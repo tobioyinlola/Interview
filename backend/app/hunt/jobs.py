@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.adapters.interfaces import LlmProvider
 from app.autoapply.adapters import MailboxAdapter
 from app.config import Settings
-from app.hunt import engine, research
+from app.hunt import directory, engine, research
 from app.models import HuntSettings, Startup
 from app.services.fetcher import Fetcher
 
@@ -57,7 +57,13 @@ async def run(
     llm: LlmProvider,
     fetcher: Fetcher | None = None,
 ) -> dict[str, int]:
-    researched = await research_pending(maker, fetcher or Fetcher(), llm, now)
+    fetcher = fetcher or Fetcher()
+    try:
+        async with maker() as db:
+            await directory.refresh_due(db, fetcher, llm, now)
+    except Exception:  # noqa: BLE001 - a directory being down must not stop the rest
+        log.exception("directory refresh failed")
+    researched = await research_pending(maker, fetcher, llm, now)
     await engine.reconcile(maker, adapter, settings, now)
     async with maker() as db:
         users = (
