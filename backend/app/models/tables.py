@@ -825,6 +825,7 @@ class HuntTarget(Base):
     step: Mapped[int] = mapped_column(Integer, default=1)  # 1 first note, 2 one follow-up
     fit: Mapped[int] = mapped_column(Integer, default=0)
     fit_reasons: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    openings: Mapped[list[dict[str, str]]] = mapped_column(JSONB, default=list)  # matching roles
     subject: Mapped[str] = mapped_column(String(300), default="")
     body: Mapped[str] = mapped_column(Text, default="")
     status: Mapped[str] = mapped_column(String(10), default="drafted")

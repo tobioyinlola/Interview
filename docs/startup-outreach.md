@@ -4,6 +4,13 @@ Finds startups in accelerators' public directories, reads what each one publishe
 and writes to a published contact on a candidate's behalf, from the candidate's own connected
 mailbox. It is separate from Auto-Apply (job listings) and works for any role, not only product.
 
+## Where it lives
+
+Startups are the second tab of Auto-Apply (Jobs | Startups), on every device. It shares Auto-Apply's
+search roles, name, mailbox and one pause: pausing Auto-Apply pauses startup pitches too. The
+Auto-Apply overview shows how many pitches wait for you. A role found on a startup's careers page
+can be added to Auto-Apply with one tap, and then goes through the same checks as any pasted job.
+
 ## What it does, step by step
 
 1. **Directories.** An operator loads an accelerator's public directory page
@@ -15,10 +22,13 @@ mailbox. It is separate from Auto-Apply (job listings) and works for any role, n
    startup's home, about, team, careers, jobs, contact pages (robots.txt respected, one request a
    second). Keeps only addresses *published on those pages, on the startup's own domain*, with the
    page they came from. Nothing is guessed, patterned from a name, or bought. A person's name is
-   kept only if it appears in the page text. A summary and any named openings are stored.
+   kept only if it appears in the page text. It also finds the careers page (the startup's own
+   link, including to a job board such as Ashby, Lever or Greenhouse) and records each opening
+   with its link, falling back to the careers page when an opening has no link of its own.
+   A summary is stored too.
 3. **Fit** (`hunt/fit.py`). Deterministic score from the candidate's roles and verified CV
    facts against the startup's published text; every point has a reason shown to the candidate.
-4. **Draft** (`hunt/draft.py`). The model may use only the candidate's confirmed facts, their own
+4. **Draft** (`hunt/draft.py`). Short (under 100 words), and it names the matching opening. The model may use only the candidate's confirmed facts, their own
    pitch, and the startup's published facts. Numbers must appear in those facts; over-long or
    ungrounded drafts fall back to a plain template. The disclosure footer is added by code.
 5. **Approve.** By default every note waits for the candidate. They can switch on auto-send.

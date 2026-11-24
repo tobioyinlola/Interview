@@ -19,6 +19,8 @@ const settings = {
   postal_address: "",
   mailbox: "ada@example.com",
   ready: ["Add a postal address (required on commercial email)"],
+  prefilled: true,
+  paused: false,
 };
 const target = {
   id: "t1",
@@ -29,6 +31,10 @@ const target = {
   contact: "jobs@acme.io",
   contact_kind: "role",
   contact_source: "https://acme.io/careers",
+  careers_url: "https://acme.io/careers",
+  openings: [
+    { title: "Senior Product Manager", url: "https://acme.io/careers/pm" },
+  ],
   fit: 65,
   fit_reasons: ["They list a Senior Product Manager opening."],
   step: 1,
@@ -53,38 +59,75 @@ const routes = (extra: Record<string, () => object> = {}) =>
     ...extra,
   });
 
-describe("Startup outreach", () => {
-  it("shows what is missing and a note waiting for approval, with where the address came from", async () => {
+describe("Startups inside Auto-Apply", () => {
+  it("starts on the setup steps when it is not set up, then walks through them", async () => {
     routes();
-    renderApp(<App />, "/startups");
-    expect(
-      await screen.findByRole("heading", { name: "Startup outreach" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Still to do: Add a postal address/)).toBeVisible();
-    expect(screen.getByText("jobs@acme.io")).toBeVisible();
-    expect(screen.getByRole("link", { name: "here" })).toHaveAttribute(
-      "href",
-      "https://acme.io/careers",
+    renderApp(<App />, "/auto-apply/startups");
+    expect(await screen.findByText(/Step 1 of 3/)).toBeVisible();
+    expect(screen.getByDisplayValue("Senior Product Manager")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByText(/Step 2 of 3/)).toBeVisible();
+    // the next step needs a postal address before it lets you go on
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+    await userEvent.type(
+      screen.getByLabelText(/Postal address/),
+      "12 Marina, Lagos",
     );
-    expect(screen.getByText(/opening/)).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByText(/Step 3 of 3/)).toBeVisible();
   });
 
-  it("approves a note", async () => {
+  it("shows both the careers page and the email pitch on a card, and approves it", async () => {
     const approve = vi.fn(() => ({ json: { ...target, status: "approved" } }));
-    routes({ "POST /api/hunt/targets/t1/approve": approve });
-    renderApp(<App />, "/startups");
-    await userEvent.click(
-      await screen.findByRole("button", { name: "Approve and send" }),
+    routes({
+      "GET /api/hunt/settings": () => ({
+        json: { ...settings, enabled: true, ready: [] },
+      }),
+      "POST /api/hunt/targets/t1/approve": approve,
+    });
+    renderApp(<App />, "/auto-apply/startups");
+    expect(await screen.findByText("1 · Careers page")).toBeVisible();
+    expect(screen.getByText("2 · Email pitch")).toBeVisible();
+    expect(screen.getByRole("link", { name: "View role" })).toHaveAttribute(
+      "href",
+      "https://acme.io/careers/pm",
     );
+    expect(screen.getByText("jobs@acme.io")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Send pitch" }));
     await waitFor(() => expect(approve).toHaveBeenCalled());
   });
 
-  it("offers the page in the menu only when the feature is on", async () => {
+  it("adds an opening to Auto-Apply", async () => {
+    const add = vi.fn(() => ({ status: 201, json: {} }));
+    routes({
+      "GET /api/hunt/settings": () => ({
+        json: { ...settings, enabled: true, ready: [] },
+      }),
+      "POST /api/autoapply/jobs": add,
+    });
+    renderApp(<App />, "/auto-apply/startups");
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Add to Auto-Apply" }),
+    );
+    await waitFor(() => expect(add).toHaveBeenCalled());
+  });
+
+  it("shows the Jobs and Startups tabs only when the feature is on", async () => {
     routes({
       "GET /api/me": () => ({ json: { ...me, startup_outreach: false } }),
     });
-    renderApp(<App />, "/dashboard");
-    await screen.findAllByText(/Overview/);
-    expect(screen.queryByRole("link", { name: /Startups/ })).toBeNull();
+    renderApp(<App />, "/auto-apply/startups");
+    await screen.findByRole("heading", { name: "Startups" });
+    expect(
+      screen.queryByRole("navigation", { name: "Auto-Apply sections" }),
+    ).toBeNull();
+  });
+
+  it("the old address still works", async () => {
+    routes();
+    renderApp(<App />, "/startups");
+    expect(
+      await screen.findByRole("heading", { name: "Startups" }),
+    ).toBeVisible();
   });
 });

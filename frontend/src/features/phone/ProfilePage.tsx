@@ -1,5 +1,4 @@
 import {
-  Building2,
   ChevronRight,
   CircleHelp,
   FileText,
@@ -79,14 +78,6 @@ export function ProfilePage() {
           icon={<History className={icon} />}
           label="Interview history"
         />
-        {me?.startup_outreach && (
-          <Row
-            to="/startups"
-            icon={<Building2 className={icon} />}
-            label="Startup outreach"
-            hint="Notes to startups, in your voice"
-          />
-        )}
         <Row
           to="/referrals"
           icon={<Gift className={icon} />}

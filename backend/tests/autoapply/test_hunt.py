@@ -11,7 +11,7 @@ from app.adapters.fakes import FakeLlmProvider
 from app.autoapply import switches
 from app.autoapply.adapters import InboundMessage
 from app.hunt import directory, draft, engine, fit, policy, research
-from app.models import HuntTarget, Startup, StartupContact, Suppression, User
+from app.models import HuntTarget, SearchProfile, Startup, StartupContact, Suppression, User
 from app.services.fetcher import FetchResult
 from tests.autoapply.conftest import FACTS
 
@@ -119,8 +119,10 @@ class Pages:
         hit = self.pages.get(url)
         if hit is None:
             return FetchResult(url, "blocked", "not found")
-        text, emails = hit
-        return FetchResult(url, "ok", text=text, final_url=url, emails=tuple(emails))
+        text, emails, *links = hit
+        return FetchResult(
+            url, "ok", text=text, final_url=url, emails=tuple(emails), links=tuple(*links)
+        )
 
 
 async def add_startup(db, name="Acme", domain="acme.io", region="us", **kw):
@@ -494,3 +496,127 @@ async def test_people_only_see_their_own_notes(ada, maker, mailbox, write_llm, n
 async def test_flag_off_means_404(ada, settings):
     settings.startup_outreach_enabled = False
     assert (await ada.get("/api/hunt/settings")).status_code == 404
+
+
+# ------------------------------------------------------------------------------ careers + sync
+
+
+LinkedPages = Pages
+
+
+async def test_careers_page_is_found_through_a_job_board_link(maker):
+    async with maker() as db:
+        s = await add_startup(db)
+        pages = LinkedPages(
+            {
+                "https://acme.io": (
+                    "Acme builds payments for marketplaces. " * 5,
+                    [],
+                    [
+                        ("We're hiring", "https://jobs.ashbyhq.com/acme"),
+                        ("Blog", "https://acme.io/blog"),
+                    ],
+                ),
+                "https://jobs.ashbyhq.com/acme": (
+                    "Open roles at Acme. Senior Product Manager. Backend Engineer. " * 3,
+                    [],
+                    [
+                        ("Senior Product Manager", "https://jobs.ashbyhq.com/acme/pm-1"),
+                        ("Backend Engineer", "https://elsewhere.example/x"),
+                    ],
+                ),
+            }
+        )
+        llm = FakeLlmProvider(
+            json_reply=json.dumps(
+                {
+                    "summary": "Acme builds payments.",
+                    "hiring": True,
+                    "roles": ["Senior Product Manager", "Backend Engineer"],
+                    "people": [],
+                }
+            )
+        )
+        await research.research(db, pages, llm, s, NOW)
+        r = s.research
+        assert r["careers_url"] == "https://jobs.ashbyhq.com/acme"
+        urls = {o["title"]: o["url"] for o in r["openings"]}
+        assert urls["Senior Product Manager"] == "https://jobs.ashbyhq.com/acme/pm-1"
+        # a link to an unrelated site is never offered as the opening: fall back to the careers page
+        assert urls["Backend Engineer"] == "https://jobs.ashbyhq.com/acme"
+        assert [o["title"] for o in fit.openings_for(["Senior Product Manager"], s)] == [
+            "Senior Product Manager"
+        ]
+
+
+async def test_notes_carry_the_matching_opening_and_stay_short(
+    ada, maker, mailbox, settings, write_llm
+):
+    uid = await setup(ada, maker, mailbox)
+    await seed(maker, 1)
+    async with maker() as db:
+        s = (await db.execute(select(Startup))).scalar_one()
+        s.research = {
+            **s.research,
+            "careers_url": "https://acme0.io/careers",
+            "openings": [{"title": "Senior Product Manager", "url": "https://acme0.io/careers/pm"}],
+        }
+        await db.commit()
+    bad = FakeLlmProvider(
+        json_reply="nope"
+    )  # the model fails: the plain template still mentions it
+    async with maker() as db:
+        await engine.plan(db, uid, NOW, bad)
+    t = (await ada.get("/api/hunt/targets")).json()[0]
+    assert t["openings"] == [
+        {"title": "Senior Product Manager", "url": "https://acme0.io/careers/pm"}
+    ]
+    assert t["careers_url"] == "https://acme0.io/careers"
+    assert "Senior Product Manager opening" in t["body"]
+    assert len(t["body"].split("--")[0].split()) < 100
+
+
+async def test_one_pause_covers_both(ada, maker, mailbox, settings, write_llm):
+    from tests.autoapply.conftest import PROFILE
+
+    uid = await setup(ada, maker, mailbox, auto_send=True)
+    await ada.put("/api/autoapply/profile", json=PROFILE)
+    await seed(maker, 1)
+    async with maker() as db:
+        await engine.plan(db, uid, NOW, write_llm)
+        prof = (
+            await db.execute(select(SearchProfile).where(SearchProfile.user_id == uid))
+        ).scalar_one()
+        prof.paused = True
+        await db.commit()
+    assert (await ada.get("/api/hunt/settings")).json()["paused"] is True
+    assert await engine.send_next(maker, uid, mailbox, settings, NOW) is None
+    async with maker() as db:
+        prof = (
+            await db.execute(select(SearchProfile).where(SearchProfile.user_id == uid))
+        ).scalar_one()
+        prof.paused = False
+        await db.commit()
+    assert await engine.send_next(maker, uid, mailbox, settings, NOW) == "sent"
+
+
+async def test_settings_start_from_the_auto_apply_search(ada):
+    from tests.autoapply.conftest import PROFILE
+
+    await ada.put("/api/autoapply/profile", json=PROFILE)
+    await ada.put("/api/autoapply/facts", json={"data": FACTS, "verified": True})
+    s = (await ada.get("/api/hunt/settings")).json()
+    assert s["roles"] == ["Senior Product Manager"] and s["sender_name"] == "Ada Okoye"
+    assert s["prefilled"] is True and s["enabled"] is False
+
+
+async def test_auto_apply_overview_shows_startup_counts(ada, maker, mailbox, write_llm):
+    from tests.autoapply.conftest import start
+
+    await start(ada)
+    uid = await setup(ada, maker, mailbox)
+    await seed(maker, 2)
+    async with maker() as db:
+        await engine.plan(db, uid, NOW, write_llm)
+    d = (await ada.get("/api/autoapply/dashboard")).json()
+    assert d["startups"]["waiting"] == 2 and d["startups"]["sent"] == 0

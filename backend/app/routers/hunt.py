@@ -11,13 +11,14 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.interfaces import LlmProvider
+from app.autoapply import facts as facts_mod
 from app.autoapply import mailbox
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.deps import current_user, require_admin
 from app.errors import ApiError
 from app.hunt import directory, engine, policy, research
-from app.models import HuntSettings, HuntTarget, Startup, StartupContact, User
+from app.models import HuntSettings, HuntTarget, SearchProfile, Startup, StartupContact, User
 from app.routers.autoapply import get_llm, get_now
 from app.services.fetcher import Fetcher
 
@@ -44,6 +45,13 @@ class SettingsIn(BaseModel):
 class SettingsOut(SettingsIn):
     mailbox: str | None
     ready: list[str]  # what is still missing before a note can go out
+    prefilled: bool = False  # roles and name were taken from the Auto-Apply search and CV
+    paused: bool = False  # Auto-Apply is paused, so this is too
+
+
+class OpeningOut(BaseModel):
+    title: str
+    url: str
 
 
 class EditIn(BaseModel):
@@ -60,6 +68,8 @@ class TargetOut(BaseModel):
     contact: str
     contact_kind: str
     contact_source: str
+    careers_url: str | None
+    openings: list[OpeningOut]
     fit: int
     fit_reasons: list[str]
     step: int
@@ -104,19 +114,43 @@ async def _ready(db: AsyncSession, st: HuntSettings | None, user_id: uuid.UUID) 
     return missing
 
 
+async def _suggestions(db: AsyncSession, user_id: uuid.UUID) -> tuple[list[str], str]:
+    """What the candidate already told Auto-Apply: the roles they search for and their name."""
+    prof = (
+        await db.execute(select(SearchProfile).where(SearchProfile.user_id == user_id))
+    ).scalar_one_or_none()
+    roles = [
+        str(r.get("value", "")).strip()
+        for r in ((prof.criteria or {}).get("roles") or [] if prof else [])
+        if isinstance(r, dict) and str(r.get("value", "")).strip()
+    ]
+    row = await facts_mod.get(db, user_id)
+    name = str(((row.data if row else {}) or {}).get("contact", {}).get("name", "")).strip()
+    return roles[:5], name
+
+
 async def _out(db: AsyncSession, user_id: uuid.UUID) -> SettingsOut:
     st = await engine.get_settings(db, user_id)
+    roles = list(st.roles) if st else []
+    name = st.sender_name if st else ""
+    prefilled = False
+    if not roles or not name:
+        s_roles, s_name = await _suggestions(db, user_id)
+        prefilled = (not roles and bool(s_roles)) or (not name and bool(s_name))
+        roles, name = roles or s_roles, name or s_name
     return SettingsOut(
         enabled=bool(st and st.enabled),
         regions=list(st.regions) if st else [],
-        roles=list(st.roles) if st else [],
+        roles=roles,
         pitch=st.pitch if st else "",
         daily_cap=st.daily_cap if st else 8,
         auto_send=bool(st and st.auto_send),
-        sender_name=st.sender_name if st else "",
+        sender_name=name,
         postal_address=st.postal_address if st else "",
         mailbox=await mailbox.connected_address(db, user_id),
         ready=await _ready(db, st, user_id),
+        prefilled=prefilled,
+        paused=await engine.paused(db, user_id),
     )
 
 
@@ -171,6 +205,8 @@ async def _target_out(db: AsyncSession, t: HuntTarget) -> TargetOut:
         contact=c.email,
         contact_kind=c.kind,
         contact_source=c.source_url,
+        careers_url=(s.research or {}).get("careers_url"),
+        openings=[OpeningOut(**o) for o in (t.openings or []) if isinstance(o, dict)],
         fit=t.fit,
         fit_reasons=list(t.fit_reasons or []),
         step=t.step,

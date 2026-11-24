@@ -285,3 +285,4 @@ class DashboardOut(BaseModel):
     recent: list[ApplicationOut]
     counts: dict[str, int]
     review_count: int
+    startups: dict[str, int] | None = None  # startup outreach, when it is switched on
