@@ -14,6 +14,7 @@ import { CompanyPage } from "../features/companies/CompanyPage";
 import { ApplicationPage } from "../features/autoapply/ApplicationPage";
 import { ApplicationsPage } from "../features/autoapply/ApplicationsPage";
 import { AutoApplyPage } from "../features/autoapply/AutoApplyPage";
+import { StartupsPage } from "../features/startups/StartupsPage";
 import { SetupPage } from "../features/autoapply/SetupPage";
 import { AutoApplyAdminPage } from "../features/admin/AutoApplyAdminPage";
 import { ActivityPage } from "../features/admin/ActivityPage";
@@ -150,6 +151,7 @@ function AppRoutes() {
               path="/auto-apply/applications/:id"
               element={<ApplicationPage />}
             />
+            <Route path="/startups" element={<StartupsPage />} />
             <Route path="/referrals" element={<ReferralPage />} />
             <Route path="/help" element={<HelpPage />} />
             <Route

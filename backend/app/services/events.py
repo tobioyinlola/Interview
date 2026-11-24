@@ -59,6 +59,7 @@ EVENT_KINDS: dict[str, tuple[str, str]] = {
     "autoapply.application_sent": ("autoapply", "An application went out"),
     "autoapply.application_failed": ("autoapply", "An application failed"),
     "autoapply.outreach_sent": ("autoapply", "A hiring-contact note went out"),
+    "hunt.sent": ("autoapply", "A startup outreach note went out"),
     "autoapply.ended": ("autoapply", "A 30-day search finished"),
     "email.sent": ("email", "Email sent"),
     "email.failed": ("email", "Email failed to send"),

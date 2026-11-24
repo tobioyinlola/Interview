@@ -33,6 +33,7 @@ from app.routers import (
     billing,
     companies,
     health,
+    hunt,
     metrics_route,
     notes,
     profile,
@@ -78,7 +79,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     scorer.notifier = notifier
     await purge_old_events(get_sessionmaker(), settings.event_retention_days)
     autoapply_task: asyncio.Task[None] | None = None
-    if settings.autoapply_enabled and settings.autoapply_tick_seconds > 0:
+    if (
+        settings.autoapply_enabled or settings.startup_outreach_enabled
+    ) and settings.autoapply_tick_seconds > 0:
         autoapply_task = asyncio.create_task(start_autoapply(settings))
 
     await scorer.fail_interrupted()
@@ -149,6 +152,7 @@ def create_app() -> FastAPI:
         sessions.router,
         audio_ws.router,
         autoapply.router,
+        hunt.router,
         staff_auth.router,
         admin.router,
         admin_autoapply.router,

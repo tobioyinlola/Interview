@@ -12,6 +12,8 @@ from app.models.tables import (
     CompanySource,
     DiscoveryRun,
     Event,
+    HuntSettings,
+    HuntTarget,
     IdempotencyKey,
     InterviewLink,
     JobAlias,
@@ -29,8 +31,11 @@ from app.models.tables import (
     Score,
     SearchProfile,
     SessionCredit,
+    Startup,
+    StartupContact,
     SubmissionAttempt,
     Suggestion,
+    Suppression,
     Usage,
     User,
     UserDevice,
@@ -38,7 +43,12 @@ from app.models.tables import (
 )
 
 __all__ = [
+    "HuntSettings",
+    "HuntTarget",
     "KillSwitch",
+    "Startup",
+    "StartupContact",
+    "Suppression",
     "InterviewLink",
     "RecruitingEvent",
     "MailboxConnection",

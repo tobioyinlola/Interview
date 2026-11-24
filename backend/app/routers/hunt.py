@@ -1,0 +1,313 @@
+"""Startup outreach: a candidate's settings and notes to review, and the operator's tools for
+loading accelerator directories. The flag STARTUP_OUTREACH_ENABLED turns it all off (404)."""
+
+import uuid
+from datetime import datetime
+from typing import Any
+
+from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel, Field
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.adapters.interfaces import LlmProvider
+from app.autoapply import mailbox
+from app.config import Settings, get_settings
+from app.db import get_db
+from app.deps import current_user, require_admin
+from app.errors import ApiError
+from app.hunt import directory, engine, policy, research
+from app.models import HuntSettings, HuntTarget, Startup, StartupContact, User
+from app.routers.autoapply import get_llm, get_now
+from app.services.fetcher import Fetcher
+
+
+def feature_on(settings: Settings = Depends(get_settings)) -> None:  # noqa: B008
+    if not settings.startup_outreach_enabled:
+        raise ApiError(404, "not_found", "Not found.")
+
+
+router = APIRouter(prefix="/api/hunt", tags=["hunt"], dependencies=[Depends(feature_on)])
+
+
+class SettingsIn(BaseModel):
+    enabled: bool
+    regions: list[str] = Field(default_factory=list, max_length=3)
+    roles: list[str] = Field(default_factory=list, max_length=5)
+    pitch: str = Field("", max_length=1200)
+    daily_cap: int = Field(8, ge=1, le=engine.MAX_DAILY)
+    auto_send: bool = False
+    sender_name: str = Field("", max_length=120)
+    postal_address: str = Field("", max_length=300)
+
+
+class SettingsOut(SettingsIn):
+    mailbox: str | None
+    ready: list[str]  # what is still missing before a note can go out
+
+
+class EditIn(BaseModel):
+    subject: str = Field(min_length=1, max_length=300)
+    body: str = Field(min_length=1, max_length=4000)
+
+
+class TargetOut(BaseModel):
+    id: uuid.UUID
+    startup: str
+    website: str
+    one_liner: str
+    region: str
+    contact: str
+    contact_kind: str
+    contact_source: str
+    fit: int
+    fit_reasons: list[str]
+    step: int
+    subject: str
+    body: str
+    status: str
+    reason: str | None
+    sent_at: datetime | None
+
+
+class IngestIn(BaseModel):
+    directory: str = Field(min_length=1, max_length=120)
+    url: str = Field(min_length=8, max_length=500)
+
+
+class StartupIn(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    website: str = Field(min_length=3, max_length=500)
+    one_liner: str = Field("", max_length=500)
+    country: str = Field("", max_length=80)
+    batch: str = Field("", max_length=60)
+    sector: str = Field("", max_length=120)
+
+
+class ImportIn(BaseModel):
+    directory: str = Field(min_length=1, max_length=120)
+    startups: list[StartupIn] = Field(min_length=1, max_length=200)
+
+
+async def _ready(db: AsyncSession, st: HuntSettings | None, user_id: uuid.UUID) -> list[str]:
+    missing = []
+    if await mailbox.connected_address(db, user_id) is None:
+        missing.append("Connect your email")
+    if st is None or not st.roles:
+        missing.append("Say what role you want")
+    if st is None or not st.regions:
+        missing.append("Choose a region")
+    if st is None or not st.sender_name.strip():
+        missing.append("Add the name to sign with")
+    if st is None or not st.postal_address.strip():
+        missing.append("Add a postal address (required on commercial email)")
+    return missing
+
+
+async def _out(db: AsyncSession, user_id: uuid.UUID) -> SettingsOut:
+    st = await engine.get_settings(db, user_id)
+    return SettingsOut(
+        enabled=bool(st and st.enabled),
+        regions=list(st.regions) if st else [],
+        roles=list(st.roles) if st else [],
+        pitch=st.pitch if st else "",
+        daily_cap=st.daily_cap if st else 8,
+        auto_send=bool(st and st.auto_send),
+        sender_name=st.sender_name if st else "",
+        postal_address=st.postal_address if st else "",
+        mailbox=await mailbox.connected_address(db, user_id),
+        ready=await _ready(db, st, user_id),
+    )
+
+
+@router.get("/settings")
+async def read_settings(
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> SettingsOut:
+    return await _out(db, user.id)
+
+
+@router.put("/settings")
+async def save_settings(
+    body: SettingsIn,
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    now: datetime = Depends(get_now),  # noqa: B008
+) -> SettingsOut:
+    if any(r not in policy.REGIONS for r in body.regions):
+        raise ApiError(422, "invalid_region", "Regions can be us, eu or uk.")
+    st = await engine.get_settings(db, user.id)
+    if st is None:
+        st = HuntSettings(id=uuid.uuid4(), user_id=user.id)
+        db.add(st)
+    roles = [r.strip()[:120] for r in body.roles if r.strip()]
+    if body.enabled and await _ready(db, st, user.id):
+        # turning on needs everything in place, judged against what is being saved
+        st.sender_name, st.postal_address = body.sender_name, body.postal_address
+        st.roles, st.regions = roles, body.regions
+        missing = await _ready(db, st, user.id)
+        if missing:
+            await db.rollback()
+            raise ApiError(409, "not_ready", "Not ready yet: " + "; ".join(missing) + ".")
+    st.enabled, st.regions, st.roles = body.enabled, body.regions, roles
+    st.pitch, st.daily_cap, st.auto_send = body.pitch.strip(), body.daily_cap, body.auto_send
+    st.sender_name, st.postal_address = body.sender_name.strip(), body.postal_address.strip()
+    st.updated_at = now
+    await db.commit()
+    return await _out(db, user.id)
+
+
+async def _target_out(db: AsyncSession, t: HuntTarget) -> TargetOut:
+    s = await db.get(Startup, t.startup_id)
+    c = await db.get(StartupContact, t.contact_id)
+    assert s is not None and c is not None
+    return TargetOut(
+        id=t.id,
+        startup=s.name,
+        website=s.website,
+        one_liner=s.one_liner,
+        region=s.region,
+        contact=c.email,
+        contact_kind=c.kind,
+        contact_source=c.source_url,
+        fit=t.fit,
+        fit_reasons=list(t.fit_reasons or []),
+        step=t.step,
+        subject=t.subject,
+        body=t.body,
+        status=t.status,
+        reason=t.reason,
+        sent_at=t.sent_at,
+    )
+
+
+@router.get("/targets")
+async def targets(
+    status: str | None = Query(None, max_length=10),
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> list[TargetOut]:
+    q = select(HuntTarget).where(HuntTarget.user_id == user.id)
+    if status:
+        q = q.where(HuntTarget.status == status)
+    rows = (await db.execute(q.order_by(HuntTarget.created_at.desc()).limit(200))).scalars().all()
+    return [await _target_out(db, t) for t in rows]
+
+
+@router.get("/summary")
+async def summary(
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> dict[str, int]:
+    rows = (
+        await db.execute(
+            select(HuntTarget.status, func.count())
+            .where(HuntTarget.user_id == user.id)
+            .group_by(HuntTarget.status)
+        )
+    ).all()
+    return {k: v for k, v in rows}
+
+
+async def _mine(db: AsyncSession, user_id: uuid.UUID, tid: uuid.UUID) -> HuntTarget:
+    t = await db.get(HuntTarget, tid)
+    if t is None or t.user_id != user_id:
+        raise ApiError(404, "not_found", "Not found.")
+    return t
+
+
+@router.put("/targets/{tid}")
+async def edit_target(
+    tid: uuid.UUID,
+    body: EditIn,
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> TargetOut:
+    t = await _mine(db, user.id, tid)
+    if t.status != "drafted":
+        raise ApiError(409, "locked", "Only a note that has not been approved can be edited.")
+    t.subject, t.body = body.subject.strip(), body.body.strip()
+    await db.commit()
+    return await _target_out(db, t)
+
+
+@router.post("/targets/{tid}/approve")
+async def approve(
+    tid: uuid.UUID,
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> TargetOut:
+    t = await _mine(db, user.id, tid)
+    if t.status != "drafted":
+        raise ApiError(409, "locked", "That note is not waiting for approval.")
+    t.status = "approved"
+    await db.commit()
+    return await _target_out(db, t)
+
+
+@router.post("/targets/{tid}/skip")
+async def skip(
+    tid: uuid.UUID,
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> TargetOut:
+    t = await _mine(db, user.id, tid)
+    if t.status not in ("drafted", "approved"):
+        raise ApiError(409, "locked", "That note has already gone or been closed.")
+    t.status, t.reason = "skipped", "You chose not to send it."
+    await db.commit()
+    return await _target_out(db, t)
+
+
+# --------------------------------------------------------------------- operator tools
+
+
+@router.get("/directories")
+async def directories(_: User = Depends(require_admin)) -> dict[str, str]:  # noqa: B008
+    return directory.DIRECTORIES
+
+
+@router.post("/admin/ingest")
+async def ingest(
+    body: IngestIn,
+    _: User = Depends(require_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    llm: LlmProvider = Depends(get_llm),  # noqa: B008
+    now: datetime = Depends(get_now),  # noqa: B008
+) -> dict[str, Any]:
+    return await directory.ingest(db, Fetcher(), llm, body.directory, body.url, now)
+
+
+@router.post("/admin/import")
+async def import_startups(
+    body: ImportIn,
+    _: User = Depends(require_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    now: datetime = Depends(get_now),  # noqa: B008
+) -> dict[str, int]:
+    found = [
+        f
+        for s in body.startups
+        if (f := directory._clean(s.model_dump(), "")) is not None  # noqa: SLF001
+    ]
+    return {"added": await directory.save(db, body.directory, "manual import", found, now)}
+
+
+@router.post("/admin/research")
+async def run_research(
+    _: User = Depends(require_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    llm: LlmProvider = Depends(get_llm),  # noqa: B008
+    now: datetime = Depends(get_now),  # noqa: B008
+) -> dict[str, int]:
+
+    rows = (
+        (await db.execute(select(Startup).where(Startup.status == "new").limit(5))).scalars().all()
+    )
+    fetcher = Fetcher()
+    done = 0
+    for s in rows:
+        await research.research(db, fetcher, llm, s, now)
+        done += 1
+    return {"researched": done}

@@ -122,6 +122,8 @@ class Settings(BaseSettings):
     autoapply_form_dispatch: bool = False  # kill switch: employer form submissions
     autoapply_email_dispatch: bool = False  # kill switch: applications sent from a mailbox
     autoapply_outreach_dispatch: bool = False  # kill switch: hiring outreach from a mailbox
+    startup_outreach_enabled: bool = False  # feature flag: startup outreach routes and jobs
+    startup_outreach_dispatch: bool = False  # kill switch: startup notes from a real mailbox
     autoapply_mailbox_provider: str = "fixture"  # fixture | gmail
     autoapply_discovery_sources: str = "fixture"  # comma-separated adapter names
     autoapply_reconcile_hours: int = (

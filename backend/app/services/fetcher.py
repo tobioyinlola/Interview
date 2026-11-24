@@ -8,12 +8,14 @@ user agent; and send at most one request per second to a host."""
 
 import asyncio
 import logging
+import re
 import ssl
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from html import unescape
 from typing import Literal
-from urllib.parse import SplitResult, urljoin, urlsplit
+from urllib.parse import SplitResult, unquote, urljoin, urlsplit
 from urllib.robotparser import RobotFileParser
 
 import httpx
@@ -47,6 +49,23 @@ class FetchResult:
     title: str = ""
     text: str = ""
     final_url: str = ""
+    emails: tuple[str, ...] = ()  # addresses the page itself publishes (mailto links and text)
+
+
+_MAILTO = re.compile(r"mailto:([^\"'?<>\s&]+)", re.IGNORECASE)
+_ADDR = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}")
+
+
+def published_emails(html: str) -> tuple[str, ...]:
+    """Addresses written on the page, in the order found, from links and visible text alike
+    (the readable-text pass drops footers, where contact addresses usually are)."""
+    plain = unescape(re.sub(r"<(script|style)\b.*?</\1>", " ", html, flags=re.S | re.I))
+    found: list[str] = []
+    for m in _MAILTO.findall(plain) + _ADDR.findall(re.sub(r"<[^>]+>", " ", plain)):
+        addr = unquote(m).strip().lower().rstrip(".")
+        if _ADDR.fullmatch(addr) and addr not in found:
+            found.append(addr)
+    return tuple(found[:20])
 
 
 class _TooLarge(Exception):
@@ -163,6 +182,11 @@ class Fetcher:
         else:
             title, text = await asyncio.to_thread(_extract, html)
         text = text[: self.text_max_chars]
+        emails = published_emails(html) if ctype != "text/plain" else ()
+        if len(text) < MIN_READABLE_CHARS and emails:
+            return FetchResult(
+                url, "ok", title=title, text=text, final_url=final_url, emails=emails
+            )
         if len(text) < MIN_READABLE_CHARS:
             return FetchResult(
                 url,
@@ -170,7 +194,7 @@ class Fetcher:
                 "No readable text was found. The page may need JavaScript or a sign-in.",
                 final_url=final_url,
             )
-        return FetchResult(url, "ok", title=title, text=text, final_url=final_url)
+        return FetchResult(url, "ok", title=title, text=text, final_url=final_url, emails=emails)
 
     async def _public_ips(self, parts: SplitResult) -> list[IPAddress]:
         port = parts.port or (443 if parts.scheme == "https" else 80)
