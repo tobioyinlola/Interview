@@ -189,7 +189,99 @@ export interface AdminStartups {
   directories: AdminDirectory[];
 }
 
+export interface AdminOpening {
+  title: string;
+  url: string;
+}
+export interface AdminContact {
+  email: string;
+  name: string | null;
+  title: string | null;
+  kind: string;
+  source_url: string;
+}
+export interface AdminStartup {
+  id: string;
+  name: string;
+  website: string;
+  domain: string;
+  directory: string;
+  directory_url: string;
+  batch: string | null;
+  one_liner: string;
+  sector: string | null;
+  region: string;
+  country: string | null;
+  status: string;
+  researched_at: string | null;
+  created_at: string;
+  summary: string;
+  hiring: boolean;
+  careers_url: string | null;
+  openings: AdminOpening[];
+  contacts: AdminContact[];
+}
+export interface AdminStartupList {
+  total: number;
+  items: AdminStartup[];
+}
+export interface AdminRole {
+  startup_id: string;
+  startup: string;
+  website: string;
+  region: string;
+  country: string | null;
+  directory: string;
+  title: string;
+  url: string;
+  careers_url: string | null;
+}
+export interface AdminRoles {
+  total: number;
+  startups: number;
+  items: AdminRole[];
+}
+
 const SU = "/api/admin/startups";
+export const PAGE = 25;
+
+export const useStartupList = (p: {
+  filter: string;
+  region: string;
+  directory: string;
+  q: string;
+  page: number;
+}) =>
+  useQuery<AdminStartupList>({
+    queryKey: ["admin", "startup-list", p],
+    queryFn: () => {
+      const qs = new URLSearchParams({
+        filter: p.filter,
+        region: p.region,
+        directory: p.directory,
+        q: p.q,
+        limit: String(PAGE),
+        offset: String(p.page * PAGE),
+      });
+      return apiFetch(`${SU}/list?${qs}`);
+    },
+    placeholderData: (prev) => prev,
+  });
+
+export const useOpenRoles = (p: { region: string; q: string; page: number }) =>
+  useQuery<AdminRoles>({
+    queryKey: ["admin", "open-roles", p],
+    queryFn: () => {
+      const qs = new URLSearchParams({
+        region: p.region,
+        q: p.q,
+        limit: String(PAGE),
+        offset: String(p.page * PAGE),
+      });
+      return apiFetch(`${SU}/roles?${qs}`);
+    },
+    placeholderData: (prev) => prev,
+  });
 
 export const useStartupsAdmin = () =>
   useQuery<AdminStartups>({

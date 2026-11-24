@@ -3,6 +3,7 @@ loading accelerator directories. The flag STARTUP_OUTREACH_ENABLED turns it all 
 
 import uuid
 from datetime import datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
@@ -324,6 +325,64 @@ class AdminOverviewOut(BaseModel):
     directories: list[DirectoryOut]
 
 
+class AdminContactOut(BaseModel):
+    email: str
+    name: str | None = None
+    title: str | None = None
+    kind: str  # person | role | general
+    source_url: str  # the page of the startup's own site it was published on
+
+
+class AdminOpeningOut(BaseModel):
+    title: str
+    url: str  # where to apply, or the careers page when the opening has no page of its own
+
+
+class AdminStartupOut(BaseModel):
+    id: str
+    name: str
+    website: str
+    domain: str
+    directory: str
+    directory_url: str
+    batch: str | None = None
+    one_liner: str = ""
+    sector: str | None = None
+    region: str
+    country: str | None = None
+    status: str  # new | researched | dead
+    researched_at: datetime | None = None
+    created_at: datetime
+    summary: str = ""  # what the startup says it does, from its own pages
+    hiring: bool = False
+    careers_url: str | None = None
+    openings: list[AdminOpeningOut] = []
+    contacts: list[AdminContactOut] = []
+
+
+class AdminStartupsOut(BaseModel):
+    total: int
+    items: list[AdminStartupOut]
+
+
+class AdminRoleOut(BaseModel):
+    startup_id: str
+    startup: str
+    website: str
+    region: str
+    country: str | None = None
+    directory: str
+    title: str
+    url: str
+    careers_url: str | None = None
+
+
+class AdminRolesOut(BaseModel):
+    total: int
+    startups: int  # how many startups have at least one open role
+    items: list[AdminRoleOut]
+
+
 class DirectoryIn(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     url: str = Field(min_length=8, max_length=500)
@@ -397,6 +456,159 @@ async def admin_overview(
         with_contacts=contacts,
         with_openings=openings,
         directories=[_dir_out(d) for d in dirs],
+    )
+
+
+def _startup_filters(filter: str, region: str, directory_name: str, q: str) -> list[Any]:
+    """The WHERE conditions for the startup lists."""
+    where: list[Any] = []
+    if filter in ("researched", "new", "dead"):
+        where.append(Startup.status == filter)
+    elif filter == "contacts":
+        where.append(Startup.id.in_(select(StartupContact.startup_id)))
+    elif filter == "openings":
+        where.append(func.jsonb_array_length(Startup.research["openings"]) > 0)
+    if region:
+        where.append(Startup.region == region)
+    if directory_name:
+        where.append(Startup.directory == directory_name)
+    if q.strip():
+        like = f"%{q.strip()}%"
+        where.append(
+            Startup.name.ilike(like)
+            | Startup.domain.ilike(like)
+            | Startup.one_liner.ilike(like)
+            | Startup.research["summary"].as_string().ilike(like)
+        )
+    return where
+
+
+def _startup_out(s: Startup, contacts: list[StartupContact]) -> AdminStartupOut:
+    r = s.research or {}
+    return AdminStartupOut(
+        id=str(s.id),
+        name=s.name,
+        website=s.website,
+        domain=s.domain,
+        directory=s.directory,
+        directory_url=s.directory_url,
+        batch=s.batch,
+        one_liner=s.one_liner,
+        sector=s.sector,
+        region=s.region,
+        country=s.country,
+        status=s.status,
+        researched_at=s.researched_at,
+        created_at=s.created_at,
+        summary=str(r.get("summary", "")),
+        hiring=bool(r.get("hiring")),
+        careers_url=r.get("careers_url"),
+        openings=[
+            AdminOpeningOut(title=str(o.get("title", "")), url=str(o.get("url", "")))
+            for o in r.get("openings", [])
+            if isinstance(o, dict) and o.get("title")
+        ],
+        contacts=[
+            AdminContactOut(
+                email=c.email, name=c.name, title=c.title, kind=c.kind, source_url=c.source_url
+            )
+            for c in contacts
+        ],
+    )
+
+
+@admin_router.get("/list")
+async def admin_startup_list(
+    filter: str = Query("all", pattern="^(all|researched|new|dead|contacts|openings)$"),
+    region: str = Query("", max_length=8),
+    directory_name: str = Query("", alias="directory", max_length=120),
+    q: str = Query("", max_length=100),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    _: User = Depends(require_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> AdminStartupsOut:
+    """The startups behind the totals: name, website, who listed it, what it does, its contacts and
+    open roles. Filter by what the tiles count, a region, a directory, or a search."""
+    where = _startup_filters(filter, region, directory_name, q)
+    total = (await db.execute(select(func.count()).select_from(Startup).where(*where))).scalar_one()
+    rows = (
+        (
+            await db.execute(
+                select(Startup)
+                .where(*where)
+                .order_by(Startup.created_at.desc(), Startup.name)
+                .limit(limit)
+                .offset(offset)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    by_startup: dict[uuid.UUID, list[StartupContact]] = {}
+    if rows:
+        for c in (
+            (
+                await db.execute(
+                    select(StartupContact).where(
+                        StartupContact.startup_id.in_([s.id for s in rows])
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        ):
+            by_startup.setdefault(c.startup_id, []).append(c)
+    return AdminStartupsOut(
+        total=total, items=[_startup_out(s, by_startup.get(s.id, [])) for s in rows]
+    )
+
+
+@admin_router.get("/roles")
+async def admin_open_roles(
+    region: str = Query("", max_length=8),
+    q: str = Query("", max_length=100),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    _: User = Depends(require_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> AdminRolesOut:
+    """Every open role found on the startups' own sites, with the startup and where to apply."""
+    where = _startup_filters("openings", region, "", "")
+    rows = (
+        (
+            await db.execute(
+                select(Startup).where(*where).order_by(Startup.researched_at.desc()).limit(1000)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    needle = q.strip().lower()
+    items: list[AdminRoleOut] = []
+    for s in rows:
+        r = s.research or {}
+        for o in r.get("openings", []):
+            title = str(o.get("title", "")) if isinstance(o, dict) else ""
+            if not title or (needle and needle not in f"{title} {s.name}".lower()):
+                continue
+            items.append(
+                AdminRoleOut(
+                    startup_id=str(s.id),
+                    startup=s.name,
+                    website=s.website,
+                    region=s.region,
+                    country=s.country,
+                    directory=s.directory,
+                    title=title,
+                    url=str(o.get("url", "")),
+                    careers_url=r.get("careers_url"),
+                )
+            )
+    return AdminRolesOut(
+        total=len(items),
+        startups=len({i.startup_id for i in items}),
+        items=items[offset : offset + limit],
     )
 
 

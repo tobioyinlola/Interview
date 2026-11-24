@@ -1062,6 +1062,108 @@ async def test_pasted_companies_are_imported_with_a_region(boss, maker):
         assert (await db.execute(select(Startup.region))).scalar_one() == "eu"
 
 
+async def _with_roles(maker):
+    """Two startups with open roles (one with a page per role), one researched without, one waiting."""
+    async with maker() as db:
+        a = await add_startup(
+            db, "Lumen", "lumen.io", "eu", status="researched", country="France",
+            research={
+                "summary": "Lumen makes payment links.",
+                "hiring": True,
+                "careers_url": "https://lumen.io/careers",
+                "openings": [
+                    {"title": "Senior Product Manager", "url": "https://lumen.io/careers/pm"},
+                    {"title": "Data Engineer", "url": "https://lumen.io/careers"},
+                ],
+            },
+        )  # fmt: skip
+        db.add(
+            StartupContact(
+                startup_id=a.id, email="jobs@lumen.io", kind="role",
+                source_url="https://lumen.io/contact", found_at=NOW,
+            )
+        )  # fmt: skip
+        await db.commit()
+        await add_startup(
+            db, "Nova", "nova.io", "us", status="researched",
+            research={"summary": "Nova builds routers.", "hiring": True, "careers_url": None,
+                      "openings": [{"title": "Product Designer", "url": "https://nova.io/jobs/1"}]},
+        )  # fmt: skip
+        await add_startup(db, "Quiet", "quiet.io", "us", status="researched",
+                          research={"summary": "Quiet.", "hiring": False, "openings": []})  # fmt: skip
+        await add_startup(db, "Fresh", "fresh.io", "uk", status="new")
+
+
+async def test_the_back_office_lists_the_startups_behind_each_total_with_their_details(boss, maker):
+    await _with_roles(maker)
+    allr = (await boss.get("/api/admin/startups/list")).json()
+    assert allr["total"] == 4 and len(allr["items"]) == 4
+    lumen = next(i for i in allr["items"] if i["name"] == "Lumen")
+    assert lumen["website"] == "https://lumen.io" and lumen["directory"] == "YC"
+    assert lumen["directory_url"] == "https://dir.test" and lumen["country"] == "France"
+    assert lumen["summary"] == "Lumen makes payment links." and lumen["hiring"] is True
+    assert lumen["careers_url"] == "https://lumen.io/careers"
+    assert [o["title"] for o in lumen["openings"]] == ["Senior Product Manager", "Data Engineer"]
+    assert lumen["openings"][0]["url"] == "https://lumen.io/careers/pm"
+    assert lumen["contacts"][0]["email"] == "jobs@lumen.io"
+    assert lumen["contacts"][0]["source_url"] == "https://lumen.io/contact"
+
+    def names(**q):
+        r = boss.get("/api/admin/startups/list", params=q)
+        return r
+
+    for q, want in (
+        ({"filter": "researched"}, {"Lumen", "Nova", "Quiet"}),
+        ({"filter": "new"}, {"Fresh"}),
+        ({"filter": "contacts"}, {"Lumen"}),
+        ({"filter": "openings"}, {"Lumen", "Nova"}),
+        ({"region": "us"}, {"Nova", "Quiet"}),
+        ({"q": "ROUTERS"}, {"Nova"}),
+        ({"q": "lumen.io"}, {"Lumen"}),
+        ({"directory": "YC", "filter": "openings"}, {"Lumen", "Nova"}),
+        ({"directory": "nowhere"}, set()),
+    ):
+        got = (await names(**q)).json()
+        assert {i["name"] for i in got["items"]} == want and got["total"] == len(want), q
+
+
+async def test_the_startup_list_is_paged(boss, maker):
+    await _with_roles(maker)
+    first = (await boss.get("/api/admin/startups/list", params={"limit": 3})).json()
+    rest = (await boss.get("/api/admin/startups/list", params={"limit": 3, "offset": 3})).json()
+    assert first["total"] == rest["total"] == 4 and len(first["items"]) == 3
+    assert len(rest["items"]) == 1
+    assert not {i["id"] for i in first["items"]} & {i["id"] for i in rest["items"]}
+    assert (await boss.get("/api/admin/startups/list", params={"limit": 500})).status_code == 422
+    assert (await boss.get("/api/admin/startups/list", params={"filter": "x"})).status_code == 422
+
+
+async def test_the_back_office_lists_every_open_role_with_the_startup_and_where_to_apply(
+    boss, maker
+):
+    await _with_roles(maker)
+    d = (await boss.get("/api/admin/startups/roles")).json()
+    assert d["total"] == 3 and d["startups"] == 2
+    by_title = {i["title"]: i for i in d["items"]}
+    pm = by_title["Senior Product Manager"]
+    assert pm["startup"] == "Lumen" and pm["url"] == "https://lumen.io/careers/pm"
+    assert pm["website"] == "https://lumen.io" and pm["careers_url"] == "https://lumen.io/careers"
+    assert pm["region"] == "eu" and pm["country"] == "France" and pm["directory"] == "YC"
+    assert by_title["Product Designer"]["url"] == "https://nova.io/jobs/1"
+    one = (await boss.get("/api/admin/startups/roles", params={"q": "designer"})).json()
+    assert [i["title"] for i in one["items"]] == ["Product Designer"] and one["total"] == 1
+    assert (await boss.get("/api/admin/startups/roles", params={"q": "lumen"})).json()["total"] == 2
+    us = (await boss.get("/api/admin/startups/roles", params={"region": "us"})).json()
+    assert [i["startup"] for i in us["items"]] == ["Nova"]
+    page = (await boss.get("/api/admin/startups/roles", params={"limit": 2, "offset": 2})).json()
+    assert page["total"] == 3 and len(page["items"]) == 1
+
+
+async def test_customers_cannot_see_the_startup_lists(ada):
+    assert (await ada.get("/api/admin/startups/list")).status_code in (401, 403)
+    assert (await ada.get("/api/admin/startups/roles")).status_code in (401, 403)
+
+
 async def test_customers_cannot_use_the_back_office_tools(ada):
     assert (await ada.get("/api/admin/startups/overview")).status_code in (401, 403)
     assert (
