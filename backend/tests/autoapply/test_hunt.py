@@ -762,7 +762,7 @@ async def test_directories_are_read_a_couple_at_a_time_and_then_weekly(maker):
 def test_the_directory_lists_are_sound():
     names = [d[0] for d in directory.DEFAULTS] + [c[0] for c in directory.CANDIDATES]
     assert len(names) == len(set(names))  # no name twice, so nothing is added twice
-    assert len(directory.DEFAULTS) >= 31  # the first eleven plus twenty more
+    assert len(directory.DEFAULTS) >= 29  # the first eleven plus the ones that were checked
     for _name, url, hint in directory.DEFAULTS + directory.CANDIDATES:
         assert url.startswith("https://") and hint in ("", "us", "eu", "uk")
 
@@ -877,6 +877,92 @@ async def test_one_directory_gives_at_most_two_hundred_companies():
 
     found = await directory.extract(Many(), "word " * 20_000, "https://dir.test/p")
     assert len(found) == directory.MAX_TOTAL
+
+
+async def test_the_model_is_given_the_pages_outside_links_so_it_can_name_each_website():
+    seen = {}
+
+    class Spy:
+        async def generate_json(self, *, system, user, schema):
+            seen["user"], seen["system"] = user, system
+            return json.dumps({"startups": []})
+
+    links = (
+        ("Visit site", "https://dronamics.com/about"),
+        ("15Five", "https://www.15five.com/"),
+        ("Visit site", "https://dronamics.com/other"),  # same site again: once
+        ("LinkedIn", "https://www.linkedin.com/company/x"),  # never a company
+        ("Our team", "https://dir.test/team"),  # the directory's own page
+        ("Sub", "https://news.dir.test/x"),  # and its subdomain
+    )
+    await directory.extract(Spy(), "Dronamics 15Five " * 3, "https://www.dir.test/p", links)
+    assert "LINKS ON THE PAGE:" in seen["user"]
+    assert "Visit site -> https://dronamics.com" in seen["user"]
+    assert "15Five -> https://15five.com" in seen["user"]
+    assert seen["user"].count("dronamics.com") == 1
+    assert "linkedin" not in seen["user"] and "dir.test" not in seen["user"].split("LINKS")[1]
+    assert "links on the page" in seen["system"]
+    out = await directory.extract(
+        listing(("Dronamics", "https://dronamics.com", "Bulgaria")), "t " * 50, "https://dir.test/p"
+    )
+    assert out[0].website == "https://dronamics.com"
+
+
+async def test_a_page_that_is_all_links_is_still_read(maker):
+    """Initialized-style portfolio: almost no text, many links. It reaches the model."""
+    from app.services.fetcher import FetchResult
+
+    class LogosOnly:
+        async def fetch(self, url):
+            links = tuple((f"Co{i}", f"https://co{i}.io") for i in range(30))
+            return FetchResult(url, "ok", text="Portfolio", final_url=url, links=links)
+
+    async with maker() as db:
+        out = await directory.ingest(
+            db,
+            LogosOnly(),
+            listing(("Co1", "https://co1.io", "United States")),
+            "Initialized Capital",
+            "https://dir.test/p",
+            NOW,
+        )
+    assert out["found"] == 1 and out["added"] == 1
+
+
+async def test_dead_built_in_directories_are_removed_and_wrong_addresses_are_fixed(maker):
+    from app.models import Directory
+
+    async with maker() as db:
+        await directory.ensure_defaults(db, NOW)
+        for name in directory.RETIRED:  # as an older install has them
+            db.add(Directory(name=name, url="https://old.example/x", builtin=True, created_at=NOW))
+        keep = Directory(
+            name="Atomico2", url="https://old.example/y", builtin=True, last_found=5, created_at=NOW
+        )
+        db.add(keep)
+        pn = (
+            await db.execute(select(Directory).where(Directory.name == "Point Nine"))
+        ).scalar_one()
+        pn.url, pn.last_run_at, pn.last_problem = "https://www.pointnine.com/portfolio", NOW, "gone"
+        await db.commit()
+        await directory.ensure_defaults(db, NOW)
+        names = set((await db.execute(select(Directory.name))).scalars().all())
+        assert not names & set(directory.RETIRED)
+        assert "Atomico2" in names  # not on the list: untouched
+        await db.refresh(pn)
+        assert pn.url == "https://www.pointnine.com/companies"
+        assert pn.last_run_at is None and pn.last_problem is None  # read again
+
+        db.add(
+            Directory(
+                name="Atomico", url="https://x.example", builtin=True, last_found=7, created_at=NOW
+            )
+        )
+        await db.commit()
+        await directory.ensure_defaults(db, NOW)
+        assert "Atomico" in set(
+            (await db.execute(select(Directory.name))).scalars().all()
+        )  # had startups
 
 
 async def test_a_directory_that_cannot_be_read_says_why(maker):

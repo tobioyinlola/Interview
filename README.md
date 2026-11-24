@@ -211,3 +211,10 @@ person's Sent folder, and reads replies over IMAP. It only reads new mail since 
 the headers and the first few hundred characters, to match replies to notes we sent. Only Gmail,
 Outlook and Yahoo are allowed, with fixed server names. This makes sending real, so the dispatch
 switches and recipient allow-list rules apply exactly as for any real mailbox.
+
+### Checking the directories in a browser
+
+`node scripts/check-directories.cjs` opens each built-in directory page in a real browser and prints its
+status, how much text it has, and how many companies' own websites it links to. Use it after adding or
+changing a directory. A page with no text (built only in the browser) cannot be read by the server; paste
+its companies in on the back-office page instead.

@@ -342,7 +342,7 @@ class ImportIn(BaseModel):
 
 def get_fetcher() -> Fetcher:
     """The polite page reader. Tests replace it so nothing touches the network."""
-    return Fetcher(text_max_chars=directory.PAGE_CHARS)
+    return Fetcher(text_max_chars=directory.PAGE_CHARS, links_max=directory.LINKS_MAX)
 
 
 def _dir_out(d: Directory) -> DirectoryOut:
