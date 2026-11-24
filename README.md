@@ -236,3 +236,9 @@ A directory page that draws its grid from a list inside the page (a `window.x = 
 script tag such as `__NEXT_DATA__`) is read from that list as data (`fetcher.embedded_json`,
 `directory.parse_feed`). Andreessen Horowitz works this way: 891 companies with websites and descriptions in
 one 3.7 MB page. A directory read that failed is tried again after 6 hours instead of a week.
+
+A logo that links out to a company's site (an `<a>` around an `<img>`, with no words) is kept by the page reader
+when it leads to another site (`fetcher.page_links`): that is how many portfolio pages, and each company's profile
+page, link to the company. A name in the page's text is matched to such a link only when the address is the
+name itself, or the name with a common ending or beginning (deep.sa, deephq.com, tryspare.com), and the model also
+sees these links when it reads the page.

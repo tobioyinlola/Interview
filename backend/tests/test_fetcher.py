@@ -414,3 +414,21 @@ async def test_the_size_message_names_the_real_limit(site, make):
     assert (await make().fetch("https://example.com/big")).reason == "The page is larger than 2 MB."
     r = await make(max_bytes=8 * 1024 * 1024).fetch("https://example.com/big")
     assert r.reason == "The page is larger than 8 MB."
+
+
+async def test_a_logo_that_links_to_another_site_is_kept_but_icons_that_lead_nowhere_new_are_not(
+    site, make
+):
+    body = GOOD_HTML.replace(
+        "</article>",
+        '<div><a href="https://www.echelon.inc/" target="_blank" class="logo-link">'
+        '<img src="/l.png" alt="Echelon logo"></a>'
+        '<a href="https://tabby.ai"><img src="/t.png"></a>'
+        '<a href="/"><img src="/home.png" alt="Home"></a>'  # a logo back to this site: not a lead
+        '<a href="/about"><svg></svg></a></div></article>',
+    )
+    site.add("example.com", "/portfolio", body=body)
+    links = (await make().fetch("https://example.com/portfolio")).links
+    assert ("Echelon logo", "https://www.echelon.inc/") in links
+    assert ("", "https://tabby.ai") in links  # no description at all: still a link to another site
+    assert not any(u in ("https://example.com/", "https://example.com/about") for _, u in links)

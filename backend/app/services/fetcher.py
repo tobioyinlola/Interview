@@ -99,6 +99,7 @@ def published_emails(html: str) -> tuple[str, ...]:
     return tuple(found[:20])
 
 
+_ALT = re.compile(r"\balt\s*=\s*[\"']([^\"']*)[\"']", re.I)
 _ANCHOR = re.compile(r"<a\b[^>]*?href\s*=\s*[\"']([^\"'#][^\"']*)[\"'][^>]*>(.*?)</a>", re.S | re.I)
 
 
@@ -106,13 +107,23 @@ def page_links(html: str, base: str, limit: int = 150) -> tuple[tuple[str, str],
     """Links on the page as (visible text, absolute http address). Used to find a startup's careers
     page and the address of each opening it lists."""
     out: list[tuple[str, str]] = []
+    here = urlsplit(base).hostname
     for href, inner in _ANCHOR.findall(html):
         href = unescape(href).strip()
         if href.lower().startswith(("mailto:", "tel:", "javascript:")):
             continue
-        text = " ".join(unescape(re.sub(r"<[^>]+>", " ", inner)).split())[:160]
         url = urljoin(base, href)
-        if text and url.startswith(("http://", "https://")) and (text, url) not in out:
+        if not url.startswith(("http://", "https://")):
+            continue
+        text = " ".join(unescape(re.sub(r"<[^>]+>", " ", inner)).split())[:160]
+        if not text:
+            # a logo or icon with no words: its picture's description, if it has one. Kept only when
+            # it leads to another site, which is how a portfolio page links to each company
+            alt = _ALT.search(inner)
+            text = unescape(alt.group(1)).strip()[:160] if alt else ""
+            if urlsplit(url).hostname == here:
+                continue
+        if (text, url) not in out:
             out.append((text, url))
     return tuple(out[:limit])
 

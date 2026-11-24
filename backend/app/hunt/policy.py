@@ -18,8 +18,8 @@ EU = {
 UK = {"united kingdom", "uk", "england", "scotland", "wales", "northern ireland", "great britain"}
 US = {"united states", "usa", "us", "u.s.", "united states of america"}
 GULF = {
-    "uae": {"united arab emirates", "uae", "u.a.e.", "dubai", "abu dhabi", "sharjah"},
-    "ksa": {"saudi arabia", "ksa", "saudi", "riyadh", "jeddah"},
+    "uae": {"united arab emirates", "uae", "u.a.e.", "emirates", "dubai", "abu dhabi", "sharjah"},
+    "ksa": {"saudi arabia", "kingdom of saudi arabia", "ksa", "saudi", "riyadh", "jeddah"},
 }
 # Only these are ever written to. Other places we list (the Gulf, and the rest of the world) can be
 # browsed and their open roles seen, but nobody is emailed there.

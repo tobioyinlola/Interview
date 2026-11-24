@@ -1191,6 +1191,7 @@ def test_gulf_places_are_labelled_but_never_written_to():
     assert policy.classify_region("United Arab Emirates") == "uae"
     assert policy.classify_region("Dubai") == "uae"
     assert policy.classify_region("Saudi Arabia") == "ksa"
+    assert policy.classify_region("Kingdom of Saudi Arabia") == "ksa"
     assert policy.classify_region("Riyadh") == "ksa"
     assert policy.classify_region("Nigeria") == "other"
     assert policy.may_write_to(
@@ -1279,12 +1280,106 @@ async def test_an_old_size_error_is_cleared_so_the_directory_is_read_again(maker
             await db.execute(select(Directory).where(Directory.name == "Seedcamp"))
         ).scalar_one()
         other.last_run_at, other.last_problem = NOW, "The site blocked the request."
+        raed = (
+            await db.execute(select(Directory).where(Directory.name.like("Raed%")))
+        ).scalar_one()
+        raed.last_run_at = NOW
+        raed.last_problem = "53 companies were listed but none gave a website we could find (x)."
         await db.commit()
         await directory.ensure_defaults(db, NOW)
         await db.refresh(a16z)
+        await db.refresh(raed)
         await db.refresh(other)
+    assert raed.last_run_at is None and raed.last_problem is None
     assert a16z.last_run_at is None and a16z.last_problem is None
     assert other.last_problem == "The site blocked the request."  # other problems are left alone
+
+
+def test_a_website_that_is_only_a_logo_link_is_found_on_the_profile_page():
+    from app.services.fetcher import page_links
+
+    html = (
+        '<a class="overview__logo-link" href="https://www.echelon.inc/" target="_blank">'
+        '<img src="/echelon.svg" alt=""></a>'
+        '<footer><a href="https://courageous.notion.site/kit">Press kit</a>'
+        '<a href="https://www.linkedin.com/company/echelon/"><i class="icon"></i></a></footer>'
+    )
+    links = page_links(html, "https://raed.vc/portfolio/echelon/")
+    assert (
+        directory.company_site(links, "https://raed.vc/portfolio/", "Echelon")
+        == "https://echelon.inc"
+    )
+    # the footer's press kit and LinkedIn are never taken for the company
+    only_footer = page_links(html.split("</a>", 1)[1], "https://raed.vc/portfolio/echelon/")
+    assert directory.company_site(only_footer, "https://raed.vc/portfolio/", "Echelon") is None
+
+
+def test_a_name_is_matched_to_an_outside_link_that_is_named_like_it_and_only_then():
+    links = (
+        ("", "https://deep.sa/"),
+        ("", "https://www.vennre.com/x"),
+        ("", "https://thinkific.com"),
+        ("", "https://www.linkedin.com/company/think"),
+        ("Home", "https://dir.test/"),
+    )
+    f = directory.link_for_name
+    d = "https://dir.test/portfolio/"
+    assert f("Deep", links, d) == "https://deep.sa"
+    assert f("Vennre", links, d) == "https://vennre.com"
+    assert f("Venn", (("", "https://vennhq.com"),), d) == "https://vennhq.com"  # a common ending
+    assert f("Spare", (("", "http://tryspare.com/"),), d) == "https://tryspare.com"  # and beginning
+    assert f("Think", links, d) is None  # 'thinkific' is another company; LinkedIn is never one
+    assert f("Ab", links, d) is None and f("Nobody Inc", links, d) is None
+
+
+async def test_logo_links_with_no_text_give_the_websites_the_model_only_has_names_for(maker):
+    from app.services.fetcher import FetchResult
+
+    class Logos:
+        async def fetch(self, url):
+            links = tuple(("", f"https://{n}.sa") for n in ("deep", "yamm", "madeed", "ejari"))
+            return FetchResult(
+                url,
+                "ok",
+                text="Portfolio of Deep, Yamm, Madeed, Ejari " * 3,
+                final_url=url,
+                links=links,
+            )
+
+    names = ("Deep", "Yamm", "Madeed", "Ejari", "Unlinked")
+    llm = FakeLlmProvider(
+        json_reply=json.dumps(
+            {
+                "startups": [
+                    {
+                        "name": n,
+                        "website": "",
+                        "one_liner": "",
+                        "country": "",
+                        "batch": "",
+                        "sector": "",
+                    }
+                    for n in names
+                ]
+            }
+        )
+    )
+    async with maker() as db:
+        out = await directory.ingest(
+            db, Logos(), llm, "Vision", "https://dir.test/portfolio/", NOW, "ksa"
+        )
+        got = {
+            s.name: s.domain
+            for s in (
+                await db.execute(select(Startup).where(Startup.directory == "Vision"))
+            ).scalars()
+        }
+    assert out["found"] == 4 and got == {
+        "Deep": "deep.sa",
+        "Yamm": "yamm.sa",
+        "Madeed": "madeed.sa",
+        "Ejari": "ejari.sa",
+    }
 
 
 async def test_a_directory_that_cannot_be_read_says_why(maker):
