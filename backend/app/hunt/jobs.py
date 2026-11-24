@@ -30,8 +30,8 @@ async def research_pending(
             (
                 await db.execute(
                     select(Startup)
-                    .where(Startup.status == "new", Startup.region != "other")
-                    .order_by(Startup.created_at)
+                    .where(Startup.status == "new")
+                    .order_by((Startup.region == "other"), Startup.created_at)  # placed ones first
                     .limit(limit)
                 )
             )

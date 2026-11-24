@@ -706,7 +706,9 @@ async def test_directories_are_read_a_couple_at_a_time_and_then_weekly(maker):
         assert (
             await directory.refresh_due(db, pages, llm, NOW + timedelta(days=8)) == 2
         )  # a week on
-        assert (await db.execute(select(Startup))).scalars().all()[0].region == "eu"
+        assert (
+            await db.execute(select(Startup).where(Startup.name == "Acme"))
+        ).scalar_one().region == "eu"
 
 
 async def test_a_directory_that_cannot_be_read_says_why(maker):
@@ -813,3 +815,76 @@ async def test_customers_cannot_use_the_back_office_tools(ada):
             "/api/admin/startups/directories", json={"name": "x", "url": "https://x.example"}
         )
     ).status_code in (401, 403)
+
+
+# ------------------------------------------------------------------------------ placing + seed
+
+
+async def test_a_company_with_no_country_is_placed_from_its_own_site_or_left_alone(maker):
+    llm = lambda country: FakeLlmProvider(  # noqa: E731
+        json_reply=json.dumps(
+            {"summary": "x", "hiring": False, "roles": [], "people": [], "country": country}
+        )
+    )
+    page = "Acme builds payments. Our head office is in Berlin, Germany. " * 3
+    pages = Pages({"https://acme.io": (page, ["hello@acme.io"])})
+    async with maker() as db:
+        s = await add_startup(db, region="other")
+        out = await research.research(db, pages, llm("Germany"), s, NOW)
+        assert s.region == "eu" and s.country == "Germany" and out["contacts"] == 1
+
+        lied = await add_startup(db, "Beta", "beta.io", region="other")
+        pages2 = Pages({"https://beta.io": (page, ["hello@beta.io"])})
+        # the model says a country the page never mentions: not believed, company left unplaced
+        await research.research(db, pages2, llm("United States"), lied, NOW)
+        assert lied.region == "other"
+        assert (
+            await db.execute(select(StartupContact).where(StartupContact.startup_id == lied.id))
+        ).first() is None
+
+        unknown = await add_startup(db, "Gamma", "gamma.io", region="other")
+        await research.research(
+            db,
+            Pages({"https://gamma.io": (page, ["hello@gamma.io"])}),
+            llm("Nigeria"),
+            unknown,
+            NOW,
+        )
+        assert unknown.region == "other"  # not US, Europe or UK: never written to
+
+
+async def test_unplaced_companies_are_researched_too_but_placed_ones_go_first(maker):
+    from app.hunt import jobs
+
+    async with maker() as db:
+        await add_startup(db, "Other", "other.io", region="other")
+        await add_startup(db, "Placed", "placed.io", region="us")
+    seen = []
+
+    class Spy(Pages):
+        async def fetch(self, url):
+            seen.append(url)
+            return await super().fetch(url)
+
+    n = await jobs.research_pending(maker, Spy({}), FakeLlmProvider(), NOW, limit=1)
+    assert n == 1 and seen[0].startswith("https://placed.io")
+    assert (
+        await jobs.research_pending(maker, Spy({}), FakeLlmProvider(), NOW, limit=5) == 1
+    )  # then the other one
+
+
+async def test_the_starter_list_is_added_once_and_gets_its_regions_from_the_country(maker):
+    from app.hunt import seed
+
+    async with maker() as db:
+        assert len(seed.SEED) >= 30
+        first = await directory.ensure_seed(db, NOW)
+        assert first == len(seed.SEED) and await directory.ensure_seed(db, NOW) == 0
+        by = {s.name: s.region for s in (await db.execute(select(Startup))).scalars().all()}
+    assert (
+        by["Stripe"] == "us"
+        and by["Monzo"] == "uk"
+        and by["Mollie"] == "eu"
+        and by["Klarna"] == "eu"
+    )
+    assert "other" not in by.values()

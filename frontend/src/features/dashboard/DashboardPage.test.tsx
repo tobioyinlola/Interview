@@ -555,12 +555,15 @@ describe("inside the phone app", () => {
     expect(screen.queryByText("Interview summary")).toBeNull();
   });
 
-  it("explains that live interviews run on a computer", async () => {
+  it("lets the phone app start an interview, listening through the microphone", async () => {
     window.Capacitor = { isNativePlatform: () => true };
     mockApi(base());
     renderApp(<App />, "/session/new");
     expect(
-      await screen.findByText("Live interviews run on your computer"),
+      await screen.findByRole("heading", { name: "Start an interview" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/listens through its microphone/),
     ).toBeInTheDocument();
   });
 });

@@ -78,3 +78,10 @@ test("Android builds can be signed with one fixed key, and the build says which 
   assert.match(wf, /signing key/i);
   assert.match(wf, /apksigner/);
 });
+
+test("live interviews on the phone can use the microphone, and nothing riskier is asked for", () => {
+  const m = read("android/app/src/main/AndroidManifest.xml");
+  assert.match(m, /android.permission.RECORD_AUDIO/);
+  assert.doesNotMatch(m, /android.permission.CAMERA|READ_CONTACTS|READ_SMS|ACCESS_FINE_LOCATION/);
+  assert.match(read("ios/App/App/Info.plist"), /<key>NSMicrophoneUsageDescription<\/key>\s*<string>[^<]{20,}<\/string>/);
+});

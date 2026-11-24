@@ -58,6 +58,7 @@ NODE_PATH="$(npm root -g)" node "$ROOT/frontend/e2e/live-session.cjs"
 PGPASSWORD=postgres psql -h localhost -U postgres meetpractice -qc "DELETE FROM users WHERE email='google.user@example.com'" >/dev/null 2>&1 || true
 NODE_PATH="$(npm root -g)" node "$ROOT/frontend/e2e/google-signin.cjs"
 NODE_PATH="$(npm root -g)" node "$ROOT/frontend/e2e/native-signin.cjs"
+NODE_PATH="$(npm root -g)" node "$ROOT/frontend/e2e/phone-session.cjs"
 NODE_PATH="$(npm root -g)" node "$ROOT/frontend/e2e/password-auth.cjs"
 NODE_PATH="$(npm root -g)" node "$ROOT/frontend/e2e/referral.cjs"
 NODE_PATH="$(npm root -g)" node "$ROOT/frontend/e2e/tour-guide.cjs"

@@ -8,6 +8,7 @@ import {
   useNotes,
 } from "../../api/hooks";
 import { isActive } from "../../api/polling";
+import { isMobileApp } from "../../app/native";
 import { daysSince } from "../companies/ResearchStatus";
 
 const NONE = "none";
@@ -71,9 +72,9 @@ export function SessionSetupPage() {
         Start an interview
       </h1>
       <p className="text-sm text-muted">
-        Run a mock interview with a friend, mentor or peer who knows the
-        assistant is on. Join them on Google Meet, then share the Meet tab with
-        its audio on the next screen.
+        {isMobileApp()
+          ? "Run a mock interview with a friend, mentor or peer who knows the assistant is on. On the next screen the phone listens through its microphone, so put it near the speaker of your call. You can also type a question."
+          : "Run a mock interview with a friend, mentor or peer who knows the assistant is on. Join them on Google Meet, then share the Meet tab with its audio on the next screen."}
       </p>
 
       {interviewId ? (

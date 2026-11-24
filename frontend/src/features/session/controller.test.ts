@@ -44,7 +44,7 @@ interface StreamCall {
   finish: () => void;
 }
 
-function setup(opts: { captureError?: Error } = {}) {
+function setup(opts: { captureError?: Error; source?: "tab" | "mic" } = {}) {
   useLiveStore.getState().reset();
   let t = 0;
   const sock = new FakeSocket();
@@ -57,6 +57,7 @@ function setup(opts: { captureError?: Error } = {}) {
     sampleRate: 24000,
     fetchToken: async () => "tok",
     endSession,
+    source: opts.source,
     now: () => t,
     capture: async (_rate, cb) => {
       if (opts.captureError) throw opts.captureError;
@@ -629,5 +630,57 @@ describe("LiveSessionController: ending", () => {
     x.c.dispose();
     expect(x.cap.stop).toHaveBeenCalled();
     expect(x.endSession).not.toHaveBeenCalled();
+  });
+});
+
+describe("LiveSessionController: listening through the phone's microphone", () => {
+  it("says what to do in phone words when there is no sound, and when the app is in the background", async () => {
+    const x = setup({ source: "mic" });
+    await x.c.share();
+    x.sock.ev.onState("ready");
+    for (let t = 0; t <= 11_000; t += 500) {
+      x.at(t);
+      x.frame(quiet());
+    }
+    expect(x.s().notice).toMatch(/closer to the speaker/);
+    expect(x.s().notice).not.toMatch(/Meet tab/);
+  });
+
+  it("uses phone words when listening stops or the connection is lost", async () => {
+    const x = setup({ source: "mic" });
+    await x.c.share();
+    x.sock.ev.onState("ready");
+    x.shareEnded();
+    expect(x.s().problem).toBe("Listening stopped.");
+    const y = setup({ source: "mic" });
+    await y.c.share();
+    y.sock.ev.onLost?.();
+    expect(y.s().problem).toMatch(/Start listening/);
+  });
+
+  it("starts the microphone by default when asked to listen on a phone", async () => {
+    useLiveStore.getState().reset();
+    const mic = vi.fn().mockResolvedValue({ stop: vi.fn() });
+    vi.doMock("../../audio/captureTab", async (orig) => ({
+      ...(await orig<typeof import("../../audio/captureTab")>()),
+      startMicCapture: mic,
+    }));
+    vi.resetModules();
+    const { LiveSessionController: C } = await import("./controller");
+    const sock = new FakeSocket();
+    const c = new C({
+      sessionId: "s",
+      sampleRate: 24000,
+      source: "mic",
+      fetchToken: async () => "tok",
+      endSession: async () => ({}),
+      makeSocket: (_o, ev) => {
+        sock.ev = ev;
+        return sock as unknown as AudioSocket;
+      },
+    });
+    await c.share();
+    expect(mic).toHaveBeenCalledTimes(1);
+    vi.doUnmock("../../audio/captureTab");
   });
 });
