@@ -16,7 +16,8 @@ class Settings(BaseSettings):
     # the website). Comma-separated. They use a bearer token, never the browser cookie.
     app_origins: str = "https://localhost,capacitor://localhost,app://interviewmeet"
     cookie_secret: SecretStr = SecretStr("dev-only-change-me")
-    github_repo: str = "tobioyinlola/Interview"  # where the downloadable apps are published
+    # where the downloadable apps are published: a separate PUBLIC repo (the source stays private)
+    github_repo: str = "tobioyinlola/interviewmeet-downloads"
 
     openai_api_key: SecretStr = SecretStr("")
     openai_answer_model: str = "gpt-4.1-mini"
@@ -95,8 +96,9 @@ class Settings(BaseSettings):
     referrals_per_free_session: int = 3
     # How long the admin event log is kept. Older events are deleted when the server starts.
     event_retention_days: int = 180
-    # OFF while the product is being tested: every session is free and invite rewards are not tied to
-    # sessions. Set ENFORCE_SESSION_CREDITS=true to bring the free trial / invite / paid credits back.
+    # OFF while the product is being tested: every session is free and invite rewards are not
+    # tied to sessions. Set ENFORCE_SESSION_CREDITS=true to bring the free trial, invite and
+    # paid credits back.
     enforce_session_credits: bool = False
     dev_log_email_links: bool = False
     resend_api_key: SecretStr = SecretStr("")  # sends the sign-in email

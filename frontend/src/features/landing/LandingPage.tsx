@@ -7,14 +7,14 @@ import { Cite, HeroDevice, PhoneMock, Waveform, Window } from "./Mockups";
  *  these addresses never depend on which build is newest. The file names are fixed in
  *  desktop/electron-builder.yml. */
 const DOWNLOADS =
-  "https://github.com/tobioyinlola/Interview/releases/download/desktop-latest";
+  "https://github.com/tobioyinlola/interviewmeet-downloads/releases/download/desktop-latest";
 export const WINDOWS_DOWNLOAD_URL = `${DOWNLOADS}/InterviewMeet-Setup.exe`;
 
 export const MAC_ARM_DOWNLOAD_URL = `${DOWNLOADS}/InterviewMeet-mac-arm64.dmg`;
 export const MAC_INTEL_DOWNLOAD_URL = `${DOWNLOADS}/InterviewMeet-mac-x64.dmg`;
 /** The Android app lives on its own fixed release so a new desktop release never hides it. */
 export const ANDROID_DOWNLOAD_URL =
-  "https://github.com/tobioyinlola/Interview/releases/download/android-latest/InterviewMeet-android.apk";
+  "https://github.com/tobioyinlola/interviewmeet-downloads/releases/download/android-latest/InterviewMeet-android.apk";
 
 const FEATURES = [
   {

@@ -50,12 +50,14 @@ jobs:
         shell: bash
         run: |
           [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Version must look like 0.1.0"; exit 1; }
-          if gh release view "desktop-v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+          if gh release view "desktop-v$VERSION" --repo "$REL_REPO" >/dev/null 2>&1; then
             echo "Release desktop-v$VERSION already exists. Use a new version."; exit 1
           fi
         working-directory: .
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN || secrets.GITHUB_TOKEN }}
+          REL_REPO: ${{ secrets.RELEASES_TOKEN && 'tobioyinlola/interviewmeet-downloads' || github.repository }}
+          REL_TARGET: ${{ secrets.RELEASES_TOKEN && 'main' || github.sha }}
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -84,7 +86,9 @@ jobs:
           if [ "$RELEASE" = "true" ]; then EXTRA="--config.extraMetadata.version=$VERSION"; fi
           npx electron-builder --win nsis --x64 $EXTRA --publish ${{ startsWith(github.ref, 'refs/tags/desktop-v') && 'always' || 'never' }}
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN || secrets.GITHUB_TOKEN }}
+          REL_REPO: ${{ secrets.RELEASES_TOKEN && 'tobioyinlola/interviewmeet-downloads' || github.repository }}
+          REL_TARGET: ${{ secrets.RELEASES_TOKEN && 'main' || github.sha }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
       # The same checks again, this time against the packaged app that people would install.
@@ -104,7 +108,9 @@ jobs:
         shell: bash
         working-directory: .
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN || secrets.GITHUB_TOKEN }}
+          REL_REPO: ${{ secrets.RELEASES_TOKEN && 'tobioyinlola/interviewmeet-downloads' || github.repository }}
+          REL_TARGET: ${{ secrets.RELEASES_TOKEN && 'main' || github.sha }}
         run: |
           ls -la desktop/dist
           FILES="desktop/dist/InterviewMeet-Setup.exe"
@@ -112,17 +118,17 @@ jobs:
             if [ -f "$extra" ]; then FILES="$FILES $extra"; else echo "note: $extra was not produced"; fi
           done
           gh release create "desktop-v$VERSION" $FILES \
-            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --repo "$REL_REPO" --target "$REL_TARGET" \
             --title "InterviewMeet desktop $VERSION (Windows)" \
             --notes "Windows installer. It is not code-signed yet, so Windows may show a protected-your-PC notice: choose More info, then Run anyway."
           # The website's download buttons point at ONE fixed release, so they work whichever build is
           # newest and never wait for the Mac build. (It is a pre-release so it is never "latest", which
           # is the release installed apps look at for updates.)
-          gh release view desktop-latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
-            gh release create desktop-latest --repo "$GITHUB_REPOSITORY" --prerelease --target "$GITHUB_SHA" \
+          gh release view desktop-latest --repo "$REL_REPO" >/dev/null 2>&1 || \
+            gh release create desktop-latest --repo "$REL_REPO" --prerelease --target "$REL_TARGET" \
               --title "InterviewMeet downloads" --notes "placeholder"
-          gh release upload desktop-latest desktop/dist/InterviewMeet-Setup.exe --repo "$GITHUB_REPOSITORY" --clobber
-          gh release edit desktop-latest --repo "$GITHUB_REPOSITORY" --prerelease \
+          gh release upload desktop-latest desktop/dist/InterviewMeet-Setup.exe --repo "$REL_REPO" --clobber
+          gh release edit desktop-latest --repo "$REL_REPO" --prerelease \
             --title "InterviewMeet downloads" \
             --notes "The newest installers, at fixed addresses for the website. Windows: $VERSION. Not code-signed yet."
 
@@ -190,11 +196,13 @@ jobs:
         if: env.RELEASE == 'true'
         working-directory: .
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN || secrets.GITHUB_TOKEN }}
+          REL_REPO: ${{ secrets.RELEASES_TOKEN && 'tobioyinlola/interviewmeet-downloads' || github.repository }}
+          REL_TARGET: ${{ secrets.RELEASES_TOKEN && 'main' || github.sha }}
         run: |
-          gh release upload "desktop-v$VERSION" desktop/dist/*.dmg desktop/dist/*.zip --repo "$GITHUB_REPOSITORY" --clobber
+          gh release upload "desktop-v$VERSION" desktop/dist/*.dmg desktop/dist/*.zip --repo "$REL_REPO" --clobber
           # and the fixed download release the website links to (see the Windows job)
-          gh release view desktop-latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
-            gh release create desktop-latest --repo "$GITHUB_REPOSITORY" --prerelease --target "$GITHUB_SHA" \
+          gh release view desktop-latest --repo "$REL_REPO" >/dev/null 2>&1 || \
+            gh release create desktop-latest --repo "$REL_REPO" --prerelease --target "$REL_TARGET" \
               --title "InterviewMeet downloads" --notes "placeholder"
-          gh release upload desktop-latest desktop/dist/*.dmg --repo "$GITHUB_REPOSITORY" --clobber
+          gh release upload desktop-latest desktop/dist/*.dmg --repo "$REL_REPO" --clobber
