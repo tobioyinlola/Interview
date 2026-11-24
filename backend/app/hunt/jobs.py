@@ -57,7 +57,7 @@ async def run(
     llm: LlmProvider,
     fetcher: Fetcher | None = None,
 ) -> dict[str, int]:
-    fetcher = fetcher or Fetcher()
+    fetcher = fetcher or Fetcher(text_max_chars=directory.PAGE_CHARS)
     try:
         async with maker() as db:
             await directory.refresh_due(db, fetcher, llm, now)

@@ -807,6 +807,78 @@ async def test_an_unreadable_candidate_stays_off_with_the_reason(maker):
         assert d.enabled is False and "robots" in d.last_problem
 
 
+def test_a_long_page_is_cut_into_pieces_at_spaces_and_only_so_many():
+    text = "word " * 20_000  # 100,000 characters
+    pieces = directory._chunks(text)
+    assert 1 < len(pieces) <= directory.MAX_CHUNKS
+    assert all(len(p) <= directory.CHUNK_CHARS for p in pieces)
+    assert all(not p.startswith(" ") and "wor " not in p[-4:] for p in pieces)  # no cut words
+    assert directory._chunks("short page") == ["short page"] and directory._chunks("  ") == []
+
+
+async def test_a_long_directory_page_is_read_in_pieces_and_what_each_piece_finds_is_kept():
+    class PerPiece:
+        """Each call gets the next piece and names a different company; one call fails."""
+
+        def __init__(self):
+            self.calls = 0
+
+        async def generate_json(self, *, system, user, schema):
+            from app.adapters.interfaces import ProviderError
+
+            self.calls += 1
+            if self.calls == 2:
+                raise ProviderError("busy")
+            return json.dumps(
+                {
+                    "startups": [
+                        {
+                            "name": f"Co{self.calls}",
+                            "website": f"https://co{self.calls}.io",
+                            "one_liner": "x",
+                            "country": "France",
+                            "batch": "",
+                            "sector": "",
+                        }
+                    ]
+                }
+            )
+
+    llm = PerPiece()
+    found = await directory.extract(llm, "word " * 20_000, "https://dir.test/portfolio")
+    assert llm.calls == directory.MAX_CHUNKS
+    assert [f.name for f in found] == ["Co1", "Co3", "Co4"]  # the failed piece cost only itself
+
+
+async def test_the_same_company_named_in_two_pieces_counts_once():
+    rows = [(f"N{i}", f"https://n{i}.io", "France") for i in range(60)]
+    found = await directory.extract(listing(*rows), "word " * 20_000, "https://dir.test/p")
+    assert len(found) == 60 and len({f.website for f in found}) == 60
+
+
+async def test_one_directory_gives_at_most_two_hundred_companies():
+    class Many:
+        calls = 0
+
+        async def generate_json(self, *, system, user, schema):
+            Many.calls += 1
+            rows = [
+                {
+                    "name": f"P{Many.calls}N{i}",
+                    "website": f"https://p{Many.calls}n{i}.io",
+                    "one_liner": "",
+                    "country": "",
+                    "batch": "",
+                    "sector": "",
+                }
+                for i in range(80)
+            ]
+            return json.dumps({"startups": rows})
+
+    found = await directory.extract(Many(), "word " * 20_000, "https://dir.test/p")
+    assert len(found) == directory.MAX_TOTAL
+
+
 async def test_a_directory_that_cannot_be_read_says_why(maker):
     from app.models import Directory
 
