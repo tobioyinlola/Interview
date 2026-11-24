@@ -182,13 +182,3 @@ login, CV upload, consent, the live audio socket and OpenAI transcription were c
 **Not yet verified against the real world:** answer quality and the evaluation scores (evals above),
 research adapters, a real Google Meet call, the GitHub Actions workflow, Google sign-in against real Google.
 **Open decisions:** transcript retention policy, daily budget figure.
-
-## Where the downloads are published
-
-This repository is private, so the apps and in-app updates are published to a separate **public**
-repo, `tobioyinlola/interviewmeet-downloads` (installers only, no source). The workflows publish there
-when a repository secret `RELEASES_TOKEN` exists (a token with Contents: read and write on that repo);
-without it they publish to this repo as before. The server reads the update list from the same repo
-(`GITHUB_REPO`, default `tobioyinlola/interviewmeet-downloads`), and the website's download buttons and
-the desktop auto-updater point at it too. Create the repo with a first commit on `main` before the next
-release.
