@@ -105,13 +105,15 @@ jobs:
         if: env.RELEASE == 'true'
         working-directory: .
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN || secrets.GITHUB_TOKEN }}
+          REL_REPO: ${{ secrets.RELEASES_TOKEN && 'tobioyinlola/interviewmeet-downloads' || github.repository }}
+          REL_TARGET: ${{ secrets.RELEASES_TOKEN && 'main' || github.sha }}
         run: |
-          gh release view android-latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
-            gh release create android-latest --repo "$GITHUB_REPOSITORY" --prerelease --target "$GITHUB_SHA" \
+          gh release view android-latest --repo "$REL_REPO" >/dev/null 2>&1 || \
+            gh release create android-latest --repo "$REL_REPO" --prerelease --target "$REL_TARGET" \
               --title "InterviewMeet for Android" --notes "placeholder"
-          gh release upload android-latest mobile/InterviewMeet-android.apk --repo "$GITHUB_REPOSITORY" --clobber
-          gh release edit android-latest --repo "$GITHUB_REPOSITORY" --prerelease \
+          gh release upload android-latest mobile/InterviewMeet-android.apk --repo "$REL_REPO" --clobber
+          gh release edit android-latest --repo "$REL_REPO" --prerelease \
             --title "InterviewMeet for Android $APP_VERSION" \
             --notes "Android app, version $APP_VERSION. Open the file on your phone and allow installs from this source if asked. Android may say the app is from an unknown developer: it is not signed for the Play Store yet."
       # The same interface that is inside the app, as a download the installed apps fetch by themselves,
@@ -121,10 +123,12 @@ jobs:
         if: env.RELEASE == 'true'
         working-directory: .
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN || secrets.GITHUB_TOKEN }}
+          REL_REPO: ${{ secrets.RELEASES_TOKEN && 'tobioyinlola/interviewmeet-downloads' || github.repository }}
+          REL_TARGET: ${{ secrets.RELEASES_TOKEN && 'main' || github.sha }}
         run: |
           (cd mobile/www && zip -qr ../interface.zip .)
-          PREV=$(gh release view interface-latest --repo "$GITHUB_REPOSITORY" --json body --jq .body 2>/dev/null || echo "")
+          PREV=$(gh release view interface-latest --repo "$REL_REPO" --json body --jq .body 2>/dev/null || echo "")
           PREV_COMMIT=$(echo "$PREV" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).commit||"")}catch{console.log("")}})')
           if [ -n "$PREV_COMMIT" ] && git cat-file -e "$PREV_COMMIT^{commit}" 2>/dev/null; then
             CHANGED=$(git diff --name-only "$PREV_COMMIT" "$GITHUB_SHA")
@@ -133,11 +137,11 @@ jobs:
           fi
           NOTE=$(cd mobile && node scripts/ui-release.js "$APP_VERSION" "$APP_VERSION_CODE" "$PREV" $CHANGED)
           echo "Interface note: $NOTE"
-          gh release view interface-latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
-            gh release create interface-latest --repo "$GITHUB_REPOSITORY" --prerelease --target "$GITHUB_SHA" \
+          gh release view interface-latest --repo "$REL_REPO" >/dev/null 2>&1 || \
+            gh release create interface-latest --repo "$REL_REPO" --prerelease --target "$REL_TARGET" \
               --title "InterviewMeet interface" --notes "placeholder"
-          gh release upload interface-latest mobile/interface.zip --repo "$GITHUB_REPOSITORY" --clobber
-          gh release edit interface-latest --repo "$GITHUB_REPOSITORY" --prerelease \
+          gh release upload interface-latest mobile/interface.zip --repo "$REL_REPO" --clobber
+          gh release edit interface-latest --repo "$REL_REPO" --prerelease \
             --title "InterviewMeet interface $APP_VERSION" --notes "$NOTE"
 
   ios:
