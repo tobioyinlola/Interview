@@ -119,15 +119,14 @@ function createWindow() {
   win = new BrowserWindow({
     width: 1280,
     height: 860,
-    minWidth: 900,
-    minHeight: 640,
-    backgroundColor: "#1c1b2e", // the colour of the opening animation, so nothing flashes before it
+    minWidth: 420,
+    minHeight: 500,
+    backgroundColor: "#00000000",
+    transparent: true,
+    frame: false,
     show: false,
     title: "InterviewMeet",
     autoHideMenuBar: true,
-    // transparent + hidden titlebar allow the window to morph seamlessly into the stealth HUD
-    // without recreating or destroying the window (which would reset audio and React state).
-    transparent: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -209,10 +208,10 @@ function enterStealthMode() {
   //    macOS WindowServer can silently reset sharingType when the Dock policy changes.
   win.setContentProtection(true);
 
-  // 4. Morph window into compact floating HUD.
+  // 4. Morph window into compact floating HUD (450x680, matching terminal overlay ergonomics).
   win.setResizable(false);
   win.setHasShadow(false);
-  win.setSize(420, 560);
+  win.setSize(450, 680);
   win.setAlwaysOnTop(true, "screen-saver", 1);
   // Float above full-screen spaces on macOS (Zoom, Meet, Teams maximised)
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
@@ -220,7 +219,7 @@ function enterStealthMode() {
   // 5. Position in top-right corner of the primary display for quick glance.
   const { screen } = require("electron");
   const { width: sw } = screen.getPrimaryDisplay().workAreaSize;
-  win.setPosition(sw - 440, 20);
+  win.setPosition(Math.max(20, sw - 470), 30);
 
   // 6. Show without stealing focus from the interviewer's meeting window.
   win.showInactive();
@@ -291,6 +290,20 @@ ipcMain.handle("im:stealth-query", () => ({
   active: isStealthActive,
   clickThrough: isClickThrough,
 }));
+
+// Frameless window control handlers for desktop normal mode
+ipcMain.handle("im:window-minimize", () => {
+  if (win && !win.isDestroyed()) win.minimize();
+});
+ipcMain.handle("im:window-maximize", () => {
+  if (win && !win.isDestroyed()) {
+    if (win.isMaximized()) win.unmaximize();
+    else win.maximize();
+  }
+});
+ipcMain.handle("im:window-close", () => {
+  if (win && !win.isDestroyed()) win.close();
+});
 
 function buildMenu() {
   const mac = process.platform === "darwin";

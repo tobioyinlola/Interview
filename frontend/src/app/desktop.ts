@@ -13,6 +13,12 @@ interface DesktopStealth {
   onStateChanged: (cb: (state: StealthState) => void) => () => void;
 }
 
+interface DesktopWindowControls {
+  minimize: () => Promise<void>;
+  maximize: () => Promise<void>;
+  close: () => Promise<void>;
+}
+
 interface DesktopBridge {
   isDesktop: true;
   platform: string;
@@ -20,6 +26,8 @@ interface DesktopBridge {
   systemAudio: boolean;
   /** Opens an address in the person's normal browser (used for Google sign-in). */
   openInBrowser?: (url: string) => void;
+  /** Frameless window controls for desktop normal mode. */
+  windowControls?: DesktopWindowControls;
   /** Stealth HUD controls — only usable from the live interview page. */
   stealth?: DesktopStealth;
 }
@@ -64,4 +72,19 @@ export function onStealthStateChanged(
   cb: (state: StealthState) => void,
 ): () => void {
   return window.interviewMeetDesktop?.stealth?.onStateChanged(cb) ?? (() => {});
+}
+
+/** Minimize the desktop application window. */
+export function minimizeDesktopWindow(): void {
+  void window.interviewMeetDesktop?.windowControls?.minimize();
+}
+
+/** Maximize or unmaximize the desktop application window. */
+export function maximizeDesktopWindow(): void {
+  void window.interviewMeetDesktop?.windowControls?.maximize();
+}
+
+/** Close the desktop application window. */
+export function closeDesktopWindow(): void {
+  void window.interviewMeetDesktop?.windowControls?.close();
 }

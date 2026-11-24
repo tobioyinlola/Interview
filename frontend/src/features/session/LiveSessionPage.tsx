@@ -10,6 +10,8 @@ import { answerOf } from "./answerText";
 import { LiveSessionController } from "./controller";
 import { DesktopSyncPanel } from "./DesktopSyncPanel";
 import { StealthHudBar } from "./StealthHudBar";
+import { StealthTerminalHud } from "./StealthTerminalHud";
+import { useStealthHud } from "./useStealthHud";
 import { type Line, type Outline, useLiveStore } from "./store";
 import { useFloatingPanel } from "./useFloatingPanel";
 
@@ -428,6 +430,7 @@ export function LiveSessionPage() {
     (location.state as { sampleRate?: number } | null)?.sampleRate ?? 24000;
   const status = useLiveStore((s) => s.status);
   const float = useFloatingPanel();
+  const stealth = useStealthHud();
 
   const controller = useMemo(
     () =>
@@ -444,6 +447,30 @@ export function LiveSessionPage() {
     useLiveStore.getState().reset();
     return () => controller.dispose(); // leaving the page stops capture; the session is ended explicitly
   }, [controller]);
+
+  // Toggle body styling for true frameless transparency when in stealth mode
+  useEffect(() => {
+    if (stealth.state.active) {
+      document.body.classList.add("stealth-active");
+    } else {
+      document.body.classList.remove("stealth-active");
+    }
+    return () => {
+      document.body.classList.remove("stealth-active");
+    };
+  }, [stealth.state.active]);
+
+  // Dynamic Single-Window Morphing:
+  // If in desktop app and stealth mode is active, render ONLY the floating Terminal HUD
+  if (isDesktopApp() && stealth.state.active) {
+    return (
+      <StealthTerminalHud
+        controller={controller}
+        onEnd={() => void controller.end()}
+        onExitStealth={() => void stealth.exit()}
+      />
+    );
+  }
 
   const answer = <AnswerPanel onDone={() => controller.markDone()} />;
 

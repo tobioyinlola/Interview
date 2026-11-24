@@ -15,6 +15,12 @@ contextBridge.exposeInMainWorld(
     openInBrowser: (url) => {
       if (typeof url === "string") ipcRenderer.send("im:open-in-browser", url);
     },
+    // Frameless window controls for desktop normal mode
+    windowControls: {
+      minimize: () => ipcRenderer.invoke("im:window-minimize"),
+      maximize: () => ipcRenderer.invoke("im:window-maximize"),
+      close: () => ipcRenderer.invoke("im:window-close"),
+    },
     // Stealth HUD controls — only usable from the live interview page.
     stealth: {
       /** Morph the window into the compact floating HUD, hidden from screen share. */

@@ -161,3 +161,12 @@ test("global hotkeys are registered for HUD show/hide and click-through", () => 
   // Hotkeys must be unregistered on quit to avoid OS-level leaks.
   assert.match(mainJs, /globalShortcut\.unregisterAll/);
 });
+
+test("window controls IPC handlers are registered for frameless desktop mode", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const mainJs = fs.readFileSync(path.join(__dirname, "..", "src", "main.js"), "utf8");
+  assert.match(mainJs, /im:window-minimize/);
+  assert.match(mainJs, /im:window-maximize/);
+  assert.match(mainJs, /im:window-close/);
+});

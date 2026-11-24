@@ -8,6 +8,7 @@ import {
 } from "react-router-dom";
 
 import { useLogout, useMe } from "../api/hooks";
+import { DesktopTitleBar } from "./DesktopTitleBar";
 import { LogoMark } from "../features/landing/Logo";
 import { GlobalSearch } from "../features/search/GlobalSearch";
 import { ProfileMenu } from "./ProfileMenu";
@@ -140,9 +141,11 @@ export function Layout() {
 
   return (
     <TourProvider>
-      <div className="flex min-h-screen flex-col bg-ink lg:flex-row">
-        {/* Mobile top bar */}
-        <div className="flex items-center justify-between bg-ink px-4 py-3 text-surface lg:hidden">
+      <div className="flex min-h-screen flex-col bg-ink">
+        <DesktopTitleBar />
+        <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+          {/* Mobile top bar */}
+          <div className="flex items-center justify-between bg-ink px-4 py-3 text-surface lg:hidden">
           <Link
             to="/dashboard"
             className="flex items-center gap-2 font-semibold"
@@ -248,6 +251,7 @@ export function Layout() {
             <ProfileMenu />
           </header>
           <Outlet />
+        </div>
         </div>
       </div>
     </TourProvider>

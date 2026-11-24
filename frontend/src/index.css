@@ -342,3 +342,10 @@
     animation-delay: -2.1s;
   }
 }
+
+/* Frameless Stealth Mode Terminal Overlay */
+body.stealth-active,
+body.stealth-active #root {
+  background: transparent !important;
+  overflow: hidden !important;
+}
