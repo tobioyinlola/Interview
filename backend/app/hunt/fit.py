@@ -64,3 +64,18 @@ def score(
         points += min(25, 5 * len(shared))
         why.append("Your past work touches: " + ", ".join(sorted(shared)[:3]) + ".")
     return min(points, 100), why
+
+
+def openings_for(roles: list[str], startup: Startup) -> list[dict[str, str]]:
+    """The startup's published openings that match what the candidate wants, with their links."""
+    out: list[dict[str, str]] = []
+    for o in (startup.research or {}).get("openings", []):
+        if not isinstance(o, dict):
+            continue
+        title = str(o.get("title", ""))
+        for want in roles:
+            core = _words(want) - _FILLER
+            if core and core <= _words(title):
+                out.append({"title": title, "url": str(o.get("url", ""))})
+                break
+    return out[:3]

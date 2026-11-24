@@ -50,6 +50,7 @@ class FetchResult:
     text: str = ""
     final_url: str = ""
     emails: tuple[str, ...] = ()  # addresses the page itself publishes (mailto links and text)
+    links: tuple[tuple[str, str], ...] = ()  # (link text, absolute address) for links on the page
 
 
 _MAILTO = re.compile(r"mailto:([^\"'?<>\s&]+)", re.IGNORECASE)
@@ -66,6 +67,24 @@ def published_emails(html: str) -> tuple[str, ...]:
         if _ADDR.fullmatch(addr) and addr not in found:
             found.append(addr)
     return tuple(found[:20])
+
+
+_ANCHOR = re.compile(r"<a\b[^>]*?href\s*=\s*[\"']([^\"'#][^\"']*)[\"'][^>]*>(.*?)</a>", re.S | re.I)
+
+
+def page_links(html: str, base: str) -> tuple[tuple[str, str], ...]:
+    """Links on the page as (visible text, absolute http address). Used to find a startup's careers
+    page and the address of each opening it lists."""
+    out: list[tuple[str, str]] = []
+    for href, inner in _ANCHOR.findall(html):
+        href = unescape(href).strip()
+        if href.lower().startswith(("mailto:", "tel:", "javascript:")):
+            continue
+        text = " ".join(unescape(re.sub(r"<[^>]+>", " ", inner)).split())[:160]
+        url = urljoin(base, href)
+        if text and url.startswith(("http://", "https://")) and (text, url) not in out:
+            out.append((text, url))
+    return tuple(out[:150])
 
 
 class _TooLarge(Exception):
@@ -183,9 +202,10 @@ class Fetcher:
             title, text = await asyncio.to_thread(_extract, html)
         text = text[: self.text_max_chars]
         emails = published_emails(html) if ctype != "text/plain" else ()
+        links = page_links(html, final_url) if ctype != "text/plain" else ()
         if len(text) < MIN_READABLE_CHARS and emails:
             return FetchResult(
-                url, "ok", title=title, text=text, final_url=final_url, emails=emails
+                url, "ok", title=title, text=text, final_url=final_url, emails=emails, links=links
             )
         if len(text) < MIN_READABLE_CHARS:
             return FetchResult(

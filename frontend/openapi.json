@@ -1722,6 +1722,20 @@
             "title": "Sources",
             "type": "array"
           },
+          "startups": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Startups"
+          },
           "state": {
             "title": "State",
             "type": "string"
@@ -3116,6 +3130,24 @@
           }
         },
         "title": "OnboardingIn",
+        "type": "object"
+      },
+      "OpeningOut": {
+        "properties": {
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "url"
+        ],
+        "title": "OpeningOut",
         "type": "object"
       },
       "OutreachIn": {
@@ -4787,6 +4819,11 @@
             ],
             "title": "Mailbox"
           },
+          "paused": {
+            "default": false,
+            "title": "Paused",
+            "type": "boolean"
+          },
           "pitch": {
             "default": "",
             "maxLength": 1200,
@@ -4798,6 +4835,11 @@
             "maxLength": 300,
             "title": "Postal Address",
             "type": "string"
+          },
+          "prefilled": {
+            "default": false,
+            "title": "Prefilled",
+            "type": "boolean"
           },
           "ready": {
             "items": {
@@ -5256,6 +5298,17 @@
             "title": "Body",
             "type": "string"
           },
+          "careers_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Careers Url"
+          },
           "contact": {
             "title": "Contact",
             "type": "string"
@@ -5287,6 +5340,13 @@
           "one_liner": {
             "title": "One Liner",
             "type": "string"
+          },
+          "openings": {
+            "items": {
+              "$ref": "#/components/schemas/OpeningOut"
+            },
+            "title": "Openings",
+            "type": "array"
           },
           "reason": {
             "anyOf": [
@@ -5345,6 +5405,8 @@
           "contact",
           "contact_kind",
           "contact_source",
+          "careers_url",
+          "openings",
           "fit",
           "fit_reasons",
           "step",

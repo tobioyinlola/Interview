@@ -72,6 +72,44 @@ async def suppress(
     )
 
 
+async def paused(db: AsyncSession, user_id: uuid.UUID) -> bool:
+    """One pause for everything: pausing Auto-Apply pauses startup outreach too."""
+    prof = (
+        await db.execute(select(SearchProfile).where(SearchProfile.user_id == user_id))
+    ).scalar_one_or_none()
+    return bool(prof and prof.paused)
+
+
+async def counts(db: AsyncSession, user_id: uuid.UUID) -> dict[str, int]:
+    """For the Auto-Apply overview: notes waiting for approval, sent, answered, and how many of
+    the notes point at a real opening on a careers page."""
+    rows = (
+        await db.execute(
+            select(HuntTarget.status, func.count())
+            .where(HuntTarget.user_id == user_id)
+            .group_by(HuntTarget.status)
+        )
+    ).all()
+    by = {k: v for k, v in rows}
+    with_roles = (
+        await db.execute(
+            select(func.count())
+            .select_from(HuntTarget)
+            .where(
+                HuntTarget.user_id == user_id,
+                HuntTarget.step == 1,
+                func.jsonb_array_length(HuntTarget.openings) > 0,
+            )
+        )
+    ).scalar_one()
+    return {
+        "waiting": by.get("drafted", 0),
+        "sent": by.get("sent", 0) + by.get("replied", 0) + by.get("declined", 0),
+        "replied": by.get("replied", 0),
+        "openings": with_roles,
+    }
+
+
 async def get_settings(db: AsyncSession, user_id: uuid.UUID) -> HuntSettings | None:
     return (
         await db.execute(select(HuntSettings).where(HuntSettings.user_id == user_id))
@@ -87,6 +125,8 @@ async def plan(
     """Draft notes for the best-fitting researched startups this candidate has not met yet."""
     st = await get_settings(db, user_id)
     if st is None or not st.enabled or not st.regions or not st.roles:
+        return 0
+    if await paused(db, user_id):
         return 0
     backlog = (
         await db.execute(
@@ -132,13 +172,14 @@ async def plan(
         if not usable:
             continue
         pts, why = fit.score(st.roles, facts, s)
-        if pts >= fit.MIN_FIT:
+        if pts >= fit.MIN_FIT or fit.openings_for(st.roles, s):
             best = min(usable, key=lambda c: _KIND_RANK[c.kind])
             ranked.append((pts, why, s, best))
     ranked.sort(key=lambda r: -r[0])
     made = 0
     for pts, why, s, c in ranked[:room]:
-        subject, body = await draft.write(llm, facts, st, s, c, region=s.region)
+        found = fit.openings_for(st.roles, s)
+        subject, body = await draft.write(llm, facts, st, s, c, region=s.region, openings=found)
         db.add(
             HuntTarget(
                 id=uuid.uuid4(),
@@ -148,6 +189,7 @@ async def plan(
                 step=1,
                 fit=pts,
                 fit_reasons=why,
+                openings=found,
                 subject=subject,
                 body=body,
                 status="approved" if st.auto_send else "drafted",
@@ -271,6 +313,7 @@ async def send_next(
             or conn is None
             or conn.status != "connected"
             or not conn.token_encrypted
+            or bool(prof and prof.paused)
             or not in_window(now, tz)
             or await sent_today(db, user_id, now, tz) >= min(st.daily_cap, MAX_DAILY)
         ):

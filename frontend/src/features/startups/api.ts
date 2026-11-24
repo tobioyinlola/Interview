@@ -13,7 +13,11 @@ export type HuntSettings = {
   postal_address: string;
   mailbox: string | null;
   ready: string[];
+  prefilled: boolean;
+  paused: boolean;
 };
+
+export type Opening = { title: string; url: string };
 
 export type HuntTarget = {
   id: string;
@@ -24,6 +28,8 @@ export type HuntTarget = {
   contact: string;
   contact_kind: string;
   contact_source: string;
+  careers_url: string | null;
+  openings: Opening[];
   fit: number;
   fit_reasons: string[];
   step: number;
@@ -62,7 +68,9 @@ export const useHuntTargets = () =>
 export function useSaveHuntSettings() {
   const refresh = useRefresh();
   return useMutation({
-    mutationFn: (body: Omit<HuntSettings, "mailbox" | "ready">) =>
+    mutationFn: (
+      body: Omit<HuntSettings, "mailbox" | "ready" | "prefilled" | "paused">,
+    ) =>
       apiFetch<HuntSettings>(`${P}/settings`, {
         method: "PUT",
         body: JSON.stringify(body),

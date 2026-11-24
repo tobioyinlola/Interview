@@ -126,9 +126,6 @@ export function Layout() {
     item("/companies", "Companies", <BuildingIcon />),
     item("/session/new", "Interview", <MicIcon />),
     ...(me?.autoapply ? [item("/auto-apply", "Auto-Apply", <SendIcon />)] : []),
-    ...(me?.startup_outreach
-      ? [item("/startups", "Startups", <BuildingIcon />)]
-      : []),
     item("/referrals", "Invite friends", <GiftIcon />),
   ];
   const account = [

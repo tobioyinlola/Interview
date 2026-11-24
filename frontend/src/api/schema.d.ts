@@ -2658,6 +2658,10 @@ export interface components {
              * @default []
              */
             sources: string[];
+            /** Startups */
+            startups?: {
+                [key: string]: number;
+            } | null;
             /** State */
             state: string;
             usage: components["schemas"]["UsageOut"] | null;
@@ -3094,6 +3098,13 @@ export interface components {
             skipped: boolean;
             /** Timeline */
             timeline?: ("this_week" | "few_weeks" | "few_months" | "not_scheduled") | null;
+        };
+        /** OpeningOut */
+        OpeningOut: {
+            /** Title */
+            title: string;
+            /** Url */
+            url: string;
         };
         /** OutreachIn */
         OutreachIn: {
@@ -3674,6 +3685,11 @@ export interface components {
             /** Mailbox */
             mailbox: string | null;
             /**
+             * Paused
+             * @default false
+             */
+            paused: boolean;
+            /**
              * Pitch
              * @default
              */
@@ -3683,6 +3699,11 @@ export interface components {
              * @default
              */
             postal_address: string;
+            /**
+             * Prefilled
+             * @default false
+             */
+            prefilled: boolean;
             /** Ready */
             ready: string[];
             /** Regions */
@@ -3852,6 +3873,8 @@ export interface components {
         TargetOut: {
             /** Body */
             body: string;
+            /** Careers Url */
+            careers_url: string | null;
             /** Contact */
             contact: string;
             /** Contact Kind */
@@ -3869,6 +3892,8 @@ export interface components {
             id: string;
             /** One Liner */
             one_liner: string;
+            /** Openings */
+            openings: components["schemas"]["OpeningOut"][];
             /** Reason */
             reason: string | null;
             /** Region */

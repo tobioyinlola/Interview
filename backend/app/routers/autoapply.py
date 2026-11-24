@@ -136,6 +136,16 @@ def get_mailbox_adapter(
     return adapter
 
 
+async def _startup_counts(
+    db: AsyncSession, settings: Settings, user_id: Any
+) -> dict[str, int] | None:
+    if not settings.startup_outreach_enabled:
+        return None
+    from app.hunt import engine as hunt_engine  # local: optional feature
+
+    return await hunt_engine.counts(db, user_id)
+
+
 def feature_on(settings: Settings = Depends(get_settings)) -> None:  # noqa: B008
     if not settings.autoapply_enabled:
         raise ApiError(404, "not_found", "Not found.")
@@ -1312,4 +1322,5 @@ async def read_dashboard(
         recent=[_app_out(a, p) for a, p in recent],
         counts={status: n for status, n in counts_rows},
         review_count=review,
+        startups=(await _startup_counts(db, settings, user.id)),
     )

@@ -1,6 +1,8 @@
 import { type FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
+import { AutoApplyTabs } from "./AutoApplyTabs";
+
 import { Loading } from "../../ui/Loading";
 import {
   useAddJob,
@@ -324,9 +326,32 @@ export function AutoApplyPage() {
 
   return (
     <main className="page-narrow">
+      <AutoApplyTabs waiting={d.startups?.waiting ?? 0} />
       {d.demo && <DemoNotice />}
 
       <Hero d={d} />
+
+      {d.startups && (
+        <Link
+          to="/auto-apply/startups"
+          className="flex min-h-[56px] items-center justify-between gap-3 rounded-2xl bg-surface p-4 shadow-card"
+        >
+          <span className="min-w-0">
+            <span className="block font-medium">
+              {d.startups.waiting > 0
+                ? `${d.startups.waiting} startup pitch${d.startups.waiting === 1 ? "" : "es"} waiting for you`
+                : "Startups"}
+            </span>
+            <span className="block text-sm text-muted">
+              {d.startups.sent} sent · {d.startups.replied} replies ·{" "}
+              {d.startups.openings} with an open role
+            </span>
+          </span>
+          <span aria-hidden="true" className="text-muted">
+            ›
+          </span>
+        </Link>
+      )}
 
       <dl
         className={`grid gap-3 ${phone ? "grid-cols-3 gap-2" : "grid-cols-2 lg:grid-cols-4"}`}
