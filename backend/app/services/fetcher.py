@@ -113,6 +113,8 @@ class Fetcher:
         host_interval: float = 1.0,
         text_max_chars: int = 20_000,
         links_max: int = 150,
+        allow_json: bool = False,
+        json_max_chars: int = 8_000_000,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
@@ -126,6 +128,8 @@ class Fetcher:
         self.host_interval = host_interval
         self.text_max_chars = text_max_chars
         self.links_max = links_max
+        self.allow_json = allow_json
+        self.json_max_chars = json_max_chars
         self._sleep = sleep
         self._clock = clock
         self._host_locks: dict[str, asyncio.Lock] = {}
@@ -194,6 +198,10 @@ class Fetcher:
             return FetchResult(url, "blocked", f"The site returned an error ({code}).")
 
         ctype = raw.headers.get("content-type", "").split(";")[0].strip().lower()
+        if ctype == "application/json" and self.allow_json:
+            # a data feed (a directory published as JSON): handed over as it is
+            body = raw.body.decode("utf-8", errors="replace")[: self.json_max_chars]
+            return FetchResult(url, "ok", text=body, final_url=final_url)
         if ctype not in ("text/html", "text/plain", "application/xhtml+xml"):
             return FetchResult(url, "blocked", "That link is not a web page.")
 

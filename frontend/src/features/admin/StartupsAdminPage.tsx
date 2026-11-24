@@ -9,13 +9,26 @@ import {
   useStartupsAdmin,
   useToggleDirectory,
 } from "./api";
-import { Empty, Failed, Loading, PageHead, Stat, Table, num, when } from "./ui";
+import {
+  Empty,
+  Failed,
+  Loading,
+  PageHead,
+  Stat,
+  Table,
+  num,
+  regionName,
+  when,
+} from "./ui";
 
 const HINTS = [
   { v: "", l: "No region (use each company's country)" },
   { v: "us", l: "United States" },
   { v: "eu", l: "Europe" },
   { v: "uk", l: "United Kingdom" },
+  { v: "uae", l: "United Arab Emirates (label only)" },
+  { v: "ksa", l: "Saudi Arabia (label only)" },
+  { v: "mena", l: "Middle East and North Africa (label only)" },
 ];
 
 /** "Name, website, country, what they do" per line, as people paste them. */
@@ -110,9 +123,11 @@ export function StartupsAdminPage() {
       <p className="text-xs text-muted">
         By region:{" "}
         {Object.entries(d.by_region)
-          .map(([k, v]) => `${k} ${v}`)
+          .map(([k, v]) => `${regionName(k)} ${v}`)
           .join(" · ") || "none yet"}
-        . Companies with no region are never researched or written to.
+        . Only startups in the US, Europe and the UK are ever emailed. The rest
+        (the Gulf, Africa, Asia and so on) are listed, with their open roles,
+        but nobody is written to there.
       </p>
 
       <section className="space-y-3" aria-label="Directories">

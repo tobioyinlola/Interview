@@ -3,10 +3,12 @@ fetched politely (robots.txt respected, one request a second) and a model copies
 page says. A person can also paste companies in. Everything is validated before it is stored."""
 
 import json
+import re
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from typing import Any
+from urllib.parse import urlsplit
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,10 +28,9 @@ DEFAULTS: list[tuple[str, str, str]] = [
     ("Y Combinator", "https://www.ycombinator.com/companies", ""),
     ("Techstars", "https://www.techstars.com/portfolio", ""),
     ("Seedcamp", "https://seedcamp.com/our-companies/", "eu"),
-    ("Antler", "https://antler.co/portfolio", ""),
+    ("Antler", "https://www.antler.co/portfolio", ""),
     ("Alchemist Accelerator", "https://alchemistaccelerator.com/portfolio", ""),
     ("500 Global", "https://500.co/companies", ""),
-    ("Startupbootcamp", "https://www.startupbootcamp.org/startups/portfolio-companies", "eu"),
     ("Station F", "https://stationf.co/startups", "eu"),
     ("Wayra UK", "https://wayra.uk/portfolio", "uk"),
     ("Village Global", "https://www.villageglobal.com/portfolio", "us"),
@@ -57,13 +58,34 @@ DEFAULTS: list[tuple[str, str, str]] = [
     # opened in a real browser and found to list each company with its own website address
     ("Initialized Capital", "https://initialized.com/portfolio", "us"),
     ("BetaList", "https://betalist.com/startups", ""),
+    # From around the world (opened in a real browser): each lists its companies, with each
+    # company's own website on the page or on its profile page. The region label is only for
+    # companies whose country the page does not give.
+    ("YC companies hiring", "https://yc-oss.github.io/api/companies/hiring.json", ""),
+    ("Peak XV Partners (India and South-East Asia)", "https://www.peakxv.com/our-companies", ""),
+    ("Monashees (Brazil)", "https://www.monashees.com/portfolio", ""),
+    ("Norrsken22 (Africa)", "https://www.norrsken22.com/", ""),
+    ("Startmate (Australia)", "https://www.startmate.com/portfolio", ""),
+    ("Blackbird (Australia)", "https://www.blackbird.vc/portfolio", ""),
+    ("Creative Destruction Lab (Canada)", "https://creativedestructionlab.com/companies/", ""),
+    # Dubai, Abu Dhabi and Saudi Arabia
+    ("MEVP (Dubai)", "https://mevp.com/portfolio", "mena"),
+    ("Venturesouq (Dubai)", "https://www.venturesouq.com/portfolio", "mena"),
+    ("Shorooq Partners (Abu Dhabi)", "https://www.shorooq.com/portfolio", "mena"),
+    ("Raed Ventures (Saudi Arabia)", "https://raed.vc/portfolio/", "ksa"),
+    ("Sharaka (Saudi Arabia)", "https://sharaka.sa/portfolio/", "ksa"),
+    ("Vision Ventures (Saudi Arabia)", "https://visionvc.co/portfolio/", "ksa"),
+    ("Impact46 (Saudi Arabia)", "https://impact46.sa/ourdeals/", "ksa"),
 ]
 
 # Built-in directories whose page does not exist or refuses automated reading (checked in a
 # browser): removed from installs that already have them, unless something was read from them.
-RETIRED = ("Plug and Play", "Creandum", "Cherry Ventures", "Atomico")
+RETIRED = ("Plug and Play", "Creandum", "Cherry Ventures", "Atomico", "Startupbootcamp")
 # Built-in directories whose address was wrong: moved to the right one and read again.
-FIXED_URLS = {"Point Nine": "https://www.pointnine.com/companies"}
+FIXED_URLS = {
+    "Point Nine": "https://www.pointnine.com/companies",
+    "Antler": "https://www.antler.co/portfolio",
+}
 
 # More places to look, tried a couple a day. A candidate becomes a real directory only after a trial
 # read finds startups on it (CANDIDATE_MIN), so the list grows with sources that actually work and
@@ -132,16 +154,14 @@ def _clean(raw: dict[str, Any], directory_host: str) -> Found | None:
     site = str(raw.get("website") or "").strip()
     if site and "//" not in site:
         site = "https://" + site
-    host = policy.domain_of(site)
-    if not name or not host or "." not in host or (directory_host and host == directory_host):
+    if not name:
         return None
-    if directory_host and host.endswith(
-        directory_host
-    ):  # the directory's own profile page is not the company
-        return None
+    host = policy.domain_of(site) if site else ""
+    if "." not in host or (directory_host and host.endswith(directory_host)):
+        host = ""  # no website, or the directory's own profile page: the site is looked for later
     return Found(
         name=name,
-        website=f"https://{host}",
+        website=f"https://{host}" if host else "",
         one_liner=str(raw.get("one_liner") or "").strip()[:500],
         country=str(raw.get("country") or "").strip()[:80],
         batch=str(raw.get("batch") or "").strip()[:60],
@@ -170,13 +190,27 @@ def _chunks(text: str) -> list[str]:
 
 
 LINKS_MAX = 500  # links kept from a directory page
+
+
+def page_reader() -> Fetcher:
+    """The polite reader for directory pages: long pages, many links, and data feeds (8 MB)."""
+    return Fetcher(
+        text_max_chars=PAGE_CHARS,
+        links_max=LINKS_MAX,
+        allow_json=True,
+        max_bytes=8 * 1024 * 1024,
+    )
+
+
 LINK_LINES = 150  # of them, given to the model with each piece of the page
 # places a directory links to that are never the company itself
 _NOT_COMPANIES = (
     "linkedin.com", "twitter.com", "x.com", "facebook.com", "instagram.com", "youtube.com",
     "medium.com", "github.com", "substack.com", "tiktok.com", "apple.com", "google.com",
     "goo.gl", "bit.ly", "typeform.com", "calendly.com", "crunchbase.com", "cloudflare.com",
-    "greenhouse.io", "workable.com", "lever.co", "airtable.com", "notion.so", "spotify.com",
+    "greenhouse.io", "workable.com", "lever.co", "airtable.com", "notion.so", "notion.site",
+    "notion.com", "spotify.com", "linktr.ee", "forms.gle", "t.me", "wa.me", "whatsapp.com",
+    "snapchat.com", "pinterest.com", "vimeo.com", "docsend.com", "dropbox.com",
 )  # fmt: skip
 
 
@@ -219,8 +253,15 @@ async def extract(
             if not isinstance(raw, dict) or len(out) >= MAX_TOTAL:
                 continue
             found = _clean(raw, host)
-            if found and policy.domain_of(found.website) not in seen:
-                seen.add(policy.domain_of(found.website))
+            key = (
+                policy.domain_of(found.website)
+                if found and found.website
+                else _norm(found.name)
+                if found
+                else ""
+            )
+            if found and key and key not in seen:
+                seen.add(key)
                 out.append(found)
     return out
 
@@ -236,6 +277,8 @@ async def save(
     """Add the startups we do not know yet. Returns how many were new."""
     added = 0
     for f in items:
+        if not f.website:
+            continue  # a name with no website cannot be researched or written to
         dom = policy.domain_of(f.website)
         have = (await db.execute(select(Startup.id).where(Startup.domain == dom))).first()
         if have is not None:
@@ -261,6 +304,146 @@ async def save(
     return added
 
 
+def _norm(text: str) -> str:
+    """Letters and digits only, lower case, so 'Point Nine' and 'point-nine' compare equal."""
+    return re.sub(r"[^a-z0-9]", "", text.lower())
+
+
+def profile_link(name: str, links: tuple[tuple[str, str], ...], directory_url: str) -> str | None:
+    """The directory's own page for one company, found among the page's links: the address that ends
+    in the company's name, or a link whose text begins with it."""
+    key = _norm(name)
+    if len(key) < 3:
+        return None
+    own = policy.domain_of(directory_url)
+    base = urlsplit(directory_url).path.rstrip("/")
+    listing = _norm(base.rsplit("/", 1)[-1])
+    best: tuple[int, int, str] | None = None
+    for text, url in links:
+        dom = policy.domain_of(url)
+        if dom != own and not dom.endswith("." + own):
+            continue
+        path = urlsplit(url).path.rstrip("/")
+        if not path or path == base:
+            continue
+        slug = _norm(path.rsplit("/", 1)[-1])
+        if slug == listing:
+            continue  # a copy of the listing page itself (another language), not a company
+        score = (
+            3
+            if slug == key
+            else 2
+            if slug.startswith(key)
+            else 1
+            if _norm(text).startswith(key)
+            else 0
+        )
+        if score and (best is None or (-score, len(url)) < (-best[0], best[1])):
+            best = (score, len(url), url)
+    return best[2] if best else None
+
+
+_SITE_WORDS = re.compile(r"\b(website|web site|visit|homepage|home page|www)\b", re.IGNORECASE)
+
+
+def company_site(links: tuple[tuple[str, str], ...], directory_url: str, name: str) -> str | None:
+    """The company's own website, from the links on its profile page: an outside link whose address
+    carries the company's name, or one labelled 'Visit website'. A lone outside link is not enough:
+    it is often the directory's own footer (a press kit, a form)."""
+    own = policy.domain_of(directory_url)
+    key = _norm(name)
+    seen: list[tuple[str, bool, bool]] = []
+    for text, url in links:
+        dom = policy.domain_of(url)
+        if not dom or dom == own or dom.endswith("." + own):
+            continue
+        if any(dom == n or dom.endswith("." + n) for n in _NOT_COMPANIES):
+            continue
+        if dom not in [d for d, _, _ in seen]:
+            seen.append((dom, len(key) >= 4 and key in _norm(dom), bool(_SITE_WORDS.search(text))))
+    for want in (1, 2):  # a domain that carries the company's name, then a 'Visit website' link
+        for dom, named, labelled in seen:
+            if (named, labelled)[want - 1]:
+                return f"https://{dom}"
+    return None
+
+
+PROFILES_PER_READ = 20  # profile pages opened in one read: each is one polite request
+FEED_MAX = 1500
+
+
+async def resolve_sites(
+    db: AsyncSession,
+    fetcher: Fetcher,
+    named: list[Found],
+    links: tuple[tuple[str, str], ...],
+    directory: str,
+    directory_url: str,
+) -> list[Found]:
+    """Names the directory page gave without a website: open each company's profile page on the
+    directory and take the website it links to. A few at a time, never twice for the same name."""
+    have = {
+        _norm(n)
+        for n in (
+            await db.execute(select(Startup.name).where(Startup.directory == directory[:120]))
+        )
+        .scalars()
+        .all()
+    }
+    out: list[Found] = []
+    opened = 0
+    for f in named:
+        if _norm(f.name) in have or opened >= PROFILES_PER_READ:
+            continue
+        target = profile_link(f.name, links, directory_url)
+        if not target:
+            continue
+        opened += 1
+        got = await fetcher.fetch(target)
+        if got.status != "ok":
+            continue
+        site = company_site(got.links, directory_url, f.name)
+        if site:
+            out.append(replace(f, website=site))
+    return out
+
+
+def parse_feed(text: str, directory_url: str) -> list[Found]:
+    """A directory published as a data feed: a list of companies with a name and a website. Read as
+    data, not by the model. Understands the common field names (and YC's)."""
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return []
+    if isinstance(data, dict):
+        data = next((v for v in data.values() if isinstance(v, list)), [])
+    host = policy.domain_of(directory_url)
+    out: list[Found] = []
+    seen: set[str] = set()
+    for item in data if isinstance(data, list) else []:
+        if not isinstance(item, dict) or len(out) >= FEED_MAX:
+            continue
+        place = str(item.get("country") or item.get("all_locations") or item.get("location") or "")
+        country = place.rsplit(",", 1)[-1].strip() if place else ""
+        found = _clean(
+            {
+                "name": item.get("name"),
+                "website": item.get("website") or item.get("website_url"),
+                "one_liner": item.get("one_liner")
+                or item.get("tagline")
+                or item.get("description"),
+                "country": country,
+                "batch": item.get("batch"),
+                "sector": item.get("industry") or item.get("sector"),
+            },
+            host,
+        )
+        if found and found.website and policy.domain_of(found.website) not in seen:
+            seen.add(policy.domain_of(found.website))
+            out.append(found)
+    return out
+
+
 async def ingest(
     db: AsyncSession,
     fetcher: Fetcher,
@@ -273,9 +456,24 @@ async def ingest(
     page = await fetcher.fetch(url)
     if page.status != "ok":
         return {"added": 0, "found": 0, "problem": page.reason}
-    found = await extract(llm, page.text, url, page.links)
+    if page.text.lstrip().startswith(("[", "{")):
+        found = parse_feed(page.text, url)
+        named: list[Found] = []
+    else:
+        every = await extract(llm, page.text, url, page.links)
+        found = [f for f in every if f.website]
+        named = [f for f in every if not f.website]
+        found += await resolve_sites(db, fetcher, named, page.links, directory, url)
     added = await save(db, directory, url, found, now, hint)
-    problem = None if found else "No startups could be read from that page."
+    if found:
+        problem = None
+    elif named:
+        problem = (
+            f"{len(named)} companies were listed but none gave a website we could find "
+            "(no outside link, and no profile page to open)."
+        )
+    else:
+        problem = "No startups could be read from that page."
     return {"added": added, "found": len(found), "problem": problem}
 
 

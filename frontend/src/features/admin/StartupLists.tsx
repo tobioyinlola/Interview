@@ -2,7 +2,7 @@ import { type FormEvent, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { PAGE, type AdminStartup, useOpenRoles, useStartupList } from "./api";
-import { Empty, Failed, Loading, PageHead, num, when } from "./ui";
+import { Empty, Failed, Loading, PageHead, num, regionName, when } from "./ui";
 
 const FILTERS: [string, string][] = [
   ["all", "All"],
@@ -17,7 +17,10 @@ const REGIONS: [string, string][] = [
   ["us", "United States"],
   ["eu", "Europe"],
   ["uk", "United Kingdom"],
-  ["other", "No region"],
+  ["uae", "UAE"],
+  ["ksa", "Saudi Arabia"],
+  ["mena", "MENA"],
+  ["other", "Elsewhere"],
 ];
 const STATUS: Record<string, string> = {
   new: "Waiting to be researched",
@@ -121,7 +124,9 @@ function Card({ s }: { s: AdminStartup }) {
 
       <p className="text-sm text-muted">
         {[
-          s.country ? `${s.country} (${s.region})` : `region ${s.region}`,
+          s.country
+            ? `${s.country} (${regionName(s.region)})`
+            : regionName(s.region),
           s.sector,
           s.batch ? `batch ${s.batch}` : null,
         ]
@@ -399,8 +404,10 @@ export function OpenRolesPage() {
                   {r.startup}
                 </a>
                 <span className="block text-xs text-muted">
-                  {r.country ? `${r.country} (${r.region})` : r.region} · listed
-                  by {r.directory}
+                  {r.country
+                    ? `${r.country} (${regionName(r.region)})`
+                    : regionName(r.region)}{" "}
+                  · listed by {r.directory}
                 </span>
               </p>
               <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">

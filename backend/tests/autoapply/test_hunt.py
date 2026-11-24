@@ -96,8 +96,11 @@ async def test_directory_page_becomes_startups():
     got = await directory.extract(
         FakeLlmProvider(json_reply=json.dumps(reply)), "page", "https://dir.test/companies"
     )
-    assert [f.name for f in got] == ["Acme"]
+    assert [f.name for f in got if f.website] == ["Acme"]
     assert got[0].website == "https://acme.io"
+    # a company with no website, or only the directory's own page for it, is kept as a name: its
+    # website is looked for on its profile page, and without one it is never stored
+    assert [(f.name, f.website) for f in got if not f.website] == [("Self", ""), ("NoSite", "")]
 
 
 async def test_directory_survives_garbage():
@@ -760,11 +763,20 @@ async def test_directories_are_read_a_couple_at_a_time_and_then_weekly(maker):
 
 
 def test_the_directory_lists_are_sound():
+    built_in = {d[0] for d in directory.DEFAULTS}
+    assert not built_in & set(directory.RETIRED)  # else it would be added and removed every pass
+    assert set(directory.FIXED_URLS) <= built_in
+    assert all(
+        dict((d[0], d[1]) for d in directory.DEFAULTS)[n] == u
+        for n, u in directory.FIXED_URLS.items()
+    )
     names = [d[0] for d in directory.DEFAULTS] + [c[0] for c in directory.CANDIDATES]
     assert len(names) == len(set(names))  # no name twice, so nothing is added twice
-    assert len(directory.DEFAULTS) >= 29  # the first eleven plus the ones that were checked
+    assert (
+        len(directory.DEFAULTS) >= 40
+    )  # the first eleven, the checked ones, and the world and Gulf
     for _name, url, hint in directory.DEFAULTS + directory.CANDIDATES:
-        assert url.startswith("https://") and hint in ("", "us", "eu", "uk")
+        assert url.startswith("https://") and hint in ("", "us", "eu", "uk", "ksa", "mena")
 
 
 async def test_the_daily_scout_tries_a_couple_of_new_places_and_keeps_only_those_that_work(maker):
@@ -963,6 +975,228 @@ async def test_dead_built_in_directories_are_removed_and_wrong_addresses_are_fix
         assert "Atomico" in set(
             (await db.execute(select(Directory.name))).scalars().all()
         )  # had startups
+
+
+LINKS = (
+    ("Echelon Echelon is a global AI", "https://dir.test/portfolio/echelon/"),
+    ("Tabby", "https://dir.test/portfolio/tabby"),
+    ("Anghami Anghami is the leading", "https://dir.test/portfolio/anghami"),
+    ("عربي", "https://dir.test/ar/portfolio/"),
+    ("Portfolio", "https://dir.test/portfolio/"),
+    ("Contact", "https://dir.test/contact"),
+)
+
+
+def test_a_company_is_matched_to_its_own_profile_page_on_the_directory():
+    link = directory.profile_link
+    assert (
+        link("Echelon", LINKS, "https://dir.test/portfolio/")
+        == "https://dir.test/portfolio/echelon/"
+    )
+    assert link("Tabby", LINKS, "https://dir.test/portfolio/") == "https://dir.test/portfolio/tabby"
+    assert (
+        link("Anghami", LINKS, "https://dir.test/portfolio/")
+        == "https://dir.test/portfolio/anghami"
+    )
+    assert link("Nobody", LINKS, "https://dir.test/portfolio/") is None
+    assert link("Portfolio", LINKS, "https://dir.test/portfolio/") is None  # the page itself
+    assert link("Ab", LINKS, "https://dir.test/portfolio/") is None  # too short to match safely
+    assert link("Tabby", (("Tabby", "https://elsewhere.io/tabby"),), "https://dir.test/p") is None
+
+
+def test_the_companys_website_is_picked_from_its_profile_page_only_when_it_is_clear():
+    site = directory.company_site
+    d = "https://dir.test/portfolio/"
+    named = (("Home", "https://dir.test/"), ("Site", "https://www.tabby.ai/about"))
+    assert site(named, d, "Tabby") == "https://tabby.ai"  # the address carries the name
+    labelled = (("Visit website", "https://getsalla.com"), ("Press", "https://news.example/x"))
+    assert site(labelled, d, "Salla") == "https://getsalla.com"
+    footer = (
+        ("Press kit", "https://courageous-libra.notion.site/kit"),
+        ("Form", "https://forms.gle/x"),
+    )
+    assert site(footer, d, "Think") is None  # the directory's own footer links are never a company
+    assert (
+        site((("x", "https://only.io"),), d, "Whatever") is None
+    )  # one link and no clue: not guessed
+    two = (("a", "https://one.io"), ("b", "https://two.io"))
+    assert site(two, d, "Whatever") is None  # two outside links and no clue: not guessed
+    social = (("LinkedIn", "https://www.linkedin.com/company/x"), ("Tw", "https://x.com/y"))
+    assert site(social, d, "Whatever") is None
+
+
+class Profiles:
+    """A fetcher where the directory page and each company's profile page are known."""
+
+    def __init__(self, pages):
+        self.pages, self.fetched = pages, []
+
+    async def fetch(self, url):
+        from app.services.fetcher import FetchResult
+
+        self.fetched.append(url)
+        page = self.pages.get(url)
+        if page is None:
+            return FetchResult(url, "blocked", "The page was not found.")
+        text, links = page
+        return FetchResult(url, "ok", text=text, final_url=url, links=tuple(links))
+
+
+async def test_names_without_websites_get_theirs_from_their_profile_pages(maker):
+    from app.models import Directory  # noqa: F401
+
+    pages = {
+        "https://dir.test/portfolio/": (
+            "Portfolio of Echelon and Tabby and Ghost. " * 3,
+            LINKS + (("Ghost", "https://dir.test/portfolio/ghost"),),
+        ),
+        "https://dir.test/portfolio/echelon/": (
+            "Echelon",
+            [("Visit website", "https://echelon.ai")],
+        ),
+        "https://dir.test/portfolio/tabby": ("Tabby", [("a", "https://www.tabby.ai/x")]),
+        "https://dir.test/portfolio/ghost": (
+            "Ghost",
+            [("a", "https://one.io"), ("b", "https://two.io")],
+        ),
+    }
+    llm = FakeLlmProvider(
+        json_reply=json.dumps(
+            {
+                "startups": [
+                    {
+                        "name": n,
+                        "website": "",
+                        "one_liner": "x",
+                        "country": "Saudi Arabia",
+                        "batch": "",
+                        "sector": "",
+                    }
+                    for n in ("Echelon", "Tabby", "Ghost")
+                ]
+            }
+        )
+    )
+    fetcher = Profiles(pages)
+    async with maker() as db:
+        out = await directory.ingest(
+            db, fetcher, llm, "Raed", "https://dir.test/portfolio/", NOW, "ksa"
+        )
+        assert out["found"] == 2 and out["added"] == 2 and out["problem"] is None  # Ghost: unclear
+        rows = (
+            (await db.execute(select(Startup).where(Startup.directory == "Raed"))).scalars().all()
+        )
+        assert {s.domain for s in rows} == {"echelon.ai", "tabby.ai"}
+        assert {s.region for s in rows} == {"ksa"}  # Saudi companies are labelled, never written to
+        fetched = len(fetcher.fetched)
+        again = await directory.ingest(
+            db, Profiles(pages), llm, "Raed", "https://dir.test/portfolio/", NOW, "ksa"
+        )
+        assert again["added"] == 0  # already known
+        # the known ones are not opened again: only Ghost's page, which never gave a website
+        second = Profiles(pages)
+        await directory.ingest(db, second, llm, "Raed", "https://dir.test/portfolio/", NOW, "ksa")
+        assert second.fetched == ["https://dir.test/portfolio/", "https://dir.test/portfolio/ghost"]
+        assert fetched == 4
+
+
+async def test_names_with_no_website_anywhere_say_so_instead_of_pretending(maker):
+    page = {"https://dir.test/p": ("Names only here. " * 6, [])}
+    llm = listing()
+    llm = FakeLlmProvider(
+        json_reply=json.dumps(
+            {
+                "startups": [
+                    {
+                        "name": "Solo",
+                        "website": "",
+                        "one_liner": "",
+                        "country": "",
+                        "batch": "",
+                        "sector": "",
+                    }
+                ]
+            }
+        )
+    )
+    async with maker() as db:
+        out = await directory.ingest(db, Profiles(page), llm, "D", "https://dir.test/p", NOW)
+    assert out["found"] == 0 and "none gave a website" in out["problem"]
+
+
+def test_a_data_feed_is_read_as_data():
+    feed = json.dumps(
+        [
+            {
+                "name": "CircuitHub",
+                "website": "https://www.circuithub.com",
+                "one_liner": "Electronics",
+                "all_locations": "San Francisco, CA, USA",
+                "batch": "Winter 2012",
+                "industry": "Industrials",
+                "isHiring": True,
+            },
+            {
+                "name": "Lumen",
+                "website": "https://lumen.io",
+                "all_locations": "London, England, United Kingdom",
+            },
+            {"name": "NoSite", "website": ""},
+            {"name": "Dup", "website": "https://lumen.io"},
+            {"website": "https://noname.io"},
+        ]
+    )
+    got = directory.parse_feed(feed, "https://yc-oss.github.io/api/companies/hiring.json")
+    assert [(f.name, f.website, f.country) for f in got] == [
+        ("CircuitHub", "https://circuithub.com", "USA"),
+        ("Lumen", "https://lumen.io", "United Kingdom"),
+    ]
+    assert got[0].batch == "Winter 2012" and got[0].sector == "Industrials"
+    assert directory.parse_feed("not json", "https://x.io/f.json") == []
+    assert [
+        f.name
+        for f in directory.parse_feed(
+            json.dumps({"companies": [{"name": "A", "website": "a.io"}]}), "https://x.io/f"
+        )
+    ] == ["A"]
+
+
+async def test_a_feed_directory_is_ingested_without_the_model(maker):
+    from app.services.fetcher import FetchResult
+
+    class Feed:
+        async def fetch(self, url):
+            body = json.dumps(
+                [
+                    {
+                        "name": "Acme",
+                        "website": "https://acme.io",
+                        "all_locations": "Dubai, United Arab Emirates",
+                    }
+                ]
+            )
+            return FetchResult(url, "ok", text=body, final_url=url)
+
+    class NoModel:
+        async def generate_json(self, **kw):
+            raise AssertionError("the model must not be used for a feed")
+
+    async with maker() as db:
+        out = await directory.ingest(db, Feed(), NoModel(), "Feed", "https://x.io/feed.json", NOW)
+        s = (await db.execute(select(Startup).where(Startup.name == "Acme"))).scalar_one()
+    assert out["found"] == 1 and s.region == "uae" and s.country == "United Arab Emirates"
+
+
+def test_gulf_places_are_labelled_but_never_written_to():
+    assert policy.classify_region("United Arab Emirates") == "uae"
+    assert policy.classify_region("Dubai") == "uae"
+    assert policy.classify_region("Saudi Arabia") == "ksa"
+    assert policy.classify_region("Riyadh") == "ksa"
+    assert policy.classify_region("Nigeria") == "other"
+    assert policy.may_write_to(
+        "uae", "jobs@acme.io", "acme.io"
+    )  # a reason: not a region we write to
+    assert policy.may_write_to("ksa", "jobs@acme.io", "acme.io")
 
 
 async def test_a_directory_that_cannot_be_read_says_why(maker):
