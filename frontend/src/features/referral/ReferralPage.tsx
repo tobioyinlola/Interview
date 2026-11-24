@@ -150,25 +150,35 @@ export function ReferralPage() {
           <h2 id="have-h" className="text-lg font-semibold">
             Your sessions
           </h2>
-          <p className="text-sm">
-            {b.sessions_available === 0
-              ? "You have no free sessions left."
-              : `You can start ${b.sessions_available} ${
-                  b.sessions_available === 1 ? "session" : "sessions"
-                } now.`}
-          </p>
-          <ul className="list-disc space-y-1 pl-5 text-sm text-muted">
-            {b.trial_available && <li>1 free trial session</li>}
-            {b.referral_credits_available > 0 && (
-              <li>{b.referral_credits_available} from inviting friends</li>
-            )}
-          </ul>
-          {!b.payments_enabled && (
-            <p className="pt-1 text-xs text-muted">
-              More sessions will be pay per session. Payments are coming soon.
+          {b.sessions_free ? (
+            <p className="text-sm">
+              Every session is free while we test, so there is nothing to earn
+              yet. Your invite link still works and your invites are counted.
             </p>
+          ) : (
+            <>
+              <p className="text-sm">
+                {b.sessions_available === 0
+                  ? "You have no free sessions left."
+                  : `You can start ${b.sessions_available} ${
+                      b.sessions_available === 1 ? "session" : "sessions"
+                    } now.`}
+              </p>
+              <ul className="list-disc space-y-1 pl-5 text-sm text-muted">
+                {b.trial_available && <li>1 free trial session</li>}
+                {b.referral_credits_available > 0 && (
+                  <li>{b.referral_credits_available} from inviting friends</li>
+                )}
+              </ul>
+              {!b.payments_enabled && (
+                <p className="pt-1 text-xs text-muted">
+                  More sessions will be pay per session. Payments are coming
+                  soon.
+                </p>
+              )}
+            </>
           )}
-          {b.sessions_available > 0 && (
+          {(b.sessions_free || b.sessions_available > 0) && (
             <Link to="/session/new" className="btn-secondary mt-2 w-fit">
               Start a session
             </Link>

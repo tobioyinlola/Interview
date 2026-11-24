@@ -951,6 +951,11 @@
             "title": "Sessions Available",
             "type": "integer"
           },
+          "sessions_free": {
+            "default": false,
+            "title": "Sessions Free",
+            "type": "boolean"
+          },
           "trial_available": {
             "title": "Trial Available",
             "type": "boolean"

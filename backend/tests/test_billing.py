@@ -323,3 +323,22 @@ async def test_deleting_an_invited_account_removes_its_referral_row(
             assert await s.scalar(select(func.count()).select_from(User)) == 1
     finally:
         await c.__aexit__(None, None, None)
+
+
+# ------------------------------------------------------------------ free while testing
+
+
+async def test_sessions_are_free_while_testing(new_client, sender, settings) -> None:  # type: ignore[no-untyped-def]
+    """With credits not enforced (the default while testing) nobody is blocked or charged."""
+    settings.enforce_session_credits = False
+    c, me = await join(new_client, sender, "free@example.com")
+    try:
+        assert (await me.get("/api/billing")).json()["sessions_free"] is True
+        for _ in range(3):  # more than the one trial session
+            assert (await start(me)).status_code == 201
+    finally:
+        await c.__aexit__(None, None, None)
+
+
+def test_credits_are_not_enforced_by_default() -> None:
+    assert Settings(environment="local").enforce_session_credits is False  # type: ignore[call-arg]

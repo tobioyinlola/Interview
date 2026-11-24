@@ -87,7 +87,7 @@ variants of your own address) does not count, and neither does a sign-up from th
 (a device-id cookie; or the same coarse device fingerprint from the same network address, in another
 browser or a private window), nor a second account made on the same device as another invited one. Those
 are recorded as "held" and the inviter is told. Only keyed hashes are kept, deleted with the account. Settings: `REFERRALS_PER_FREE_SESSION` (default 3) and
-`ENFORCE_SESSION_CREDITS` (default true; only tests turn it off).
+`ENFORCE_SESSION_CREDITS` (default false while testing: every session is free and invite rewards are not tied to sessions; set true to bring the free trial, invite and paid credits back).
 
 ## Live practice session
 Sign in, upload your CV, optionally add a company, then **Practice**: start a
