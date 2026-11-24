@@ -1199,6 +1199,94 @@ def test_gulf_places_are_labelled_but_never_written_to():
     assert policy.may_write_to("ksa", "jobs@acme.io", "acme.io")
 
 
+def test_a_list_hidden_in_a_page_is_found_wherever_it_sits_and_read_as_data():
+    rows = [
+        {"title": f"Co{i}", "web": f"https://co{i}.io", "overview": f"<p>Does <b>thing</b> {i}</p>"}
+        for i in range(8)
+    ]
+    for wrapped in (rows, {"props": {"pageProps": {"companies": rows}}}):
+        got = directory.parse_feed(json.dumps(wrapped), "https://a16z.com/portfolio/", 5)
+        assert [f.name for f in got] == [f"Co{i}" for i in range(8)]
+        assert got[0].website == "https://co0.io" and got[0].one_liner == "Does  thing  0"
+    few = json.dumps(
+        [{"title": "A", "web": "https://a.io"}] * 3
+    )  # too few to be a list of companies
+    assert directory.parse_feed(few, "https://x.io/", 5) == []
+    settings = json.dumps({"menu": [{"title": "Home", "url": "/"}] * 6, "theme": {"a": 1}})
+    assert directory.parse_feed(settings, "https://x.io/", 5) == []  # no websites: nothing to keep
+    assert len(directory.parse_feed(few, "https://x.io/")) == 1  # a real feed file may be short
+
+
+async def test_a_page_with_almost_no_text_but_a_list_in_a_script_gives_its_companies(maker):
+    from app.services.fetcher import FetchResult
+
+    rows = [
+        {"title": f"Co{i}", "web": f"https://co{i}.io", "overview": "Does a thing"}
+        for i in range(9)
+    ]
+
+    class Grid:
+        async def fetch(self, url):
+            return FetchResult(url, "ok", text="Portfolio", final_url=url, data=(json.dumps(rows),))
+
+    class NoModel:
+        async def generate_json(self, **kw):
+            return json.dumps({"startups": []})
+
+    async with maker() as db:
+        out = await directory.ingest(
+            db, Grid(), NoModel(), "a16z", "https://a16z.com/portfolio/", NOW, "us"
+        )
+        regions = set(
+            (await db.execute(select(Startup.region).where(Startup.directory == "a16z"))).scalars()
+        )
+    assert out["found"] == 9 and out["added"] == 9 and regions == {"us"}
+
+
+async def test_a_directory_that_failed_is_tried_again_after_hours_not_after_a_week(maker):
+    from app.models import Directory
+
+    async with maker() as db:
+        db.add(Directory(name="Blocked", url="https://x.example/p", enabled=True, builtin=False,
+                         created_at=NOW, last_run_at=NOW, last_problem="The site blocked the request."))  # fmt: skip
+        db.add(Directory(name="Fine", url="https://y.example/p", enabled=True, builtin=False,
+                         created_at=NOW, last_run_at=NOW, last_problem=None))  # fmt: skip
+        await db.commit()
+        due = lambda t: select(Directory.name).where(  # noqa: E731
+            Directory.enabled.is_(True),
+            (Directory.last_run_at.is_(None))
+            | (Directory.last_run_at <= t - directory.REFRESH_AFTER)
+            | (
+                Directory.last_problem.is_not(None)
+                & (Directory.last_run_at <= t - directory.RETRY_AFTER)
+            ),
+        )
+        assert "Blocked" not in set((await db.execute(due(NOW + timedelta(hours=1)))).scalars())
+        later = set((await db.execute(due(NOW + timedelta(hours=7)))).scalars())
+        assert "Blocked" in later and "Fine" not in later  # a good read waits its week
+
+
+async def test_an_old_size_error_is_cleared_so_the_directory_is_read_again(maker):
+    from app.models import Directory
+
+    async with maker() as db:
+        await directory.ensure_defaults(db, NOW)
+        a16z = (
+            await db.execute(select(Directory).where(Directory.name == "Andreessen Horowitz"))
+        ).scalar_one()
+        a16z.last_run_at, a16z.last_problem = NOW, "The page is larger than 2 MB."
+        other = (
+            await db.execute(select(Directory).where(Directory.name == "Seedcamp"))
+        ).scalar_one()
+        other.last_run_at, other.last_problem = NOW, "The site blocked the request."
+        await db.commit()
+        await directory.ensure_defaults(db, NOW)
+        await db.refresh(a16z)
+        await db.refresh(other)
+    assert a16z.last_run_at is None and a16z.last_problem is None
+    assert other.last_problem == "The site blocked the request."  # other problems are left alone
+
+
 async def test_a_directory_that_cannot_be_read_says_why(maker):
     from app.models import Directory
 
