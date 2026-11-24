@@ -9,6 +9,7 @@ import { FeatureBoundary } from "../../ui/FeatureBoundary";
 import { answerOf } from "./answerText";
 import { LiveSessionController } from "./controller";
 import { DesktopSyncPanel } from "./DesktopSyncPanel";
+import { StealthHudBar } from "./StealthHudBar";
 import { type Line, type Outline, useLiveStore } from "./store";
 import { useFloatingPanel } from "./useFloatingPanel";
 
@@ -449,6 +450,13 @@ export function LiveSessionPage() {
   return (
     <main className="mx-auto grid max-w-5xl gap-4 p-6 md:grid-cols-2">
       <div className="space-y-4">
+        {/* Stealth HUD bar: only visible in the Electron desktop app.
+            In stealth / HUD mode this becomes the primary control strip. */}
+        {isDesktopApp() && (
+          <FeatureBoundary name="stealth hud">
+            <StealthHudBar onEnd={() => void controller.end()} />
+          </FeatureBoundary>
+        )}
         <FeatureBoundary name="capture panel">
           <CapturePanel
             onShare={() => void controller.share()}

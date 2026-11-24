@@ -6,6 +6,7 @@ const {
   Menu,
   desktopCapturer,
   dialog,
+  globalShortcut,
   ipcMain,
   protocol,
   session,
@@ -28,6 +29,12 @@ const { siteOrigin, appUrl, appOrigin, packed } = load();
 // the interface is served from inside the app, so it opens with no internet
 if (packed) protocolRules.registerScheme(protocol);
 let win = null;
+
+// --- Stealth Mode State ---
+let isStealthActive = false;
+let isClickThrough = false;
+// Save normal-window geometry so we can restore it cleanly after a session
+let normalBounds = null;
 
 // interviewmeet:// is how the browser hands the app back after Google sign-in. In development the
 // app is run as `electron .`, which needs its path passed along to be registered.
@@ -118,6 +125,9 @@ function createWindow() {
     show: false,
     title: "InterviewMeet",
     autoHideMenuBar: true,
+    // transparent + hidden titlebar allow the window to morph seamlessly into the stealth HUD
+    // without recreating or destroying the window (which would reset audio and React state).
+    transparent: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -160,6 +170,127 @@ function createWindow() {
     }
   });
 }
+
+// ---------------------------------------------------------------------------
+// Stealth Mode (Single-Window Dynamic Morphing)
+//
+// When the user enters a live interview session the window hides for ~40 ms,
+// morphs into a compact floating HUD that is completely excluded from every
+// screen-sharing and proctoring tool, then re-appears without focus-stealing.
+// Exiting stealth restores the full-size normal window to its previous bounds.
+//
+// STRICT REQUIREMENT: screen-capture protection is re-asserted on EVERY entry
+// into stealth mode because macOS WindowServer can silently reset NSWindowSharing
+// when the Dock icon is hidden.  Content protection is also kept on during
+// normal mode (setContentProtection(true) in createWindow) so the app is never
+// accidentally exposed.
+// ---------------------------------------------------------------------------
+
+function enterStealthMode() {
+  if (!win || win.isDestroyed()) return;
+  if (isStealthActive) return;
+  isStealthActive = true;
+  isClickThrough = false;
+
+  // Save bounds so we can restore them when exiting stealth.
+  normalBounds = win.getBounds();
+
+  // 1. Hide briefly to prevent OS resize / frame-removal flicker.
+  win.hide();
+
+  // 2. Suppress taskbar / Dock presence so the HUD is invisible to task switchers.
+  if (process.platform === "darwin") {
+    app.dock.hide();
+  } else {
+    win.setSkipTaskbar(true);
+  }
+
+  // 3. Re-assert content protection AFTER the Dock hide.
+  //    macOS WindowServer can silently reset sharingType when the Dock policy changes.
+  win.setContentProtection(true);
+
+  // 4. Morph window into compact floating HUD.
+  win.setResizable(false);
+  win.setHasShadow(false);
+  win.setSize(420, 560);
+  win.setAlwaysOnTop(true, "screen-saver", 1);
+  // Float above full-screen spaces on macOS (Zoom, Meet, Teams maximised)
+  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+
+  // 5. Position in top-right corner of the primary display for quick glance.
+  const { screen } = require("electron");
+  const { width: sw } = screen.getPrimaryDisplay().workAreaSize;
+  win.setPosition(sw - 440, 20);
+
+  // 6. Show without stealing focus from the interviewer's meeting window.
+  win.showInactive();
+
+  // Notify renderer that stealth state changed.
+  win.webContents.send("im:stealth-state", { active: true, clickThrough: false });
+}
+
+function exitStealthMode() {
+  if (!win || win.isDestroyed()) return;
+  if (!isStealthActive) return;
+  isStealthActive = false;
+
+  // Disable click-through before restoring.
+  if (isClickThrough) {
+    isClickThrough = false;
+    win.setIgnoreMouseEvents(false);
+  }
+
+  // 1. Hide while we restore the window so the morphing is invisible.
+  win.hide();
+
+  // 2. Restore normal OS chrome.
+  win.setAlwaysOnTop(false);
+  win.setVisibleOnAllWorkspaces(false);
+  win.setResizable(true);
+  win.setHasShadow(true);
+
+  // 3. Restore taskbar / Dock.
+  if (process.platform === "darwin") {
+    app.dock.show();
+  } else {
+    win.setSkipTaskbar(false);
+  }
+
+  // 4. Restore previous bounds, or fall back to defaults.
+  if (normalBounds) {
+    win.setBounds(normalBounds);
+    normalBounds = null;
+  } else {
+    win.setSize(1280, 860);
+    win.center();
+  }
+
+  // 5. Screen-capture protection stays on — it is always enforced.
+  win.setContentProtection(true);
+
+  // 6. Bring the app to the front normally.
+  win.show();
+  win.focus();
+
+  // Notify renderer.
+  win.webContents.send("im:stealth-state", { active: false, clickThrough: false });
+}
+
+// IPC surface exposed to the renderer (through preload.js)
+ipcMain.handle("im:stealth-enter", () => enterStealthMode());
+ipcMain.handle("im:stealth-exit", () => exitStealthMode());
+ipcMain.handle("im:stealth-set-click-through", (_event, enable) => {
+  if (!win || win.isDestroyed() || !isStealthActive) return;
+  isClickThrough = !!enable;
+  // { forward: true } passes pointer events to whatever is beneath the HUD
+  // while still letting CSS :hover states fire on the drag-handle area.
+  win.setIgnoreMouseEvents(isClickThrough, { forward: true });
+  win.webContents.send("im:stealth-state", { active: true, clickThrough: isClickThrough });
+});
+ipcMain.handle("im:stealth-query", () => ({
+  active: isStealthActive,
+  clickThrough: isClickThrough,
+}));
 
 function buildMenu() {
   const mac = process.platform === "darwin";
@@ -233,11 +364,33 @@ app.whenReady().then(() => {
   buildMenu();
   createWindow();
   startUpdates();
+
+  // Global hotkeys active throughout the app lifetime.
+  // These let the user manage the HUD without touching the mouse or switching windows.
+  globalShortcut.register("CommandOrControl+Shift+H", () => {
+    if (!win || !isStealthActive) return;
+    if (win.isVisible()) {
+      win.hide();
+    } else {
+      win.showInactive();
+      // Always re-assert capture protection when re-showing after a manual hide.
+      win.setContentProtection(true);
+    }
+  });
+
+  globalShortcut.register("CommandOrControl+Shift+M", () => {
+    if (!win || !isStealthActive) return;
+    isClickThrough = !isClickThrough;
+    win.setIgnoreMouseEvents(isClickThrough, { forward: true });
+    win.webContents.send("im:stealth-state", { active: true, clickThrough: isClickThrough });
+  });
+
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 
 app.on("window-all-closed", () => {
+  globalShortcut.unregisterAll();
   if (process.platform !== "darwin") app.quit();
 });
