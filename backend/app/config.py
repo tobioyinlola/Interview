@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     environment: str = "local"  # local | staging | production
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/meetpractice"
     web_origin: str = "http://localhost:5173"
+    # Where the installed apps' own interface runs from (they carry it inside the app, so it is not
+    # the website). Comma-separated. They use a bearer token, never the browser cookie.
+    app_origins: str = "https://localhost,capacitor://localhost,app://interviewmeet"
     cookie_secret: SecretStr = SecretStr("dev-only-change-me")
     github_repo: str = "tobioyinlola/Interview"  # where the downloadable apps are published
 
@@ -159,6 +162,11 @@ class Settings(BaseSettings):
             if v.startswith(plain):
                 return "postgresql+asyncpg://" + v[len(plain) :]
         return v
+
+
+def allowed_origins(s: "Settings") -> list[str]:
+    """The website and the installed apps' own interface: the only pages that may call the API."""
+    return [s.web_origin, *[o.strip() for o in s.app_origins.split(",") if o.strip()]]
 
 
 @lru_cache

@@ -1,3 +1,4 @@
+import { authInit } from "../api/session";
 import { API_BASE_URL } from "../api/client";
 import { SseParser } from "./sse";
 
@@ -35,20 +36,22 @@ export async function streamOutline(
 ): Promise<void> {
   let res: Response;
   try {
-    res = await fetch(`${API_BASE_URL}/api/sessions/${req.sessionId}/suggest`, {
-      method: "POST",
-      credentials: "include",
-      signal: req.signal,
-      headers: {
-        "content-type": "application/json",
-        "x-requested-with": "meet-practice",
-      },
-      body: JSON.stringify({
-        question_text: req.question,
-        utterance_ids: req.utteranceIds,
-        regenerate: req.regenerate ?? false,
+    res = await fetch(
+      `${API_BASE_URL}/api/sessions/${req.sessionId}/suggest`,
+      authInit({
+        method: "POST",
+        signal: req.signal,
+        headers: {
+          "content-type": "application/json",
+          "x-requested-with": "meet-practice",
+        },
+        body: JSON.stringify({
+          question_text: req.question,
+          utterance_ids: req.utteranceIds,
+          regenerate: req.regenerate ?? false,
+        }),
       }),
-    });
+    );
   } catch (e) {
     if (req.signal.aborted) return;
     h.onError({

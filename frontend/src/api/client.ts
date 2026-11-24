@@ -1,4 +1,11 @@
 import { fingerprint } from "./fingerprint";
+import { clearCache } from "./persist";
+import {
+  APP_SHELL,
+  authInit,
+  setSessionToken,
+  takeSessionToken,
+} from "./session";
 
 /** Typed REST client. Cookie auth, CSRF header on mutations, one error shape. */
 // An empty value means "the API is on this same origin" (the web server forwards /api to it); only
@@ -39,11 +46,25 @@ export async function apiFetch<T>(
   if (method !== "GET") headers.set("x-requested-with", "meet-practice"); // CSRF header
   const print = fingerprint();
   if (print) headers.set("x-device-fp", print); // see fingerprint.ts: stops self-invites
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers,
-    credentials: "include",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE_URL}${path}`, authInit({ ...init, headers }));
+  } catch {
+    // no connection (or the server is unreachable): say so plainly instead of "Failed to fetch"
+    throw new ApiError(
+      0,
+      "network",
+      "You're offline. Check your connection and try again.",
+      "",
+    );
+  }
+  takeSessionToken(res);
+  if (path === "/api/auth/logout") {
+    setSessionToken(null);
+    clearCache(); // nothing of this person stays on the device
+  }
+  if (APP_SHELL && res.status === 401 && path !== "/api/auth/login")
+    setSessionToken(null); // the saved token is no longer good
   if (!res.ok) {
     let code = "unknown";
     let message = `Request failed (${res.status})`;

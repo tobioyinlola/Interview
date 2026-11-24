@@ -3,7 +3,7 @@ import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useParams } from "react-router-dom";
 
-import { API_BASE_URL } from "../../api/client";
+import { TranscriptLink } from "./TranscriptLink";
 import { endSessionApi, fetchAudioToken, sendFeedback } from "../../api/hooks";
 import { FeatureBoundary } from "../../ui/FeatureBoundary";
 import { answerOf } from "./answerText";
@@ -498,12 +498,7 @@ export function LiveSessionPage() {
             <Link to={`/sessions/${id}`} className="text-accent-dark underline">
               Review it
             </Link>
-            <a
-              href={`${API_BASE_URL}/api/sessions/${id}/transcript.txt`}
-              className="text-accent-dark underline"
-            >
-              Download transcript
-            </a>
+            <TranscriptLink id={id} className="text-accent-dark underline" />
           </p>
         )}
       </div>

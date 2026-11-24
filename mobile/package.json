@@ -4,8 +4,9 @@
   "private": true,
   "description": "InterviewMeet for iPhone and Android",
   "scripts": {
-    "sync": "cap sync",
-    "test": "node --test test/*.test.js"
+    "sync": "npm run build:web && cap sync",
+    "test": "node --test test/*.test.js",
+    "build:web": "node ../scripts/build-app-ui.js www"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",
@@ -15,6 +16,7 @@
     "@capacitor/ios": "^7.0.0",
     "@capacitor/keyboard": "^7.0.0",
     "@capacitor/local-notifications": "^7.0.7",
+    "@capacitor/preferences": "^7.0.4",
     "@capacitor/splash-screen": "^7.0.0",
     "@capacitor/status-bar": "^7.0.0"
   },

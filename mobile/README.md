@@ -1,8 +1,18 @@
 # InterviewMeet mobile (iPhone and Android)
 
-A Capacitor shell around the live site. Everything in the web app (Auto-Apply, companies, session review,
-CV, settings) is the same code, so it stays in step with the website, and the login cookie stays
-first-party. The app address is in `capacitor.config.ts`; change it for a build with `INTERVIEWMEET_URL`.
+A Capacitor app that carries its own copy of the web interface (Auto-Apply, companies, session review, CV,
+settings: the same code as the website, built in "app" mode). It opens instantly, shows what it last loaded
+with no internet, and only the calls to the API need a connection. It signs in with a bearer token, not the
+browser cookie (the backend accepts the app's addresses in `APP_ORIGINS`, and `x-client: app` asks for a token).
+
+```bash
+cd mobile && npm ci
+INTERVIEWMEET_URL=https://your-site npm run build:web   # builds ../frontend in app mode into www/
+npx cap sync android
+```
+
+`INTERVIEWMEET_URL` is the site the API is reached through (https, or localhost while developing); the CI
+builds read it from the repository variable of the same name.
 
 ## How the app opens
 
@@ -29,9 +39,10 @@ The phone app is not the website squeezed down. When the page runs inside this a
 
 ## Updates
 
-* **The website and everything inside the app** update for everyone the moment the site is deployed: the app
-  loads the live site.
-* **The Android shell** is released automatically: a change to `mobile/` that lands on `Staging` builds the
+* **The website** updates the moment the site is deployed. **The app carries its own copy of the interface**,
+  so a change to it reaches phones through a new app version: a change to `frontend/` or `mobile/` that lands
+  on `Staging` builds and publishes one automatically.
+* **The Android app** is released automatically: a change to `mobile/` or `frontend/` that lands on `Staging` builds the
   app and replaces the file at the download address (`android-latest`), with a build number that always grows.
 * An Android app installed from a file cannot update itself, so it shows an "update available" banner with the
   download, and (in builds that include `@capacitor/local-notifications`) a pop-up notification once per version

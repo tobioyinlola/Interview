@@ -27,7 +27,7 @@ from app.schemas.api import (
     Utm,
     VerifyIn,
 )
-from app.security import COOKIE_NAME
+from app.security import COOKIE_NAME, SESSION_TOKEN_HEADER, session_token, wants_token
 from app.services import email_templates as emails
 from app.services.devices import observe_device
 from app.services.events import record_from
@@ -122,7 +122,12 @@ def _ttl(settings: Settings) -> timedelta:
     return timedelta(days=settings.session_ttl_days)
 
 
-def _open_session(response: Response, cookie: str, settings: Settings) -> None:
+def _open_session(
+    response: Response, cookie: str, settings: Settings, request: Request | None = None
+) -> None:
+    if request is not None and wants_token(request):
+        response.headers[SESSION_TOKEN_HEADER] = cookie  # an installed app keeps it itself
+        return
     response.set_cookie(
         COOKIE_NAME,
         cookie,
@@ -233,7 +238,7 @@ async def logout(
     db: AsyncSession = Depends(get_db),  # noqa: B008
     settings: Settings = Depends(get_settings),  # noqa: B008
 ) -> StatusOut:
-    token = request.cookies.get(COOKIE_NAME)
+    token = session_token(request)
     if token:
         await AuthRepo(db, settings.cookie_secret.get_secret_value()).delete_session(token)
     response.delete_cookie(COOKIE_NAME, path="/")
@@ -321,7 +326,9 @@ async def login(
         raise INVALID_LOGIN  # the same answer for a wrong password, no password and no account
     await repo.clear_login_failures(email)
     await repo.record_device(user.id, observe_device(request, response, settings))
-    _open_session(response, await repo.create_session(user.id, ttl=_ttl(settings)), settings)
+    _open_session(
+        response, await repo.create_session(user.id, ttl=_ttl(settings)), settings, request
+    )
     await record_from(db, "user.signed_in", user_id=user.id, method="password")
     return me_out(user, settings)
 
@@ -444,6 +451,9 @@ async def app_exchange(
         raise ApiError(400, "invalid_code", "That sign-in has expired. Please try again.")
     ttl = timedelta(days=settings.session_ttl_days)
     cookie = await repo.create_session(user_id, ttl=ttl)
+    if wants_token(request):
+        response.headers[SESSION_TOKEN_HEADER] = cookie
+        return StatusOut(status="ok")
     response.set_cookie(
         COOKIE_NAME,
         cookie,

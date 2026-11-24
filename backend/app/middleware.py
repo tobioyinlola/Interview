@@ -7,7 +7,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
 from app.logging_config import request_id_var
-from app.security import CSRF_HEADER, CSRF_VALUE
+from app.security import CSRF_HEADER, CSRF_VALUE, bearer_token
 
 log = logging.getLogger("app.request")
 
@@ -48,6 +48,9 @@ class CsrfMiddleware(BaseHTTPMiddleware):
             request.method in {"POST", "PUT", "PATCH", "DELETE"}
             and request.url.path.startswith("/api/")
             and request.headers.get(CSRF_HEADER) != CSRF_VALUE
+            # a bearer token is never sent by the browser on its own, so a forged cross-site request
+            # cannot carry one: that is what the header is protecting against
+            and not bearer_token(request)
         ):
             return JSONResponse(
                 {

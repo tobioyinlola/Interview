@@ -32,6 +32,7 @@ import { PhoneHome } from "../features/phone/PhoneHome";
 import { PhoneLayout } from "../features/phone/PhoneLayout";
 import { ProfilePage } from "../features/phone/ProfilePage";
 import { NativeLinks } from "./NativeLinks";
+import { OfflineBanner } from "./OfflineBanner";
 import { MobileLiveNotice } from "./MobileLiveNotice";
 import { isMobileApp, isNativeApp } from "./native";
 import { Loading } from "../ui/Loading";
@@ -148,6 +149,7 @@ export function App() {
   return (
     <>
       <NativeLinks />
+      <OfflineBanner />
       <VerifiedToast />
       <AppRoutes />
       <Splash />

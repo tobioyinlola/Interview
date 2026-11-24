@@ -77,7 +77,9 @@ async def change_password(
     await repo.set_password(user.id, await hash_password_async(body.new_password))
     await repo.clear_login_failures(user.email)
     await repo.revoke_sessions(user.id)  # every device, this one included, then a fresh session
-    _open_session(response, await repo.create_session(user.id, ttl=_ttl(settings)), settings)
+    _open_session(
+        response, await repo.create_session(user.id, ttl=_ttl(settings)), settings, request
+    )
     await db.refresh(user)
     await sender.send(
         emails.password_changed(
@@ -85,5 +87,5 @@ async def change_password(
         )
     )
     await record_from(db, "user.password_changed", user_id=user.id, first=first)
-    _ = (request, timedelta)
+    _ = timedelta
     return me_out(user, settings)

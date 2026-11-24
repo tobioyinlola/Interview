@@ -12,7 +12,8 @@
     "test": "vitest run",
     "gen:api": "openapi-typescript openapi.json -o src/api/schema.d.ts",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx}\""
+    "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
+    "build:app": "tsc -b && vite build --mode app --outDir dist-app --emptyOutDir"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
