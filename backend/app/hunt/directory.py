@@ -34,7 +34,67 @@ DEFAULTS: list[tuple[str, str, str]] = [
     ("Wayra UK", "https://wayra.uk/portfolio", "uk"),
     ("Village Global", "https://www.villageglobal.com/portfolio", "us"),
     ("Capital Factory", "https://capitalfactory.com/portfolio", "us"),
+    # Added later: more accelerators, studios and early-stage funds that publish who they back.
+    # Each address is the organisation's own portfolio page, from memory and web search; none was
+    # read from the build environment. If a page cannot be read by a polite fetcher, the admin
+    # page says so.
+    ("Entrepreneur First", "https://www.joinef.com/portfolio", ""),
+    ("Founders Factory", "https://foundersfactory.com/portfolio/", ""),
+    ("Plug and Play", "https://www.plugandplaytechcenter.com/portfolio/", ""),
+    ("MassChallenge", "https://masschallenge.org/alumni/", ""),
+    ("HAX", "https://hax.co/portfolio/", ""),
+    ("Betaworks", "https://www.betaworks.com/companies", "us"),
+    ("Sequoia Capital", "https://www.sequoiacap.com/our-companies/", ""),
+    ("Andreessen Horowitz", "https://a16z.com/portfolio/", "us"),
+    ("Bessemer Venture Partners", "https://www.bvp.com/portfolio", ""),
+    ("First Round Capital", "https://firstround.com/companies/", "us"),
+    ("General Catalyst", "https://www.generalcatalyst.com/portfolio", ""),
+    ("Index Ventures", "https://www.indexventures.com/companies/", ""),
+    ("Balderton Capital", "https://www.balderton.com/companies/", "uk"),
+    ("Atomico", "https://www.atomico.com/companies", ""),
+    ("Northzone", "https://northzone.com/portfolio/", "eu"),
+    ("Creandum", "https://creandum.com/portfolio/", "eu"),
+    ("Point Nine", "https://www.pointnine.com/portfolio", "eu"),
+    ("Speedinvest", "https://www.speedinvest.com/portfolio", "eu"),
+    ("Cherry Ventures", "https://www.cherry.vc/portfolio", "eu"),
+    ("EU-Startups directory", "https://www.eu-startups.com/directory/", "eu"),
 ]
+
+# More places to look, tried a couple a day. A candidate becomes a real directory only after a trial
+# read finds startups on it (CANDIDATE_MIN), so the list grows with sources that actually work and
+# nothing unreadable clutters the flow. (name, address, region_hint)
+CANDIDATES: list[tuple[str, str, str]] = [
+    ("LocalGlobe", "https://localglobe.vc/portfolio", "uk"),
+    ("EQT Ventures", "https://eqtventures.com/portfolio/", "eu"),
+    ("BetaList", "https://betalist.com/startups", ""),
+    ("Google for Startups alumni", "https://startup.google.com/alumni/directory/", ""),
+    ("StartupBlink", "https://www.startupblink.com/startups", ""),
+    ("Seedtable: Europe", "https://www.seedtable.com/best-startups-in-europe", "eu"),
+    ("Seedtable: United States", "https://www.seedtable.com/best-startups-in-united-states", "us"),
+    (
+        "Seedtable: United Kingdom",
+        "https://www.seedtable.com/best-startups-in-united-kingdom",
+        "uk",
+    ),
+    ("Lightspeed", "https://lsvp.com/portfolio/", ""),
+    ("Greylock", "https://greylock.com/portfolio/", "us"),
+    ("Initialized Capital", "https://initialized.com/portfolio", "us"),
+    ("Accel", "https://www.accel.com/relationships", ""),
+    ("Redpoint", "https://www.redpoint.com/companies/", "us"),
+    ("Kleiner Perkins", "https://www.kleinerperkins.com/companies/", "us"),
+    ("Lakestar", "https://www.lakestar.com/portfolio", "eu"),
+    ("HV Capital", "https://hvcapital.com/portfolio", "eu"),
+    ("Notion Capital", "https://www.notion.vc/portfolio", "eu"),
+    ("Octopus Ventures", "https://octopusventures.com/portfolio", "uk"),
+    ("Episode 1", "https://episode1.com/portfolio", "uk"),
+    ("Passion Capital", "https://www.passioncapital.com/portfolio/", "uk"),
+    ("Dawn Capital", "https://dawncapital.com/portfolio/", "eu"),
+    ("Insight Partners", "https://www.insightpartners.com/portfolio/", "us"),
+    ("Techstars: London", "https://www.techstars.com/accelerators/london", "uk"),
+    ("Startup Chile", "https://startupchile.org/startups/", ""),
+]
+CANDIDATE_MIN = 3  # startups a trial read must find before a candidate is switched on
+CANDIDATES_PER_DAY = 2
 REFRESH_AFTER = timedelta(days=7)
 
 SCHEMA: dict[str, object] = {
@@ -244,3 +304,41 @@ async def refresh_due(
     for d in due:
         await refresh(db, fetcher, llm, d, now)
     return len(due)
+
+
+async def scout(
+    db: AsyncSession,
+    fetcher: Fetcher,
+    llm: LlmProvider,
+    now: datetime,
+    per_day: int = CANDIDATES_PER_DAY,
+) -> list[dict[str, Any]]:
+    """Once a day, try a couple of new places to find startups. Each is read once; if it yields at
+    least CANDIDATE_MIN startups it is switched on and joins the weekly reads, otherwise it is kept
+    switched off with the reason, so an operator can see why and nothing is tried twice."""
+    names = [c[0] for c in CANDIDATES]
+    recent = (
+        await db.execute(
+            select(func.count())
+            .select_from(Directory)
+            .where(Directory.name.in_(names), Directory.created_at >= now - timedelta(hours=20))
+        )
+    ).scalar_one()
+    if recent:
+        return []  # already scouted today
+    have = set((await db.execute(select(Directory.name))).scalars().all())
+    out: list[dict[str, Any]] = []
+    for name, url, hint in [c for c in CANDIDATES if c[0] not in have][:per_day]:
+        d = Directory(
+            id=uuid.uuid4(), name=name, url=url, region_hint=hint, enabled=False, builtin=False,
+            created_at=now,
+        )  # fmt: skip
+        db.add(d)
+        await db.commit()
+        res = await refresh(db, fetcher, llm, d, now)
+        d.enabled = res["found"] >= CANDIDATE_MIN
+        if not d.enabled and not d.last_problem:
+            d.last_problem = f"Only {res['found']} startups could be read, so it stays off."
+        await db.commit()
+        out.append({"name": name, "found": res["found"], "enabled": d.enabled})
+    return out

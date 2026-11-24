@@ -1,9 +1,11 @@
+import { vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { App } from "../../app/App";
 import { PLAN } from "../onboarding/content";
 import { firstName } from "./DashboardPage";
+import { greeting } from "../account/greeting";
 import { ME, mockApi, renderApp, stubSupportedBrowser } from "../../test-utils";
 
 beforeEach(() => stubSupportedBrowser());
@@ -41,8 +43,14 @@ describe("DashboardPage (FR-33)", () => {
       "href",
       "/companies",
     );
-    expect(await screen.findByText("No companies yet.")).toBeInTheDocument();
-    expect(await screen.findByText("No sessions yet.")).toBeInTheDocument();
+    // one clear path: no empty "Companies", "Recent sessions", chart or zero tiles yet
+    expect(
+      await screen.findByText("Who is interviewing you?"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("No companies yet.")).toBeNull();
+    expect(screen.queryByText("No sessions yet.")).toBeNull();
+    expect(screen.queryByText("Interview summary")).toBeNull();
+    expect(screen.queryByText("Recent sessions")).toBeNull();
   });
 
   it("ticks the CV, a fresh brief and the browser", async () => {
@@ -267,13 +275,26 @@ describe("DashboardPage: greeting and focus", () => {
     },
   };
 
-  it("greets the person by first name with a wave", async () => {
-    mockApi(base({ "GET /api/me": () => ({ json: asJordan }) }));
-    renderApp(<App />, "/dashboard");
-    const hello = await screen.findByText(/^Hello, Jordan/);
-    expect(hello).toHaveTextContent("Hello, Jordan 👋");
-    expect(hello.querySelector("[aria-hidden=true]")).toHaveTextContent("👋");
-    expect(screen.queryByText(/Good (morning|afternoon|evening)/)).toBeNull();
+  it("greets the person by first name for the time of day, with a smile", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date(2026, 10, 24, 9, 0) });
+    try {
+      mockApi(base({ "GET /api/me": () => ({ json: asJordan }) }));
+      renderApp(<App />, "/dashboard");
+      const hello = await screen.findByText(/^Good morning, Jordan/);
+      expect(hello).toHaveTextContent("Good morning, Jordan 😊");
+      expect(hello.querySelector("[aria-hidden=true]")).toHaveTextContent("😊");
+      expect(screen.queryByText(/^Hello/)).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each([
+    [8, "Good morning"],
+    [13, "Good afternoon"],
+    [20, "Good evening"],
+  ])("at %i o'clock it says %s", (hour, words) => {
+    expect(greeting(hour)).toBe(words);
   });
 
   it("just says hello when there is no name yet, never guessing one from the email", async () => {
@@ -285,8 +306,8 @@ describe("DashboardPage: greeting and focus", () => {
       }),
     );
     renderApp(<App />, "/dashboard");
-    const hello = await screen.findByText(/^Hello/);
-    expect(hello).toHaveTextContent(/^Hello 👋$/);
+    const hello = await screen.findByText(/^Good (morning|afternoon|evening)/);
+    expect(hello).toHaveTextContent(/^Good (morning|afternoon|evening) 😊$/);
     expect(hello.textContent).not.toMatch(/me@|example/i);
   });
 
@@ -324,7 +345,7 @@ describe("DashboardPage: greeting and focus", () => {
       }),
     );
     renderApp(<App />, "/dashboard");
-    await screen.findByText(/^Hello, Jordan/);
+    await screen.findByText(/^Good (morning|afternoon|evening), Jordan/);
     expect(screen.queryByRole("region", { name: "Your focus" })).toBeNull();
   });
 });

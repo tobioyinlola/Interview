@@ -100,20 +100,26 @@ function NextInterview({ iv }: { iv: AAInterview }) {
   );
 }
 
+/** The circle: everything sent so far in the middle, and how much of today's allowance is used
+ *  around it. (It used to count days, which at day 1 was a tiny white dot that looked like a
+ *  spinner.) */
 function Ring({
-  day,
-  total,
-  active,
+  sent,
+  usedToday,
+  capToday,
 }: {
-  day: number;
-  total: number;
-  active: boolean;
+  sent: number;
+  usedToday: number;
+  capToday: number;
 }) {
   const r = 46;
   const circ = 2 * Math.PI * r;
-  const share = active ? Math.min(day / total, 1) : 0;
+  const share = capToday > 0 ? Math.min(usedToday / capToday, 1) : 0;
+  const label = `${sent} sent so far${
+    capToday > 0 ? `, ${usedToday} of ${capToday} today` : ""
+  }`;
   return (
-    <div className="relative h-32 w-32 shrink-0" aria-hidden="true">
+    <div className="relative h-32 w-32 shrink-0" role="img" aria-label={label}>
       <svg viewBox="0 0 110 110" className="h-full w-full -rotate-90">
         <circle
           cx="55"
@@ -123,28 +129,47 @@ function Ring({
           strokeWidth="9"
           className="stroke-surface/20"
         />
-        <circle
-          cx="55"
-          cy="55"
-          r={r}
-          fill="none"
-          strokeWidth="9"
-          strokeLinecap="round"
-          strokeDasharray={circ}
-          strokeDashoffset={circ * (1 - share)}
-          className="stroke-surface transition-all duration-700"
-        />
+        {share > 0 && (
+          <circle
+            cx="55"
+            cy="55"
+            r={r}
+            fill="none"
+            strokeWidth="9"
+            strokeLinecap="round"
+            strokeDasharray={circ}
+            strokeDashoffset={circ * (1 - share)}
+            className="stroke-surface transition-all duration-700"
+          />
+        )}
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center text-surface">
-        <span className="text-3xl font-semibold leading-none">
-          {active ? day : total}
-        </span>
-        <span className="mt-1 text-xs text-surface/75">
-          {active ? `of ${total} days` : "days"}
-        </span>
+        <span className="text-3xl font-semibold leading-none">{sent}</span>
+        <span className="mt-1 text-xs text-surface/75">sent</span>
+        {capToday > 0 && (
+          <span className="text-[11px] text-surface/60">
+            {usedToday}/{capToday} today
+          </span>
+        )}
       </div>
     </div>
   );
+}
+
+type Dash = NonNullable<ReturnType<typeof useDashboard>["data"]>;
+
+/** One set of numbers for the whole of Auto-Apply: job applications and startup pitches together. */
+export function totals(d: Dash) {
+  const jobs = (d.counts.submitted ?? 0) + (d.counts.sent_email ?? 0);
+  const startups = d.startups?.sent ?? 0;
+  return {
+    sent: jobs + startups,
+    jobs,
+    startups,
+    replies: (d.startups?.replied ?? 0) + (d.review_count ?? 0),
+    waiting: (d.counts.needs_input ?? 0) + (d.startups?.waiting ?? 0),
+    interviews: d.open_invites.length + (d.next_interview ? 1 : 0),
+  };
 }
 
 const HEADLINE: Record<string, string> = {
@@ -250,7 +275,11 @@ function Hero({
           <Fail error={prepare.error} />
         </div>
         {!phone && (
-          <Ring day={c.day ?? 0} total={c.days_total ?? 30} active={running} />
+          <Ring
+            sent={totals(d).sent}
+            usedToday={d.usage?.applications_used ?? 0}
+            capToday={d.usage?.applications_cap ?? 0}
+          />
         )}
       </div>
     </section>
@@ -317,6 +346,22 @@ export function AutoApplyPage() {
     );
   const d = dash.data;
   const c = d.campaign;
+  const t = totals(d);
+  // job applications and startup pitches in one list, newest first
+  const activity = [
+    ...d.recent.map((a) => ({
+      kind: "job" as const,
+      a,
+      at: Date.parse(a.updated_at ?? a.created_at ?? "") || 0,
+    })),
+    ...(d.startup_recent ?? []).map((p) => ({
+      kind: "startup" as const,
+      p,
+      at: Date.parse(p.sent_at ?? "") || 0,
+    })),
+  ]
+    .sort((x, y) => y.at - x.at)
+    .slice(0, 6);
   const running = c.state === "active" || c.state === "paused";
 
   const submitJob = (e: FormEvent) => {
@@ -359,44 +404,38 @@ export function AutoApplyPage() {
       >
         <Tile
           label="Sent so far"
-          value={(d.counts.submitted ?? 0) + (d.counts.sent_email ?? 0)}
-          hint="applications"
+          value={t.sent}
+          hint={
+            t.startups > 0
+              ? `${t.jobs} jobs · ${t.startups} startups`
+              : "applications"
+          }
         />
+        {!phone && (
+          <Tile
+            label="Replies"
+            value={t.replies}
+            hint={
+              d.review_count > 0
+                ? `${d.review_count} to match`
+                : "from employers"
+            }
+          />
+        )}
         <Tile
           label="Waiting for you"
-          value={d.counts.needs_input ?? 0}
+          value={t.waiting}
           hint={
-            d.review_count > 0
-              ? `${d.review_count} reply to match`
+            d.startups?.waiting
+              ? `${d.startups.waiting} startup pitch${d.startups.waiting === 1 ? "" : "es"} to approve`
               : "questions to answer"
           }
         />
         <Tile
           label="Interviews"
-          value={d.open_invites.length + (d.next_interview ? 1 : 0)}
+          value={t.interviews}
           hint="invited or booked"
         />
-        {!phone && (
-          <>
-            {d.usage ? (
-              <Tile
-                label="Applications today"
-                value={`${d.usage.applications_used} of ${d.usage.applications_cap}`}
-                bar={
-                  d.usage.applications_cap
-                    ? d.usage.applications_used / d.usage.applications_cap
-                    : 0
-                }
-              />
-            ) : (
-              <Tile
-                label="Applications today"
-                value="–"
-                hint="starts once you are set up"
-              />
-            )}
-          </>
-        )}
       </dl>
 
       {phone && (
@@ -548,48 +587,81 @@ export function AutoApplyPage() {
 
           {show("apps") && (
             <Section id="recent-h" title="Recent applications">
-              {d.recent.length === 0 ? (
+              {activity.length === 0 ? (
                 <div className="rounded-2xl bg-canvas p-6 text-center">
                   <p aria-hidden="true" className="text-3xl">
                     📨
                   </p>
                   <p className="mt-2 font-medium">Nothing has gone out yet</p>
                   <p className="text-sm text-muted">
-                    Applications appear here as they are sent, with what
-                    happened next.
+                    Applications and startup pitches appear here as they are
+                    sent, with what happened next.
                   </p>
                 </div>
               ) : (
                 <ul className="space-y-2">
-                  {d.recent.map((a) => (
-                    <li key={a.id}>
-                      <Link
-                        to={`/auto-apply/applications/${a.id}`}
-                        className="flex items-center gap-3 rounded-2xl bg-canvas p-3 transition-colors hover:bg-accent-soft"
-                      >
-                        <span
-                          aria-hidden="true"
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-soft font-semibold text-accent-dark"
+                  {activity.map((x) =>
+                    x.kind === "job" ? (
+                      <li key={x.a.id}>
+                        <Link
+                          to={`/auto-apply/applications/${x.a.id}`}
+                          className="flex items-center gap-3 rounded-2xl bg-canvas p-3 transition-colors hover:bg-accent-soft"
                         >
-                          {initial(a.posting.company)}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate font-medium">
-                            {a.posting.title} at {a.posting.company}
+                          <span
+                            aria-hidden="true"
+                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-soft font-semibold text-accent-dark"
+                          >
+                            {initial(x.a.posting.company)}
                           </span>
-                          <span className="block truncate text-sm text-muted">
-                            {a.posting.region ?? "Anywhere"}
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate font-medium">
+                              {x.a.posting.title} at {x.a.posting.company}
+                            </span>
+                            <span className="block truncate text-sm text-muted">
+                              {x.a.posting.region ?? "Anywhere"}
+                            </span>
                           </span>
-                        </span>
-                        {a.recruiting_stage && (
-                          <span className="hidden rounded-full bg-surface px-2.5 py-1 text-xs text-muted sm:inline">
-                            {STAGE[a.recruiting_stage] ?? a.recruiting_stage}
+                          {x.a.recruiting_stage && (
+                            <span className="hidden rounded-full bg-surface px-2.5 py-1 text-xs text-muted sm:inline">
+                              {STAGE[x.a.recruiting_stage] ??
+                                x.a.recruiting_stage}
+                            </span>
+                          )}
+                          <Pill status={x.a.status} />
+                        </Link>
+                      </li>
+                    ) : (
+                      <li key={x.p.id}>
+                        <Link
+                          to="/auto-apply/startups"
+                          className="flex items-center gap-3 rounded-2xl bg-canvas p-3 transition-colors hover:bg-accent-soft"
+                        >
+                          <span
+                            aria-hidden="true"
+                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-soft font-semibold text-accent-dark"
+                          >
+                            {initial(x.p.company)}
                           </span>
-                        )}
-                        <Pill status={a.status} />
-                      </Link>
-                    </li>
-                  ))}
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate font-medium">
+                              Pitch to {x.p.company}
+                            </span>
+                            <span className="block truncate text-sm text-muted">
+                              Startup
+                              {x.p.to_name ? ` · ${x.p.to_name}` : ""}
+                            </span>
+                          </span>
+                          <span className="rounded-full bg-surface px-2.5 py-1 text-xs text-muted">
+                            {x.p.status === "replied"
+                              ? "Replied"
+                              : x.p.status === "declined"
+                                ? "Said no"
+                                : "Sent"}
+                          </span>
+                        </Link>
+                      </li>
+                    ),
+                  )}
                 </ul>
               )}
               <Link

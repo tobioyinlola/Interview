@@ -34,7 +34,7 @@ const mode = (m) => fetch(`http://localhost:9099/control?mode=${m}`);
   await page.waitForURL("**/onboarding");
   await page.getByRole("button", { name: "Skip for now" }).click();
   await page.waitForURL("**/dashboard");
-  await page.getByText(/^Hello/).waitFor();
+  await page.getByText(/^Good (morning|afternoon|evening)/).waitFor();
   await skipTour(page);
   ok(
     await page.getByText("google.user@example.com").isVisible(),

@@ -622,6 +622,54 @@ async def test_auto_apply_overview_shows_startup_counts(ada, maker, mailbox, wri
     assert d["startups"]["waiting"] == 2 and d["startups"]["sent"] == 0
 
 
+async def test_every_note_goes_with_the_cv_attached_and_reads_like_a_proper_email(
+    ada, maker, mailbox, settings, clock
+):
+    """A fixed template (no model): greeting, who I am, why them, the ask, CV line, sign-off."""
+    uid = await setup(ada, maker, mailbox)
+    await ada.put("/api/notes", json={"role": "PM", "content": "Ada Okoye\nSenior PM at Northwind"})
+    await seed(maker, 1)
+    async with maker() as db:
+        await engine.plan(db, uid, NOW, FakeLlmProvider(json_reply="not json"))
+    [t] = (await ada.get("/api/hunt/targets")).json()
+    body = t["body"]
+    assert body.startswith(("Hello,", "Hi "))
+    assert "I'm Ada Okoye" in body and "Acme0" in body
+    assert "short call" in body
+    assert body.index("My CV is attached.") < body.index("Thank you,\nAda Okoye")
+    assert (await ada.post(f"/api/hunt/targets/{t['id']}/approve")).status_code == 200
+    assert await engine.send_next(maker, uid, mailbox, settings, NOW) == "sent"
+    [att] = mailbox.sent[0]["attachments"]
+    assert att.filename == "Ada Okoye - CV.pdf" and att.content.startswith(b"%PDF")
+
+
+def test_the_cv_file_name_is_clean():
+    assert engine.cv_filename("Ada Okoye") == "Ada Okoye - CV.pdf"
+    assert engine.cv_filename("Ada/../Okoye<>") == "Ada..Okoye - CV.pdf"
+    assert engine.cv_filename("") == "CV.pdf"
+
+
+async def test_the_overview_lists_sent_pitches_with_who_they_went_to(
+    ada, maker, mailbox, settings, write_llm
+):
+    from tests.autoapply.conftest import start
+
+    await start(ada)
+    uid = await setup(ada, maker, mailbox)
+    await seed(maker, 1)
+    async with maker() as db:
+        await engine.plan(db, uid, NOW, write_llm)
+    assert (await ada.get("/api/autoapply/dashboard")).json()["startup_recent"] == []  # not sent
+    listed = (await ada.get("/api/hunt/targets")).json()
+    assert (await ada.post(f"/api/hunt/targets/{listed[0]['id']}/approve")).status_code == 200
+    assert await engine.send_next(maker, uid, mailbox, settings, NOW) == "sent"
+    d = (await ada.get("/api/autoapply/dashboard")).json()
+    assert d["startups"]["sent"] == 1
+    [one] = d["startup_recent"]
+    assert one["status"] == "sent" and one["company"] and one["subject"]
+    assert one["sent_at"]
+
+
 # ------------------------------------------------------------------------------ directories
 
 
@@ -709,6 +757,54 @@ async def test_directories_are_read_a_couple_at_a_time_and_then_weekly(maker):
         assert (
             await db.execute(select(Startup).where(Startup.name == "Acme"))
         ).scalar_one().region == "eu"
+
+
+def test_the_directory_lists_are_sound():
+    names = [d[0] for d in directory.DEFAULTS] + [c[0] for c in directory.CANDIDATES]
+    assert len(names) == len(set(names))  # no name twice, so nothing is added twice
+    assert len(directory.DEFAULTS) >= 31  # the first eleven plus twenty more
+    for _name, url, hint in directory.DEFAULTS + directory.CANDIDATES:
+        assert url.startswith("https://") and hint in ("", "us", "eu", "uk")
+
+
+async def test_the_daily_scout_tries_a_couple_of_new_places_and_keeps_only_those_that_work(maker):
+    from app.models import Directory
+
+    good = listing(
+        ("A1", "https://a1.io", "Germany"),
+        ("A2", "https://a2.io", "France"),
+        ("A3", "https://a3.io", "Spain"),
+    )
+    async with maker() as db:
+        out = await directory.scout(db, OnePage(), good, NOW)
+        assert [o["name"] for o in out] == [c[0] for c in directory.CANDIDATES[:2]]
+        assert all(o["enabled"] and o["found"] == 3 for o in out)
+        assert await directory.scout(db, OnePage(), good, NOW + timedelta(hours=3)) == []  # today
+        thin = listing(("B1", "https://b1.io", "Germany"))
+        out = await directory.scout(db, OnePage(), thin, NOW + timedelta(days=1))
+        assert [o["name"] for o in out] == [c[0] for c in directory.CANDIDATES[2:4]]
+        assert not any(o["enabled"] for o in out)  # one startup is not enough to switch it on
+        off = (
+            await db.execute(select(Directory).where(Directory.name == out[0]["name"]))
+        ).scalar_one()
+        assert off.enabled is False and off.builtin is False and "stays off" in off.last_problem
+        again = await directory.scout(db, OnePage(), good, NOW + timedelta(days=2))
+        assert [o["name"] for o in again] == [c[0] for c in directory.CANDIDATES[4:6]]  # no retries
+
+
+async def test_an_unreadable_candidate_stays_off_with_the_reason(maker):
+    from app.models import Directory
+    from app.services.fetcher import FetchResult
+
+    class Down:
+        async def fetch(self, url):
+            return FetchResult(url, "blocked", reason="The site asks robots not to read it.")
+
+    async with maker() as db:
+        [one, _two] = await directory.scout(db, Down(), listing(), NOW)
+        assert not one["enabled"]
+        d = (await db.execute(select(Directory).where(Directory.name == one["name"]))).scalar_one()
+        assert d.enabled is False and "robots" in d.last_problem
 
 
 async def test_a_directory_that_cannot_be_read_says_why(maker):

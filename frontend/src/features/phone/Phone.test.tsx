@@ -126,6 +126,20 @@ describe("the phone home", () => {
     expect(recent.getByText("Product Manager")).toBeInTheDocument();
   });
 
+  it("greets for the time of day with a smile, and has no Help button up there", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date(2026, 10, 24, 15, 0) });
+    try {
+      api();
+      renderApp(<App />, "/dashboard");
+      expect(await screen.findByText("Good afternoon,")).toBeInTheDocument();
+      expect(screen.getByText("😊")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Your profile" })).toBeVisible();
+      expect(screen.queryByRole("link", { name: "Help" })).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("says the next step: the CV first", async () => {
     api({}, "");
     renderApp(<App />, "/dashboard");

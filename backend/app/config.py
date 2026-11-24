@@ -130,6 +130,10 @@ class Settings(BaseSettings):
     startup_outreach_enabled: bool = False  # feature flag: startup outreach routes and jobs
     startup_outreach_dispatch: bool = False  # kill switch: startup notes from a real mailbox
     autoapply_mailbox_provider: str = "fixture"  # fixture | gmail
+    # Let people connect Gmail, Outlook or Yahoo with an app password. Off by default: it makes
+    # sending real, so it also needs MAILBOX_ENCRYPTION_KEY and the dispatch switches, like any
+    # real mailbox.
+    smtp_mailbox_enabled: bool = False
     autoapply_discovery_sources: str = "fixture"  # comma-separated adapter names
     autoapply_reconcile_hours: int = (
         24  # how long an unknown outcome waits before asking the person

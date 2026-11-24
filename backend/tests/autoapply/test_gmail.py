@@ -323,3 +323,32 @@ async def test_an_expired_cursor_falls_back_to_recent_mail(gmail_settings):
 
     msgs, cursor = await GmailAdapter(gmail_settings, mock(handler)).read_since("r", "1")
     assert msgs == [] and cursor == "1000" and any(p.endswith("/messages") for p in seen)
+
+
+# ------------------------------------------------------------------------------ one Google client
+
+
+async def test_the_sign_in_client_is_used_when_no_separate_gmail_client_is_set(settings):
+    settings.gmail_client_id, settings.gmail_client_secret = "", SecretStr("")
+    settings.google_client_id, settings.google_client_secret = "signin-id", SecretStr("signin-sec")
+    settings.api_public_url = "https://api.example.com"
+    oauth = GmailOAuth(settings)
+    assert oauth.enabled
+    url, _cookie = oauth.begin("user-1", login_hint="ada@example.com")
+    q = parse_qs(urlsplit(url).query)
+    assert q["client_id"] == ["signin-id"]
+    assert q["login_hint"] == ["ada@example.com"]  # opens on the account they signed up with
+    assert "gmail.send" in q["scope"][0] and q["access_type"] == ["offline"]
+
+
+async def test_a_separate_gmail_client_still_wins(settings):
+    settings.gmail_client_id, settings.gmail_client_secret = "gm-id", SecretStr("gm-sec")
+    settings.google_client_id, settings.google_client_secret = "signin-id", SecretStr("signin-sec")
+    assert GmailOAuth(settings).client_id == "gm-id"
+    assert GmailOAuth(settings).client_secret == "gm-sec"
+
+
+async def test_with_no_google_client_at_all_connecting_is_off(settings):
+    settings.gmail_client_id, settings.gmail_client_secret = "", SecretStr("")
+    settings.google_client_id, settings.google_client_secret = "", SecretStr("")
+    assert not GmailOAuth(settings).enabled

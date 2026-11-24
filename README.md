@@ -182,3 +182,32 @@ login, CV upload, consent, the live audio socket and OpenAI transcription were c
 **Not yet verified against the real world:** answer quality and the evaluation scores (evals above),
 research adapters, a real Google Meet call, the GitHub Actions workflow, Google sign-in against real Google.
 **Open decisions:** transcript retention policy, daily budget figure.
+
+## Sending from the person's own Gmail
+
+Startup pitches and job emails can go out from the person's own Gmail, so each one shows in their Sent
+folder. It uses the same Google client as "Continue with Google" (`GOOGLE_CLIENT_ID` and
+`GOOGLE_CLIENT_SECRET`); set `GMAIL_CLIENT_ID` and `GMAIL_CLIENT_SECRET` only to use a different one.
+
+1. In Google Cloud, enable the **Gmail API** for the project and add the scopes `gmail.send` and
+   `gmail.readonly` to the consent screen (while the app is in testing, add the test users).
+2. Add the redirect address `<API_PUBLIC_URL>/api/autoapply/mailbox/callback` to the Google client.
+3. Set `AUTOAPPLY_MAILBOX_PROVIDER=gmail` on the server. Real sending still needs the dispatch switches
+   (`AUTOAPPLY_EMAIL_DISPATCH`, `AUTOAPPLY_OUTREACH_DISPATCH`); until then nothing reaches a real inbox.
+
+## Startup directories
+
+About 30 accelerator and fund portfolio pages are built in, plus a list of more places that are tried
+two a day (`hunt/directory.py`, `CANDIDATES`). A candidate is switched on only if a trial read finds at
+least three startups on it; otherwise it stays off with the reason, which the back-office page shows.
+Every directory is read again weekly.
+
+### Or with an app password (Gmail, Outlook, Yahoo)
+
+Set `SMTP_MAILBOX_ENABLED=true` to let people connect an email address with an **app password** instead
+of the Google button. The server logs in once to check it (nothing is sent), keeps it encrypted
+(`MAILBOX_ENCRYPTION_KEY` must be set), sends over SMTP so the provider files each message in the
+person's Sent folder, and reads replies over IMAP. It only reads new mail since the connection, and only
+the headers and the first few hundred characters, to match replies to notes we sent. Only Gmail,
+Outlook and Yahoo are allowed, with fixed server names. This makes sending real, so the dispatch
+switches and recipient allow-list rules apply exactly as for any real mailbox.

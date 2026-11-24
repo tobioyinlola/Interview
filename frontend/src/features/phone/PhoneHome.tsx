@@ -1,7 +1,6 @@
 import {
   Building2,
   ChevronRight,
-  CircleHelp,
   Gift,
   History,
   Mic,
@@ -12,13 +11,12 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 import { useCompanies, useMe, useNotes, useSessions } from "../../api/hooks";
+import { GREETING_EMOJI, greeting } from "../account/greeting";
 import { firstName } from "../account/names";
 import { useDashboard } from "../autoapply/api";
+import { ConnectGmail } from "../autoapply/ConnectGmail";
 import { formatWhen } from "../review/format";
 import { Avatar } from "./Avatar";
-
-const greeting = (hour = new Date().getHours()) =>
-  hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
 /** A small progress ring: how far through the 30 days. */
 function Ring({ day, total }: { day: number; total: number }) {
@@ -129,8 +127,11 @@ export function PhoneHome() {
                   line: "Start a live interview and get draft answers.",
                 };
 
+  // job applications and startup pitches are one number
   const sent =
-    (aa.data?.counts.submitted ?? 0) + (aa.data?.counts.sent_email ?? 0);
+    (aa.data?.counts.submitted ?? 0) +
+    (aa.data?.counts.sent_email ?? 0) +
+    (aa.data?.startups?.sent ?? 0);
   const recent = aa.data?.recent.slice(0, 3) ?? [];
   const past = (sessions.data?.pages[0]?.items ?? []).slice(0, 3);
 
@@ -147,16 +148,10 @@ export function PhoneHome() {
           <span>
             <span className="block text-sm text-muted">{greeting()},</span>
             <span className="block text-lg font-semibold leading-tight">
-              {firstName(me?.full_name) || "there"}
+              {firstName(me?.full_name) || "there"}{" "}
+              <span aria-hidden="true">{GREETING_EMOJI}</span>
             </span>
           </span>
-        </Link>
-        <Link
-          to="/help"
-          aria-label="Help"
-          className="flex h-11 w-11 items-center justify-center rounded-full bg-surface text-ink shadow-card"
-        >
-          <CircleHelp className="h-5 w-5" />
         </Link>
       </div>
 
@@ -178,6 +173,8 @@ export function PhoneHome() {
           aria-hidden="true"
         />
       </Link>
+
+      <ConnectGmail />
 
       {aaOn && (
         <Link
