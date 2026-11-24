@@ -67,6 +67,14 @@ certificate ("Say which signing key was used"); its fingerprint must be identica
 installed a build signed with an earlier throwaway key must reinstall once; after that, updates are in place.
 Lose the key and everyone has to reinstall once more, so keep a copy somewhere safe.
 
+## Stealth & Screen Capture Protection
+
+* **Strict Requirement**: The app must be hidden from screen sharing, proctoring or monitoring tools at all times.
+* **Android**: `WindowManager.LayoutParams.FLAG_SECURE` is enforced on the window in `MainActivity.java`, preventing
+  screenshots, screen recording, casting, and switcher snapshots.
+* **iOS**: Privacy view masking on blur (`applicationWillResignActive`) and automatic obfuscation when screen recording
+  or mirroring (`UIScreen.capturedDidChangeNotification`) is active in `AppDelegate.swift`.
+
 ## What works on a phone, and what does not
 
 * Works: Auto-Apply (setup, approvals, dashboard), companies and briefs, past sessions and reviews, CV, settings.

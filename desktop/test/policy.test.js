@@ -94,3 +94,10 @@ test("a link used to start the app is found among its arguments", () => {
   assert.equal(p.linkFromArgv(["app.exe", "--flag"]), null);
   assert.equal(p.linkFromArgv(undefined), null);
 });
+
+test("main window strictly enforces content protection against screen capture and proctoring", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const mainJs = fs.readFileSync(path.join(__dirname, "..", "src", "main.js"), "utf8");
+  assert.match(mainJs, /win\.setContentProtection\(true\)/);
+});

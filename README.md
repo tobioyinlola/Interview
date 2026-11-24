@@ -7,7 +7,20 @@ company brief. Also includes a stealth mode Tauri desktop overlay that syncs dir
 ## Layout
 - `backend/` (the API) FastAPI (async), SQLAlchemy 2, Alembic, Pydantic v2. Provider interfaces + fakes in `app/adapters/`.
 - `frontend/` (the web app) React, TypeScript, Vite, TanStack Query, Zustand, Tailwind. API types are generated from the OpenAPI schema.
+- `desktop/` (official desktop app) Electron app for Windows and macOS.
 - `Desktop app/` (AudioCore stealth client) Tauri (Rust + React) thin-client overlay excluded from screen capture.
+- `mobile/` (mobile client) Capacitor app for iOS and Android.
+
+## Stealth Mode & Screen Capture Protection (Strict Requirement)
+> **Permanent Architecture Mandate**:
+> The app must be hidden from screen sharing, proctoring or monitoring tools at all times.
+>
+> This requirement is permanently enforced across all client platforms:
+> - **Desktop (Electron — Windows & macOS)**: `win.setContentProtection(true)` is strictly enforced on windows. In Windows this binds `WDA_EXCLUDEFROMCAPTURE` / `WDA_MONITOR`, and on macOS it binds `NSWindowSharingNone`, preventing capture in Google Meet, Zoom, Microsoft Teams, Discord, OBS, and monitoring or proctoring suites.
+> - **Desktop (Tauri — Windows)**: OS-level `SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)` with click-through overlay styles.
+> - **Mobile (Android)**: `WindowManager.LayoutParams.FLAG_SECURE` set on the window prevents screenshots, screen recording, casting, and task switcher snapshots.
+> - **Mobile (iOS)**: Privacy snapshot shielding on blur and active screen recording/mirroring detection (`UIScreen.capturedDidChangeNotification`) obscure the interface during capture or monitoring attempts.
+
 
 ## Local development
 ```bash

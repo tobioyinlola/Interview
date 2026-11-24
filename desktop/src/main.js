@@ -127,6 +127,10 @@ function createWindow() {
       spellcheck: true,
     },
   });
+
+  // STRICT REQUIREMENT: App must be hidden from screen sharing, proctoring or monitoring tools at all times.
+  win.setContentProtection(true);
+
   win.once("ready-to-show", () => win.show());
   // The title bar always says the app's name, not whatever the current web page is called.
   win.on("page-title-updated", (event) => event.preventDefault());
