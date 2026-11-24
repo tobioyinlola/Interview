@@ -339,3 +339,34 @@ async def test_different_hosts_are_not_delayed(site, make):
     # Each host waits once, between its own robots.txt request and its page request. Nothing
     # waits for the other host: a cross-host delay would add a third sleep.
     assert len(f.ft.sleeps) == 2
+
+
+# --------------------------------------------------------------------- links
+
+
+async def test_a_normal_page_keeps_its_links(site, make):
+    body = GOOD_HTML.replace(
+        "</article>",
+        '<a href="/careers">Careers</a><a href="https://other.com/x">Their site</a></article>',
+    )
+    site.add("example.com", "/about", body=body)
+    r = await make().fetch("https://example.com/about")
+    assert ("Careers", "https://example.com/careers") in r.links
+    assert ("Their site", "https://other.com/x") in r.links
+
+
+async def test_the_number_of_links_kept_can_be_raised(site, make):
+    anchors = "".join(f'<a href="https://co{i}.io/">Co{i}</a>' for i in range(300))
+    site.add("example.com", "/p", body=GOOD_HTML.replace("</article>", anchors + "</article>"))
+    assert len((await make().fetch("https://example.com/p")).links) == 150  # the usual limit
+    assert len((await make(links_max=500).fetch("https://example.com/p")).links) == 300
+
+
+async def test_a_page_of_mostly_links_is_readable_but_a_bare_one_is_not(site, make):
+    many = "".join(f'<a href="https://co{i}.io/">Co{i}</a>' for i in range(25))
+    site.add("example.com", "/logos", body=f"<html><body><p>Hi</p>{many}</body></html>")
+    site.add("example.com", "/bare", body="<html><body><p>Hi</p></body></html>")
+    ok = await make().fetch("https://example.com/logos")
+    assert ok.status == "ok" and len(ok.links) == 25
+    bare = await make().fetch("https://example.com/bare")
+    assert bare.status == "blocked" and "JavaScript" in bare.reason

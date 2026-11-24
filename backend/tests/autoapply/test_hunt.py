@@ -762,7 +762,7 @@ async def test_directories_are_read_a_couple_at_a_time_and_then_weekly(maker):
 def test_the_directory_lists_are_sound():
     names = [d[0] for d in directory.DEFAULTS] + [c[0] for c in directory.CANDIDATES]
     assert len(names) == len(set(names))  # no name twice, so nothing is added twice
-    assert len(directory.DEFAULTS) >= 31  # the first eleven plus twenty more
+    assert len(directory.DEFAULTS) >= 29  # the first eleven plus the ones that were checked
     for _name, url, hint in directory.DEFAULTS + directory.CANDIDATES:
         assert url.startswith("https://") and hint in ("", "us", "eu", "uk")
 
@@ -805,6 +805,164 @@ async def test_an_unreadable_candidate_stays_off_with_the_reason(maker):
         assert not one["enabled"]
         d = (await db.execute(select(Directory).where(Directory.name == one["name"]))).scalar_one()
         assert d.enabled is False and "robots" in d.last_problem
+
+
+def test_a_long_page_is_cut_into_pieces_at_spaces_and_only_so_many():
+    text = "word " * 20_000  # 100,000 characters
+    pieces = directory._chunks(text)
+    assert 1 < len(pieces) <= directory.MAX_CHUNKS
+    assert all(len(p) <= directory.CHUNK_CHARS for p in pieces)
+    assert all(not p.startswith(" ") and "wor " not in p[-4:] for p in pieces)  # no cut words
+    assert directory._chunks("short page") == ["short page"] and directory._chunks("  ") == []
+
+
+async def test_a_long_directory_page_is_read_in_pieces_and_what_each_piece_finds_is_kept():
+    class PerPiece:
+        """Each call gets the next piece and names a different company; one call fails."""
+
+        def __init__(self):
+            self.calls = 0
+
+        async def generate_json(self, *, system, user, schema):
+            from app.adapters.interfaces import ProviderError
+
+            self.calls += 1
+            if self.calls == 2:
+                raise ProviderError("busy")
+            return json.dumps(
+                {
+                    "startups": [
+                        {
+                            "name": f"Co{self.calls}",
+                            "website": f"https://co{self.calls}.io",
+                            "one_liner": "x",
+                            "country": "France",
+                            "batch": "",
+                            "sector": "",
+                        }
+                    ]
+                }
+            )
+
+    llm = PerPiece()
+    found = await directory.extract(llm, "word " * 20_000, "https://dir.test/portfolio")
+    assert llm.calls == directory.MAX_CHUNKS
+    assert [f.name for f in found] == ["Co1", "Co3", "Co4"]  # the failed piece cost only itself
+
+
+async def test_the_same_company_named_in_two_pieces_counts_once():
+    rows = [(f"N{i}", f"https://n{i}.io", "France") for i in range(60)]
+    found = await directory.extract(listing(*rows), "word " * 20_000, "https://dir.test/p")
+    assert len(found) == 60 and len({f.website for f in found}) == 60
+
+
+async def test_one_directory_gives_at_most_two_hundred_companies():
+    class Many:
+        calls = 0
+
+        async def generate_json(self, *, system, user, schema):
+            Many.calls += 1
+            rows = [
+                {
+                    "name": f"P{Many.calls}N{i}",
+                    "website": f"https://p{Many.calls}n{i}.io",
+                    "one_liner": "",
+                    "country": "",
+                    "batch": "",
+                    "sector": "",
+                }
+                for i in range(80)
+            ]
+            return json.dumps({"startups": rows})
+
+    found = await directory.extract(Many(), "word " * 20_000, "https://dir.test/p")
+    assert len(found) == directory.MAX_TOTAL
+
+
+async def test_the_model_is_given_the_pages_outside_links_so_it_can_name_each_website():
+    seen = {}
+
+    class Spy:
+        async def generate_json(self, *, system, user, schema):
+            seen["user"], seen["system"] = user, system
+            return json.dumps({"startups": []})
+
+    links = (
+        ("Visit site", "https://dronamics.com/about"),
+        ("15Five", "https://www.15five.com/"),
+        ("Visit site", "https://dronamics.com/other"),  # same site again: once
+        ("LinkedIn", "https://www.linkedin.com/company/x"),  # never a company
+        ("Our team", "https://dir.test/team"),  # the directory's own page
+        ("Sub", "https://news.dir.test/x"),  # and its subdomain
+    )
+    await directory.extract(Spy(), "Dronamics 15Five " * 3, "https://www.dir.test/p", links)
+    assert "LINKS ON THE PAGE:" in seen["user"]
+    assert "Visit site -> https://dronamics.com" in seen["user"]
+    assert "15Five -> https://15five.com" in seen["user"]
+    assert seen["user"].count("dronamics.com") == 1
+    assert "linkedin" not in seen["user"] and "dir.test" not in seen["user"].split("LINKS")[1]
+    assert "links on the page" in seen["system"]
+    out = await directory.extract(
+        listing(("Dronamics", "https://dronamics.com", "Bulgaria")), "t " * 50, "https://dir.test/p"
+    )
+    assert out[0].website == "https://dronamics.com"
+
+
+async def test_a_page_that_is_all_links_is_still_read(maker):
+    """Initialized-style portfolio: almost no text, many links. It reaches the model."""
+    from app.services.fetcher import FetchResult
+
+    class LogosOnly:
+        async def fetch(self, url):
+            links = tuple((f"Co{i}", f"https://co{i}.io") for i in range(30))
+            return FetchResult(url, "ok", text="Portfolio", final_url=url, links=links)
+
+    async with maker() as db:
+        out = await directory.ingest(
+            db,
+            LogosOnly(),
+            listing(("Co1", "https://co1.io", "United States")),
+            "Initialized Capital",
+            "https://dir.test/p",
+            NOW,
+        )
+    assert out["found"] == 1 and out["added"] == 1
+
+
+async def test_dead_built_in_directories_are_removed_and_wrong_addresses_are_fixed(maker):
+    from app.models import Directory
+
+    async with maker() as db:
+        await directory.ensure_defaults(db, NOW)
+        for name in directory.RETIRED:  # as an older install has them
+            db.add(Directory(name=name, url="https://old.example/x", builtin=True, created_at=NOW))
+        keep = Directory(
+            name="Atomico2", url="https://old.example/y", builtin=True, last_found=5, created_at=NOW
+        )
+        db.add(keep)
+        pn = (
+            await db.execute(select(Directory).where(Directory.name == "Point Nine"))
+        ).scalar_one()
+        pn.url, pn.last_run_at, pn.last_problem = "https://www.pointnine.com/portfolio", NOW, "gone"
+        await db.commit()
+        await directory.ensure_defaults(db, NOW)
+        names = set((await db.execute(select(Directory.name))).scalars().all())
+        assert not names & set(directory.RETIRED)
+        assert "Atomico2" in names  # not on the list: untouched
+        await db.refresh(pn)
+        assert pn.url == "https://www.pointnine.com/companies"
+        assert pn.last_run_at is None and pn.last_problem is None  # read again
+
+        db.add(
+            Directory(
+                name="Atomico", url="https://x.example", builtin=True, last_found=7, created_at=NOW
+            )
+        )
+        await db.commit()
+        await directory.ensure_defaults(db, NOW)
+        assert "Atomico" in set(
+            (await db.execute(select(Directory.name))).scalars().all()
+        )  # had startups
 
 
 async def test_a_directory_that_cannot_be_read_says_why(maker):

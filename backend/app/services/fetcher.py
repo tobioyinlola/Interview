@@ -39,6 +39,7 @@ _LOGIN_HINTS = ("login", "signin", "sign-in", "sign_in", "sso", "/auth", "authen
 _ROBOTS_MAX_BYTES = 512 * 1024
 _ROBOTS_TTL = 3600.0
 MIN_READABLE_CHARS = 80
+MANY_LINKS = 20  # this many links make a nearly textless page worth reading
 
 
 @dataclass
@@ -72,7 +73,7 @@ def published_emails(html: str) -> tuple[str, ...]:
 _ANCHOR = re.compile(r"<a\b[^>]*?href\s*=\s*[\"']([^\"'#][^\"']*)[\"'][^>]*>(.*?)</a>", re.S | re.I)
 
 
-def page_links(html: str, base: str) -> tuple[tuple[str, str], ...]:
+def page_links(html: str, base: str, limit: int = 150) -> tuple[tuple[str, str], ...]:
     """Links on the page as (visible text, absolute http address). Used to find a startup's careers
     page and the address of each opening it lists."""
     out: list[tuple[str, str]] = []
@@ -84,7 +85,7 @@ def page_links(html: str, base: str) -> tuple[tuple[str, str], ...]:
         url = urljoin(base, href)
         if text and url.startswith(("http://", "https://")) and (text, url) not in out:
             out.append((text, url))
-    return tuple(out[:150])
+    return tuple(out[:limit])
 
 
 class _TooLarge(Exception):
@@ -111,6 +112,7 @@ class Fetcher:
         max_redirects: int = 3,
         host_interval: float = 1.0,
         text_max_chars: int = 20_000,
+        links_max: int = 150,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
@@ -123,6 +125,7 @@ class Fetcher:
         self.max_redirects = max_redirects
         self.host_interval = host_interval
         self.text_max_chars = text_max_chars
+        self.links_max = links_max
         self._sleep = sleep
         self._clock = clock
         self._host_locks: dict[str, asyncio.Lock] = {}
@@ -202,8 +205,9 @@ class Fetcher:
             title, text = await asyncio.to_thread(_extract, html)
         text = text[: self.text_max_chars]
         emails = published_emails(html) if ctype != "text/plain" else ()
-        links = page_links(html, final_url) if ctype != "text/plain" else ()
-        if len(text) < MIN_READABLE_CHARS and emails:
+        links = page_links(html, final_url, self.links_max) if ctype != "text/plain" else ()
+        # a page that is mostly links (a portfolio of logos) has little text but a lot to read
+        if len(text) < MIN_READABLE_CHARS and (emails or len(links) >= MANY_LINKS):
             return FetchResult(
                 url, "ok", title=title, text=text, final_url=final_url, emails=emails, links=links
             )
@@ -214,7 +218,9 @@ class Fetcher:
                 "No readable text was found. The page may need JavaScript or a sign-in.",
                 final_url=final_url,
             )
-        return FetchResult(url, "ok", title=title, text=text, final_url=final_url, emails=emails)
+        return FetchResult(
+            url, "ok", title=title, text=text, final_url=final_url, emails=emails, links=links
+        )
 
     async def _public_ips(self, parts: SplitResult) -> list[IPAddress]:
         port = parts.port or (443 if parts.scheme == "https" else 80)
