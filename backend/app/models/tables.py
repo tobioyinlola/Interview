@@ -850,3 +850,21 @@ class Suppression(Base):
     domain: Mapped[str | None] = mapped_column(String(253), nullable=True, index=True)
     reason: Mapped[str] = mapped_column(String(12))  # opt_out | bounce | declined | manual
     created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+
+
+class Directory(Base):
+    """An accelerator's public directory page we read startups from. The built-in ones can be
+    turned off but not deleted; an operator can add more."""
+
+    __tablename__ = "aa_directories"
+    id: Mapped[uuid.UUID] = _pk()
+    name: Mapped[str] = mapped_column(String(120), unique=True)
+    url: Mapped[str] = mapped_column(String(500))
+    region_hint: Mapped[str] = mapped_column(String(8), default="")  # for pages with no country
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    builtin: Mapped[bool] = mapped_column(Boolean, default=False)
+    last_run_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    last_found: Mapped[int] = mapped_column(Integer, default=0)
+    last_added: Mapped[int] = mapped_column(Integer, default=0)
+    last_problem: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(_TS, default=_now)

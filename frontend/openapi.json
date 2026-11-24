@@ -114,6 +114,53 @@
         "title": "ActivityOut",
         "type": "object"
       },
+      "AdminOverviewOut": {
+        "properties": {
+          "by_region": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Region",
+            "type": "object"
+          },
+          "by_status": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Status",
+            "type": "object"
+          },
+          "directories": {
+            "items": {
+              "$ref": "#/components/schemas/DirectoryOut"
+            },
+            "title": "Directories",
+            "type": "array"
+          },
+          "startups": {
+            "title": "Startups",
+            "type": "integer"
+          },
+          "with_contacts": {
+            "title": "With Contacts",
+            "type": "integer"
+          },
+          "with_openings": {
+            "title": "With Openings",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "startups",
+          "by_status",
+          "by_region",
+          "with_contacts",
+          "with_openings",
+          "directories"
+        ],
+        "title": "AdminOverviewOut",
+        "type": "object"
+      },
       "AndroidRelease": {
         "properties": {
           "url": {
@@ -1817,6 +1864,121 @@
         "title": "DesktopRelease",
         "type": "object"
       },
+      "DirectoryIn": {
+        "properties": {
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "region_hint": {
+            "default": "",
+            "maxLength": 8,
+            "title": "Region Hint",
+            "type": "string"
+          },
+          "url": {
+            "maxLength": 500,
+            "minLength": 8,
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "url"
+        ],
+        "title": "DirectoryIn",
+        "type": "object"
+      },
+      "DirectoryOut": {
+        "properties": {
+          "builtin": {
+            "title": "Builtin",
+            "type": "boolean"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_added": {
+            "title": "Last Added",
+            "type": "integer"
+          },
+          "last_found": {
+            "title": "Last Found",
+            "type": "integer"
+          },
+          "last_problem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Problem"
+          },
+          "last_run_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Run At"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "region_hint": {
+            "title": "Region Hint",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "url",
+          "region_hint",
+          "enabled",
+          "builtin",
+          "last_run_at",
+          "last_found",
+          "last_added",
+          "last_problem"
+        ],
+        "title": "DirectoryOut",
+        "type": "object"
+      },
+      "DirectoryPatch": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "DirectoryPatch",
+        "type": "object"
+      },
       "Disclosure": {
         "properties": {
           "channels": {
@@ -2291,6 +2453,12 @@
             "title": "Directory",
             "type": "string"
           },
+          "region_hint": {
+            "default": "",
+            "maxLength": 8,
+            "title": "Region Hint",
+            "type": "string"
+          },
           "startups": {
             "items": {
               "$ref": "#/components/schemas/StartupIn"
@@ -2306,28 +2474,6 @@
           "startups"
         ],
         "title": "ImportIn",
-        "type": "object"
-      },
-      "IngestIn": {
-        "properties": {
-          "directory": {
-            "maxLength": 120,
-            "minLength": 1,
-            "title": "Directory",
-            "type": "string"
-          },
-          "url": {
-            "maxLength": 500,
-            "minLength": 8,
-            "title": "Url",
-            "type": "string"
-          }
-        },
-        "required": [
-          "directory",
-          "url"
-        ],
-        "title": "IngestIn",
         "type": "object"
       },
       "InterviewOut": {
@@ -7139,6 +7285,268 @@
         ]
       }
     },
+    "/api/admin/startups/directories": {
+      "post": {
+        "operationId": "add_directory_api_admin_startups_directories_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DirectoryIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DirectoryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Directory",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/startups/directories/{did}": {
+      "delete": {
+        "operationId": "delete_directory_api_admin_startups_directories__did__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "did",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Did",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Directory",
+        "tags": [
+          "admin"
+        ]
+      },
+      "put": {
+        "operationId": "patch_directory_api_admin_startups_directories__did__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "did",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Did",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DirectoryPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DirectoryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Directory",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/startups/directories/{did}/refresh": {
+      "post": {
+        "operationId": "refresh_directory_api_admin_startups_directories__did__refresh_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "did",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Did",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DirectoryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Refresh Directory",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/startups/import": {
+      "post": {
+        "operationId": "import_startups_api_admin_startups_import_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Import Startups Api Admin Startups Import Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import Startups",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/startups/overview": {
+      "get": {
+        "operationId": "admin_overview_api_admin_startups_overview_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminOverviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Overview",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/startups/research": {
+      "post": {
+        "operationId": "run_research_api_admin_startups_research_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Run Research Api Admin Startups Research Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Run Research",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/admin/usage": {
       "get": {
         "description": "The owner's cost view: spend per day, the heaviest users, and the average cost of a session\nand of a research job. These are ESTIMATES from counted audio seconds and tokens times the\nPRICE_* settings; the provider's own billing is the source of truth.",
@@ -9793,144 +10201,6 @@
         "summary": "Remove Source",
         "tags": [
           "companies"
-        ]
-      }
-    },
-    "/api/hunt/admin/import": {
-      "post": {
-        "operationId": "import_startups_api_hunt_admin_import_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ImportIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": {
-                    "type": "integer"
-                  },
-                  "title": "Response Import Startups Api Hunt Admin Import Post",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Import Startups",
-        "tags": [
-          "hunt"
-        ]
-      }
-    },
-    "/api/hunt/admin/ingest": {
-      "post": {
-        "operationId": "ingest_api_hunt_admin_ingest_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/IngestIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Ingest Api Hunt Admin Ingest Post",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Ingest",
-        "tags": [
-          "hunt"
-        ]
-      }
-    },
-    "/api/hunt/admin/research": {
-      "post": {
-        "operationId": "run_research_api_hunt_admin_research_post",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": {
-                    "type": "integer"
-                  },
-                  "title": "Response Run Research Api Hunt Admin Research Post",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Run Research",
-        "tags": [
-          "hunt"
-        ]
-      }
-    },
-    "/api/hunt/directories": {
-      "get": {
-        "operationId": "directories_api_hunt_directories_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": {
-                    "type": "string"
-                  },
-                  "title": "Response Directories Api Hunt Directories Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Directories",
-        "tags": [
-          "hunt"
         ]
       }
     },

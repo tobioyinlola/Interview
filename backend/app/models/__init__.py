@@ -10,6 +10,7 @@ from app.models.tables import (
     Company,
     CompanyBrief,
     CompanySource,
+    Directory,
     DiscoveryRun,
     Event,
     HuntSettings,
@@ -43,6 +44,7 @@ from app.models.tables import (
 )
 
 __all__ = [
+    "Directory",
     "HuntSettings",
     "HuntTarget",
     "KillSwitch",

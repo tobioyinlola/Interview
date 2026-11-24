@@ -620,3 +620,196 @@ async def test_auto_apply_overview_shows_startup_counts(ada, maker, mailbox, wri
         await engine.plan(db, uid, NOW, write_llm)
     d = (await ada.get("/api/autoapply/dashboard")).json()
     assert d["startups"]["waiting"] == 2 and d["startups"]["sent"] == 0
+
+
+# ------------------------------------------------------------------------------ directories
+
+
+class OnePage:
+    """A fetcher that returns one directory page, whatever the address."""
+
+    def __init__(self, text="Directory of startups listed here. " * 5):
+        self.text, self.fetched = text, []
+
+    async def fetch(self, url):
+        self.fetched.append(url)
+        return FetchResult(url, "ok", text=self.text, final_url=url)
+
+
+def listing(*rows):
+    return FakeLlmProvider(
+        json_reply=json.dumps(
+            {
+                "startups": [
+                    {
+                        "name": n,
+                        "website": w,
+                        "one_liner": "x",
+                        "country": c,
+                        "batch": "",
+                        "sector": "",
+                    }
+                    for n, w, c in rows
+                ]
+            }
+        )
+    )
+
+
+async def test_there_are_at_least_ten_default_directories_and_they_are_added_once(maker):
+    from app.models import Directory
+
+    assert len(directory.DEFAULTS) >= 10
+    async with maker() as db:
+        assert await directory.ensure_defaults(db, NOW) == len(directory.DEFAULTS)
+        assert await directory.ensure_defaults(db, NOW) == 0  # never twice
+        d = (await db.execute(select(Directory).where(Directory.name == "Seedcamp"))).scalar_one()
+        d.enabled = False  # an operator's choice survives
+        await db.commit()
+        await directory.ensure_defaults(db, NOW)
+        await db.refresh(d)
+        assert d.enabled is False and d.builtin is True
+
+
+async def test_a_regional_hint_fills_in_a_missing_country_but_a_global_one_does_not(maker):
+    async with maker() as db:
+        found = [
+            directory.Found("Acme", "https://acme.io"),
+            directory.Found("Beta", "https://beta.io", country="Germany"),
+        ]
+        await directory.save(db, "Seedcamp", "https://x", found, NOW, hint="uk")
+        await directory.save(
+            db, "Antler", "https://y", [directory.Found("Gamma", "https://gamma.io")], NOW
+        )
+        regions = {s.name: s.region for s in (await db.execute(select(Startup))).scalars().all()}
+    assert regions == {"Acme": "uk", "Beta": "eu", "Gamma": "other"}  # never guessed into a region
+
+
+async def test_directories_are_read_a_couple_at_a_time_and_then_weekly(maker):
+    from app.models import Directory
+
+    llm = listing(("Acme", "https://acme.io", "France"))
+    pages = OnePage()
+    async with maker() as db:
+        assert await directory.refresh_due(db, pages, llm, NOW) == 2  # a couple per pass
+        assert await directory.refresh_due(db, pages, llm, NOW) == 2
+        ran = (
+            (await db.execute(select(Directory).where(Directory.last_run_at.is_not(None))))
+            .scalars()
+            .all()
+        )
+        assert len(ran) == 4 and {d.last_found for d in ran} == {1}
+        total = len(directory.DEFAULTS)
+        for _ in range(total):
+            await directory.refresh_due(db, pages, llm, NOW)
+        assert await directory.refresh_due(db, pages, llm, NOW) == 0  # all read: nothing due
+        assert (
+            await directory.refresh_due(db, pages, llm, NOW + timedelta(days=8)) == 2
+        )  # a week on
+        assert (await db.execute(select(Startup))).scalars().all()[0].region == "eu"
+
+
+async def test_a_directory_that_cannot_be_read_says_why(maker):
+    from app.models import Directory
+
+    class Down:
+        async def fetch(self, url):
+            return FetchResult(
+                url, "blocked", "No readable text was found. The page may need JavaScript."
+            )
+
+    async with maker() as db:
+        await directory.ensure_defaults(db, NOW)
+        d = (await db.execute(select(Directory).limit(1))).scalar_one()
+        await directory.refresh(db, Down(), FakeLlmProvider(), d, NOW)
+        assert d.last_found == 0 and "JavaScript" in d.last_problem and d.last_run_at is not None
+
+
+@pytest.fixture
+async def boss(new_client, staff_sign_in, settings, app):
+    from app.routers.hunt import get_fetcher
+
+    settings.admin_emails = "boss@example.com"
+    app.dependency_overrides[get_fetcher] = lambda: OnePage()
+    async with new_client() as c:
+        await staff_sign_in(c, "boss@example.com")
+        yield c
+
+
+async def test_the_back_office_sees_directories_and_counts(boss, maker):
+    await seed(maker, 2)
+    d = (await boss.get("/api/admin/startups/overview")).json()
+    assert len(d["directories"]) >= 10 and d["startups"] == 2
+    assert (
+        d["by_status"] == {"researched": 2} and d["with_contacts"] == 2 and d["with_openings"] == 0
+    )
+
+
+async def test_the_back_office_adds_turns_off_reads_and_deletes_directories(boss, app, cv_llm):
+    from app.routers.autoapply import get_llm
+
+    app.dependency_overrides[get_llm] = lambda: listing(
+        ("Acme", "https://acme.io", "United States")
+    )
+    r = await boss.post(
+        "/api/admin/startups/directories",
+        json={"name": "Local Hub", "url": "https://hub.example/portfolio", "region_hint": "us"},
+    )
+    assert r.status_code == 201
+    did = r.json()["id"]
+    assert (
+        await boss.post(
+            "/api/admin/startups/directories",
+            json={"name": "Local Hub", "url": "https://x.example/a"},
+        )
+    ).status_code == 409
+    assert (
+        await boss.post("/api/admin/startups/directories", json={"name": "Bad", "url": "ftp://x"})
+    ).status_code == 422
+    assert (
+        await boss.post(
+            "/api/admin/startups/directories",
+            json={"name": "B", "url": "https://x.example/a", "region_hint": "mars"},
+        )
+    ).status_code == 422
+    read = (await boss.post(f"/api/admin/startups/directories/{did}/refresh")).json()
+    assert read["last_found"] == 1 and read["last_added"] == 1 and read["last_run_at"]
+    assert (
+        await boss.put(f"/api/admin/startups/directories/{did}", json={"enabled": False})
+    ).json()["enabled"] is False
+    assert (await boss.delete(f"/api/admin/startups/directories/{did}")).status_code == 204
+    builtin = next(
+        x
+        for x in (await boss.get("/api/admin/startups/overview")).json()["directories"]
+        if x["builtin"]
+    )
+    assert (
+        await boss.delete(f"/api/admin/startups/directories/{builtin['id']}")
+    ).status_code == 409
+
+
+async def test_pasted_companies_are_imported_with_a_region(boss, maker):
+    r = await boss.post(
+        "/api/admin/startups/import",
+        json={
+            "directory": "Pasted",
+            "region_hint": "eu",
+            "startups": [
+                {"name": "Acme", "website": "acme.io"},
+                {"name": "Acme", "website": "https://www.acme.io/about"},
+                {"name": "Bad", "website": "bad"},
+            ],
+        },
+    )
+    assert r.json() == {"added": 1, "skipped": 2}
+    async with maker() as db:
+        assert (await db.execute(select(Startup.region))).scalar_one() == "eu"
+
+
+async def test_customers_cannot_use_the_back_office_tools(ada):
+    assert (await ada.get("/api/admin/startups/overview")).status_code in (401, 403)
+    assert (
+        await ada.post(
+            "/api/admin/startups/directories", json={"name": "x", "url": "https://x.example"}
+        )
+    ).status_code in (401, 403)

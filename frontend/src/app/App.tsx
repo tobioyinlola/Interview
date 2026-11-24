@@ -15,6 +15,7 @@ import { ApplicationPage } from "../features/autoapply/ApplicationPage";
 import { ApplicationsPage } from "../features/autoapply/ApplicationsPage";
 import { AutoApplyPage } from "../features/autoapply/AutoApplyPage";
 import { StartupsPage } from "../features/startups/StartupsPage";
+import { StartupsAdminPage } from "../features/admin/StartupsAdminPage";
 import { SetupPage } from "../features/autoapply/SetupPage";
 import { AutoApplyAdminPage } from "../features/admin/AutoApplyAdminPage";
 import { ActivityPage } from "../features/admin/ActivityPage";
@@ -106,6 +107,7 @@ function AppRoutes() {
         <Route path="quality" element={<QualityPage />} />
         <Route path="emails" element={<EmailsAdminPage />} />
         <Route path="auto-apply" element={<AutoApplyAdminPage />} />
+        <Route path="startups" element={<StartupsAdminPage />} />
         <Route path="usage" element={<UsagePage />} />
       </Route>
       <Route element={<SupportedBrowser />}>

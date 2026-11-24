@@ -3,6 +3,7 @@ import { Link, NavLink, Navigate, Outlet, useLocation } from "react-router-dom";
 
 import {
   ActivityIcon,
+  BuildingIcon,
   ChevronIcon,
   ChartIcon,
   CloseIcon,
@@ -44,6 +45,7 @@ const GROUPS: { title: string; items: Item[] }[] = [
     items: [
       { to: "/admin/quality", label: "Quality", icon: <GaugeIcon /> },
       { to: "/admin/auto-apply", label: "Auto-Apply", icon: <SendIcon /> },
+      { to: "/admin/startups", label: "Startups", icon: <BuildingIcon /> },
       { to: "/admin/usage", label: "Cost", icon: <CoinIcon /> },
     ],
   },

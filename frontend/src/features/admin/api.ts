@@ -166,3 +166,89 @@ export function useFlipSwitch() {
       void qc.invalidateQueries({ queryKey: ["admin", "autoapply"] }),
   });
 }
+
+export interface AdminDirectory {
+  id: string;
+  name: string;
+  url: string;
+  region_hint: string;
+  enabled: boolean;
+  builtin: boolean;
+  last_run_at: string | null;
+  last_found: number;
+  last_added: number;
+  last_problem: string | null;
+}
+
+export interface AdminStartups {
+  startups: number;
+  by_status: Record<string, number>;
+  by_region: Record<string, number>;
+  with_contacts: number;
+  with_openings: number;
+  directories: AdminDirectory[];
+}
+
+const SU = "/api/admin/startups";
+
+export const useStartupsAdmin = () =>
+  useQuery<AdminStartups>({
+    queryKey: ["admin", "startups"],
+    queryFn: () => apiFetch(`${SU}/overview`),
+    refetchInterval: 30_000,
+  });
+
+function useStartupsMutation<V, R>(run: (v: V) => Promise<R>) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: run,
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: ["admin", "startups"] }),
+  });
+}
+
+export const useAddDirectory = () =>
+  useStartupsMutation((v: { name: string; url: string; region_hint: string }) =>
+    apiFetch<AdminDirectory>(`${SU}/directories`, {
+      method: "POST",
+      body: JSON.stringify(v),
+    }),
+  );
+
+export const useToggleDirectory = () =>
+  useStartupsMutation((v: { id: string; enabled: boolean }) =>
+    apiFetch<AdminDirectory>(`${SU}/directories/${v.id}`, {
+      method: "PUT",
+      body: JSON.stringify({ enabled: v.enabled }),
+    }),
+  );
+
+export const useDeleteDirectory = () =>
+  useStartupsMutation((id: string) =>
+    apiFetch<void>(`${SU}/directories/${id}`, { method: "DELETE" }),
+  );
+
+export const useRefreshDirectory = () =>
+  useStartupsMutation((id: string) =>
+    apiFetch<AdminDirectory>(`${SU}/directories/${id}/refresh`, {
+      method: "POST",
+    }),
+  );
+
+export const useImportStartups = () =>
+  useStartupsMutation(
+    (v: {
+      directory: string;
+      region_hint: string;
+      startups: {
+        name: string;
+        website: string;
+        country: string;
+        one_liner: string;
+      }[];
+    }) =>
+      apiFetch<{ added: number; skipped: number }>(`${SU}/import`, {
+        method: "POST",
+        body: JSON.stringify(v),
+      }),
+  );
