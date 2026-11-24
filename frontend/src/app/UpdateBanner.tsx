@@ -1,10 +1,24 @@
 import { useEffect } from "react";
 
+import { installerAvailable } from "./appInstaller";
 import { isMobileApp } from "./native";
+import { PhoneUpdates } from "./PhoneUpdates";
 import { notifyUpdate, useAppUpdate } from "./updates";
 
 /** Shown inside the installed apps when a newer version can be downloaded. */
 export function UpdateBanner() {
+  // an Android app that can install its own update does it all here, without a browser
+  if (
+    isMobileApp() &&
+    window.Capacitor?.getPlatform?.() === "android" &&
+    installerAvailable()
+  )
+    return <PhoneUpdates />;
+  return <DownloadBanner />;
+}
+
+/** The older way, kept for apps that cannot update themselves: a link to the download. */
+function DownloadBanner() {
   const update = useAppUpdate();
   const version = update?.version;
   const url = update?.url;

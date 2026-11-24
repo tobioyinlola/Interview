@@ -163,6 +163,28 @@
       },
       "AndroidRelease": {
         "properties": {
+          "build": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Build"
+          },
+          "sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha256"
+          },
           "url": {
             "title": "Url",
             "type": "string"
@@ -335,6 +357,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/DesktopRelease"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ui": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UiRelease"
               },
               {
                 "type": "null"
@@ -5668,6 +5700,35 @@
           }
         },
         "title": "TourIn",
+        "type": "object"
+      },
+      "UiRelease": {
+        "description": "A new copy of the interface the phone app can fetch and switch to without a new install.",
+        "properties": {
+          "native_min": {
+            "title": "Native Min",
+            "type": "integer"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "url",
+          "sha256",
+          "native_min"
+        ],
+        "title": "UiRelease",
         "type": "object"
       },
       "UnresolvedRow": {

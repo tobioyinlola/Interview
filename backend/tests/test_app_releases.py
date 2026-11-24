@@ -118,3 +118,75 @@ async def test_the_endpoint_is_public_and_returns_the_list(new_client, app) -> N
     assert r.status_code == 200
     body = r.json()
     assert body["desktop"]["version"] == "0.2.13" and body["android"]["version"] == "0.2.14"
+
+
+DIGEST = "a" * 64
+
+
+def with_digest(a: dict, digest: str = DIGEST) -> dict:  # type: ignore[type-arg]
+    return {**a, "digest": f"sha256:{digest}"}
+
+
+def test_the_android_file_carries_its_checksum_and_build_number():
+    out = parse(
+        [
+            {
+                "tag_name": "android-latest",
+                "name": "InterviewMeet for Android 0.2.24",
+                "draft": False,
+                "assets": [with_digest(asset("InterviewMeet-android.apk", "android-latest"))],
+            }
+        ],
+        REPO,
+    )
+    assert out.android and out.android.sha256 == DIGEST and out.android.build == 100024
+    odd = parse(
+        [
+            {
+                "tag_name": "android-latest",
+                "name": "InterviewMeet for Android 0.2.24",
+                "assets": [
+                    {**asset("InterviewMeet-android.apk", "android-latest"), "digest": "md5:zz"}
+                ],
+            }
+        ],
+        REPO,
+    )
+    assert odd.android and odd.android.sha256 is None  # never a checksum we cannot trust
+
+
+def interface_release(**over):  # type: ignore[no-untyped-def]
+    base = {
+        "tag_name": "interface-latest",
+        "draft": False,
+        "body": '{"version": "0.2.25", "native_min": 100020}',
+        "assets": [with_digest(asset("interface.zip", "interface-latest"))],
+    }
+    base.update(over)
+    return base
+
+
+def test_a_new_interface_is_offered_with_its_checksum_and_the_oldest_build_that_can_run_it():
+    out = parse([interface_release()], REPO)
+    assert out.ui and out.ui.version == "0.2.25" and out.ui.native_min == 100020
+    assert out.ui.sha256 == DIGEST and out.ui.url == f"{BASE}/interface-latest/interface.zip"
+
+
+def test_an_interface_release_that_is_incomplete_or_foreign_is_ignored():
+    for bad in (
+        interface_release(body="not json"),
+        interface_release(body='{"version": "0.2.25"}'),  # no native_min
+        interface_release(assets=[asset("interface.zip", "interface-latest")]),  # no checksum
+        interface_release(assets=[]),
+        interface_release(
+            assets=[
+                with_digest(
+                    {
+                        "name": "interface.zip",
+                        "browser_download_url": "https://evil.example/interface.zip",
+                    }
+                )
+            ]
+        ),
+    ):
+        assert parse([bad], REPO).ui is None

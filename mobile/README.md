@@ -39,15 +39,33 @@ The phone app is not the website squeezed down. When the page runs inside this a
 
 ## Updates
 
-* **The website** updates the moment the site is deployed. **The app carries its own copy of the interface**,
-  so a change to it reaches phones through a new app version: a change to `frontend/` or `mobile/` that lands
-  on `Staging` builds and publishes one automatically.
-* **The Android app** is released automatically: a change to `mobile/` or `frontend/` that lands on `Staging` builds the
-  app and replaces the file at the download address (`android-latest`), with a build number that always grows.
-* An Android app installed from a file cannot update itself, so it shows an "update available" banner with the
-  download, and (in builds that include `@capacitor/local-notifications`) a pop-up notification once per version
-  when the app is opened. A notification while the app is *closed* needs Firebase Cloud Messaging push: not
-  set up yet (it needs a Firebase project and credentials). Google Play (a signed app) would make updates silent.
+Nobody should ever have to delete the app and install it again. Two kinds of update, both inside the app:
+
+* **A new interface** (almost every change). The release `interface-latest` holds the same interface that is
+  inside the app, as `interface.zip`, with a note (`{"version", "native_min", "commit"}`). The installed app
+  asks the API (`/api/app/releases`), downloads it quietly, checks its SHA-256, and offers **Restart** (it is
+  also used the next time the app is opened). The running copy confirms it started (`notifyAppReady`); if it
+  does not within 20 seconds, the plugin puts the last good copy back by itself, so an update cannot leave the
+  app unable to open. `native_min` is the oldest installed build that can run it: it rises only when the
+  Android/iPhone project, the plugins or the Capacitor config changed (`scripts/ui-release.js`), and a phone
+  older than that gets the app update below instead. Plugin: `@capgo/capacitor-updater`, in manual mode with
+  every address pointing at the plugin maker's cloud turned off (`capacitor.config.ts`).
+* **A new app** (native changes). The banner downloads `android-latest` inside the app
+  (`AppInstallerPlugin.java`), checks its SHA-256 and that it was signed with the same key as the installed app,
+  then opens Android's installer. Android always asks for one confirmation, and the person allows installs from
+  InterviewMeet once. The app is replaced and closed by Android; opening it again runs the new version.
+* A pop-up notification (once per version, when the app is opened) says an app update is waiting. A
+  notification while the app is *closed* needs Firebase Cloud Messaging push: not set up yet.
+
+### The signing key (this is what stops "App not installed")
+
+Android only installs an update over an app signed with the **same key**. If the signing secrets are not set,
+every CI build is signed with a different throwaway key and no phone can update in place. Set these four
+repository secrets once, with a key you keep forever: `ANDROID_KEYSTORE_BASE64` (the keystore file, base64),
+`ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. Each build then prints the signing
+certificate ("Say which signing key was used"); its fingerprint must be identical in every run. Phones that
+installed a build signed with an earlier throwaway key must reinstall once; after that, updates are in place.
+Lose the key and everyone has to reinstall once more, so keep a copy somewhere safe.
 
 ## What works on a phone, and what does not
 

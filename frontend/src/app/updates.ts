@@ -123,10 +123,6 @@ interface LocalNotifications {
       extra: { url: string };
     }[];
   }) => Promise<unknown>;
-  addListener?: (
-    name: string,
-    fn: (e: { notification: { extra?: { url?: string } } }) => void,
-  ) => unknown;
 }
 const notifications = (): LocalNotifications | undefined =>
   (
@@ -156,7 +152,7 @@ export async function notifyUpdate(
         {
           id: 4201,
           title: "InterviewMeet update",
-          body: `Version ${version} is ready. Tap to download it.`,
+          body: `Version ${version} is ready. Tap to update.`,
           schedule: { at: new Date(Date.now() + 1500) },
           extra: { url },
         },
@@ -171,19 +167,4 @@ export async function notifyUpdate(
   } catch {
     return false;
   }
-}
-
-/** Tapping the notification opens the download. Only this project's release downloads are opened. */
-export function openDownloadOnTap(
-  open: (url: string) => void = (url) => window.open(url, "_blank"),
-): void {
-  void Promise.resolve(
-    notifications()?.addListener?.("localNotificationActionPerformed", (e) => {
-      const url = e.notification.extra?.url ?? "";
-      if (
-        /^https:\/\/github\.com\/[^/]+\/[^/]+\/releases\/download\//.test(url)
-      )
-        open(url);
-    }),
-  );
 }
