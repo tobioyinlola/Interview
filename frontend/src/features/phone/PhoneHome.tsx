@@ -155,8 +155,6 @@ export function PhoneHome() {
         </Link>
       </div>
 
-      <ConnectGmail />
-
       <Link
         to={next.to}
         aria-label={next.title}
@@ -175,6 +173,8 @@ export function PhoneHome() {
           aria-hidden="true"
         />
       </Link>
+
+      <ConnectGmail />
 
       {aaOn && (
         <Link

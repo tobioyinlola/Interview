@@ -63,12 +63,12 @@ const ok = (cond, msg) => {
 
   await app.goto(BASE + "/auth/app?code=" + code);
   // a new account goes to onboarding first; either way the app must end up signed in
-  await app.locator("text=/^Hello|Skip for now/").first().waitFor();
+  await app.locator("text=/^Good (morning|afternoon|evening)|Skip for now/").first().waitFor();
   if (await app.getByRole("button", { name: "Skip for now" }).isVisible()) {
     await app.getByRole("button", { name: "Skip for now" }).click();
     await app.waitForURL("**/dashboard");
   }
-  await app.getByText(/^Hello/).waitFor();
+  await app.getByText(/^Good (morning|afternoon|evening)/).waitFor();
   await skipTour(app);
   ok(await app.getByText("google.user@example.com").isVisible(), "the app is signed in as the Google account");
 
@@ -137,13 +137,13 @@ const ok = (cond, msg) => {
     // the app picks the hand-back up and the account is signed in inside the app
     await inApp.goto(BASE + "/auth/app?code=" + back.searchParams.get("code"));
     // a new account goes to onboarding first; either way the app must end up signed in
-    await inApp.locator("text=/^Hello, App|Skip for now|Good (morning|afternoon|evening),/").first().waitFor();
+    await inApp.locator("text=/^Good (morning|afternoon|evening), App|Skip for now|Good (morning|afternoon|evening),/").first().waitFor();
     if (await inApp.getByRole("button", { name: "Skip for now" }).isVisible()) {
       await inApp.getByRole("button", { name: "Skip for now" }).click();
       await inApp.waitForURL("**/dashboard");
     }
-    // the website greets "Hello, App"; the phone app shows "Good evening," then the first name
-    await inApp.getByText(shell === "android" ? "App" : /^Hello, App/, { exact: shell === "android" }).first().waitFor({ timeout: 8000 });
+    // the website greets "Good evening, App 😊"; the phone app shows "Good evening," then the name
+    await inApp.getByText(shell === "android" ? /^App/ : /^Good (morning|afternoon|evening), App/).first().waitFor({ timeout: 8000 });
     ok(true, `${shell} app: the new account is signed in inside the app, with the name from the form`);
     await ctx.close();
   }

@@ -61,6 +61,7 @@ async def run(
     try:
         async with maker() as db:
             await directory.refresh_due(db, fetcher, llm, now)
+            await directory.scout(db, fetcher, llm, now)
     except Exception:  # noqa: BLE001 - a directory being down must not stop the rest
         log.exception("directory refresh failed")
     researched = await research_pending(maker, fetcher, llm, now)

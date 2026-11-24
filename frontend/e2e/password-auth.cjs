@@ -137,7 +137,7 @@ const NEW = "a brand new passphrase!";
   ok(true, "the finish screen thanks the person by first name");
   await page.getByRole("link", { name: "Go to your dashboard" }).click();
   await page.waitForURL("**/dashboard");
-  await page.getByText("Hello, Jordan 👋").waitFor();
+  await page.getByText(/^Good (morning|afternoon|evening), Jordan/).waitFor();
   await skipTour(page);
   ok(
     true,
@@ -148,7 +148,7 @@ const NEW = "a brand new passphrase!";
     "the dashboard shows the chosen focus",
   );
   await page.reload();
-  await page.getByText("Hello, Jordan 👋").waitFor();
+  await page.getByText(/^Good (morning|afternoon|evening), Jordan/).waitFor();
   ok(
     !page.url().includes("onboarding"),
     "a finished onboarding is not asked again after a reload",

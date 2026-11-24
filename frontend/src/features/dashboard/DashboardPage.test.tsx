@@ -43,8 +43,14 @@ describe("DashboardPage (FR-33)", () => {
       "href",
       "/companies",
     );
-    expect(await screen.findByText("No companies yet.")).toBeInTheDocument();
-    expect(await screen.findByText("No sessions yet.")).toBeInTheDocument();
+    // one clear path: no empty "Companies", "Recent sessions", chart or zero tiles yet
+    expect(
+      await screen.findByText("Who is interviewing you?"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("No companies yet.")).toBeNull();
+    expect(screen.queryByText("No sessions yet.")).toBeNull();
+    expect(screen.queryByText("Interview summary")).toBeNull();
+    expect(screen.queryByText("Recent sessions")).toBeNull();
   });
 
   it("ticks the CV, a fresh brief and the browser", async () => {
