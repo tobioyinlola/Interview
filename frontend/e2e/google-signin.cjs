@@ -22,9 +22,11 @@ const mode = (m) => fetch(`http://localhost:9099/control?mode=${m}`);
   await page.goto(BASE + "/signup");
   const google = page.getByRole("button", { name: /continue with google/i });
   await google.waitFor();
+  await google.click();
   ok(
-    await google.isDisabled(),
-    "sign up: Google is disabled until the terms are accepted",
+    /accept the terms/i.test(await page.getByRole("alert").innerText()) &&
+      page.url().includes("/signup"),
+    "sign up: Google asks for the terms first and stays on the page",
   );
   await page.getByRole("checkbox", { name: /i agree/i }).check();
   await mode("ok");
