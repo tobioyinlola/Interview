@@ -38,6 +38,7 @@ mac:
     NSMicrophoneUsageDescription: InterviewMeet uses your microphone during live interviews.
     NSCameraUsageDescription: InterviewMeet does not use your camera.
 win:
+  signAndEditExecutable: false
   target:
     - target: nsis
       arch: [x64]
