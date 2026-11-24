@@ -218,3 +218,16 @@ switches and recipient allow-list rules apply exactly as for any real mailbox.
 status, how much text it has, and how many companies' own websites it links to. Use it after adding or
 changing a directory. A page with no text (built only in the browser) cannot be read by the server; paste
 its companies in on the back-office page instead.
+
+### Directories from around the world, and how a company's website is found
+
+About 45 built-in directories now include accelerators and funds from Africa, Asia, Latin America, Australia,
+Canada and the Gulf (Dubai, Abu Dhabi, Saudi Arabia), plus the YC list of companies that are hiring, read as a
+data feed (`yc-oss.github.io`). A company's own website comes from, in order: the directory page's links
+(given to the model with the page text), or the company's profile page on the directory (opened a few at a
+time, only when an outside link is named like the company or labelled "Visit website"), or a data feed. A
+company with no website found is never stored.
+
+Startups outside the US, Europe and the UK are listed, researched, and their open roles are shown in the back
+office, but nobody is emailed there (`policy.REGIONS`). Gulf places carry a region label (`uae`, `ksa`, and
+`mena` for a directory that covers the whole region) so they can be filtered.

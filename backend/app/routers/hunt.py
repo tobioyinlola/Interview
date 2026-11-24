@@ -401,7 +401,7 @@ class ImportIn(BaseModel):
 
 def get_fetcher() -> Fetcher:
     """The polite page reader. Tests replace it so nothing touches the network."""
-    return Fetcher(text_max_chars=directory.PAGE_CHARS, links_max=directory.LINKS_MAX)
+    return directory.page_reader()
 
 
 def _dir_out(d: Directory) -> DirectoryOut:
@@ -478,6 +478,7 @@ def _startup_filters(filter: str, region: str, directory_name: str, q: str) -> l
             Startup.name.ilike(like)
             | Startup.domain.ilike(like)
             | Startup.one_liner.ilike(like)
+            | Startup.country.ilike(like)
             | Startup.research["summary"].as_string().ilike(like)
         )
     return where

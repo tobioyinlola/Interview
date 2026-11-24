@@ -209,7 +209,7 @@ describe("Back office: the lists behind the totals", () => {
       card.getByText(/Lumen makes payment links for small shops/),
     ).toBeVisible();
     expect(card.getByText(/Payment links/)).toBeVisible();
-    expect(card.getByText(/France \(eu\)/)).toBeVisible();
+    expect(card.getByText(/France \(Europe\)/)).toBeVisible();
     expect(card.getByRole("link", { name: "Seedcamp" })).toHaveAttribute(
       "href",
       "https://seedcamp.com/our-companies/",
@@ -321,5 +321,57 @@ describe("Back office: the lists behind the totals", () => {
     });
     renderApp(<App />, "/admin/startups/roles");
     expect(await screen.findByText(/No open roles found yet/)).toBeVisible();
+  });
+});
+
+describe("Back office: places beyond the US, Europe and the UK", () => {
+  it("lets a directory be labelled for the Gulf, and filters the list by it", async () => {
+    base({
+      "GET /api/admin/startups/list": () => ({
+        json: {
+          total: 1,
+          items: [
+            startup({
+              id: "g1",
+              name: "Tabby",
+              website: "https://tabby.ai",
+              country: "Saudi Arabia",
+              region: "ksa",
+              directory: "Raed Ventures (Saudi Arabia)",
+            }),
+          ],
+        },
+      }),
+    });
+    renderApp(<App />, "/admin/startups/list?region=ksa");
+    const startups = await screen.findByRole("list", { name: "Startups" });
+    expect(
+      within(startups).getByText(/Saudi Arabia \(Saudi Arabia\)/),
+    ).toBeVisible();
+    const region = screen.getByRole("combobox", { name: "Region" });
+    expect(
+      within(region).getByRole("option", { name: "UAE" }),
+    ).toBeInTheDocument();
+    expect(
+      within(region).getByRole("option", { name: "Saudi Arabia" }),
+    ).toBeInTheDocument();
+    expect(region).toHaveValue("ksa");
+  });
+
+  it("says plainly that only the US, Europe and the UK are ever emailed", async () => {
+    base();
+    renderApp(<App />, "/admin/startups");
+    expect(
+      await screen.findByText(
+        /Only startups in the US, Europe and the UK are ever emailed/,
+      ),
+    ).toBeVisible();
+    // both "Add a directory" and "Paste companies" offer the Gulf labels
+    expect(
+      screen.getAllByRole("option", { name: /United Arab Emirates/ }),
+    ).toHaveLength(2);
+    expect(
+      screen.getAllByRole("option", { name: /Saudi Arabia \(label only\)/ }),
+    ).toHaveLength(2);
   });
 });

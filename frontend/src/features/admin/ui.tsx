@@ -38,6 +38,18 @@ export function Trend({ now, before }: { now: number; before: number }) {
   );
 }
 
+const REGION_NAMES: Record<string, string> = {
+  us: "United States",
+  eu: "Europe",
+  uk: "United Kingdom",
+  uae: "UAE",
+  ksa: "Saudi Arabia",
+  mena: "MENA",
+  other: "Elsewhere",
+};
+/** A region label as people say it. */
+export const regionName = (r: string) => REGION_NAMES[r] ?? r;
+
 export function Stat({
   label,
   value,

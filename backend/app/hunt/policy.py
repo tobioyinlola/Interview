@@ -17,6 +17,12 @@ EU = {
 }  # fmt: skip
 UK = {"united kingdom", "uk", "england", "scotland", "wales", "northern ireland", "great britain"}
 US = {"united states", "usa", "us", "u.s.", "united states of america"}
+GULF = {
+    "uae": {"united arab emirates", "uae", "u.a.e.", "dubai", "abu dhabi", "sharjah"},
+    "ksa": {"saudi arabia", "ksa", "saudi", "riyadh", "jeddah"},
+}
+# Only these are ever written to. Other places we list (the Gulf, and the rest of the world) can be
+# browsed and their open roles seen, but nobody is emailed there.
 REGIONS = ("us", "eu", "uk")
 
 FREE_MAIL = {
@@ -66,6 +72,9 @@ def classify_region(country: str | None) -> str:
         return "uk"
     if c in EU:
         return "eu"
+    for label, names in GULF.items():
+        if c in names:
+            return label
     return "other"
 
 

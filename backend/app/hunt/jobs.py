@@ -57,7 +57,7 @@ async def run(
     llm: LlmProvider,
     fetcher: Fetcher | None = None,
 ) -> dict[str, int]:
-    fetcher = fetcher or Fetcher(text_max_chars=directory.PAGE_CHARS, links_max=directory.LINKS_MAX)
+    fetcher = fetcher or directory.page_reader()
     try:
         async with maker() as db:
             await directory.refresh_due(db, fetcher, llm, now)
