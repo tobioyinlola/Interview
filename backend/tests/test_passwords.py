@@ -10,7 +10,7 @@ from app.services.passwords import (
     verify_password_async,
 )
 
-GOOD = "correct horse battery staple"
+GOOD = "correct horse battery staple!"
 EMAIL = "pat@example.com"
 
 
@@ -38,7 +38,15 @@ async def test_an_account_with_no_password_cannot_log_in_but_costs_the_same_to_c
 @pytest.mark.parametrize(
     "pw, email, expected",
     [
-        ("short", "", "at least 10"),
+        ("short", "", "at least 8"),
+        ("Ab1!xyz", "", "at least 8"),
+        ("Abcd1234", "", "symbol"),
+        ("correct horse battery", "", "symbol"),  # spaces are not symbols
+        ("12345678", "", "symbol"),
+        ("password!", "", "too easy"),
+        ("P@ssw0rd", "", "too easy"),
+        ("Abcd123!", "", None),  # eight characters with a symbol is enough
+        ("fern-lake", "", None),
         ("x" * 129, "", "at most 128"),
         ("password123", "", "too easy"),
         ("PASSWORD123", "", "too easy"),
@@ -145,10 +153,10 @@ async def test_signup_for_an_existing_account_does_not_change_its_password(
         await signup(c)
         await confirm(c, sender)
     async with new_client() as attacker:
-        await signup(attacker, EMAIL, "attacker chosen password")
+        await signup(attacker, EMAIL, "attacker chosen password!")
         await confirm(attacker, sender)  # whoever opens the link is signed in as the owner...
     async with new_client() as owner:
-        assert (await login(owner, password="attacker chosen password")).status_code == 401
+        assert (await login(owner, password="attacker chosen password!")).status_code == 401
         assert (await login(owner)).status_code == 200  # ...and the real password is untouched
 
 
@@ -156,7 +164,7 @@ async def test_a_signup_started_by_a_stranger_cannot_plant_a_password_on_a_real_
     new_client, sign_in, sender, engine
 ) -> None:
     async with new_client() as stranger:
-        await signup(stranger, EMAIL, "attacker chosen password")  # token issued, no account yet
+        await signup(stranger, EMAIL, "attacker chosen password!")  # token issued, no account yet
         planted = sender.token_for(EMAIL)
     async with new_client() as owner:
         await sign_in(owner, EMAIL)  # the real owner creates the account another way
@@ -164,7 +172,7 @@ async def test_a_signup_started_by_a_stranger_cannot_plant_a_password_on_a_real_
     (user,) = await rows(engine, User)
     assert user.password_hash is None
     async with new_client() as c:
-        assert (await login(c, password="attacker chosen password")).status_code == 401
+        assert (await login(c, password="attacker chosen password!")).status_code == 401
 
 
 async def test_signup_links_are_single_use(new_client, sender) -> None:
@@ -240,7 +248,7 @@ async def test_a_successful_login_resets_the_failure_count(new_client, sender, e
 
 
 async def test_passwords_never_appear_in_logs(new_client, sender, caplog) -> None:
-    secret = "a very unusual passphrase 8841"
+    secret = "a very unusual passphrase 8841!"
     async with new_client() as c:
         await signup(c, password=secret)
         await confirm(c, sender)
@@ -277,13 +285,13 @@ async def test_reset_sets_a_new_password_signs_in_and_signs_every_other_session_
             await c.post("/api/auth/request-reset", json={"email": EMAIL})
             r = await c.post(
                 "/api/auth/reset-password",
-                json={"token": sender.token_for(EMAIL), "password": "a brand new passphrase"},
+                json={"token": sender.token_for(EMAIL), "password": "a brand new passphrase!"},
             )
             assert r.status_code == 200 and (await c.get("/api/me")).status_code == 200
         assert (await old_device.get("/api/me")).status_code == 401  # revoked
     async with new_client() as c:
         assert (await login(c)).status_code == 401  # old password no longer works
-        assert (await login(c, password="a brand new passphrase")).status_code == 200
+        assert (await login(c, password="a brand new passphrase!")).status_code == 200
 
 
 async def test_a_reset_link_works_once(new_client, sender) -> None:
@@ -291,7 +299,7 @@ async def test_a_reset_link_works_once(new_client, sender) -> None:
     async with new_client() as c:
         await c.post("/api/auth/request-reset", json={"email": EMAIL})
         token = sender.token_for(EMAIL)
-        body = {"token": token, "password": "a brand new passphrase"}
+        body = {"token": token, "password": "a brand new passphrase!"}
         assert (await c.post("/api/auth/reset-password", json=body)).status_code == 200
         again = await c.post("/api/auth/reset-password", json=body)
     assert again.status_code == 400 and again.json()["error"]["code"] == "invalid_link"
@@ -305,7 +313,7 @@ async def test_a_weak_new_password_does_not_use_up_the_reset_link(new_client, se
         weak = await c.post("/api/auth/reset-password", json={"token": token, "password": "short"})
         assert weak.status_code == 422 and weak.json()["error"]["code"] == "weak_password"
         ok = await c.post(
-            "/api/auth/reset-password", json={"token": token, "password": "a brand new passphrase"}
+            "/api/auth/reset-password", json={"token": token, "password": "a brand new passphrase!"}
         )
     assert ok.status_code == 200
 
@@ -317,7 +325,7 @@ async def test_tokens_only_work_for_their_own_purpose(new_client, sender, sign_i
         login_token = sender.token_for(EMAIL)
         wrong = await c.post(
             "/api/auth/reset-password",
-            json={"token": login_token, "password": "a brand new passphrase"},
+            json={"token": login_token, "password": "a brand new passphrase!"},
         )
         assert wrong.status_code == 400  # a sign-in link cannot reset a password
         await c.post("/api/auth/request-reset", json={"email": EMAIL})
@@ -326,7 +334,7 @@ async def test_tokens_only_work_for_their_own_purpose(new_client, sender, sign_i
         # and the unused reset token still works for its own purpose
         ok = await c.post(
             "/api/auth/reset-password",
-            json={"token": reset_token, "password": "a brand new passphrase"},
+            json={"token": reset_token, "password": "a brand new passphrase!"},
         )
     assert ok.status_code == 200
 
@@ -355,6 +363,6 @@ async def test_sessions_table_is_cleared_for_the_user_on_reset(new_client, sende
         await c.post("/api/auth/request-reset", json={"email": EMAIL})
         await c.post(
             "/api/auth/reset-password",
-            json={"token": sender.token_for(EMAIL), "password": "a brand new passphrase"},
+            json={"token": sender.token_for(EMAIL), "password": "a brand new passphrase!"},
         )
     assert before >= 3 and len(await rows(engine, AuthSession)) == 1

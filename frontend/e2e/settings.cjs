@@ -21,8 +21,8 @@ const links = () =>
       .matchAll(/http:\/\/localhost:5173\/login\/verify\?token=[\w-]+/g),
   ].map((m) => m[0]);
 const EMAIL = `settings${Date.now()}@example.com`;
-const PW1 = "first brand new passphrase";
-const PW2 = "second brand new passphrase";
+const PW1 = "first brand new passphrase!";
+const PW2 = "second brand new passphrase!";
 
 (async () => {
   const browser = await chromium.launch();

@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app import metrics
 from app.autoapply.adapters import MailboxAdapter
-from app.config import Settings, get_settings
+from app.config import Settings, allowed_origins, get_settings
 from app.db import dispose_engine, get_sessionmaker
 from app.deps import build_email_sender
 from app.errors import install_error_handlers
@@ -132,11 +132,11 @@ def create_app() -> FastAPI:
     app.add_middleware(RequestContextMiddleware)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[settings.web_origin],
+        allow_origins=allowed_origins(settings),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
-        expose_headers=["x-request-id"],
+        expose_headers=["x-request-id", "x-session-token"],
     )
     install_error_handlers(app)
 

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
-import { API_BASE_URL, ApiError } from "../../api/client";
+import { ApiError } from "../../api/client";
+import { TranscriptLink } from "./TranscriptLink";
 import {
   useDeleteSession,
   useScoreSession,
@@ -107,12 +108,7 @@ export function ReviewPage() {
           {data.suggestions.length} outlines
         </p>
         <div className="mt-2 flex gap-2">
-          <a
-            href={`${API_BASE_URL}/api/sessions/${id}/transcript.txt`}
-            className="btn-secondary"
-          >
-            Download transcript
-          </a>
+          <TranscriptLink id={id} className="btn-secondary" />
           {!ended && (
             <Link to={`/session/${id}`} className="btn-secondary">
               Back to the live session

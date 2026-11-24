@@ -20,7 +20,7 @@ from app.errors import ApiError
 from app.models import User
 from app.repositories import AuthRepo
 from app.schemas.api import MeOut, OnboardingAnswers
-from app.security import COOKIE_NAME, STAFF_COOKIE_NAME
+from app.security import STAFF_COOKIE_NAME, session_token
 from app.services.email_templates import Brand
 from app.services.google_oauth import GoogleOAuth
 from app.services.live import LiveHub
@@ -37,7 +37,7 @@ async def current_user(
     db: AsyncSession = Depends(get_db),  # noqa: B008
     settings: Settings = Depends(get_settings),  # noqa: B008
 ) -> User:
-    token = request.cookies.get(COOKIE_NAME)
+    token = session_token(request)
     user = None
     if token:
         user = await AuthRepo(db, settings.cookie_secret.get_secret_value()).user_for_session(token)

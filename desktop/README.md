@@ -1,8 +1,9 @@
 # InterviewMeet desktop (Mac and Windows)
 
-A thin, locked-down Electron shell around the live site. Everything in the web app (interviews,
-Auto-Apply, companies, settings, admin) is the same code, so it stays in step with the website
-automatically. The shell adds one native thing: **hearing the interviewer**. Instead of picking a
+A locked-down Electron app that carries its own copy of the web interface (interviews, Auto-Apply,
+companies, settings: the same code as the website, built in "app" mode and served from `app://interviewmeet`).
+It opens instantly and shows what it last loaded with no internet; only calls to the API need a connection.
+It signs in with a bearer token rather than the browser cookie. The shell adds one native thing: **hearing the interviewer**. Instead of picking a
 browser tab, it shares the computer's sound output, so Meet, Zoom and Teams all work.
 
 ## Run it
@@ -10,12 +11,13 @@ browser tab, it shares the computer's sound output, so Meet, Zoom and Teams all 
 ```bash
 cd desktop
 npm install
-npm start                                   # opens the deployed site
-INTERVIEWMEET_URL=http://localhost:5173 npm start   # or any other address (https, or http on localhost)
+node ../scripts/build-app-ui.js app-dist   # builds ../frontend in app mode into app-dist/
+npm start                                   # opens the packed interface
+INTERVIEWMEET_DEV_URL=http://localhost:5173 npm start   # develop the interface live instead (npm run dev in frontend/)
 ```
 
-The default address is in `src/config.js`. To change it for a build, put `{"appUrl": "https://..."}` in
-`desktop/app-config.json`.
+`INTERVIEWMEET_URL` is the site the API is reached through (default in `src/config.js`; for a build put
+`{"appUrl": "https://..."}` in `desktop/app-config.json`).
 
 ## How it is kept safe
 
@@ -36,9 +38,9 @@ navigation blocked) was run under a virtual display with Playwright's Electron s
 
 ## Updates
 
-* **The website and everything inside the app** (pages, features, fixes) update for everyone the moment the
-  site is deployed: the app loads the live site. No release is needed for those.
-* **The app shell** (this folder) is released automatically: a change to `desktop/` that lands on `Staging`
+* **The app carries its own copy of the interface**, so website changes reach it through a new release. A
+  change to `frontend/` or `desktop/` that lands on `Staging` builds and publishes one automatically.
+* **The app** is released automatically: a change to `desktop/` (or `frontend/`) that lands on `Staging`
   builds the Windows and Mac installers and publishes release `desktop-v0.2.<run number>`.
 * **Windows** apps look for a new release when they start and every 4 hours, download it quietly, and offer
   a restart (or install it when the app is next closed).

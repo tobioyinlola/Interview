@@ -11,6 +11,7 @@ import { CvPanel } from "../notes/NotesPage";
 import { COUNTRIES } from "../../data/countries";
 import { PasswordField } from "../../ui/PasswordField";
 import { CountrySelect, RoleInput } from "../../ui/Pickers";
+import { PasswordRules, passwordOk } from "../auth/password";
 
 export function PrivacyNotice() {
   return (
@@ -282,7 +283,7 @@ function PasswordTab() {
   const mismatch = again.length > 0 && next !== again;
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (mismatch || !next) return;
+    if (mismatch || !passwordOk(next)) return;
     change.mutate(
       { current_password: had ? current : undefined, new_password: next },
       {
@@ -304,7 +305,7 @@ function PasswordTab() {
           {had
             ? "You will stay signed in here and be signed out everywhere else."
             : "You sign in with an emailed link or Google. Add a password if you also want to sign in with one."}{" "}
-          Use at least 10 characters. A few random words work well.
+          Use at least 8 characters with a symbol, like ! or @.
         </p>
       </div>
       <form onSubmit={submit} className="max-w-md space-y-4">
@@ -322,6 +323,7 @@ function PasswordTab() {
           onChange={setNext}
           autoComplete="new-password"
         />
+        <PasswordRules password={next} />
         <PasswordField
           label="Repeat the new password"
           value={again}
@@ -347,7 +349,7 @@ function PasswordTab() {
         <button
           type="submit"
           className="btn-primary"
-          disabled={change.isPending || mismatch || !next}
+          disabled={change.isPending || mismatch || !passwordOk(next)}
         >
           {change.isPending
             ? "Saving…"

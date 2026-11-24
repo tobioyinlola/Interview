@@ -93,11 +93,11 @@ describe("tapping the emailed link on a phone", () => {
     renderApp(<App />, `/reset-password?token=${TOKEN}`);
     await userEvent.type(
       await screen.findByLabelText("New password"),
-      "correct horse battery",
+      "correct horse battery!",
     );
     await userEvent.type(
       screen.getByLabelText("Confirm new password"),
-      "correct horse battery",
+      "correct horse battery!",
     );
     await userEvent.click(
       screen.getByRole("button", { name: "Save new password" }),

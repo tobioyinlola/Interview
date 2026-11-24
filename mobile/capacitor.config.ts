@@ -1,27 +1,30 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
-// The app shows the live site, so every feature and fix reaches phones with the website, and the
-// login cookie stays first-party. Change the address for a build with INTERVIEWMEET_URL.
-const DEFAULT_URL = "https://frontend-dev-2d437f97.up.railway.app";
-const url = new URL(process.env.INTERVIEWMEET_URL || DEFAULT_URL);
-if (url.protocol !== "https:" && url.hostname !== "localhost") {
-  throw new Error("INTERVIEWMEET_URL must be https");
-}
-
+// The app carries its own copy of the interface (built from ../frontend by `npm run build:web` into
+// www/), so it opens instantly and works with no internet. It talks to the API over https; which
+// site that is gets decided when the interface is built (INTERVIEWMEET_URL, see
+// ../scripts/build-app-ui.js). The page runs from https://localhost on Android and
+// capacitor://localhost on iPhone: the API accepts both (APP_ORIGINS).
 const config: CapacitorConfig = {
   appId: "com.interviewmeet.app",
   appName: "InterviewMeet",
-  webDir: "www", // only the offline page; the app itself is loaded from `server.url`
+  webDir: "www",
   server: {
-    url: url.origin,
-    cleartext: url.protocol === "http:",
-    // Only the app's own address stays inside the app. Any other link opens in the phone's browser.
-    allowNavigation: [url.hostname],
+    androidScheme: "https",
+    cleartext: false,
   },
   ios: { contentInset: "automatic", backgroundColor: "#1c1b2e" },
   android: { backgroundColor: "#1c1b2e", allowMixedContent: false },
   plugins: {
-    SplashScreen: { launchAutoHide: true, backgroundColor: "#1c1b2e", showSpinner: false },
+    // The splash stays until the interface says its first frame is up (see hideNativeSplash), so
+    // there is no blank wait. If anything goes wrong it lifts by itself after a few seconds.
+    SplashScreen: {
+      launchAutoHide: true,
+      launchShowDuration: 6000,
+      launchFadeOutDuration: 150,
+      backgroundColor: "#1c1b2e",
+      showSpinner: false,
+    },
     StatusBar: { style: "DARK", backgroundColor: "#f7f4ff" },
   },
 };

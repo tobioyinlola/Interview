@@ -5,7 +5,10 @@
 /** The origin (scheme + host + port) of a URL, or null when it is not a URL. */
 function originOf(url) {
   try {
-    return new URL(url).origin;
+    const u = new URL(url);
+    // a custom scheme such as app:// has an "opaque" origin to URL; its host is what identifies it
+    if (u.origin === "null" && u.host) return `${u.protocol}//${u.host}`;
+    return u.origin;
   } catch {
     return null;
   }

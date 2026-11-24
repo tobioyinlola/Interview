@@ -3,15 +3,16 @@ name: mobile
 # Builds the phone apps on GitHub's machines (this repo's sandbox cannot).
 #  - Android: a debug APK you can download from the run page and install on a phone to try.
 #    It is signed with a throwaway debug key, so it cannot go on the Play Store.
-#  - A change to mobile/ that lands on Staging publishes the Android app to the download release by
-#    itself (version 0.2.<run number>). Changes to the website itself need no new app: it loads the live site.
+#  - A change to mobile/ or to the interface (frontend/) that lands on Staging publishes the Android app
+#    to the download release by itself (version 0.2.<run number>). The app carries its own copy of the
+#    interface, so a change to the website reaches phones through a new app version.
 #  - iOS: a build for the simulator, to prove the project compiles. A real iPhone build and the
 #    App Store need an Apple Developer account and signing certificates (see mobile/README.md).
 on:
   push:
-    paths: ["mobile/**", ".github/workflows/mobile.yml"]
+    paths: ["mobile/**", "frontend/**", "scripts/build-app-ui.js", ".github/workflows/mobile.yml"]
   pull_request:
-    paths: ["mobile/**", ".github/workflows/mobile.yml"]
+    paths: ["mobile/**", "frontend/**", "scripts/build-app-ui.js", ".github/workflows/mobile.yml"]
   workflow_dispatch:
     inputs:
       release:
@@ -38,11 +39,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm, cache-dependency-path: mobile/package-lock.json }
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            mobile/package-lock.json
+            frontend/package-lock.json
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: 21 }
       - run: npm ci
       - run: npm test
+      # The app carries its own copy of the interface, so it opens instantly and works offline.
+      - name: Build the interface that goes inside the app
+        run: |
+          npm ci --prefix ../frontend
+          npm run build:web
+        env:
+          INTERVIEWMEET_URL: ${{ vars.INTERVIEWMEET_URL }}
       - run: npx cap sync android
       # A real signing key (for the Play Store) goes in as repository secrets ANDROID_KEYSTORE_BASE64,
       # ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD. Without them the app is
@@ -93,8 +106,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm, cache-dependency-path: mobile/package-lock.json }
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            mobile/package-lock.json
+            frontend/package-lock.json
       - run: npm ci
+      # The app carries its own copy of the interface, so it opens instantly and works offline.
+      - name: Build the interface that goes inside the app
+        run: |
+          npm ci --prefix ../frontend
+          npm run build:web
+        env:
+          INTERVIEWMEET_URL: ${{ vars.INTERVIEWMEET_URL }}
       - run: npx cap sync ios
       - name: Build for the simulator (unsigned)
         working-directory: mobile/ios/App

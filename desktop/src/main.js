@@ -7,11 +7,12 @@ const {
   desktopCapturer,
   dialog,
   ipcMain,
+  protocol,
   session,
   shell,
 } = require("electron");
 const { load } = require("./config");
-const { offlinePage } = require("./offline");
+const protocolRules = require("./protocol");
 const {
   SCHEME,
   navigationDecision,
@@ -22,7 +23,10 @@ const {
   linkFromArgv,
 } = require("./policy");
 
-const { appUrl, appOrigin } = load();
+const { siteOrigin, appUrl, appOrigin, packed } = load();
+
+// the interface is served from inside the app, so it opens with no internet
+if (packed) protocolRules.registerScheme(protocol);
 let win = null;
 
 // interviewmeet:// is how the browser hands the app back after Google sign-in. In development the
@@ -69,7 +73,7 @@ if (!app.requestSingleInstanceLock()) {
 ipcMain.on("im:open-in-browser", (event, url) => {
   // only the app's own pages may ask, and only for its own Google sign-in address
   const from = event.senderFrame ? event.senderFrame.url : "";
-  if (captureAllowed(from, appOrigin) && isGoogleStartUrl(url, appOrigin)) {
+  if (captureAllowed(from, appOrigin) && isGoogleStartUrl(url, siteOrigin)) {
     shell.openExternal(url);
   }
 });
@@ -139,12 +143,6 @@ function createWindow() {
     if (d === "allow") return;
     event.preventDefault();
     if (d === "external") openExternal(url);
-  });
-  win.webContents.on("did-fail-load", (_e, code, _d, failedUrl, isMain) => {
-    // -3 is a navigation that was cancelled on purpose; only real failures show the offline page
-    if (isMain && code !== -3 && failedUrl.startsWith(appOrigin)) {
-      win.loadURL(offlinePage(appUrl));
-    }
   });
   win.on("closed", () => {
     win = null;
@@ -226,6 +224,7 @@ function startUpdates() {
 }
 
 app.whenReady().then(() => {
+  if (packed) protocolRules.serve(protocol, path.join(__dirname, "..", "app-dist"));
   secure(session.defaultSession);
   buildMenu();
   createWindow();

@@ -1,3 +1,4 @@
+import { authInit } from "../api/session";
 import { API_BASE_URL, ApiError } from "../api/client";
 
 export interface SegmentResult {
@@ -16,9 +17,8 @@ export async function postSegment(
 ): Promise<SegmentResult> {
   const res = await fetch(
     `${API_BASE_URL}/api/sessions/${sessionId}/segment?speaker=${speaker}&sample_rate=${sampleRate}`,
-    {
+    authInit({
       method: "POST",
-      credentials: "include",
       headers: {
         "content-type": "application/octet-stream",
         "x-requested-with": "meet-practice",
@@ -27,7 +27,7 @@ export async function postSegment(
         pcm.byteOffset,
         pcm.byteOffset + pcm.byteLength,
       ) as ArrayBuffer,
-    },
+    }),
   );
   if (!res.ok) {
     let code = "unknown";

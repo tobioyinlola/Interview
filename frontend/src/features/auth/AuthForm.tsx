@@ -14,8 +14,7 @@ import {
 import { savedInvite, savedUtm } from "../referral/invite";
 import { PasswordField } from "../../ui/PasswordField";
 import { AuthLayout } from "../../ui/AuthLayout";
-
-export const MIN_PASSWORD = 10;
+import { PasswordRules, passwordOk } from "./password";
 
 const GOOGLE_ERRORS: Record<string, string> = {
   google_failed:
@@ -78,7 +77,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   if (me) return <Navigate to="/" replace />;
 
   const urlError = GOOGLE_ERRORS[params.get("error") ?? ""];
-  const longEnough = password.length >= MIN_PASSWORD;
+  const longEnough = passwordOk(password);
   const mismatch = confirm.length > 0 && confirm !== password;
   const nameOk = fullName.trim().length >= 2;
   const canCreate = nameOk && longEnough && confirm === password && agreed;
@@ -233,13 +232,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
               />
               {signup && (
                 <>
-                  <p
-                    id={hintId}
-                    className={`-mt-2 text-xs ${longEnough ? "text-green-700" : "text-muted"}`}
-                  >
-                    {longEnough ? "✓ " : ""}At least {MIN_PASSWORD} characters.
-                    A few words together works well.
-                  </p>
+                  <PasswordRules password={password} id={hintId} />
                   <PasswordField
                     label="Confirm password"
                     value={confirm}

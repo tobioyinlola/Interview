@@ -1,9 +1,9 @@
 """Password hashing and rules.
 
 Hashing is scrypt (memory-hard, in the standard library) with a random salt per password. It takes
-about a tenth of a second and 32 MB, so it runs in a worker thread, never on the event loop. Rules
-follow current guidance: length matters, composition rules do not, and the most common passwords
-are refused."""
+about a tenth of a second and 32 MB, so it runs in a worker thread, never on the event loop. A
+password is at least 8 characters and has at least one symbol (anything that is not a letter, a
+digit or a space); the most common passwords and ones built from the person's email are refused."""
 
 import asyncio
 import base64
@@ -13,7 +13,7 @@ import secrets
 
 N, R, P, DKLEN = 2**15, 8, 1, 32
 MAXMEM = 64 * 1024 * 1024
-MIN_LENGTH, MAX_LENGTH = 10, 128
+MIN_LENGTH, MAX_LENGTH = 8, 128
 
 # The most guessed passwords that already meet the length rule, plus obvious service words.
 COMMON = {
@@ -24,6 +24,11 @@ COMMON = {
     "admin12345", "administrator", "abcdefghij", "abcd123456", "abc1234567", "changeme123",
     "interviewmeet", "interviewmeet1", "interviewmeet123", "practice123", "practice1234",
     "monkey1234", "dragon1234", "football123", "baseball123", "superman123", "trustno1234",
+    "password!", "password@", "password#", "password1!", "password@1", "password@123", "p@ssw0rd",
+    "p@ssword", "p@ssword1", "p@ssw0rd1", "p@ssw0rd!", "pa$$w0rd", "pa$$word", "passw0rd!",
+    "welcome1!", "welcome@1", "welcome@123", "admin@123", "admin@1234", "qwerty@123", "qwerty!1",
+    "letmein!", "letmein@1", "iloveyou!", "abc@1234", "abcd@1234", "abcd@123", "12345678!",
+    "123456@a", "1234@abcd", "changeme!", "interviewmeet!", "interviewmeet@1",
 }  # fmt: skip
 
 
@@ -70,6 +75,10 @@ async def verify_password_async(password: str, stored: str | None) -> bool:
     return ok and stored is not None
 
 
+def _has_symbol(password: str) -> bool:
+    return any(not c.isalnum() and not c.isspace() for c in password)
+
+
 def password_problem(password: str, email: str = "") -> str | None:
     """Why this password is not acceptable, in words for the person typing it. None means fine."""
     if len(password) < MIN_LENGTH:
@@ -82,4 +91,6 @@ def password_problem(password: str, email: str = "") -> str | None:
         return "That password is too easy to guess. Try a few words together."
     if email and (folded == email.lower() or (len(local) >= 4 and folded == local)):
         return "Your password can't be your email address."
+    if not _has_symbol(password):
+        return "Add a symbol, like ! or @ or #."
     return None

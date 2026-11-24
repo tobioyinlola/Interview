@@ -290,6 +290,20 @@ async def test_a_foreign_origin_is_refused_at_the_handshake(alice, live_server):
     assert e.value.response.status_code == 403  # never upgraded: no socket exists
 
 
+async def test_the_desktop_apps_own_interface_may_stream_but_a_lookalike_may_not(
+    alice, live_server
+):
+    s = await new_session(alice)
+    ws = await connect(live_server, s["session_id"], origin="app://interviewmeet")
+    await ws.send(json.dumps({"type": "auth", "token": s["audio_token"]}))
+    assert (await recv(ws))["type"] == "ready"
+    await ws.close()
+    s2 = await new_session(alice)
+    with pytest.raises(websockets.exceptions.InvalidStatus) as e:
+        await connect(live_server, s2["session_id"], origin="app://interviewmeet.evil.test")
+    assert e.value.response.status_code == 403
+
+
 async def test_an_ended_session_cannot_be_streamed(alice, live_server):
     s = await new_session(alice)
     await alice.post(f"/api/sessions/{s['session_id']}/end")

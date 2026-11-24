@@ -75,7 +75,7 @@ Google and a fake Google in a real browser, but needs a first real sign-in on st
 
 ### Passwords
 
-Accounts made with an email use a password (at least 10 characters, typed twice, with a reveal
+Accounts made with an email use a password (at least 8 characters with a symbol, typed twice, with a reveal
 button). The account is created only when the emailed link is opened, which proves the address.
 Passwords are stored as scrypt hashes. Ten wrong passwords for one email in 15 minutes pause password
 sign-in for that email (the email link and Google still work). "Forgot password?" emails a reset

@@ -160,7 +160,7 @@ async def test_a_signup_started_in_the_app_hands_the_app_a_code_when_the_link_is
     body = {
         "email": "newcomer@example.com",
         "full_name": "New Comer",
-        "password": "correct horse battery staple 91",
+        "password": "correct horse battery staple 91!",
         "app_challenge": challenge,
     }
     async with new_client() as the_app:
@@ -193,7 +193,7 @@ async def test_the_new_accounts_password_works_afterwards(new_client, app) -> No
             json={
                 "email": "pw@example.com",
                 "full_name": "Pass Word",
-                "password": "correct horse battery staple 91",
+                "password": "correct horse battery staple 91!",
                 "app_challenge": challenge,
             },
         )
@@ -203,7 +203,7 @@ async def test_the_new_accounts_password_works_afterwards(new_client, app) -> No
     async with new_client() as c:
         r = await c.post(
             "/api/auth/login",
-            json={"email": "pw@example.com", "password": "correct horse battery staple 91"},
+            json={"email": "pw@example.com", "password": "correct horse battery staple 91!"},
         )
     assert r.status_code == 200
 
@@ -233,7 +233,7 @@ async def test_a_normal_signup_still_signs_the_browser_in(new_client, app) -> No
             json={
                 "email": "plain@example.com",
                 "full_name": "Plain Person",
-                "password": "correct horse battery staple 91",
+                "password": "correct horse battery staple 91!",
             },
         )
         token = sender(app).token_for("plain@example.com")
@@ -249,7 +249,7 @@ async def test_a_bad_challenge_is_refused_at_signup(new_client) -> None:
             json={
                 "email": "x@example.com",
                 "full_name": "Ex Ample",
-                "password": "correct horse battery staple 91",
+                "password": "correct horse battery staple 91!",
                 "app_challenge": "short",
             },
         )

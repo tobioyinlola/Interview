@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { isNativeApp } from "../../app/native";
+import { hideNativeSplash } from "./nativeSplash";
 
 const KEY = "im-splash";
 const HOLD_MS = 2400; // how long the sequence plays before it lifts away
@@ -34,6 +35,9 @@ export function Splash() {
   const [phase, setPhase] = useState<"play" | "out" | "gone">(() =>
     shouldPlay() ? "play" : "gone",
   );
+  useEffect(() => {
+    hideNativeSplash(); // our first frame is up: let the phone's own splash fade into it
+  }, []);
   useEffect(() => {
     if (phase !== "play") return;
     const t = setTimeout(() => setPhase("out"), HOLD_MS);

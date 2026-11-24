@@ -9,7 +9,7 @@ import {
   stubSupportedBrowser,
 } from "../../test-utils";
 
-const STRONG = "correct horse battery";
+const STRONG = "correct horse battery!";
 
 beforeEach(async () => {
   stubSupportedBrowser();

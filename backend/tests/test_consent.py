@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from app.models import PracticeSession, User
 
 EMAIL = "pat@example.com"
-PASSWORD = "correct horse battery staple"
+PASSWORD = "correct horse battery staple!"
 
 
 async def users(engine):  # type: ignore[no-untyped-def]

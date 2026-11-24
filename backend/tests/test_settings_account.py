@@ -6,8 +6,8 @@ from sqlalchemy import select
 from app.models import AuthSession, User
 from app.services.passwords import verify_password
 
-PW = "correct horse battery"
-NEW = "a brand new passphrase"
+PW = "correct horse battery!"
+NEW = "a brand new passphrase!"
 
 
 async def with_password(new_client, sign_in, email="pat@example.com", password=PW):

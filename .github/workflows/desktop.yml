@@ -5,17 +5,18 @@ name: desktop
 #    the run page under "Artifacts" (unsigned, for trying out).
 #  - A change to desktop/ that lands on Staging: builds the Windows and Mac installers and publishes them
 #    as a new release by itself (version 0.2.<run number>). Installed Windows apps find it and update
-#    themselves. Changes to the website itself need no release: the apps load the live site.
+#    themselves. The app carries its own copy of the interface (from frontend/), so a website change
+#    reaches it through a new release.
 #  - A tag like desktop-v0.1.0: builds Mac and Windows installers and attaches them to a GitHub release,
 #    which is also where the app looks for updates.
 on:
   push:
     # Branch pushes need `branches` named here: with only `tags` listed, GitHub ignores ordinary pushes.
     branches: [Staging]
-    paths: ["desktop/**", ".github/workflows/desktop.yml"]
+    paths: ["desktop/**", "frontend/**", "scripts/build-app-ui.js", ".github/workflows/desktop.yml"]
     tags: ["desktop-v*"]
   pull_request:
-    paths: ["desktop/**", ".github/workflows/desktop.yml"]
+    paths: ["desktop/**", "frontend/**", "scripts/build-app-ui.js", ".github/workflows/desktop.yml"]
   workflow_dispatch:
     inputs:
       release:
@@ -57,9 +58,21 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm, cache-dependency-path: desktop/package-lock.json }
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            desktop/package-lock.json
+            frontend/package-lock.json
       - run: npm ci
       - run: npm test
+      # The app carries its own copy of the interface, so it opens instantly and works offline.
+      - name: Build the interface that goes inside the app
+        run: |
+          npm ci --prefix ../frontend
+          node ../scripts/build-app-ui.js app-dist
+        env:
+          INTERVIEWMEET_URL: ${{ vars.INTERVIEWMEET_URL }}
       # Starts the real app from source and checks what the page can and cannot do.
       - run: npm run smoke
       # Signing: set repository secrets CSC_LINK (base64 .pfx) and CSC_KEY_PASSWORD. Without them
@@ -127,9 +140,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm, cache-dependency-path: desktop/package-lock.json }
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            desktop/package-lock.json
+            frontend/package-lock.json
       - run: npm ci
       - run: npm test
+      # The app carries its own copy of the interface, so it opens instantly and works offline.
+      - name: Build the interface that goes inside the app
+        run: |
+          npm ci --prefix ../frontend
+          node ../scripts/build-app-ui.js app-dist
+        env:
+          INTERVIEWMEET_URL: ${{ vars.INTERVIEWMEET_URL }}
       # Starts the real app and checks what the page can and cannot do. Computer-audio capture is
       # skipped: a CI Mac cannot grant the screen-recording permission it needs.
       - run: npm run smoke

@@ -16,7 +16,13 @@
     </style>
 
 
+    <!-- What shows the instant the icon is tapped: our logo on the app's own dark colour, never a
+         white screen. Android 12 and later draw the logo from the icon; older ones use the image. -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
+        <item name="windowSplashScreenBackground">#1c1b2e</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
+        <item name="windowSplashScreenIconBackgroundColor">#7B47F3</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
     </style>
 </resources>
