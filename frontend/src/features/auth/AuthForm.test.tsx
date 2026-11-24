@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { App } from "../../app/App";
@@ -80,13 +80,17 @@ describe("sign up page", () => {
     await screen.findByLabelText("Email address");
     const label = agree().closest("label")!;
     expect(label.nextElementSibling).toBe(create());
-    // and the Google button comes after both, so the one checkbox covers both ways in
+    // Google is offered first, above the form, and the one checkbox still covers both ways in
     const google = await screen.findByRole("button", {
       name: /continue with google/i,
     });
     expect(
       create().compareDocumentPosition(google) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
+        Node.DOCUMENT_POSITION_PRECEDING,
+    ).toBeTruthy();
+    expect(
+      screen.getByLabelText("Email address").compareDocumentPosition(google) &
+        Node.DOCUMENT_POSITION_PRECEDING,
     ).toBeTruthy();
   });
 
@@ -399,21 +403,35 @@ describe("continue with Google", () => {
     expect(assign.mock.calls[0][0]).toMatch(/\/api\/auth\/google\/start$/);
   });
 
-  it("needs the terms accepted first on the sign up page", async () => {
+  it("sits above the form, and on the sign up page asks for the terms before going to Google", async () => {
     api(true);
     const assign = captureNavigation();
     renderApp(<App />, "/signup");
     const google = await screen.findByRole("button", {
       name: /continue with google/i,
     });
-    expect(google).toBeDisabled();
-    expect(screen.getByText(/accept the terms above/i)).toBeInTheDocument();
+    expect(google).toBeEnabled();
     await userEvent.click(google);
     expect(assign).not.toHaveBeenCalled();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /accept the terms below/i,
+    );
+    expect(agree()).toHaveFocus(); // taken to the one thing still to do
     await userEvent.click(agree());
-    await waitFor(() => expect(google).toBeEnabled());
     await userEvent.click(google);
     expect(assign).toHaveBeenCalledTimes(1);
+  });
+
+  it("is the first thing on the sign in page too", async () => {
+    api(true);
+    renderApp(<App />, "/login");
+    const google = await screen.findByRole("button", {
+      name: /continue with google/i,
+    });
+    expect(
+      screen.getByLabelText("Email address").compareDocumentPosition(google) &
+        Node.DOCUMENT_POSITION_PRECEDING,
+    ).toBeTruthy();
   });
 
   it("still lets people use email if the provider list cannot be loaded", async () => {
