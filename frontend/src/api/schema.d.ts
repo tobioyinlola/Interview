@@ -2722,6 +2722,11 @@ export interface components {
              * @default []
              */
             sources: string[];
+            /**
+             * Startup Recent
+             * @default []
+             */
+            startup_recent: components["schemas"]["StartupSentOut"][];
             /** Startups */
             startups?: {
                 [key: string]: number;
@@ -3911,6 +3916,30 @@ export interface components {
             sector: string;
             /** Website */
             website: string;
+        };
+        /**
+         * StartupSentOut
+         * @description A pitch sent to a startup, shown beside the job applications in one activity list.
+         */
+        StartupSentOut: {
+            /** Company */
+            company: string;
+            /** Id */
+            id: string;
+            /** Sent At */
+            sent_at?: string | null;
+            /** Status */
+            status: string;
+            /**
+             * Subject
+             * @default
+             */
+            subject: string;
+            /**
+             * To Name
+             * @default
+             */
+            to_name: string;
         };
         /** SuggestIn */
         SuggestIn: {

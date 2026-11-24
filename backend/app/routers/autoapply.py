@@ -64,6 +64,7 @@ from app.autoapply.schemas import (
     ResolveIn,
     RunOut,
     SearchProfileIn,
+    StartupSentOut,
     StatusOut,
     UsageOut,
 )
@@ -144,6 +145,27 @@ async def _startup_counts(
     from app.hunt import engine as hunt_engine  # local: optional feature
 
     return await hunt_engine.counts(db, user_id)
+
+
+async def _startup_recent(
+    db: AsyncSession, settings: Settings, user_id: Any
+) -> list[StartupSentOut]:
+    """The latest startup pitches, so they sit in the same activity list as job applications."""
+    if not settings.startup_outreach_enabled:
+        return []
+    from app.hunt import engine as hunt_engine  # local: optional feature
+
+    return [
+        StartupSentOut(
+            id=str(t.id),
+            company=s.name,
+            to_name=(c.name or "").strip(),
+            status=t.status,
+            subject=t.subject,
+            sent_at=t.sent_at,
+        )
+        for t, s, c in await hunt_engine.recent_sent(db, user_id)
+    ]
 
 
 def feature_on(settings: Settings = Depends(get_settings)) -> None:  # noqa: B008
@@ -846,7 +868,7 @@ async def connect_mailbox(
         oauth = GmailOAuth(settings)
         if not oauth.enabled:
             raise ApiError(503, "mailbox_unavailable", "Email connection is not set up yet.")
-        url, cookie = oauth.begin(str(user.id))
+        url, cookie = oauth.begin(str(user.id), login_hint=user.email)
         response.set_cookie(
             STATE_COOKIE,
             cookie,
@@ -1323,4 +1345,5 @@ async def read_dashboard(
         counts={status: n for status, n in counts_rows},
         review_count=review,
         startups=(await _startup_counts(db, settings, user.id)),
+        startup_recent=await _startup_recent(db, settings, user.id),
     )

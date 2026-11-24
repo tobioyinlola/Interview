@@ -268,6 +268,17 @@ class PrimaryAction(BaseModel):
     interview_id: str | None = None
 
 
+class StartupSentOut(BaseModel):
+    """A pitch sent to a startup, shown beside the job applications in one activity list."""
+
+    id: str
+    company: str
+    to_name: str = ""  # the person it was written to, when the site named one
+    status: str  # sent | replied | declined
+    subject: str = ""
+    sent_at: datetime | None = None
+
+
 class DashboardOut(BaseModel):
     demo: bool  # sample jobs and simulated sending only: nothing reaches a real employer
     sources: list[str] = []  # where jobs are looked for, as readable names
@@ -286,3 +297,4 @@ class DashboardOut(BaseModel):
     counts: dict[str, int]
     review_count: int
     startups: dict[str, int] | None = None  # startup outreach, when it is switched on
+    startup_recent: list[StartupSentOut] = []  # the latest pitches that went out

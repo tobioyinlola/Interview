@@ -1,3 +1,4 @@
+import { openGoogleStep } from "../auth/nativeGoogle";
 import {
   useInfiniteQuery,
   useMutation,
@@ -157,7 +158,7 @@ export function useMailboxActions() {
       mutationFn: () =>
         post<{ connected: boolean; url: string | null }>("/mailbox/connect"),
       onSuccess: (res) => {
-        if (res.url) window.location.assign(res.url);
+        if (res.url) void openGoogleStep(res.url);
         else refresh();
       },
     }),

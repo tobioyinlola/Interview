@@ -22,6 +22,8 @@ import {
 import { FOCUS, PLAN } from "../onboarding/content";
 export { firstName } from "../account/names";
 import { firstName } from "../account/names";
+import { ConnectGmail } from "../autoapply/ConnectGmail";
+import { GREETING_EMOJI, greeting } from "../account/greeting";
 import { PracticeChart } from "./PracticeChart";
 import { daysSince } from "../companies/ResearchStatus";
 import { formatDuration, formatWhen } from "../review/format";
@@ -439,7 +441,9 @@ function Hero({
         <div className="min-w-0 flex-1 basis-72">
           <h1 className="sr-only">Dashboard</h1>
           <p className="break-words text-3xl font-semibold tracking-tight sm:text-4xl">
-            Hello{name ? `, ${name}` : ""} <span aria-hidden="true">👋</span>
+            {greeting()}
+            {name ? `, ${name}` : ""}{" "}
+            <span aria-hidden="true">{GREETING_EMOJI}</span>
           </p>
           <p className="mt-1 text-surface/80">
             Here&apos;s your interview overview.
@@ -531,6 +535,8 @@ export function DashboardPage() {
         companies={companies.data?.length ?? 1}
         sessions={all.length}
       />
+
+      <ConnectGmail />
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-5">

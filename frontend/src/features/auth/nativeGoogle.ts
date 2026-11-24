@@ -55,6 +55,14 @@ interface CapacitorPlugins {
 export const capacitorPlugins = (): CapacitorPlugins["Plugins"] =>
   (window.Capacitor as CapacitorPlugins | undefined)?.Plugins;
 
+/** Google will not run inside an app's own window, so in an installed app a Google page opens in
+ *  the real browser; on the website it simply opens here. */
+export async function openGoogleStep(url: string): Promise<void> {
+  if (isDesktopApp()) window.interviewMeetDesktop?.openInBrowser?.(url);
+  else if (isMobileApp()) await capacitorPlugins()?.Browser?.open({ url });
+  else window.location.assign(url);
+}
+
 /** Sign in with Google from an installed app. Google refuses to run inside an app's own window, so
  *  the person signs in in the real browser, which then hands the app a one-time code through the
  *  interviewmeet:// address. The code only works together with `verifier`, which never leaves this

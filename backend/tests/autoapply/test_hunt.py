@@ -622,6 +622,54 @@ async def test_auto_apply_overview_shows_startup_counts(ada, maker, mailbox, wri
     assert d["startups"]["waiting"] == 2 and d["startups"]["sent"] == 0
 
 
+async def test_every_note_goes_with_the_cv_attached_and_reads_like_a_proper_email(
+    ada, maker, mailbox, settings, clock
+):
+    """A fixed template (no model): greeting, who I am, why them, the ask, CV line, sign-off."""
+    uid = await setup(ada, maker, mailbox)
+    await ada.put("/api/notes", json={"role": "PM", "content": "Ada Okoye\nSenior PM at Northwind"})
+    await seed(maker, 1)
+    async with maker() as db:
+        await engine.plan(db, uid, NOW, FakeLlmProvider(json_reply="not json"))
+    [t] = (await ada.get("/api/hunt/targets")).json()
+    body = t["body"]
+    assert body.startswith(("Hello,", "Hi "))
+    assert "I'm Ada Okoye" in body and "Acme0" in body
+    assert "short call" in body
+    assert body.index("My CV is attached.") < body.index("Thank you,\nAda Okoye")
+    assert (await ada.post(f"/api/hunt/targets/{t['id']}/approve")).status_code == 200
+    assert await engine.send_next(maker, uid, mailbox, settings, NOW) == "sent"
+    [att] = mailbox.sent[0]["attachments"]
+    assert att.filename == "Ada Okoye - CV.pdf" and att.content.startswith(b"%PDF")
+
+
+def test_the_cv_file_name_is_clean():
+    assert engine.cv_filename("Ada Okoye") == "Ada Okoye - CV.pdf"
+    assert engine.cv_filename("Ada/../Okoye<>") == "Ada..Okoye - CV.pdf"
+    assert engine.cv_filename("") == "CV.pdf"
+
+
+async def test_the_overview_lists_sent_pitches_with_who_they_went_to(
+    ada, maker, mailbox, settings, write_llm
+):
+    from tests.autoapply.conftest import start
+
+    await start(ada)
+    uid = await setup(ada, maker, mailbox)
+    await seed(maker, 1)
+    async with maker() as db:
+        await engine.plan(db, uid, NOW, write_llm)
+    assert (await ada.get("/api/autoapply/dashboard")).json()["startup_recent"] == []  # not sent
+    listed = (await ada.get("/api/hunt/targets")).json()
+    assert (await ada.post(f"/api/hunt/targets/{listed[0]['id']}/approve")).status_code == 200
+    assert await engine.send_next(maker, uid, mailbox, settings, NOW) == "sent"
+    d = (await ada.get("/api/autoapply/dashboard")).json()
+    assert d["startups"]["sent"] == 1
+    [one] = d["startup_recent"]
+    assert one["status"] == "sent" and one["company"] and one["subject"]
+    assert one["sent_at"]
+
+
 # ------------------------------------------------------------------------------ directories
 
 

@@ -93,6 +93,7 @@ describe("Startups inside Auto-Apply", () => {
       "https://acme.io/careers/pm",
     );
     expect(screen.getByText("jobs@acme.io")).toBeVisible();
+    expect(screen.getByText(/Your CV is attached as a PDF/)).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Send pitch" }));
     await waitFor(() => expect(approve).toHaveBeenCalled());
   });

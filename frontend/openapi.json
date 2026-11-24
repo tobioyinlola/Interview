@@ -1806,6 +1806,14 @@
             "title": "Sources",
             "type": "array"
           },
+          "startup_recent": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/StartupSentOut"
+            },
+            "title": "Startup Recent",
+            "type": "array"
+          },
           "startups": {
             "anyOf": [
               {
@@ -5298,6 +5306,52 @@
           "website"
         ],
         "title": "StartupIn",
+        "type": "object"
+      },
+      "StartupSentOut": {
+        "description": "A pitch sent to a startup, shown beside the job applications in one activity list.",
+        "properties": {
+          "company": {
+            "title": "Company",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "sent_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "subject": {
+            "default": "",
+            "title": "Subject",
+            "type": "string"
+          },
+          "to_name": {
+            "default": "",
+            "title": "To Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "company",
+          "status"
+        ],
+        "title": "StartupSentOut",
         "type": "object"
       },
       "SuggestIn": {

@@ -147,7 +147,9 @@ describe("the dashboard", () => {
     expect(await screen.findByRole("status")).toHaveTextContent(
       "On · day 12 of 30",
     );
-    expect(screen.getByText("2 of 5")).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: "0 sent so far, 2 of 5 today" }),
+    ).toBeInTheDocument();
     expect(screen.getByText(/8 found, 2 matched/)).toBeInTheDocument();
     expect(screen.getByText("Connected (ada@example.com)")).toBeInTheDocument();
     expect(
@@ -155,6 +157,73 @@ describe("the dashboard", () => {
     ).toHaveAttribute("href", "/auto-apply/applications/a1");
     expect(screen.getByText("Shortlisted")).toBeInTheDocument();
     expect(screen.getByText("Submitted")).toBeInTheDocument();
+  });
+
+  it("counts job applications and startup pitches together, in the circle and the tiles", async () => {
+    onDash(
+      dash({
+        counts: { submitted: 4, sent_email: 1 },
+        startups: { waiting: 2, sent: 3, replied: 1, openings: 4 },
+        review_count: 1,
+      }),
+    );
+    renderApp(<App />, "/auto-apply");
+    expect(
+      await screen.findByRole("img", { name: "8 sent so far, 2 of 5 today" }),
+    ).toBeInTheDocument();
+    const glance = within(screen.getByLabelText("At a glance"));
+    expect(glance.getByText("Sent so far").nextSibling).toHaveTextContent("8");
+    expect(glance.getByText("5 jobs · 3 startups")).toBeInTheDocument();
+    expect(glance.getByText("Replies").nextSibling).toHaveTextContent("2"); // 1 startup + 1 to match
+    expect(glance.getByText("Waiting for you").nextSibling).toHaveTextContent(
+      "2",
+    );
+    expect(
+      glance.getByText("2 startup pitches to approve"),
+    ).toBeInTheDocument();
+  });
+
+  it("lists startup pitches next to job applications, newest first", async () => {
+    onDash(
+      dash({
+        recent: [app()],
+        startups: { waiting: 0, sent: 1, replied: 0, openings: 0 },
+        startup_recent: [
+          {
+            id: "t1",
+            company: "Lumen Labs",
+            to_name: "Sam Ade",
+            status: "sent",
+            subject: "Hello",
+            sent_at: "2099-01-01T10:00:00Z",
+          },
+        ],
+      }),
+    );
+    renderApp(<App />, "/auto-apply");
+    const pitch = await screen.findByRole("link", {
+      name: /Pitch to Lumen Labs/,
+    });
+    expect(pitch).toHaveAttribute("href", "/auto-apply/startups");
+    expect(pitch).toHaveTextContent("Startup · Sam Ade");
+    expect(pitch).toHaveTextContent("Sent");
+    const list = pitch.closest("ul") as HTMLElement;
+    const names = within(list)
+      .getAllByRole("link")
+      .map((l) => l.textContent ?? "");
+    expect(names[0]).toMatch(/Lumen Labs/); // newer than the job application below it
+    expect(names.some((n) => /Senior Product Manager at Acme/.test(n))).toBe(
+      true,
+    );
+  });
+
+  it("shows an empty circle, not a spinner-like dot, before anything is used", async () => {
+    onDash(dash({ usage: { ...dash().usage, applications_used: 0 } }));
+    renderApp(<App />, "/auto-apply");
+    const ring = await screen.findByRole("img", {
+      name: "0 sent so far, 0 of 5 today",
+    });
+    expect(ring.querySelectorAll("circle")).toHaveLength(1); // the track only
   });
 
   it("shows the demo notice on the dashboard too", async () => {
@@ -1146,7 +1215,7 @@ describe("setting up: the guided flow", () => {
     expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
     expect(screen.getAllByText(/Connect your email/).length).toBeGreaterThan(0);
     await userEvent.click(
-      screen.getByRole("button", { name: "Connect my email" }),
+      screen.getByRole("button", { name: "Connect Gmail" }),
     );
     await waitFor(() =>
       expect(
@@ -1370,5 +1439,32 @@ describe("starting an interview from Auto-Apply", () => {
         interview_id: "i1",
       }),
     );
+  });
+});
+
+describe("the Gmail prompt on the home screens", () => {
+  it("offers to connect Gmail once, and can be put away", async () => {
+    base({
+      "GET /api/autoapply/mailbox": () => ({
+        json: {
+          connected: false,
+          address: null,
+          status: "none",
+          can_connect: true,
+        },
+      }),
+    });
+    renderApp(<App />, "/dashboard");
+    const card = await screen.findByRole("region", {
+      name: "Send from your own Gmail",
+    });
+    expect(within(card).getByText(/show in your Sent folder/)).toBeVisible();
+    await userEvent.click(
+      within(card).getByRole("button", { name: "Not now" }),
+    );
+    expect(
+      screen.queryByRole("region", { name: "Send from your own Gmail" }),
+    ).toBeNull();
+    localStorage.removeItem("im-gmail-prompt-dismissed");
   });
 });

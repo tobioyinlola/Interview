@@ -74,7 +74,7 @@ export function StepApply({
                 ? `Connected: ${box.data?.address}. Applications go from here and replies are read here. The messages stay in your inbox.`
                 : box.data?.status === "reauth_needed"
                   ? "Your email needs to be connected again."
-                  : "Needed only to email applications or notes, and to notice replies."}
+                  : "Needed only to email applications or pitches from your own Gmail (they show in your Sent folder) and to notice replies."}
             </p>
           </div>
           {connected ? (
@@ -93,7 +93,7 @@ export function StepApply({
               disabled={connect.isPending || box.data?.can_connect === false}
               onClick={() => connect.mutate()}
             >
-              Connect my email
+              Connect Gmail
             </button>
           )}
         </div>

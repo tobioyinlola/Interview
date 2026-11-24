@@ -41,9 +41,22 @@ class GmailOAuth:
     def __init__(self, s: Settings, transport: httpx.AsyncBaseTransport | None = None) -> None:
         self.s, self._transport = s, transport
 
+    # One Google client can do both jobs: sign-in and sending mail. GMAIL_CLIENT_ID/SECRET override
+    # it, otherwise the sign-in client (GOOGLE_CLIENT_ID/SECRET) is used: nothing extra to set up.
+    @property
+    def client_id(self) -> str:
+        return self.s.gmail_client_id or self.s.google_client_id
+
+    @property
+    def client_secret(self) -> str:
+        return (
+            self.s.gmail_client_secret.get_secret_value()
+            or self.s.google_client_secret.get_secret_value()
+        )
+
     @property
     def enabled(self) -> bool:
-        return bool(self.s.gmail_client_id and self.s.gmail_client_secret.get_secret_value())
+        return bool(self.client_id and self.client_secret)
 
     @property
     def redirect_uri(self) -> str:
@@ -53,22 +66,23 @@ class GmailOAuth:
         key = self.s.cookie_secret.get_secret_value().encode()
         return _b64(hmac.new(key, payload.encode(), hashlib.sha256).digest())
 
-    def begin(self, user_id: str) -> tuple[str, str]:
+    def begin(self, user_id: str, login_hint: str = "") -> tuple[str, str]:
         """(address to send the browser to, value for the state cookie)."""
         state = secrets.token_urlsafe(32)
         expires = int(time.time()) + STATE_TTL
         body = f"{state}.{user_id}.{expires}"
-        query = urlencode(
-            {
-                "client_id": self.s.gmail_client_id,
-                "redirect_uri": self.redirect_uri,
-                "response_type": "code",
-                "scope": SCOPES,
-                "state": state,
-                "access_type": "offline",
-                "prompt": "consent",
-            }
-        )
+        params = {
+            "client_id": self.client_id,
+            "redirect_uri": self.redirect_uri,
+            "response_type": "code",
+            "scope": SCOPES,
+            "state": state,
+            "access_type": "offline",
+            "prompt": "consent",
+        }
+        if login_hint:  # opens on the account they signed up with, so it is one tap
+            params["login_hint"] = login_hint
+        query = urlencode(params)
         return f"{self.s.google_auth_url}?{query}", f"{body}.{self._sign(body)}"
 
     def check_state(self, cookie: str | None, state: str, user_id: str) -> bool:
@@ -94,8 +108,8 @@ class GmailOAuth:
                     self.s.google_token_url,
                     data={
                         "code": code,
-                        "client_id": self.s.gmail_client_id,
-                        "client_secret": self.s.gmail_client_secret.get_secret_value(),
+                        "client_id": self.client_id,
+                        "client_secret": self.client_secret,
                         "redirect_uri": self.redirect_uri,
                         "grant_type": "authorization_code",
                     },
@@ -154,8 +168,8 @@ class GmailAdapter:
                 r = await c.post(
                     self.s.google_token_url,
                     data={
-                        "client_id": self.s.gmail_client_id,
-                        "client_secret": self.s.gmail_client_secret.get_secret_value(),
+                        "client_id": GmailOAuth(self.s).client_id,
+                        "client_secret": GmailOAuth(self.s).client_secret,
                         "refresh_token": refresh,
                         "grant_type": "refresh_token",
                     },
