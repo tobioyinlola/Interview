@@ -3,12 +3,7 @@ import userEvent from "@testing-library/user-event";
 
 import { ME, mockApi, renderApp, stubSupportedBrowser } from "../test-utils";
 import { App } from "./App";
-import {
-  compareVersions,
-  desktopVersion,
-  notifyUpdate,
-  openDownloadOnTap,
-} from "./updates";
+import { compareVersions, desktopVersion, notifyUpdate } from "./updates";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -194,18 +189,5 @@ describe("the update pop-up notification", () => {
       Plugins: {},
     } as unknown as typeof window.Capacitor;
     expect(await notifyUpdate("0.2.30", url)).toBe(false);
-  });
-
-  it("opens only this project's release downloads when the notification is tapped", () => {
-    const p = plugin();
-    withPlugin(p);
-    const open = vi.fn();
-    openDownloadOnTap(open);
-    const tap = p.addListener.mock.calls[0][1];
-    tap({ notification: { extra: { url } } });
-    tap({ notification: { extra: { url: "https://evil.test/x.apk" } } });
-    tap({ notification: { extra: {} } });
-    expect(open).toHaveBeenCalledTimes(1);
-    expect(open).toHaveBeenCalledWith(url);
   });
 });

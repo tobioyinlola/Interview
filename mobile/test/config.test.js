@@ -50,3 +50,31 @@ test("the browser and app plugins the sign-in uses are installed", () => {
   assert.ok(pkg.dependencies["@capacitor/browser"]);
   assert.ok(pkg.dependencies["@capacitor/app"]);
 });
+
+test("interface updates talk only to our own releases, never the plugin maker's cloud", () => {
+  const c = read("capacitor.config.ts");
+  assert.match(c, /autoUpdate: false/);
+  for (const key of ["updateUrl", "statsUrl", "channelUrl"]) assert.match(c, new RegExp(`${key}: ""`));
+  assert.match(c, /resetWhenUpdate: true/); // a new install starts from its own interface, never an older downloaded one
+  assert.ok(JSON.parse(read("package.json")).dependencies["@capgo/capacitor-updater"]);
+});
+
+test("the app can install its own update, and only asks for what that needs", () => {
+  const m = read("android/app/src/main/AndroidManifest.xml");
+  assert.match(m, /android.permission.REQUEST_INSTALL_PACKAGES/);
+  assert.match(read("android/app/src/main/java/com/interviewmeet/app/MainActivity.java"), /registerPlugin\(AppInstallerPlugin\.class\)/);
+  const j = read("android/app/src/main/java/com/interviewmeet/app/AppInstallerPlugin.java");
+  assert.match(j, /@CapacitorPlugin\(name = "AppInstaller"\)/);
+  assert.match(j, /releases\/download\//); // only this project's release downloads
+  assert.match(j, /SHA-256/); // the download is checked before it is installed
+  assert.match(j, /sameSigner/); // and refused early if Android would refuse it
+  assert.match(m, /fileprovider/);
+});
+
+test("Android builds can be signed with one fixed key, and the build says which one it used", () => {
+  const g = read("android/app/build.gradle");
+  assert.match(g, /ANDROID_KEYSTORE_FILE/);
+  const wf = fs.readFileSync(path.join(__dirname, "..", "..", ".github", "workflows", "mobile.yml"), "utf8");
+  assert.match(wf, /signing key/i);
+  assert.match(wf, /apksigner/);
+});

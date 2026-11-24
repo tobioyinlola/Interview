@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ComponentType } from "react";
+import { lazy, Suspense, useEffect, type ComponentType } from "react";
 import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 
 import { SettingsPage } from "../features/account/SettingsPage";
@@ -33,6 +33,7 @@ import { PhoneLayout } from "../features/phone/PhoneLayout";
 import { ProfilePage } from "../features/phone/ProfilePage";
 import { NativeLinks } from "./NativeLinks";
 import { OfflineBanner } from "./OfflineBanner";
+import { confirmReady } from "./liveUpdate";
 import { MobileLiveNotice } from "./MobileLiveNotice";
 import { isMobileApp, isNativeApp } from "./native";
 import { Loading } from "../ui/Loading";
@@ -146,6 +147,12 @@ function SupportedBrowser() {
 }
 
 export function App() {
+  // a new copy of the interface that gets this far is a good one; without this the phone app goes
+  // back to the last good copy (see liveUpdate.ts)
+  useEffect(() => {
+    const t = setTimeout(() => void confirmReady(), 1500);
+    return () => clearTimeout(t);
+  }, []);
   return (
     <>
       <NativeLinks />

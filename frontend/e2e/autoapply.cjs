@@ -80,7 +80,7 @@ const CV =
   );
 
   // the menu has Auto-Apply, and a new person is invited to set up
-  await page.getByRole("link", { name: "Auto-Apply" }).click();
+  await page.getByRole("link", { name: "Auto-Apply", exact: true }).click();
   await page.waitForURL("**/auto-apply");
   await page.getByRole("link", { name: "Set up Auto-Apply" }).waitFor();
   ok(true, "the menu has Auto-Apply and a new person is invited to set it up");

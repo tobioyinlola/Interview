@@ -5,6 +5,7 @@ The apps compare this with the version they are running and, where they cannot u
 available" banner with the download. Cached for half an hour; if GitHub cannot be reached the last
 good answer is kept, and with none the answer is simply "nothing newer known"."""
 
+import json
 import re
 import time
 from typing import Any
@@ -19,6 +20,9 @@ ASSETS = {
     "mac_x64": "InterviewMeet-mac-x64.dmg",
 }
 ANDROID_ASSET = "InterviewMeet-android.apk"
+UI_ASSET = "interface.zip"
+SHA256 = re.compile(r"^sha256:([0-9a-f]{64})$")
+BUILD_BASE = 100000  # the Android build number is this plus the release's last number
 VERSION = re.compile(r"(\d+)\.(\d+)\.(\d+)")
 
 
@@ -32,11 +36,23 @@ class DesktopRelease(BaseModel):
 class AndroidRelease(BaseModel):
     version: str
     url: str
+    sha256: str | None = None  # what the app checks the download against before installing it
+    build: int | None = None  # Android's build number for that version
+
+
+class UiRelease(BaseModel):
+    """A new copy of the interface the phone app can fetch and switch to without a new install."""
+
+    version: str
+    url: str
+    sha256: str
+    native_min: int  # the oldest installed build (Android build number) that can run it
 
 
 class AppReleasesOut(BaseModel):
     desktop: DesktopRelease | None = None
     android: AndroidRelease | None = None
+    ui: UiRelease | None = None
 
 
 def _version(text: str) -> str | None:
@@ -60,8 +76,15 @@ def parse(releases: list[dict[str, Any]], repo: str) -> AppReleasesOut:
                 return str(link)
         return None
 
+    def digest_of(release: dict[str, Any], name: str) -> str | None:
+        for a in release.get("assets") or []:
+            if a.get("name") == name and (m := SHA256.match(str(a.get("digest") or ""))):
+                return m.group(1)
+        return None
+
     desktop: DesktopRelease | None = None
     android: AndroidRelease | None = None
+    ui: UiRelease | None = None
     for r in releases:
         if r.get("draft"):
             continue
@@ -73,8 +96,24 @@ def parse(releases: list[dict[str, Any]], repo: str) -> AppReleasesOut:
                 )
         elif tag == "android-latest" and (version := _version(str(r.get("name") or ""))):
             if link := url_of(r, ANDROID_ASSET):
-                android = AndroidRelease(version=version, url=link)
-    return AppReleasesOut(desktop=desktop, android=android)
+                android = AndroidRelease(
+                    version=version,
+                    url=link,
+                    sha256=digest_of(r, ANDROID_ASSET),
+                    build=BUILD_BASE + int(version.split(".")[2]),
+                )
+        elif tag == "interface-latest":
+            # the release's text is a small JSON note: {"version": "0.2.24", "native_min": 100020}
+            try:
+                note = json.loads(str(r.get("body") or ""))
+                version = _version(str(note["version"]))
+                native_min = int(note["native_min"])
+            except (ValueError, KeyError, TypeError):
+                continue
+            link, digest = url_of(r, UI_ASSET), digest_of(r, UI_ASSET)
+            if version and link and digest:
+                ui = UiRelease(version=version, url=link, sha256=digest, native_min=native_min)
+    return AppReleasesOut(desktop=desktop, android=android, ui=ui)
 
 
 class AppReleases:

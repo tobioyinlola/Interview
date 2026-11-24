@@ -38,6 +38,7 @@ jobs:
       RELEASE: ${{ (github.event_name == 'workflow_dispatch' && inputs.release) || (github.event_name == 'push' && github.ref == 'refs/heads/Staging') }}
     steps:
       - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }   # the interface release compares with the commit of the last one
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -56,6 +57,7 @@ jobs:
           npm run build:web
         env:
           INTERVIEWMEET_URL: ${{ vars.INTERVIEWMEET_URL }}
+          VITE_UI_VERSION: ${{ env.APP_VERSION }}   # what the running interface says it is
       - run: npx cap sync android
       # A real signing key (for the Play Store) goes in as repository secrets ANDROID_KEYSTORE_BASE64,
       # ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD. Without them the app is
@@ -80,6 +82,18 @@ jobs:
         run: ./gradlew assembleRelease --no-daemon
       - name: Name the file
         run: cp android/app/build/outputs/apk/release/app-release.apk InterviewMeet-android.apk
+      # A phone installs an update only if it is signed with the same key as the app already on it.
+      # Without the signing secrets every build gets a different throwaway key, so no phone can update
+      # in place and people have to delete the app and install again.
+      - name: Say which signing key was used
+        run: |
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --print-certs InterviewMeet-android.apk | tee signer.txt
+          if [ -z "$ANDROID_KEYSTORE_FILE" ]; then
+            echo "::warning title=Throwaway signing key::No signing key is set (secrets ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD). Phones cannot update this build in place."
+          else
+            echo "Signed with the fixed key. Its fingerprint must be the same in every run."
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: InterviewMeet-android
@@ -100,6 +114,31 @@ jobs:
           gh release edit android-latest --repo "$GITHUB_REPOSITORY" --prerelease \
             --title "InterviewMeet for Android $APP_VERSION" \
             --notes "Android app, version $APP_VERSION. Open the file on your phone and allow installs from this source if asked. Android may say the app is from an unknown developer: it is not signed for the Play Store yet."
+      # The same interface that is inside the app, as a download the installed apps fetch by themselves,
+      # check, and switch to on a restart: no reinstall. The note says which build is the oldest that can
+      # run it (see mobile/scripts/ui-release.js).
+      - name: Publish the interface for installed apps
+        if: env.RELEASE == 'true'
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          (cd mobile/www && zip -qr ../interface.zip .)
+          PREV=$(gh release view interface-latest --repo "$GITHUB_REPOSITORY" --json body --jq .body 2>/dev/null || echo "")
+          PREV_COMMIT=$(echo "$PREV" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).commit||"")}catch{console.log("")}})')
+          if [ -n "$PREV_COMMIT" ] && git cat-file -e "$PREV_COMMIT^{commit}" 2>/dev/null; then
+            CHANGED=$(git diff --name-only "$PREV_COMMIT" "$GITHUB_SHA")
+          else
+            CHANGED="UNKNOWN"
+          fi
+          NOTE=$(cd mobile && node scripts/ui-release.js "$APP_VERSION" "$APP_VERSION_CODE" "$PREV" $CHANGED)
+          echo "Interface note: $NOTE"
+          gh release view interface-latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create interface-latest --repo "$GITHUB_REPOSITORY" --prerelease --target "$GITHUB_SHA" \
+              --title "InterviewMeet interface" --notes "placeholder"
+          gh release upload interface-latest mobile/interface.zip --repo "$GITHUB_REPOSITORY" --clobber
+          gh release edit interface-latest --repo "$GITHUB_REPOSITORY" --prerelease \
+            --title "InterviewMeet interface $APP_VERSION" --notes "$NOTE"
 
   ios:
     runs-on: macos-latest

@@ -2130,6 +2130,10 @@ export interface components {
         };
         /** AndroidRelease */
         AndroidRelease: {
+            /** Build */
+            build?: number | null;
+            /** Sha256 */
+            sha256?: string | null;
             /** Url */
             url: string;
             /** Version */
@@ -2202,6 +2206,7 @@ export interface components {
         AppReleasesOut: {
             android?: components["schemas"]["AndroidRelease"] | null;
             desktop?: components["schemas"]["DesktopRelease"] | null;
+            ui?: components["schemas"]["UiRelease"] | null;
         };
         /** ApplicationDetail */
         ApplicationDetail: {
@@ -4050,6 +4055,20 @@ export interface components {
              * @default true
              */
             done: boolean;
+        };
+        /**
+         * UiRelease
+         * @description A new copy of the interface the phone app can fetch and switch to without a new install.
+         */
+        UiRelease: {
+            /** Native Min */
+            native_min: number;
+            /** Sha256 */
+            sha256: string;
+            /** Url */
+            url: string;
+            /** Version */
+            version: string;
         };
         /** UnresolvedRow */
         UnresolvedRow: {

@@ -26,6 +26,17 @@ const config: CapacitorConfig = {
       showSpinner: false,
     },
     StatusBar: { style: "DARK", backgroundColor: "#f7f4ff" },
+    // New copies of the interface are fetched by our own code (frontend/src/app/liveUpdate.ts) from
+    // this project's releases and switched to only when they start cleanly, otherwise the app goes
+    // back to the last good copy. Everything that would talk to the plugin maker's cloud is off.
+    CapacitorUpdater: {
+      autoUpdate: false,
+      updateUrl: "",
+      statsUrl: "",
+      channelUrl: "",
+      appReadyTimeout: 20000,
+      resetWhenUpdate: true,
+    },
   },
 };
 
