@@ -131,7 +131,7 @@ async def test_a_password_sign_up_remembers_its_campaign_tags(new_client, sender
             "/api/auth/signup",
             json={
                 "email": "p@example.com",
-                "password": "correct horse battery staple",
+                "password": "correct horse battery staple!",
                 "full_name": "Pat Rivera",
                 "utm": {"source": "linkedin", "medium": "social", "campaign": "launch-week"},
             },
@@ -173,7 +173,7 @@ async def test_signing_in_again_and_a_wrong_password_are_logged(new_client, send
             "/api/auth/signup",
             json={
                 "email": "p@example.com",
-                "password": "correct horse battery staple",
+                "password": "correct horse battery staple!",
                 "full_name": "Pat Rivera",
             },
         )
@@ -185,7 +185,7 @@ async def test_signing_in_again_and_a_wrong_password_are_logged(new_client, send
         assert bad.status_code == 401
         ok = await c.post(
             "/api/auth/login",
-            json={"email": "p@example.com", "password": "correct horse battery staple"},
+            json={"email": "p@example.com", "password": "correct horse battery staple!"},
         )
         assert ok.status_code == 200
     assert [e.data["method"] for e in await events(engine, "user.signed_in")] == ["password"]
@@ -199,7 +199,7 @@ async def test_the_events_never_carry_a_password_or_a_token(new_client, sender, 
             "/api/auth/signup",
             json={
                 "email": "p@example.com",
-                "password": "correct horse battery staple",
+                "password": "correct horse battery staple!",
                 "full_name": "Pat Rivera",
             },
         )

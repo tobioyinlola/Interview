@@ -293,7 +293,7 @@ async def test_a_signup_only_counts_once_the_email_link_is_opened(
                 "/api/auth/signup",
                 json={
                     "email": "pending@example.com",
-                    "password": "correct horse battery staple",
+                    "password": "correct horse battery staple!",
                     "full_name": "Pat Pending",
                     "ref": code,
                 },

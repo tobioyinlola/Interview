@@ -22,8 +22,8 @@ const waitLink = async (re, before) => {
   throw new Error("no link for " + re);
 };
 const EMAIL = `pw${Date.now()}@example.com`;
-const PASS = "correct horse battery";
-const NEW = "a brand new passphrase";
+const PASS = "correct horse battery!";
+const NEW = "a brand new passphrase!";
 
 (async () => {
   const browser = await chromium.launch();
@@ -208,10 +208,10 @@ const NEW = "a brand new passphrase";
   await page.goto(reset);
   await page
     .getByLabel("New password", { exact: true })
-    .fill("yet another passphrase");
+    .fill("yet another passphrase!");
   await page
     .getByLabel("Confirm new password", { exact: true })
-    .fill("yet another passphrase");
+    .fill("yet another passphrase!");
   await page.getByRole("button", { name: "Save new password" }).click();
   await page.getByText(/didn.t work/i).waitFor();
   ok(true, "a used reset link is refused when it is submitted");

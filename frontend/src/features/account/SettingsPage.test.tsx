@@ -258,11 +258,11 @@ describe("Settings: password", () => {
     );
     await userEvent.type(
       screen.getByLabelText("New password"),
-      "a brand new passphrase",
+      "a brand new passphrase!",
     );
     await userEvent.type(
       screen.getByLabelText("Repeat the new password"),
-      "a brand new passphrase",
+      "a brand new passphrase!",
     );
     await userEvent.click(
       screen.getByRole("button", { name: "Change password" }),
@@ -274,7 +274,7 @@ describe("Settings: password", () => {
       calls.find((c) => c.key === "PUT /api/account/password")!.body,
     ).toEqual({
       current_password: "old passphrase here",
-      new_password: "a brand new passphrase",
+      new_password: "a brand new passphrase!",
     });
     expect(screen.getByLabelText("New password")).toHaveValue("");
   });
@@ -293,18 +293,18 @@ describe("Settings: password", () => {
     expect(screen.queryByLabelText("Current password")).toBeNull();
     await userEvent.type(
       screen.getByLabelText("New password"),
-      "a brand new passphrase",
+      "a brand new passphrase!",
     );
     await userEvent.type(
       screen.getByLabelText("Repeat the new password"),
-      "a brand new passphrase",
+      "a brand new passphrase!",
     );
     await userEvent.click(screen.getByRole("button", { name: "Set password" }));
     await screen.findByRole("status");
     expect(
       calls.find((c) => c.key === "PUT /api/account/password")!.body,
     ).toEqual({
-      new_password: "a brand new passphrase",
+      new_password: "a brand new passphrase!",
     });
   });
 
@@ -315,7 +315,7 @@ describe("Settings: password", () => {
     renderApp(<App />, "/settings/password");
     await userEvent.type(
       await screen.findByLabelText("New password"),
-      "a brand new passphrase",
+      "a brand new passphrase!",
     );
     await userEvent.type(
       screen.getByLabelText("Repeat the new password"),
@@ -339,11 +339,11 @@ describe("Settings: password", () => {
     );
     await userEvent.type(
       screen.getByLabelText("New password"),
-      "a brand new passphrase",
+      "a brand new passphrase!",
     );
     await userEvent.type(
       screen.getByLabelText("Repeat the new password"),
-      "a brand new passphrase",
+      "a brand new passphrase!",
     );
     await userEvent.click(
       screen.getByRole("button", { name: "Change password" }),

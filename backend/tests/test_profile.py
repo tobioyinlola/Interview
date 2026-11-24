@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from app.models import Note, User
 from app.services.names import clean_name, first_name
 
-PASSWORD = "correct horse battery staple"
+PASSWORD = "correct horse battery staple!"
 EMAIL = "jordan@example.com"
 ANSWERS = {
     "goal": "new_job",
@@ -176,7 +176,7 @@ async def test_changing_the_password_sends_a_security_notice_but_a_failed_reset_
         weak = await c.post("/api/auth/reset-password", json={"token": token, "password": "short"})
         assert weak.status_code == 422 and "password_changed" not in sender.kinds(EMAIL)
         ok = await c.post(
-            "/api/auth/reset-password", json={"token": token, "password": "a brand new passphrase"}
+            "/api/auth/reset-password", json={"token": token, "password": "a brand new passphrase!"}
         )
     assert ok.status_code == 200
     notice = [m for m in sender.messages if m.kind == "password_changed"]

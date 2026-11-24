@@ -97,8 +97,8 @@ const ok = (cond, msg) => {
     await inApp.goto(BASE + "/signup");
     await inApp.getByLabel("Full name").fill("App Person");
     await inApp.getByLabel("Email address").fill(email);
-    await inApp.getByLabel("Password", { exact: true }).fill("correct horse battery staple 91");
-    await inApp.getByLabel("Confirm password", { exact: true }).fill("correct horse battery staple 91");
+    await inApp.getByLabel("Password", { exact: true }).fill("correct horse battery staple 91!");
+    await inApp.getByLabel("Confirm password", { exact: true }).fill("correct horse battery staple 91!");
     await inApp.getByRole("checkbox", { name: /i agree/i }).check();
     await inApp.getByRole("button", { name: "Create account" }).click();
     await inApp.getByText(/bring you back here/i).waitFor();

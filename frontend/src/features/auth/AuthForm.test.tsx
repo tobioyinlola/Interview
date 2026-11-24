@@ -13,7 +13,7 @@ import {
 beforeEach(() => stubSupportedBrowser());
 afterEach(() => vi.restoreAllMocks());
 
-const STRONG = "correct horse battery";
+const STRONG = "correct horse battery!";
 
 const api = (google: boolean, extra: Record<string, () => object> = {}) =>
   mockApi({
@@ -115,7 +115,7 @@ describe("sign up page", () => {
     await userEvent.type(password(), "short");
     await userEvent.type(confirm(), "short");
     await userEvent.click(agree());
-    expect(create()).toBeDisabled(); // under 10 characters
+    expect(create()).toBeDisabled(); // under 8 characters or no symbol
     await userEvent.clear(password());
     await userEvent.clear(confirm());
     await userEvent.type(password(), STRONG);
@@ -504,11 +504,11 @@ describe("forgot and reset password", () => {
     renderApp(<App />, "/reset-password?token=abcdefghijklmnop");
     await userEvent.type(
       await screen.findByLabelText("New password"),
-      "password123",
+      "password123!",
     );
     await userEvent.type(
       screen.getByLabelText("Confirm new password"),
-      "password123",
+      "password123!",
     );
     await userEvent.click(
       screen.getByRole("button", { name: "Save new password" }),

@@ -78,10 +78,10 @@ const snap = async (page, name) => {
     await f.getByLabel("Email address").fill(`friend${i}-${stamp}@example.com`);
     await f
       .getByLabel("Password", { exact: true })
-      .fill("correct horse battery");
+      .fill("correct horse battery!");
     await f
       .getByLabel("Confirm password", { exact: true })
-      .fill("correct horse battery");
+      .fill("correct horse battery!");
     await f.getByRole("checkbox", { name: /i agree/i }).check();
     const n = links().length;
     await f.getByRole("button", { name: "Create account" }).click();
@@ -129,10 +129,10 @@ const snap = async (page, name) => {
   await a.goto(BASE + path);
   await a.getByLabel("Full name").fill("Second Address");
   await a.getByLabel("Email address").fill(`second-${stamp}@example.org`);
-  await a.getByLabel("Password", { exact: true }).fill("correct horse battery");
+  await a.getByLabel("Password", { exact: true }).fill("correct horse battery!");
   await a
     .getByLabel("Confirm password", { exact: true })
-    .fill("correct horse battery");
+    .fill("correct horse battery!");
   await a.getByRole("checkbox", { name: /i agree/i }).check();
   const m = links().length;
   await a.getByRole("button", { name: "Create account" }).click();

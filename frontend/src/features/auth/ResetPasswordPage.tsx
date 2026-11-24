@@ -10,7 +10,7 @@ import { ApiError } from "../../api/client";
 import { useResetPassword } from "../../api/hooks";
 import { PasswordField } from "../../ui/PasswordField";
 import { AuthLayout } from "../../ui/AuthLayout";
-import { MIN_PASSWORD } from "./AuthForm";
+import { PasswordRules, passwordOk } from "./password";
 
 export function ResetPasswordPage() {
   const token = useSearchParams()[0].get("token");
@@ -32,7 +32,7 @@ export function ResetPasswordPage() {
     );
 
   const mismatch = confirm.length > 0 && confirm !== password;
-  const ok = password.length >= MIN_PASSWORD && confirm === password;
+  const ok = passwordOk(password) && confirm === password;
   const dead =
     !token ||
     (reset.error instanceof ApiError && reset.error.code === "invalid_link");
@@ -71,12 +71,7 @@ export function ResetPasswordPage() {
                 onChange={setPassword}
                 autoComplete="new-password"
               />
-              <p
-                className={`-mt-2 text-xs ${password.length >= MIN_PASSWORD ? "text-green-700" : "text-muted"}`}
-              >
-                {password.length >= MIN_PASSWORD ? "✓ " : ""}At least{" "}
-                {MIN_PASSWORD} characters.
-              </p>
+              <PasswordRules password={password} />
               <PasswordField
                 label="Confirm new password"
                 value={confirm}

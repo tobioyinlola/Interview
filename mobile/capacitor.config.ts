@@ -21,7 +21,15 @@ const config: CapacitorConfig = {
   ios: { contentInset: "automatic", backgroundColor: "#1c1b2e" },
   android: { backgroundColor: "#1c1b2e", allowMixedContent: false },
   plugins: {
-    SplashScreen: { launchAutoHide: true, backgroundColor: "#1c1b2e", showSpinner: false },
+    // The splash stays until the web app says its first frame is up (see hideNativeSplash), so there
+    // is no blank wait while the site downloads. If the site never answers it lifts by itself.
+    SplashScreen: {
+      launchAutoHide: true,
+      launchShowDuration: 6000,
+      launchFadeOutDuration: 150,
+      backgroundColor: "#1c1b2e",
+      showSpinner: false,
+    },
     StatusBar: { style: "DARK", backgroundColor: "#f7f4ff" },
   },
 };

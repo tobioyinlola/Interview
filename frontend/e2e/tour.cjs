@@ -35,10 +35,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await page.getByLabel("Email address").fill(email);
   await page
     .getByLabel("Password", { exact: true })
-    .fill("correct horse battery");
+    .fill("correct horse battery!");
   await page
     .getByLabel("Confirm password", { exact: true })
-    .fill("correct horse battery");
+    .fill("correct horse battery!");
   await page.getByRole("checkbox", { name: /i agree/i }).check();
   await page.getByRole("button", { name: "Create account" }).click();
   await page.getByText(/confirm your address/i).waitFor();
