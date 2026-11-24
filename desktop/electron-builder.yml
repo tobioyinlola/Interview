@@ -17,7 +17,7 @@ protocols:
 publish:
   provider: github
   owner: tobioyinlola
-  repo: interviewmeet-downloads
+  repo: Interview
   releaseType: release
 mac:
   category: public.app-category.productivity

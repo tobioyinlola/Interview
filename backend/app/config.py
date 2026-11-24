@@ -16,8 +16,7 @@ class Settings(BaseSettings):
     # the website). Comma-separated. They use a bearer token, never the browser cookie.
     app_origins: str = "https://localhost,capacitor://localhost,app://interviewmeet"
     cookie_secret: SecretStr = SecretStr("dev-only-change-me")
-    # where the downloadable apps are published: a separate PUBLIC repo (the source stays private)
-    github_repo: str = "tobioyinlola/interviewmeet-downloads"
+    github_repo: str = "tobioyinlola/Interview"  # where the downloadable apps are published
 
     openai_api_key: SecretStr = SecretStr("")
     openai_answer_model: str = "gpt-4.1-mini"
