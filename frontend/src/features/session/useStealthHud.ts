@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   enterStealth,
   exitStealth,
@@ -26,40 +26,32 @@ const DEFAULT_STATE: StealthState = { active: false, clickThrough: false };
 /** Hook for the live interview page to control the Electron stealth HUD.
  *
  *  - Subscribes to main-process push events so React state stays in sync.
- *  - Cleans up (exits stealth) on unmount so a component teardown or error
- *    can never leave the user trapped in a frameless HUD. */
+ *  - Queries initial state on mount so it never falls out of sync.
+ */
 export function useStealthHud(): StealthHudControls {
   const supported = hasStealthSupport();
   const [state, setState] = useState<StealthState>(DEFAULT_STATE);
-  // Track whether *this* hook entered stealth so cleanup only exits when needed.
-  const enteredRef = useRef(false);
 
   useEffect(() => {
     if (!supported) return;
-    // Subscribe to main-process push updates.
+
+    // Check initial state from main process on mount
+    void window.interviewMeetDesktop?.stealth?.query().then((s) => {
+      if (s) setState(s);
+    });
+
+    // Subscribe to main-process push updates
     const unsub = onStealthStateChanged((s) => setState(s));
     return unsub;
   }, [supported]);
 
-  // Safety net: if the page unmounts while in stealth, restore the window.
-  useEffect(() => {
-    return () => {
-      if (enteredRef.current) {
-        void exitStealth();
-        enteredRef.current = false;
-      }
-    };
-  }, []);
-
   const enter = useCallback(async () => {
     if (!supported) return;
-    enteredRef.current = true;
     await enterStealth();
   }, [supported]);
 
   const exit = useCallback(async () => {
     if (!supported) return;
-    enteredRef.current = false;
     await exitStealth();
   }, [supported]);
 

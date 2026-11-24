@@ -38,6 +38,12 @@ declare global {
   }
 }
 
+declare module "react" {
+  interface CSSProperties {
+    WebkitAppRegion?: "drag" | "no-drag";
+  }
+}
+
 /** True when running inside the InterviewMeet desktop app. */
 export function isDesktopApp(): boolean {
   return (

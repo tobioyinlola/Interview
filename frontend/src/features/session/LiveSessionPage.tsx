@@ -8,8 +8,6 @@ import { endSessionApi, fetchAudioToken, sendFeedback } from "../../api/hooks";
 import { FeatureBoundary } from "../../ui/FeatureBoundary";
 import { answerOf } from "./answerText";
 import { LiveSessionController } from "./controller";
-import { DesktopSyncPanel } from "./DesktopSyncPanel";
-import { StealthHudBar } from "./StealthHudBar";
 import { StealthTerminalHud } from "./StealthTerminalHud";
 import { useStealthHud } from "./useStealthHud";
 import { type Line, type Outline, useLiveStore } from "./store";
@@ -460,6 +458,15 @@ export function LiveSessionPage() {
     };
   }, [stealth.state.active]);
 
+  // If the user navigates away from the live interview page, ensure the window restores to normal size
+  useEffect(() => {
+    return () => {
+      if (isDesktopApp()) {
+        void stealth.exit();
+      }
+    };
+  }, [stealth]);
+
   // Dynamic Single-Window Morphing:
   // If in desktop app and stealth mode is active, render ONLY the floating Terminal HUD
   if (isDesktopApp() && stealth.state.active) {
@@ -477,11 +484,30 @@ export function LiveSessionPage() {
   return (
     <main className="mx-auto grid max-w-5xl gap-4 p-6 md:grid-cols-2">
       <div className="space-y-4">
-        {/* Stealth HUD bar: only visible in the Electron desktop app.
-            In stealth / HUD mode this becomes the primary control strip. */}
+        {/* Stealth HUD launcher: only visible in the Electron desktop app */}
         {isDesktopApp() && (
           <FeatureBoundary name="stealth hud">
-            <StealthHudBar onEnd={() => void controller.end()} />
+            <div className="flex items-center justify-between gap-4 rounded-xl border border-accent/25 bg-accent-soft p-4 shadow-sm">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
+                  <h3 className="text-sm font-semibold text-accent-dark">
+                    Stealth Mode Ready
+                  </h3>
+                </div>
+                <p className="text-xs text-muted">
+                  Morph into a compact floating terminal HUD, completely hidden from screen sharing, Meet, Zoom, Teams, and proctoring tools.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn-primary whitespace-nowrap shadow-sm"
+                onClick={() => void stealth.enter()}
+                disabled={status === "ended"}
+              >
+                Launch Stealth HUD
+              </button>
+            </div>
           </FeatureBoundary>
         )}
         <FeatureBoundary name="capture panel">
@@ -490,9 +516,6 @@ export function LiveSessionPage() {
             onEnd={() => void controller.end()}
             onMic={(on) => void controller.setMic(on)}
           />
-        </FeatureBoundary>
-        <FeatureBoundary name="desktop sync">
-          <DesktopSyncPanel sessionId={id} ended={status === "ended"} />
         </FeatureBoundary>
         <FeatureBoundary name="answer panel">
           {float.win ? (
