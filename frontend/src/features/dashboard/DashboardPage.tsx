@@ -263,7 +263,7 @@ function InterviewTargetCard() {
 function SessionsCard() {
   const billing = useBilling();
   const b = billing.data;
-  if (!b) return null;
+  if (!b || b.sessions_free) return null; // free while testing: nothing to count, no invite prompt
   const done = b.referrals_qualified % b.referrals_per_reward;
   return (
     <section

@@ -2424,6 +2424,11 @@ export interface components {
             rewards_redeemable: number;
             /** Sessions Available */
             sessions_available: number;
+            /**
+             * Sessions Free
+             * @default false
+             */
+            sessions_free: boolean;
             /** Trial Available */
             trial_available: boolean;
         };

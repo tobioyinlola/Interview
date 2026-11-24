@@ -242,6 +242,28 @@ describe("SessionSetupPage: session credits", () => {
     ).toBeInTheDocument();
   });
 
+  it("does not block Start while sessions are free for testing, even with none counted", async () => {
+    mockApi(
+      base({
+        "GET /api/billing": () => ({
+          json: credits({
+            sessions_available: 0,
+            trial_available: false,
+            sessions_free: true,
+          }),
+        }),
+      }),
+    );
+    open();
+    await screen.findByRole("option", { name: "Acme" });
+    await userEvent.selectOptions(screen.getByLabelText(/Which company/), "c1");
+    expect(
+      await screen.findByText(/Sessions are free while we test/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("You have used your free session")).toBeNull();
+    expect(start()).toBeEnabled();
+  });
+
   it("blocks Start once the free session is used, and points to inviting friends", async () => {
     mockApi(
       base({
