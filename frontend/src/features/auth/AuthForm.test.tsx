@@ -730,15 +730,12 @@ describe("inside an installed app", () => {
       await screen.findByRole("heading", { name: "Sign in" }),
     ).toBeInTheDocument();
     expect(screen.queryByText("Back to home")).toBeNull();
-    const nav = screen.getByRole("navigation", {
-      name: "Sign in or get started",
-    });
-    expect(within(nav).getByRole("link", { name: "Log in" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
+    // no Log in / Get started tabs at the top: the way to the other page is the link below the form
     expect(
-      within(nav).getByRole("link", { name: "Get started" }),
+      screen.queryByRole("navigation", { name: "Sign in or get started" }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("link", { name: "Create an account" }),
     ).toHaveAttribute("href", "/signup");
   });
 

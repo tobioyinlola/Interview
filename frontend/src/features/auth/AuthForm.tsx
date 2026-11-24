@@ -133,27 +133,6 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
 
   return (
     <AuthLayout>
-      {isNativeApp() && (
-        <nav
-          aria-label="Sign in or get started"
-          className="mb-6 grid grid-cols-2 gap-1 rounded-2xl bg-accent-soft p-1 text-sm font-medium"
-        >
-          <Link
-            to="/login"
-            aria-current={signup ? undefined : "page"}
-            className={`flex min-h-[44px] items-center justify-center rounded-xl ${signup ? "text-accent-dark" : "bg-surface shadow-card"}`}
-          >
-            Log in
-          </Link>
-          <Link
-            to="/signup"
-            aria-current={signup ? "page" : undefined}
-            className={`flex min-h-[44px] items-center justify-center rounded-xl ${signup ? "bg-surface shadow-card" : "text-accent-dark"}`}
-          >
-            Get started
-          </Link>
-        </nav>
-      )}
       <div>
         <h1 className="text-[1.75rem] font-semibold leading-tight tracking-tight sm:text-3xl">
           {signup ? "Create your account" : "Sign in"}
