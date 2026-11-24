@@ -118,7 +118,7 @@ describe("the phone home", () => {
     for (const [name, href] of [
       ["Auto-Apply", "/auto-apply"],
       ["Companies", "/companies"],
-      ["My CV", "/settings/cv"],
+      ["Interview", "/session/new"],
       ["History", "/sessions"],
     ])
       expect(quick.getByRole("link", { name })).toHaveAttribute("href", href);

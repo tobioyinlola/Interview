@@ -35,6 +35,9 @@ export interface ControllerDeps {
   store?: Store;
   capture?: typeof startTabCapture;
   micCapture?: typeof startMicCapture;
+  /** Where the interviewer is heard: a shared tab or computer sound (default), or the phone's own
+   *  microphone, near the speaker the call is playing through. */
+  source?: "tab" | "mic";
   postSegment?: typeof postSegment;
   makeSocket?: (
     o: SocketOptions,
@@ -81,6 +84,7 @@ export class LiveSessionController {
     if (this.ended || this.capture) return;
     this.state.set({ status: "starting", problem: null, notice: null });
     const makeSocket = this.d.makeSocket ?? ((o, ev) => new AudioSocket(o, ev));
+    const mic = this.d.source === "mic";
     this.socket = makeSocket(
       { sessionId: this.d.sessionId, getToken: this.d.fetchToken },
       {
@@ -118,20 +122,20 @@ export class LiveSessionController {
           this.stopAudio();
           this.state.set({
             status: "error",
-            problem:
-              'Capture lost: the connection was down too long. Press "Share Meet tab" to start again.',
+            problem: mic
+              ? 'Listening stopped: the connection was down too long. Press "Start listening" to begin again.'
+              : 'Capture lost: the connection was down too long. Press "Share Meet tab" to start again.',
           });
         },
       },
     );
     try {
-      this.capture = await (this.d.capture ?? startTabCapture)(
-        this.d.sampleRate,
-        {
-          onFrame: (pcm) => this.onFrame(pcm),
-          onEnded: () => this.onShareEnded(),
-        },
-      );
+      this.capture = await (
+        this.d.capture ?? (mic ? startMicCapture : startTabCapture)
+      )(this.d.sampleRate, {
+        onFrame: (pcm) => this.onFrame(pcm),
+        onEnded: () => this.onShareEnded(),
+      });
     } catch (e) {
       this.socket = null;
       const msg =
@@ -150,10 +154,15 @@ export class LiveSessionController {
     const silent = this.silence.push(level, t);
     const hidden =
       typeof document !== "undefined" && document.visibilityState === "hidden";
+    const mic = this.d.source === "mic";
     const notice = silent
-      ? "No sound from the Meet tab for 10 s. Check Meet is unmuted, you are wearing headphones, and the tab was shared with audio."
+      ? mic
+        ? "No sound heard for 10 s. Move the phone closer to the speaker, or type the question instead."
+        : "No sound from the Meet tab for 10 s. Check Meet is unmuted, you are wearing headphones, and the tab was shared with audio."
       : hidden
-        ? "This tab is in the background and Chrome may slow it down. Bring it forward or keep it visible."
+        ? mic
+          ? "Keep InterviewMeet open on screen while it listens: the phone stops the microphone in the background."
+          : "This tab is in the background and Chrome may slow it down. Bring it forward or keep it visible."
         : null;
     if (notice !== this.state.notice && this.state.status !== "reconnecting")
       this.state.set({ notice });
@@ -303,7 +312,8 @@ export class LiveSessionController {
       level: 0,
       partial: "",
       notice: null,
-      problem: "Sharing stopped.",
+      problem:
+        this.d.source === "mic" ? "Listening stopped." : "Sharing stopped.",
     });
   }
 

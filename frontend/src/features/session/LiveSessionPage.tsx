@@ -266,7 +266,7 @@ function QuestionAnswer({ outline }: { outline: Outline }) {
 }
 
 /** Options for the answer. They stay on the page, outside the panel, so the panel stays clean. */
-function AnswerControls({ onRegenerate }: { onRegenerate: () => void }) {
+export function AnswerControls({ onRegenerate }: { onRegenerate: () => void }) {
   const outline = useLiveStore((s) => s.outline);
   const { blur, setBlur } = useLiveStore();
   return (
@@ -301,7 +301,7 @@ function AnswerControls({ onRegenerate }: { onRegenerate: () => void }) {
 
 /** The question being asked right now, as it is transcribed: finished sentences, then the words still
  *  being spoken. Shown while no answer is up. */
-function ListeningNow() {
+export function ListeningNow() {
   const lines = useLiveStore((s) => s.lines);
   const turnStart = useLiveStore((s) => s.turnStart);
   const partial = useLiveStore((s) => s.partial);
@@ -330,7 +330,7 @@ function ListeningNow() {
   );
 }
 
-function AnswerPanel({ onDone }: { onDone: () => void }) {
+export function AnswerPanel({ onDone }: { onDone: () => void }) {
   const outline = useLiveStore((s) => s.outline);
   return (
     <section aria-labelledby="ans-h" className="card space-y-3">
@@ -356,7 +356,7 @@ function AnswerPanel({ onDone }: { onDone: () => void }) {
   );
 }
 
-function TranscriptList() {
+export function TranscriptList() {
   const lines = useLiveStore((s) => s.lines);
   const partial = useLiveStore((s) => s.partial);
   return (
@@ -389,7 +389,11 @@ function TranscriptList() {
   );
 }
 
-function ManualQuestion({ onSubmit }: { onSubmit: (q: string) => void }) {
+export function ManualQuestion({
+  onSubmit,
+}: {
+  onSubmit: (q: string) => void;
+}) {
   const [text, setText] = useState("");
   const submit = (e: FormEvent) => {
     e.preventDefault();

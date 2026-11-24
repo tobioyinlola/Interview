@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.interfaces import LlmProvider, ProviderError
@@ -193,6 +193,20 @@ async def ensure_defaults(db: AsyncSession, now: datetime) -> int:
     return added
 
 
+async def ensure_seed(db: AsyncSession, now: datetime) -> int:
+    """Add the hand-picked starter companies, once. Safe to call every pass."""
+    from app.hunt import seed  # local: seed imports Found from here
+
+    have = (
+        await db.execute(
+            select(func.count()).select_from(Startup).where(Startup.directory == seed.NAME)
+        )
+    ).scalar_one()
+    if have:
+        return 0
+    return await save(db, seed.NAME, seed.URL, seed.SEED, now)
+
+
 async def refresh(
     db: AsyncSession, fetcher: Fetcher, llm: LlmProvider, d: Directory, now: datetime
 ) -> dict[str, Any]:
@@ -210,6 +224,7 @@ async def refresh_due(
     """Read the enabled directories that were never read, or not for a week. A couple per pass,
     so a fresh install fills in over a few minutes and each site is asked politely."""
     await ensure_defaults(db, now)
+    await ensure_seed(db, now)
     due = (
         (
             await db.execute(

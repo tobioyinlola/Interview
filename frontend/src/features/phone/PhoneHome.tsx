@@ -2,9 +2,9 @@ import {
   Building2,
   ChevronRight,
   CircleHelp,
-  FileText,
   Gift,
   History,
+  Mic,
   Rocket,
   Sparkles,
 } from "lucide-react";
@@ -126,7 +126,7 @@ export function PhoneHome() {
               : {
                   to: "/companies",
                   title: "You're all set",
-                  line: "Practise live interviews on your computer.",
+                  line: "Start a live interview and get draft answers.",
                 };
 
   const sent =
@@ -247,9 +247,9 @@ export function PhoneHome() {
             label="Companies"
           />
           <Quick
-            to="/settings/cv"
-            icon={<FileText className="h-6 w-6" />}
-            label="My CV"
+            to="/session/new"
+            icon={<Mic className="h-6 w-6" />}
+            label="Interview"
           />
           <Quick
             to="/sessions"

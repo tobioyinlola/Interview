@@ -34,7 +34,6 @@ import { ProfilePage } from "../features/phone/ProfilePage";
 import { NativeLinks } from "./NativeLinks";
 import { OfflineBanner } from "./OfflineBanner";
 import { confirmReady } from "./liveUpdate";
-import { MobileLiveNotice } from "./MobileLiveNotice";
 import { isMobileApp, isNativeApp } from "./native";
 import { Loading } from "../ui/Loading";
 
@@ -111,6 +110,10 @@ const UserPage = lazyPage(
 const UsersPage = lazyPage(
   () => import("../features/admin/UsersPage"),
   "UsersPage",
+);
+const PhoneSessionPage = lazyPage(
+  () => import("../features/session/PhoneSessionPage"),
+  "PhoneSessionPage",
 );
 const LiveSessionPage = lazyPage(
   () => import("../features/session/LiveSessionPage"),
@@ -209,16 +212,11 @@ function AppRoutes() {
               />
               <Route path="/companies" element={<CompaniesPage />} />
               <Route path="/companies/:id" element={<CompanyPage />} />
-              <Route
-                path="/session/new"
-                element={
-                  isMobileApp() ? <MobileLiveNotice /> : <SessionSetupPage />
-                }
-              />
+              <Route path="/session/new" element={<SessionSetupPage />} />
               <Route
                 path="/session/:id"
                 element={
-                  isMobileApp() ? <MobileLiveNotice /> : <LiveSessionPage />
+                  isMobileApp() ? <PhoneSessionPage /> : <LiveSessionPage />
                 }
               />
               <Route path="/sessions" element={<SessionsPage />} />
