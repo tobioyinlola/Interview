@@ -1,6 +1,7 @@
 """What the scheduler does for startup outreach on each pass."""
 
 import logging
+import uuid
 from datetime import datetime
 
 from sqlalchemy import select
@@ -72,11 +73,17 @@ async def run(
             .scalars()
             .all()
         )
+    from app.autoapply.scheduler import for_each, in_shard
+
+    mine = [u for u in users if in_shard(u, now, settings.autoapply_shards)]
     sent = 0
-    for uid in users:
-        try:
-            out = await engine.tick_user(maker, uid, adapter, settings, llm, now)
-            sent += 1 if out["sent"] == "sent" else 0
-        except Exception:  # noqa: BLE001
-            log.exception("startup outreach pass failed", extra={"fields": {"user": str(uid)}})
-    return {"researched": researched, "users": len(users), "sent": sent}
+
+    async def one(uid: uuid.UUID) -> None:
+        nonlocal sent
+        out = await engine.tick_user(maker, uid, adapter, settings, llm, now)
+        sent += 1 if out["sent"] == "sent" else 0
+
+    await for_each(
+        mine, one, limit=settings.autoapply_concurrency, what="startup outreach pass failed"
+    )
+    return {"researched": researched, "users": len(mine), "sent": sent}

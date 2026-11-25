@@ -34,6 +34,15 @@ CLOSE_UPSTREAM = 4500
 BYTES_PER_SAMPLE = 2  # 16-bit mono PCM
 
 
+MAX_REMEMBERED = 20_000  # sessions a replica remembers; the oldest are forgotten past this
+
+
+def _bounded(store: dict[Any, Any], cap: int = MAX_REMEMBERED) -> None:
+    """Keep a per-session map from growing for as long as the process lives: drop the oldest."""
+    while len(store) > cap:
+        store.pop(next(iter(store)))
+
+
 class SeqCounters:
     """Utterance numbers for each session, assigned the moment an utterance finishes. A restarted
     relay continues from the database. If two replicas ever number the same utterance, the unique
@@ -47,6 +56,7 @@ class SeqCounters:
         async with self._lock:
             if session_id not in self._next:
                 self._next[session_id] = await seed() + 1
+                _bounded(self._next)  # a forgotten session is simply seeded again from the database
             n = self._next[session_id]
             self._next[session_id] = n + 1
             return n
@@ -72,6 +82,9 @@ class LiveHub:
                 break
         self.session_pins[session_id] = pin
         self.pin_to_session[pin] = session_id
+        while len(self.session_pins) > MAX_REMEMBERED:  # forget the oldest pairing code
+            old = next(iter(self.session_pins))
+            self.pin_to_session.pop(self.session_pins.pop(old), None)
         return pin
 
     def get_session_by_pin(self, pin: str) -> uuid.UUID | None:
@@ -92,6 +105,7 @@ class LiveHub:
 
     async def broadcast_desktop(self, session_id: uuid.UUID, event: dict[str, Any]) -> None:
         self.last_events[session_id] = event
+        _bounded(self.last_events)
         sockets = list(self.desktop_sockets.get(session_id, ()))
         for ws in sockets:
             try:

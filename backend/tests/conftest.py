@@ -74,6 +74,7 @@ def settings() -> Settings:
         database_url=TEST_DB,
         cookie_secret="test-secret",
         enforce_session_credits=False,  # billing tests turn it on
+        mailbox_sync_minutes=0,  # tests tick repeatedly; every tick may read a mailbox
     )
 
 

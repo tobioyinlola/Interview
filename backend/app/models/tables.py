@@ -138,7 +138,7 @@ class AuthSession(Base):
     id: Mapped[uuid.UUID] = _pk()
     user_id: Mapped[uuid.UUID] = _fk("users.id", index=True)
     token_hash: Mapped[str] = mapped_column(String(64), unique=True)
-    expires_at: Mapped[datetime] = mapped_column(_TS)
+    expires_at: Mapped[datetime] = mapped_column(_TS, index=True)
     created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
     # The last request made with this cookie: a session unused for the idle limit is signed out.
     last_seen_at: Mapped[datetime] = mapped_column(_TS, default=_now)
@@ -150,7 +150,7 @@ class AudioToken(Base):
 
     __tablename__ = "audio_tokens"
     id: Mapped[uuid.UUID] = _pk()
-    user_id: Mapped[uuid.UUID] = _fk("users.id")
+    user_id: Mapped[uuid.UUID] = _fk("users.id", index=True)
     session_id: Mapped[uuid.UUID] = _fk("sessions.id", index=True)
     token_hash: Mapped[str] = mapped_column(String(64), unique=True)
     expires_at: Mapped[datetime] = mapped_column(_TS)
@@ -258,7 +258,7 @@ class ResearchJob(Base):
     __table_args__ = (Index("ix_research_jobs_company_started", "company_id", "started_at"),)
     id: Mapped[uuid.UUID] = _pk()
     company_id: Mapped[uuid.UUID] = _fk("companies.id")
-    user_id: Mapped[uuid.UUID] = _fk("users.id")
+    user_id: Mapped[uuid.UUID] = _fk("users.id", index=True)
     # queued | reading_pages | searching | writing | ready | failed
     status: Mapped[str] = mapped_column(String(20), default="queued")
     step_detail: Mapped[str] = mapped_column(Text, default="")
@@ -282,10 +282,16 @@ class PracticeSession(Base):
     id: Mapped[uuid.UUID] = _pk()
     user_id: Mapped[uuid.UUID] = _fk("users.id", index=True)
     company_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="SET NULL"), nullable=True
+        UUID(as_uuid=True),
+        ForeignKey("companies.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
     )
     brief_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("company_briefs.id", ondelete="SET NULL"), nullable=True
+        UUID(as_uuid=True),
+        ForeignKey("company_briefs.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
     )
     started_at: Mapped[datetime] = mapped_column(_TS, default=_now)
     ended_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
@@ -317,7 +323,10 @@ class Suggestion(Base):
     id: Mapped[uuid.UUID] = _pk()
     session_id: Mapped[uuid.UUID] = _fk("sessions.id")
     utterance_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("utterances.id", ondelete="CASCADE"), nullable=True
+        UUID(as_uuid=True),
+        ForeignKey("utterances.id", ondelete="CASCADE"),
+        index=True,
+        nullable=True,
     )
     question_text: Mapped[str] = mapped_column(Text, default="")
     type: Mapped[str] = mapped_column(String(20), default="")
@@ -334,9 +343,9 @@ class Suggestion(Base):
 class Score(Base):
     __tablename__ = "scores"
     id: Mapped[uuid.UUID] = _pk()
-    session_id: Mapped[uuid.UUID] = _fk("sessions.id")
+    session_id: Mapped[uuid.UUID] = _fk("sessions.id", index=True)
     utterance_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("utterances.id", ondelete="CASCADE")
+        UUID(as_uuid=True), ForeignKey("utterances.id", ondelete="CASCADE"), index=True
     )
     structure: Mapped[int] = mapped_column(Integer)
     specificity: Mapped[int] = mapped_column(Integer)
@@ -377,7 +386,10 @@ class SessionCredit(Base):
     created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
     used_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
     session_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("sessions.id", ondelete="SET NULL"), nullable=True
+        UUID(as_uuid=True),
+        ForeignKey("sessions.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
     )
 
 
@@ -482,7 +494,7 @@ class Campaign(Base):
     )
     id: Mapped[uuid.UUID] = _pk()
     user_id: Mapped[uuid.UUID] = _fk("users.id", index=True)
-    profile_id: Mapped[uuid.UUID] = _fk("aa_profiles.id")
+    profile_id: Mapped[uuid.UUID] = _fk("aa_profiles.id", index=True)
     timezone: Mapped[str] = mapped_column(String(64))
     activated_at: Mapped[datetime] = mapped_column(_TS)
     ends_at: Mapped[datetime] = mapped_column(_TS)  # the start of local day 31
@@ -578,9 +590,12 @@ class Application(Base):
     )
     id: Mapped[uuid.UUID] = _pk()
     user_id: Mapped[uuid.UUID] = _fk("users.id")
-    posting_id: Mapped[uuid.UUID] = _fk("aa_postings.id")
+    posting_id: Mapped[uuid.UUID] = _fk("aa_postings.id", index=True)
     campaign_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("aa_campaigns.id", ondelete="SET NULL"), nullable=True
+        UUID(as_uuid=True),
+        ForeignKey("aa_campaigns.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
     )
     # discovered | eligible | queued | sending | submitted | sent_email | needs_input |
     # confirmation_pending | failed | skipped
@@ -670,9 +685,12 @@ class Outreach(Base):
     __table_args__ = (UniqueConstraint("user_id", "posting_id"),)
     id: Mapped[uuid.UUID] = _pk()
     user_id: Mapped[uuid.UUID] = _fk("users.id")
-    posting_id: Mapped[uuid.UUID] = _fk("aa_postings.id")
+    posting_id: Mapped[uuid.UUID] = _fk("aa_postings.id", index=True)
     application_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("aa_applications.id", ondelete="SET NULL"), nullable=True
+        UUID(as_uuid=True),
+        ForeignKey("aa_applications.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
     )
     recipient: Mapped[str] = mapped_column(String(320))
     recipient_source: Mapped[str] = mapped_column(String(20))  # listing | candidate
@@ -701,7 +719,10 @@ class RecruitingEvent(Base):
     # cancellation | rejection
     kind: Mapped[str] = mapped_column(String(14))
     application_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("aa_applications.id", ondelete="SET NULL"), nullable=True
+        UUID(as_uuid=True),
+        ForeignKey("aa_applications.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
     )
     status: Mapped[str] = mapped_column(String(14), default="matched")
     # matched | needs_review | dismissed
@@ -725,7 +746,10 @@ class InterviewLink(Base):
     user_id: Mapped[uuid.UUID] = _fk("users.id", index=True)
     application_id: Mapped[uuid.UUID] = _fk("aa_applications.id")
     company_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="SET NULL"), nullable=True
+        UUID(as_uuid=True),
+        ForeignKey("companies.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
     )
     round: Mapped[int] = mapped_column(Integer, default=1)
     status: Mapped[str] = mapped_column(String(10), default="invited")
@@ -737,6 +761,7 @@ class InterviewLink(Base):
     last_event_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("aa_recruiting_events.id", ondelete="SET NULL"),
+        index=True,
         nullable=True,
     )
     history: Mapped[list[Any]] = mapped_column(
@@ -756,7 +781,7 @@ class KillSwitch(Base):
     on: Mapped[bool] = mapped_column(Boolean, default=True)
     reason: Mapped[str] = mapped_column(String(300), default="")
     set_by: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), index=True, nullable=True
     )
     set_at: Mapped[datetime] = mapped_column(_TS, default=_now)
 
@@ -769,6 +794,10 @@ class Startup(Base):
     facts are public, so each is researched once."""
 
     __tablename__ = "aa_startups"
+    __table_args__ = (
+        Index("ix_aa_startups_status_region", "status", "region"),
+        Index("ix_aa_startups_directory", "directory"),
+    )
     id: Mapped[uuid.UUID] = _pk()
     name: Mapped[str] = mapped_column(String(200))
     domain: Mapped[str] = mapped_column(String(253), unique=True)
@@ -823,11 +852,14 @@ class HuntTarget(Base):
     """One note to one published contact at one startup, from one candidate."""
 
     __tablename__ = "aa_hunt_targets"
-    __table_args__ = (UniqueConstraint("user_id", "contact_id", "step"),)
+    __table_args__ = (
+        UniqueConstraint("user_id", "contact_id", "step"),
+        Index("ix_aa_hunt_targets_user_status", "user_id", "status"),
+    )
     id: Mapped[uuid.UUID] = _pk()
     user_id: Mapped[uuid.UUID] = _fk("users.id", index=True)
-    startup_id: Mapped[uuid.UUID] = _fk("aa_startups.id")
-    contact_id: Mapped[uuid.UUID] = _fk("aa_startup_contacts.id")
+    startup_id: Mapped[uuid.UUID] = _fk("aa_startups.id", index=True)
+    contact_id: Mapped[uuid.UUID] = _fk("aa_startup_contacts.id", index=True)
     step: Mapped[int] = mapped_column(Integer, default=1)  # 1 first note, 2 one follow-up
     fit: Mapped[int] = mapped_column(Integer, default=0)
     fit_reasons: Mapped[list[str]] = mapped_column(JSONB, default=list)
