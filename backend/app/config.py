@@ -127,6 +127,13 @@ class Settings(BaseSettings):
     autoapply_enabled: bool = False  # the feature flag: routes answer 404 and no job runs
     autoapply_policy_version: str = "2026-11"  # recorded with every authorisation
     autoapply_form_dispatch: bool = False  # kill switch: employer form submissions
+    # Which employer-form filler is used: "fixture" (touches nobody) or "browser" (fills in the
+    # employer's own application form in a real browser; needs the browser extra and a Chromium).
+    autoapply_form_adapter: str = "fixture"
+    # The application sites the browser filler may open, comma-separated. Empty: Greenhouse's job
+    # boards. Add a site only after its form has been read and filled in a real browser.
+    autoapply_form_hosts: str = ""
+    autoapply_browser_path: str = ""  # a Chromium to use instead of the one Playwright installed
     autoapply_email_dispatch: bool = False  # kill switch: applications sent from a mailbox
     autoapply_outreach_dispatch: bool = False  # kill switch: hiring outreach from a mailbox
     startup_outreach_enabled: bool = False  # feature flag: startup outreach routes and jobs

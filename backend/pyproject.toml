@@ -24,6 +24,8 @@ dependencies = [
 
 [project.optional-dependencies]
 sentry = ["sentry-sdk>=2,<3"]
+# fills in employers' application forms in a real browser (AUTOAPPLY_FORM_ADAPTER=browser)
+browser = ["playwright>=1.48,<2"]
 dev = [
   "pytest>=9.0.3,<10",
   "pytest-asyncio>=0.23,<2",

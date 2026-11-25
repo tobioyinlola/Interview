@@ -587,6 +587,41 @@ describe("one application", () => {
     ...over,
   });
 
+  it("offers the form's own choices as a list when the form gives them", async () => {
+    const calls = base({
+      "GET /api/autoapply/applications/a1": () => ({
+        json: detail({
+          needs_input: [
+            {
+              kind: "answer",
+              field: "question_9",
+              question: "Are you legally authorized to work in the US?",
+              reason: "The form now asks this and you have not answered it.",
+              options: ["Yes", "No"],
+            },
+          ],
+        }),
+      }),
+      "POST /api/autoapply/applications/a1/answer": () => ({ json: app() }),
+    });
+    renderApp(<App />, "/auto-apply/applications/a1");
+    const pick = await screen.findByLabelText(
+      "Are you legally authorized to work in the US?",
+    );
+    expect(pick.tagName).toBe("SELECT");
+    await userEvent.selectOptions(pick, "Yes");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Save and continue" }),
+    );
+    await waitFor(() =>
+      expect(
+        calls.find(
+          (c) => c.key === "POST /api/autoapply/applications/a1/answer",
+        )?.body,
+      ).toMatchObject({ field: "question_9", value: "Yes" }),
+    );
+  });
+
   it("answers the exact question, optionally for reuse", async () => {
     const calls = base({
       "GET /api/autoapply/applications/a1": () => ({ json: detail() }),

@@ -10,6 +10,7 @@ type Need = {
   field: string;
   question: string;
   reason: string;
+  options?: string[];
 };
 type RuleRow = {
   key: string;
@@ -42,12 +43,28 @@ function NeedForm({ need, id }: { need: Need; id: string }) {
           <label htmlFor={`n-${need.field}`} className="sr-only">
             {need.question}
           </label>
-          <input
-            id={`n-${need.field}`}
-            className="input w-full"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-          />
+          {need.options && need.options.length > 0 ? (
+            <select
+              id={`n-${need.field}`}
+              className="input w-full"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+            >
+              <option value="">Choose…</option>
+              {need.options.map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              id={`n-${need.field}`}
+              className="input w-full"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+            />
+          )}
           {need.kind === "answer" && (
             <label className="check text-xs text-muted">
               <input

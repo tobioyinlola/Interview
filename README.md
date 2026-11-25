@@ -195,6 +195,30 @@ folder. It uses the same Google client as "Continue with Google" (`GOOGLE_CLIENT
 3. Set `AUTOAPPLY_MAILBOX_PROVIDER=gmail` on the server. Real sending still needs the dispatch switches
    (`AUTOAPPLY_EMAIL_DISPATCH`, `AUTOAPPLY_OUTREACH_DISPATCH`); until then nothing reaches a real inbox.
 
+## Filling in employers' application forms (browser)
+
+`AUTOAPPLY_FORM_ADAPTER=browser` swaps the pretend form handler for one that opens the employer's own
+application page in a real browser (`autoapply/browserform.py`), reads the form as it is right now, fills
+it from the candidate's confirmed CV facts and from answers they typed for that application, uploads
+their CV, presses submit and judges the result from the page.
+
+- **Only approved sites.** `AUTOAPPLY_FORM_HOSTS` (default: Greenhouse's own job boards,
+  `boards.greenhouse.io` and `job-boards.greenhouse.io`). Anything else is not "supported", so the job goes
+  by email or waits for the candidate. Add a site only after reading and filling its form in a real browser.
+- **Nothing guessed.** A question nobody has answered goes back to the candidate (with the form's own
+  choices as a list); an answer that matches no choice stops the application before anything is sent.
+- **Handed back, never worked around:** CAPTCHA, a sign-in wall, a closed job, a form that wants a file
+  we do not have.
+- **Never twice.** The thank-you page is a success; the form's own errors mean nothing was sent; anything
+  else is "ambiguous", so the candidate is asked what happened and the application cannot be sent again
+  by mistake. The same intent run twice sends once.
+- **Switches.** It needs the browser build (`WITH_BROWSER=1` build argument, which installs Playwright and
+  Chromium) and, for real submissions, `AUTOAPPLY_FORM_DISPATCH=true`, like every real channel.
+
+Checked in a real browser by *reading* live Greenhouse application pages (names, required fields, choices);
+no real application was submitted while building it. Not yet checked on a live page: filling the script-drawn
+dropdowns Greenhouse uses, and the confirmation page, which need a first supervised submission.
+
 ## Startup outreach is by invitation
 
 Auto-Apply is for jobs from public job boards. Startup outreach (`STARTUP_OUTREACH_ENABLED`) is separate

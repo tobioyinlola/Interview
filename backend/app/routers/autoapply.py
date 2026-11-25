@@ -31,7 +31,6 @@ from app.autoapply import mailbox as mbx
 from app.autoapply import smtpmail as smtp
 from app.autoapply.adapters import AdapterError, DiscoveryAdapter, FormAdapter, MailboxAdapter
 from app.autoapply.discovery import source_labels
-from app.autoapply.fixtures import FixtureForm
 from app.autoapply.gmail import STATE_COOKIE, GmailOAuth
 from app.autoapply.schemas import (
     AnswerApplicationIn,
@@ -117,11 +116,16 @@ def get_sources(
     return sources
 
 
-def get_form(request: Request) -> FormAdapter:
-    """The employer-form adapter. Only the fixture exists until a real one is approved."""
+def get_form(
+    request: Request,
+    settings: Settings = Depends(get_settings),  # noqa: B008
+) -> FormAdapter:
+    """The employer-form adapter named in the settings (the fixture unless set to the browser)."""
     form = getattr(request.app.state, "autoapply_form", None)
     if form is None:
-        form = FixtureForm()
+        from app.autoapply import forms
+
+        form = forms.build(settings)
         request.app.state.autoapply_form = form
     return form
 
