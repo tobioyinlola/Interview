@@ -142,6 +142,34 @@ real users arrive.
 Scrape `https://<api>/metrics` with `Authorization: Bearer <METRICS_TOKEN>` and load
 `ops/alerts.yml` into the alert manager. Set the real daily budget in `DailySpendNearBudget`.
 
+## 6. Running at a large size (100,000+ people)
+
+What the code already does, and the settings that matter.
+
+- **One scheduler, any number of replicas.** Every API replica starts the Auto-Apply and startup
+  outreach loop, but a Postgres advisory lock (`LEADER_LOCK` in `autoapply/scheduler.py`) lets only one
+  work at a time. If it dies its connection closes and another replica takes over. Scale the API by
+  adding replicas (`numReplicas`); each also serves its own WebSockets.
+- **The work is bounded and spread out.** `AUTOAPPLY_CONCURRENCY` (default 6) people at a time; keep it
+  well under `DB_POOL_SIZE` (10, plus `DB_MAX_OVERFLOW` 10, per replica). Set `AUTOAPPLY_SHARDS=5` once
+  there are thousands of active people: each is handled on every fifth pass, so a pass stays short.
+  Mailboxes are read for replies every `MAILBOX_SYNC_MINUTES` (5), at most `MAILBOX_SYNC_BATCH` (500)
+  per pass, longest-waiting first.
+- **Connections.** Railway Postgres allows about 100. Replicas x (`DB_POOL_SIZE` + `DB_MAX_OVERFLOW`)
+  must stay under that with room for migrations and the admin; past about 4 replicas put PgBouncer
+  (transaction mode) in front, or lower the pool size.
+- **`TRUST_PROXY_HEADERS=true` is required.** Without it every caller looks like the platform's own
+  proxy and shares one rate-limit bucket (30 sign-in attempts a minute for everybody).
+- **Rate limits are per replica**, in memory: right for abuse control, not for billing or quotas.
+- **Indexes.** Every foreign key is indexed (a test enforces it); `0030` builds them with
+  `CREATE INDEX CONCURRENTLY`, so it does not block writes.
+- **Housekeeping.** Expired sign-ins and old events are removed every hour by the scheduler leader.
+- **Outside limits to plan for:** OpenAI request and token limits for your account tier, the email
+  provider's sending rate (sign-in emails go out in the request), and Gmail/SMTP per-account sending
+  limits (the daily cap per person is 25).
+- **Load test** the sign-in, dashboard and live-session paths with `backend/loadtest/run.py` against
+  staging before a launch, and watch `db_pool_connections_in_use` against `db_pool_connections_max`.
+
 ## First deploy checklist (staging)
 
 - [ ] `GET /healthz` and `GET /readyz` return 200

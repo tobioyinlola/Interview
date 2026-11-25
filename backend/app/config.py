@@ -163,6 +163,15 @@ class Settings(BaseSettings):
     )
     autoapply_allowed_recipients: str = ""  # comma-separated; set outside production to test sends
     autoapply_tick_seconds: int = 60  # how often the scheduler looks for work (0 = never)
+    # How many people the scheduler works on at once. Each needs a database connection for a moment,
+    # so keep this well under DB_POOL_SIZE.
+    autoapply_concurrency: int = 6
+    # Spread the work: with N shards each person is handled on every Nth pass (a pass is one tick),
+    # so a tick stays short however many people there are. 1 = everyone on every pass.
+    autoapply_shards: int = 1
+    # A mailbox is read for replies this often, and at most this many per pass.
+    mailbox_sync_minutes: int = 5
+    mailbox_sync_batch: int = 500
     mailbox_encryption_key: SecretStr = SecretStr("")  # Fernet key; encrypts mailbox tokens
     gmail_client_id: str = ""
     gmail_client_secret: SecretStr = SecretStr("")

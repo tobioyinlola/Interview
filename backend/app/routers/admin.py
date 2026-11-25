@@ -1,11 +1,12 @@
 import csv
 import io
 import uuid
+from collections.abc import AsyncIterator
 from datetime import UTC, date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings, get_settings
@@ -32,6 +33,18 @@ from app.services import email_templates as emails
 from app.services.events import record_from
 from app.services.notify import Notifier
 
+ADMIN_STATEMENT_TIMEOUT_MS = 20_000
+
+
+async def get_admin_db(
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> AsyncIterator[AsyncSession]:
+    """The back office counts across whole tables, which can take longer than a customer request is
+    allowed to. Give its queries more time, for this request only."""
+    await db.execute(text(f"SET LOCAL statement_timeout = {ADMIN_STATEMENT_TIMEOUT_MS}"))
+    yield db
+
+
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
@@ -47,7 +60,7 @@ def _cost(settings: Settings, stt_seconds: int, tokens_in: int, tokens_out: int)
 async def usage(
     days: int = Query(default=30, ge=1, le=90),
     _: User = Depends(require_admin),  # noqa: B008
-    db: AsyncSession = Depends(get_db),  # noqa: B008
+    db: AsyncSession = Depends(get_admin_db),  # noqa: B008
     settings: Settings = Depends(get_settings),  # noqa: B008
 ) -> UsageSummary:
     """The owner's cost view: spend per day, the heaviest users, and the average cost of a session
@@ -192,7 +205,7 @@ def _admin_emails(settings: Settings) -> set[str]:
 async def overview(
     days: int = Query(default=30, ge=1, le=90),
     _: User = Depends(require_admin),  # noqa: B008
-    db: AsyncSession = Depends(get_db),  # noqa: B008
+    db: AsyncSession = Depends(get_admin_db),  # noqa: B008
 ) -> OverviewOut:
     """Product health at a glance: growth, activity, the funnel, and what is going wrong."""
     return await admin_stats.overview(db, days)
@@ -205,7 +218,7 @@ async def users(
     limit: int = Query(default=25, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     _: User = Depends(require_admin),  # noqa: B008
-    db: AsyncSession = Depends(get_db),  # noqa: B008
+    db: AsyncSession = Depends(get_admin_db),  # noqa: B008
     settings: Settings = Depends(get_settings),  # noqa: B008
 ) -> UserListOut:
     return await admin_stats.list_users(
@@ -217,7 +230,7 @@ async def users(
 async def user_detail(
     user_id: uuid.UUID,
     _: User = Depends(require_admin),  # noqa: B008
-    db: AsyncSession = Depends(get_db),  # noqa: B008
+    db: AsyncSession = Depends(get_admin_db),  # noqa: B008
     settings: Settings = Depends(get_settings),  # noqa: B008
 ) -> UserDetailOut:
     """One account: who they are, what they have done, and their activity. No CV text, transcripts
@@ -233,7 +246,7 @@ async def grant_credits(
     user_id: uuid.UUID,
     body: GrantIn,
     admin: User = Depends(require_admin),  # noqa: B008
-    db: AsyncSession = Depends(get_db),  # noqa: B008
+    db: AsyncSession = Depends(get_admin_db),  # noqa: B008
     notifier: Notifier = Depends(get_notifier),  # noqa: B008
 ) -> UserDetailOut:
     """Give someone free interviews, for support or goodwill. Logged against the admin, and the
@@ -269,7 +282,7 @@ async def activity(
     before: str | None = Query(default=None, max_length=80),
     limit: int = Query(default=50, ge=1, le=200),
     _: User = Depends(require_admin),  # noqa: B008
-    db: AsyncSession = Depends(get_db),  # noqa: B008
+    db: AsyncSession = Depends(get_admin_db),  # noqa: B008
 ) -> ActivityOut:
     """The log of everything happening on the platform, newest first."""
     cursor: tuple[datetime, uuid.UUID] | None = None
@@ -291,7 +304,7 @@ async def export_activity(
     user_id: uuid.UUID | None = None,
     q: str | None = Query(default=None, max_length=100),
     admin: User = Depends(require_admin),  # noqa: B008
-    db: AsyncSession = Depends(get_db),  # noqa: B008
+    db: AsyncSession = Depends(get_admin_db),  # noqa: B008
 ) -> Response:
     """The same log as a spreadsheet (up to 5,000 rows). Exporting is itself logged."""
     rows = await admin_stats.activity_rows_for_export(
@@ -315,7 +328,7 @@ async def export_activity(
 async def referrals(
     days: int = Query(default=30, ge=1, le=90),
     _: User = Depends(require_admin),  # noqa: B008
-    db: AsyncSession = Depends(get_db),  # noqa: B008
+    db: AsyncSession = Depends(get_admin_db),  # noqa: B008
     settings: Settings = Depends(get_settings),  # noqa: B008
 ) -> ReferralsOut:
     return await admin_stats.referrals(db, days, max(1, settings.referrals_per_free_session))
@@ -325,7 +338,7 @@ async def referrals(
 async def approve_referral(
     referral_id: uuid.UUID,
     admin: User = Depends(require_admin),  # noqa: B008
-    db: AsyncSession = Depends(get_db),  # noqa: B008
+    db: AsyncSession = Depends(get_admin_db),  # noqa: B008
     settings: Settings = Depends(get_settings),  # noqa: B008
     notifier: Notifier = Depends(get_notifier),  # noqa: B008
 ) -> ReferralsOut:
@@ -351,7 +364,7 @@ async def approve_referral(
 async def marketing(
     days: int = Query(default=30, ge=1, le=90),
     _: User = Depends(require_admin),  # noqa: B008
-    db: AsyncSession = Depends(get_db),  # noqa: B008
+    db: AsyncSession = Depends(get_admin_db),  # noqa: B008
 ) -> MarketingOut:
     """Where sign-ups come from and how far each channel gets, plus the signals for pricing."""
     return await admin_stats.marketing(db, days)
@@ -361,7 +374,7 @@ async def marketing(
 async def quality(
     days: int = Query(default=30, ge=1, le=90),
     _: User = Depends(require_admin),  # noqa: B008
-    db: AsyncSession = Depends(get_db),  # noqa: B008
+    db: AsyncSession = Depends(get_admin_db),  # noqa: B008
 ) -> QualityOut:
     """How good and how fast the product is: ratings, speed, scores, and failures."""
     return await admin_stats.quality(db, days)
@@ -374,7 +387,7 @@ async def email_log(
     q: str | None = Query(default=None, max_length=100),
     limit: int = Query(default=50, ge=1, le=200),
     _: User = Depends(require_admin),  # noqa: B008
-    db: AsyncSession = Depends(get_db),  # noqa: B008
+    db: AsyncSession = Depends(get_admin_db),  # noqa: B008
 ) -> EmailsOut:
     """Which emails went out and whether the provider took them. Never the body of a message."""
     return await admin_stats.emails(db, kind=kind, status=status, q=q, limit=limit)
