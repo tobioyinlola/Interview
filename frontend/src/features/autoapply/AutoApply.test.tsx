@@ -204,7 +204,7 @@ describe("the dashboard", () => {
     const pitch = await screen.findByRole("link", {
       name: /Pitch to Lumen Labs/,
     });
-    expect(pitch).toHaveAttribute("href", "/auto-apply/startups");
+    expect(pitch).toHaveAttribute("href", "/startups");
     expect(pitch).toHaveTextContent("Startup · Sam Ade");
     expect(pitch).toHaveTextContent("Sent");
     const list = pitch.closest("ul") as HTMLElement;

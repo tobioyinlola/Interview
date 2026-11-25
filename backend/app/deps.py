@@ -96,6 +96,7 @@ def me_out(user: User, settings: Settings) -> MeOut:
         tour_done=user.tour_done_at is not None,
         autoapply=settings.autoapply_enabled,
         startup_outreach=settings.startup_outreach_enabled,
+        outreach_access=user.outreach_access,
         has_password=user.password_hash is not None,
         phone=user.phone,
         location=user.location,

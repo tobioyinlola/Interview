@@ -66,6 +66,10 @@ class User(Base):
         String(120), nullable=True
     )  # e.g. "Product manager"
     linkedin_url: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    # Startup outreach is by invitation: none (never asked), requested (waiting for the operator),
+    # active (the operator switched it on for this person).
+    outreach_access: Mapped[str] = mapped_column(String(12), default="none", server_default="none")
+    outreach_requested_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
     # When the person finished or skipped the first-time tour of the app. Null: not yet shown.
     tour_done_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
     # The code in this person's invite link. Every account has one.

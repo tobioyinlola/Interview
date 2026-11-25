@@ -7,7 +7,20 @@ import { ME, mockApi, renderApp, stubSupportedBrowser } from "../../test-utils";
 beforeEach(() => stubSupportedBrowser());
 afterEach(() => vi.restoreAllMocks());
 
-const me = { ...ME, onboarded: true, tour_done: true, startup_outreach: true };
+const me = {
+  ...ME,
+  onboarded: true,
+  tour_done: true,
+  startup_outreach: true,
+  outreach_access: "active",
+};
+const mailbox = {
+  connected: true,
+  address: "ada@example.com",
+  status: "connected",
+  can_connect: true,
+  smtp_providers: [],
+};
 const settings = {
   enabled: false,
   regions: ["us"],
@@ -54,6 +67,7 @@ const routes = (extra: Record<string, () => object> = {}) =>
     }),
     "GET /api/companies": () => ({ json: [] }),
     "GET /api/sessions": () => ({ json: { items: [], next_cursor: null } }),
+    "GET /api/autoapply/mailbox": () => ({ json: mailbox }),
     "GET /api/hunt/settings": () => ({ json: settings }),
     "GET /api/hunt/targets": () => ({ json: [target] }),
     ...extra,
@@ -62,7 +76,7 @@ const routes = (extra: Record<string, () => object> = {}) =>
 describe("Startups inside Auto-Apply", () => {
   it("starts on the setup steps when it is not set up, then walks through them", async () => {
     routes();
-    renderApp(<App />, "/auto-apply/startups");
+    renderApp(<App />, "/startups");
     expect(await screen.findByText(/Step 1 of 3/)).toBeVisible();
     expect(screen.getByDisplayValue("Senior Product Manager")).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Next" }));
@@ -85,7 +99,7 @@ describe("Startups inside Auto-Apply", () => {
       }),
       "POST /api/hunt/targets/t1/approve": approve,
     });
-    renderApp(<App />, "/auto-apply/startups");
+    renderApp(<App />, "/startups");
     expect(await screen.findByText("1 · Careers page")).toBeVisible();
     expect(screen.getByText("2 · Email pitch")).toBeVisible();
     expect(screen.getByRole("link", { name: "View role" })).toHaveAttribute(
@@ -106,27 +120,55 @@ describe("Startups inside Auto-Apply", () => {
       }),
       "POST /api/autoapply/jobs": add,
     });
-    renderApp(<App />, "/auto-apply/startups");
+    renderApp(<App />, "/startups");
     await userEvent.click(
       await screen.findByRole("button", { name: "Add to Auto-Apply" }),
     );
     await waitFor(() => expect(add).toHaveBeenCalled());
   });
 
-  it("shows the Jobs and Startups tabs only when the feature is on", async () => {
+  it("is by invitation: someone not let in can ask, once", async () => {
+    const ask = vi.fn(() => ({ json: { access: "requested" } }));
     routes({
-      "GET /api/me": () => ({ json: { ...me, startup_outreach: false } }),
+      "GET /api/me": () => ({ json: { ...me, outreach_access: "none" } }),
+      "POST /api/hunt/access/request": ask,
     });
-    renderApp(<App />, "/auto-apply/startups");
-    await screen.findByRole("heading", { name: "Startups" });
+    renderApp(<App />, "/startups");
     expect(
-      screen.queryByRole("navigation", { name: "Auto-Apply sections" }),
-    ).toBeNull();
+      await screen.findByText("Startup outreach is by invitation"),
+    ).toBeVisible();
+    expect(screen.queryByText(/Step 1 of 3/)).toBeNull();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Request access" }),
+    );
+    await waitFor(() => expect(ask).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText("Your request is in")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Request access" })).toBeNull();
+  });
+
+  it("shows a request that is waiting for the operator", async () => {
+    routes({
+      "GET /api/me": () => ({ json: { ...me, outreach_access: "requested" } }),
+    });
+    renderApp(<App />, "/startups");
+    expect(await screen.findByText("Your request is in")).toBeVisible();
+  });
+
+  it("asks an invited person to connect Gmail before anything else", async () => {
+    routes({
+      "GET /api/autoapply/mailbox": () => ({
+        json: { ...mailbox, connected: false, address: null, status: "none" },
+      }),
+    });
+    renderApp(<App />, "/startups");
+    expect(await screen.findByText("Connect your Gmail first")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Connect Gmail" })).toBeVisible();
+    expect(screen.queryByText(/Step 1 of 3/)).toBeNull();
   });
 
   it("the old address still works", async () => {
     routes();
-    renderApp(<App />, "/startups");
+    renderApp(<App />, "/auto-apply/startups");
     expect(
       await screen.findByRole("heading", { name: "Startups" }),
     ).toBeVisible();

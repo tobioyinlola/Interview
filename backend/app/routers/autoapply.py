@@ -139,10 +139,16 @@ def get_mailbox_adapter(
     return adapter
 
 
+async def _outreach_active(db: AsyncSession, user_id: Any) -> bool:
+    """Startup outreach is by invitation: only people it was switched on for see any of it."""
+    row = await db.execute(select(User.outreach_access).where(User.id == user_id))
+    return row.scalar_one_or_none() == "active"
+
+
 async def _startup_counts(
     db: AsyncSession, settings: Settings, user_id: Any
 ) -> dict[str, int] | None:
-    if not settings.startup_outreach_enabled:
+    if not settings.startup_outreach_enabled or not await _outreach_active(db, user_id):
         return None
     from app.hunt import engine as hunt_engine  # local: optional feature
 
@@ -153,7 +159,7 @@ async def _startup_recent(
     db: AsyncSession, settings: Settings, user_id: Any
 ) -> list[StartupSentOut]:
     """The latest startup pitches, so they sit in the same activity list as job applications."""
-    if not settings.startup_outreach_enabled:
+    if not settings.startup_outreach_enabled or not await _outreach_active(db, user_id):
         return []
     from app.hunt import engine as hunt_engine  # local: optional feature
 

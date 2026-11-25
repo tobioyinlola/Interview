@@ -28,6 +28,7 @@ from app.models import (
     User,
 )
 from app.routers.autoapply import get_llm, get_now
+from app.services.events import record_from
 from app.services.fetcher import Fetcher
 
 
@@ -37,6 +38,38 @@ def feature_on(settings: Settings = Depends(get_settings)) -> None:  # noqa: B00
 
 
 router = APIRouter(prefix="/api/hunt", tags=["hunt"], dependencies=[Depends(feature_on)])
+
+
+async def active_user(user: User = Depends(current_user)) -> User:  # noqa: B008
+    """Startup outreach is by invitation: only people the operator switched it on for."""
+    if user.outreach_access != "active":
+        raise ApiError(
+            403, "outreach_not_active", "Startup outreach is not switched on for your account."
+        )
+    return user
+
+
+class AccessOut(BaseModel):
+    access: str  # none | requested | active
+
+
+@router.get("/access")
+async def my_access(user: User = Depends(current_user)) -> AccessOut:  # noqa: B008
+    return AccessOut(access=user.outreach_access)
+
+
+@router.post("/access/request")
+async def request_access(
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    now: datetime = Depends(get_now),  # noqa: B008
+) -> AccessOut:
+    """Ask to be let in. Asking again changes nothing."""
+    if user.outreach_access == "none":
+        user.outreach_access, user.outreach_requested_at = "requested", now
+        await db.commit()
+        await record_from(db, "outreach.requested", user_id=user.id)
+    return AccessOut(access=user.outreach_access)
 
 
 class SettingsIn(BaseModel):
@@ -154,7 +187,7 @@ async def _out(db: AsyncSession, user_id: uuid.UUID) -> SettingsOut:
 
 @router.get("/settings")
 async def read_settings(
-    user: User = Depends(current_user),  # noqa: B008
+    user: User = Depends(active_user),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008
 ) -> SettingsOut:
     return await _out(db, user.id)
@@ -163,7 +196,7 @@ async def read_settings(
 @router.put("/settings")
 async def save_settings(
     body: SettingsIn,
-    user: User = Depends(current_user),  # noqa: B008
+    user: User = Depends(active_user),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008
     now: datetime = Depends(get_now),  # noqa: B008
 ) -> SettingsOut:
@@ -219,7 +252,7 @@ async def _target_out(db: AsyncSession, t: HuntTarget) -> TargetOut:
 @router.get("/targets")
 async def targets(
     status: str | None = Query(None, max_length=10),
-    user: User = Depends(current_user),  # noqa: B008
+    user: User = Depends(active_user),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008
 ) -> list[TargetOut]:
     q = select(HuntTarget).where(HuntTarget.user_id == user.id)
@@ -231,7 +264,7 @@ async def targets(
 
 @router.get("/summary")
 async def summary(
-    user: User = Depends(current_user),  # noqa: B008
+    user: User = Depends(active_user),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008
 ) -> dict[str, int]:
     rows = (
@@ -255,7 +288,7 @@ async def _mine(db: AsyncSession, user_id: uuid.UUID, tid: uuid.UUID) -> HuntTar
 async def edit_target(
     tid: uuid.UUID,
     body: EditIn,
-    user: User = Depends(current_user),  # noqa: B008
+    user: User = Depends(active_user),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008
 ) -> TargetOut:
     t = await _mine(db, user.id, tid)
@@ -269,7 +302,7 @@ async def edit_target(
 @router.post("/targets/{tid}/approve")
 async def approve(
     tid: uuid.UUID,
-    user: User = Depends(current_user),  # noqa: B008
+    user: User = Depends(active_user),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008
 ) -> TargetOut:
     t = await _mine(db, user.id, tid)
@@ -283,7 +316,7 @@ async def approve(
 @router.post("/targets/{tid}/skip")
 async def skip(
     tid: uuid.UUID,
-    user: User = Depends(current_user),  # noqa: B008
+    user: User = Depends(active_user),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008
 ) -> TargetOut:
     t = await _mine(db, user.id, tid)
@@ -737,3 +770,82 @@ async def run_research(
     for s in rows:
         await research.research(db, fetcher, llm, s, now)
     return {"researched": len(rows)}
+
+
+class AccessPersonOut(BaseModel):
+    id: str
+    email: str
+    name: str | None = None
+    access: str
+    requested_at: datetime | None = None
+
+
+class AccessListOut(BaseModel):
+    requested: int
+    active: int
+    items: list[AccessPersonOut]
+
+
+class AccessIn(BaseModel):
+    access: str = Field(pattern="^(active|none)$")
+
+
+def _person(u: User) -> AccessPersonOut:
+    return AccessPersonOut(
+        id=str(u.id),
+        email=u.email,
+        name=u.full_name,
+        access=u.outreach_access,
+        requested_at=u.outreach_requested_at,
+    )
+
+
+@admin_router.get("/access")
+async def access_list(
+    q: str = Query("", max_length=100),
+    _: User = Depends(require_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> AccessListOut:
+    """Everyone who asked (waiting first) or has startup outreach; `q` finds anyone by email."""
+
+    def count(a: str) -> Any:
+        return select(func.count()).select_from(User).where(User.outreach_access == a)
+
+    rows = select(User)
+    if q.strip():
+        rows = rows.where(User.email.ilike(f"%{q.strip()}%"))
+    else:
+        rows = rows.where(User.outreach_access != "none")
+    rows = rows.order_by(
+        (User.outreach_access != "requested"), User.outreach_requested_at.asc().nulls_last()
+    ).limit(100)
+    items = (await db.execute(rows)).scalars().all()
+    return AccessListOut(
+        requested=(await db.execute(count("requested"))).scalar_one(),
+        active=(await db.execute(count("active"))).scalar_one(),
+        items=[_person(u) for u in items],
+    )
+
+
+@admin_router.put("/access/{uid}")
+async def access_set(
+    uid: uuid.UUID,
+    body: AccessIn,
+    admin: User = Depends(require_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> AccessPersonOut:
+    """Switch startup outreach on for one person, or off again (their pitches stop at once)."""
+    u = await db.get(User, uid)
+    if u is None:
+        raise ApiError(404, "not_found", "Not found.")
+    u.outreach_access = body.access
+    if body.access == "none":
+        st = await engine.get_settings(db, u.id)
+        if st is not None:
+            st.enabled = False
+    await db.commit()
+    await record_from(
+        db, f"outreach.{'approved' if body.access == 'active' else 'revoked'}",
+        user_id=u.id, actor_id=admin.id,
+    )  # fmt: skip
+    return _person(u)

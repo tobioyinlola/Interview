@@ -120,6 +120,7 @@ class MeOut(BaseModel):
     tour_done: bool = True  # false until the first-time tour was finished or skipped
     autoapply: bool = False  # the Auto-Apply feature is switched on for this server
     startup_outreach: bool = False  # startup outreach is switched on for this server
+    outreach_access: str = "none"  # none | requested | active: by invitation, per person
     has_password: bool = False  # false for people who only use email links or Google
     phone: str | None = None
     location: str | None = None

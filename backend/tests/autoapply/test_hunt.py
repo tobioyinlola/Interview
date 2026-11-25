@@ -2,10 +2,11 @@
 drafting, the sending rules, and what happens when someone replies, opts out or bounces."""
 
 import json
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.adapters.fakes import FakeLlmProvider
 from app.autoapply import switches
@@ -222,6 +223,11 @@ def test_draft_must_stay_grounded():
 async def setup(ada, maker, mailbox, *, roles=("Senior Product Manager",), **over):
     await ada.put("/api/autoapply/facts", json={"data": FACTS, "verified": True})
     await ada.post("/api/autoapply/mailbox/connect")
+    async with maker() as db:  # startup outreach is by invitation: switched on for her
+        await db.execute(
+            update(User).where(User.email == "ada@example.com").values(outreach_access="active")
+        )
+        await db.commit()
     body = {
         "enabled": True, "regions": ["us", "eu"], "roles": list(roles), "pitch": "I turn messy payments into clear roadmaps.",
         "daily_cap": 8, "auto_send": False, "sender_name": "Ada Okoye", "postal_address": "12 Marina, Lagos",
@@ -234,6 +240,13 @@ async def setup(ada, maker, mailbox, *, roles=("Senior Product Manager",), **ove
             await db.execute(select(User.id).where(User.email == "ada@example.com"))
         ).scalar_one()
     return uid
+
+
+async def let_in(maker, email="ada@example.com"):
+    """Startup outreach is by invitation: the operator switches it on for a person."""
+    async with maker() as db:
+        await db.execute(update(User).where(User.email == email).values(outreach_access="active"))
+        await db.commit()
 
 
 async def seed(maker, n=1, **kw):
@@ -322,7 +335,8 @@ async def test_no_double_planning_and_region_filter(ada, maker, mailbox, write_l
         assert await engine.plan(db, uid, NOW, write_llm) == 0
 
 
-async def test_cannot_turn_on_until_ready(ada):
+async def test_cannot_turn_on_until_ready(ada, maker):
+    await let_in(maker)
     r = await ada.put(
         "/api/hunt/settings", json={"enabled": True, "regions": ["us"], "roles": ["PM"]}
     )
@@ -492,6 +506,7 @@ async def test_people_only_see_their_own_notes(ada, maker, mailbox, write_llm, n
     tid = (await ada.get("/api/hunt/targets")).json()[0]["id"]
     async with new_client() as other:
         await sign_in(other, "mallory@example.com")
+        await let_in(maker, "mallory@example.com")
         assert (await other.get("/api/hunt/targets")).json() == []
         assert (await other.post(f"/api/hunt/targets/{tid}/approve")).status_code == 404
 
@@ -603,7 +618,8 @@ async def test_one_pause_covers_both(ada, maker, mailbox, settings, write_llm):
     assert await engine.send_next(maker, uid, mailbox, settings, NOW) == "sent"
 
 
-async def test_settings_start_from_the_auto_apply_search(ada):
+async def test_settings_start_from_the_auto_apply_search(ada, maker):
+    await let_in(maker)
     from tests.autoapply.conftest import PROFILE
 
     await ada.put("/api/autoapply/profile", json=PROFILE)
@@ -1963,7 +1979,7 @@ async def test_profile_pages_are_opened_a_batch_at_a_time_and_the_directory_is_r
             n = url.rsplit("/", 1)[1]
             return FetchResult(
                 url, "ok", text="y " * 80, final_url=url,
-                links=((f"Visit website", f"https://{n}.io"),),
+                links=(("Visit website", f"https://{n}.io"),),
             )  # fmt: skip
 
     class Llm(FakeLlmProvider):
@@ -1991,3 +2007,42 @@ def test_a_feed_skips_companies_that_have_shut_down():
     assert [f.name for f in directory.parse_feed(feed, "https://yc-oss.github.io/x.json")] == [
         "Live"
     ]
+
+
+# ------------------------------------------------------------------ by invitation
+
+
+async def test_outreach_is_closed_until_the_operator_lets_a_person_in(ada, maker):
+    assert (await ada.get("/api/me")).json()["outreach_access"] == "none"
+    r = await ada.get("/api/hunt/settings")
+    assert r.status_code == 403 and r.json()["error"]["code"] == "outreach_not_active"
+    assert (await ada.get("/api/hunt/targets")).status_code == 403
+    # asking is allowed, and asking twice changes nothing
+    assert (await ada.post("/api/hunt/access/request")).json() == {"access": "requested"}
+    assert (await ada.post("/api/hunt/access/request")).json() == {"access": "requested"}
+    assert (await ada.get("/api/hunt/settings")).status_code == 403
+    await let_in(maker)
+    assert (await ada.get("/api/hunt/settings")).status_code == 200
+
+
+async def test_the_operator_sees_requests_and_switches_a_person_on_and_off(
+    ada, boss, maker, mailbox
+):
+    await ada.post("/api/hunt/access/request")
+    seen = (await boss.get("/api/admin/startups/access")).json()
+    assert seen["requested"] == 1 and seen["items"][0]["email"] == "ada@example.com"
+    uid = seen["items"][0]["id"]
+    on = await boss.put(f"/api/admin/startups/access/{uid}", json={"access": "active"})
+    assert on.status_code == 200 and on.json()["access"] == "active"
+    assert (await ada.get("/api/me")).json()["outreach_access"] == "active"
+    await setup(ada, maker, mailbox)
+    assert (await ada.get("/api/hunt/settings")).json()["enabled"] is True
+    # switching her off stops her pitches at once
+    await boss.put(f"/api/admin/startups/access/{uid}", json={"access": "none"})
+    assert (await ada.get("/api/hunt/settings")).status_code == 403
+    async with maker() as db:
+        st = await engine.get_settings(db, uuid.UUID(uid))
+        assert st is not None and st.enabled is False
+    # a customer cannot do any of it
+    r = await ada.put(f"/api/admin/startups/access/{uid}", json={"access": "active"})
+    assert r.status_code in (401, 403)

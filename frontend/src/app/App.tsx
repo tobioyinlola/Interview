@@ -241,10 +241,10 @@ function AppRoutes() {
                 path="/auto-apply/applications/:id"
                 element={<ApplicationPage />}
               />
-              <Route path="/auto-apply/startups" element={<StartupsPage />} />
+              <Route path="/startups" element={<StartupsPage />} />
               <Route
-                path="/startups"
-                element={<Navigate to="/auto-apply/startups" replace />}
+                path="/auto-apply/startups"
+                element={<Navigate to="/startups" replace />}
               />
               <Route path="/referrals" element={<ReferralPage />} />
               <Route path="/help" element={<HelpPage />} />
