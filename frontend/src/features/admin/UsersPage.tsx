@@ -2,7 +2,19 @@ import { type FormEvent, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { useAdminUsers } from "./api";
-import { Empty, Failed, Loading, PageHead, Table, num, when } from "./ui";
+import {
+  Avatar,
+  Badge,
+  Empty,
+  Failed,
+  Loading,
+  PageHead,
+  Pager,
+  SearchField,
+  Table,
+  num,
+  when,
+} from "./ui";
 
 const PAGE = 25;
 const SORTS: [string, string][] = [
@@ -43,34 +55,30 @@ export function UsersPage() {
         title="Users"
         intro="Everyone who has an account. Open someone to see their activity and give them free interviews. You see what people did, never what they wrote or said."
       />
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <form
           onSubmit={search}
-          className="flex gap-2"
+          className="flex w-full gap-2 sm:w-auto"
           role="search"
           aria-label="Find a person"
         >
-          <label className="sr-only" htmlFor="user-q">
-            Search by name or email
-          </label>
-          <input
+          <SearchField
             id="user-q"
-            type="search"
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={setDraft}
             placeholder="Search name or email"
-            className="input w-64 !min-h-[40px]"
+            label="Search by name or email"
           />
           <button type="submit" className="btn-secondary">
             Search
           </button>
         </form>
-        <label className="text-sm">
-          <span className="mr-2 text-muted">Sort</span>
+        <label className="inline-flex items-center gap-2 rounded-xl bg-surface px-3 text-sm shadow-card sm:ml-auto">
+          <span className="text-muted">Sort</span>
           <select
             value={sort}
             onChange={(e) => set({ sort: e.target.value, offset: null })}
-            className="input !min-h-[40px] !py-1.5"
+            className="min-h-[40px] cursor-pointer bg-transparent py-1.5 pr-1 font-medium focus:outline-none"
           >
             {SORTS.map(([v, l]) => (
               <option key={v} value={v}>
@@ -105,27 +113,36 @@ export function UsersPage() {
             {users.data.items.map((u) => (
               <tr key={u.id} className="align-top">
                 <td className="px-4 py-3">
-                  <Link
-                    to={`/admin/users/${u.id}`}
-                    className="font-medium text-accent-dark underline"
-                  >
-                    {u.full_name || u.email}
-                  </Link>
-                  {u.full_name && (
-                    <div className="text-xs text-muted">{u.email}</div>
-                  )}
-                  {u.is_admin && (
-                    <span className="mt-1 inline-block rounded-full bg-ink px-2 py-0.5 text-[10px] text-surface">
-                      admin
-                    </span>
-                  )}
+                  <div className="flex items-center gap-3">
+                    <Avatar name={u.full_name || u.email} />
+                    <div className="min-w-0 text-left">
+                      <Link
+                        to={`/admin/users/${u.id}`}
+                        className="font-medium text-ink hover:text-accent-dark hover:underline"
+                      >
+                        {u.full_name || u.email}
+                      </Link>
+                      {u.full_name && (
+                        <div className="truncate text-xs text-muted">
+                          {u.email}
+                        </div>
+                      )}
+                      {u.is_admin && <Badge tone="accent">admin</Badge>}
+                    </div>
+                  </div>
                 </td>
                 <td className="px-4 py-3 text-muted">{when(u.created_at)}</td>
                 <td className="px-4 py-3 text-muted">
                   {when(u.last_active_at)}
                 </td>
                 <td className="px-4 py-3">{num(u.sessions)}</td>
-                <td className="px-4 py-3">{u.has_cv ? "Yes" : "No"}</td>
+                <td className="px-4 py-3">
+                  {u.has_cv ? (
+                    <Badge tone="good">Yes</Badge>
+                  ) : (
+                    <Badge>No</Badge>
+                  )}
+                </td>
                 <td className="px-4 py-3">{num(u.credits_available)}</td>
                 <td className="px-4 py-3 text-muted">
                   {[
@@ -139,29 +156,21 @@ export function UsersPage() {
               </tr>
             ))}
           </Table>
-          <div className="flex items-center justify-between text-sm text-muted">
-            <span aria-live="polite">
-              {from}–{to} of {num(total)}
-            </span>
-            <span className="flex gap-2">
-              <button
-                className="btn-secondary btn-sm"
-                disabled={offset === 0}
-                onClick={() =>
-                  set({ offset: String(Math.max(0, offset - PAGE)) })
-                }
-              >
-                Previous
-              </button>
-              <button
-                className="btn-secondary btn-sm"
-                disabled={offset + PAGE >= total}
-                onClick={() => set({ offset: String(offset + PAGE) })}
-              >
-                Next
-              </button>
-            </span>
-          </div>
+          <Pager
+            from={from}
+            to={to}
+            total={total}
+            onPrev={
+              offset === 0
+                ? null
+                : () => set({ offset: String(Math.max(0, offset - PAGE)) })
+            }
+            onNext={
+              offset + PAGE >= total
+                ? null
+                : () => set({ offset: String(offset + PAGE) })
+            }
+          />
         </>
       )}
     </div>

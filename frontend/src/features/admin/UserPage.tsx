@@ -86,7 +86,7 @@ export function UserPage() {
       </dl>
 
       <section aria-labelledby="credits-h" className="card space-y-3">
-        <h2 id="credits-h" className="text-lg font-semibold">
+        <h2 id="credits-h" className="text-base font-semibold tracking-tight">
           Free interviews
         </h2>
         <p className="text-sm text-muted">
@@ -163,7 +163,7 @@ export function UserPage() {
       </section>
 
       <section aria-labelledby="tl-h" className="space-y-2">
-        <h2 id="tl-h" className="text-lg font-semibold">
+        <h2 id="tl-h" className="text-base font-semibold tracking-tight">
           Activity
         </h2>
         {d.timeline.length === 0 ? (

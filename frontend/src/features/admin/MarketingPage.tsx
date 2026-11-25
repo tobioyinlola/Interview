@@ -30,7 +30,7 @@ function Channels({
   return (
     <section aria-label={title} className="space-y-2">
       <div>
-        <h2 className="text-lg font-semibold">{title}</h2>
+        <h2 className="text-base font-semibold tracking-tight">{title}</h2>
         <p className="text-sm text-muted">{intro}</p>
       </div>
       {rows.length === 0 ? (
@@ -105,7 +105,7 @@ export function MarketingPage() {
       </dl>
 
       <section aria-labelledby="price-h" className="space-y-2">
-        <h2 id="price-h" className="text-lg font-semibold">
+        <h2 id="price-h" className="text-base font-semibold tracking-tight">
           Signals for pricing
         </h2>
         <dl className="grid grid-cols-2 gap-3 md:grid-cols-4">

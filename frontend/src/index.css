@@ -80,6 +80,42 @@
   }
 }
 
+/* The back office tables: on a phone every row becomes a small card, labelled by its column. */
+@media (max-width: 639px) {
+  .adm-table thead {
+    @apply sr-only;
+  }
+  .adm-table table,
+  .adm-table tbody,
+  .adm-table tr,
+  .adm-table td {
+    display: block;
+    width: 100%;
+  }
+  .adm-table tr {
+    @apply px-4 py-3;
+  }
+  .adm-table tr + tr {
+    @apply bg-surface;
+    box-shadow: 0 -1px 0 0 rgba(28, 27, 46, 0.06);
+  }
+  .adm-table td {
+    @apply flex items-baseline justify-between gap-4 !px-0 !py-1;
+    text-align: right;
+  }
+  .adm-table td::before {
+    content: attr(data-label);
+    @apply shrink-0 text-xs font-medium text-muted;
+    text-align: left;
+  }
+  .adm-table td:first-child {
+    @apply block text-left;
+  }
+  .adm-table td:first-child::before {
+    content: none;
+  }
+}
+
 @layer base {
   body {
     @apply bg-canvas font-sans text-ink antialiased;

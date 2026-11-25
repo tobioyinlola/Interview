@@ -990,3 +990,43 @@ describe("admin console: Auto-Apply", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("admin console: jump to", () => {
+  it("opens with the button, finds a section and goes there", async () => {
+    base({
+      "GET /api/admin/overview": () => ({ json: overview }),
+      "GET /api/admin/users": () => ({ json: { total: 0, items: [] } }),
+    });
+    renderApp(<App />, "/admin");
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Jump to" }),
+    );
+    const box = screen.getByRole("dialog", { name: "Jump to" });
+    await userEvent.type(
+      within(box).getByLabelText("Where to?"),
+      "users{Enter}",
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Users" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("looks a person up by what you type", async () => {
+    base({
+      "GET /api/admin/overview": () => ({ json: overview }),
+      "GET /api/admin/users": () => ({ json: { total: 0, items: [] } }),
+    });
+    renderApp(<App />, "/admin");
+    await screen.findByRole("navigation", { name: "Admin sections" });
+    await userEvent.keyboard("{Control>}k{/Control}");
+    const box = await screen.findByRole("dialog", { name: "Jump to" });
+    await userEvent.type(within(box).getByLabelText("Where to?"), "ada@x.com");
+    await userEvent.click(
+      within(box).getByRole("button", { name: /Find people matching/ }),
+    );
+    expect(await screen.findByLabelText(/Search by name or email/)).toHaveValue(
+      "ada@x.com",
+    );
+  });
+});
