@@ -335,10 +335,12 @@ class Fetcher:
             gap = max(self.host_interval, self._delay.get(host, 0.0))
             wait = gap - (self._clock() - self._last_request.get(host, -1e9))
             if wait > 0:
-                await self._sleep(wait)
+                # waiting our turn is not the page being slow: move the limit out before waiting,
+                # or it runs out during the wait
                 clock = _LIMIT.get()
                 if clock is not None and (due := clock.when()) is not None:
-                    clock.reschedule(due + wait)  # waiting our turn is not the page being slow
+                    clock.reschedule(due + wait)
+                await self._sleep(wait)
             self._last_request[host] = self._clock()
 
             last_error: Exception | None = None

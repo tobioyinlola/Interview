@@ -449,11 +449,16 @@ async def test_a_logo_that_links_to_another_site_is_kept_but_icons_that_lead_now
     assert not any(u in ("https://example.com/", "https://example.com/about") for _, u in links)
 
 
-async def test_waiting_for_a_crawl_delay_does_not_count_as_a_slow_page(site, make):
+async def test_waiting_for_a_crawl_delay_does_not_count_as_a_slow_page(site):
+    """With real waiting: the wait (0.4 s) is longer than the limit (0.25 s), the page is quick."""
     site.add("example.com", "/a")
-    site.add(
-        "example.com", "/robots.txt", body="User-agent: *\nCrawl-delay: 10\n", ctype="text/plain"
+    site.add("example.com", "/b")
+    site.add("example.com", "/robots.txt", status=404)
+    f = Fetcher(
+        resolver=lambda host, port: asyncio.sleep(0, result=[PUBLIC]),
+        transport=httpx.MockTransport(site.handler),
+        timeout=0.25,
+        host_interval=0.4,
     )
-    f = make(timeout=2.0)  # the wait is ten seconds, the limit two: only the page itself is timed
-    r = await f.fetch("https://example.com/a")
-    assert r.status == "ok"
+    assert (await f.fetch("https://example.com/a")).status == "ok"
+    assert (await f.fetch("https://example.com/b")).status == "ok"
