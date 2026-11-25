@@ -114,6 +114,103 @@
         "title": "ActivityOut",
         "type": "object"
       },
+      "AdminContactOut": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "source_url": {
+            "title": "Source Url",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "email",
+          "kind",
+          "source_url"
+        ],
+        "title": "AdminContactOut",
+        "type": "object"
+      },
+      "AdminFounderOut": {
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "title": {
+            "default": "",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "AdminFounderOut",
+        "type": "object"
+      },
+      "AdminOpeningOut": {
+        "properties": {
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "url"
+        ],
+        "title": "AdminOpeningOut",
+        "type": "object"
+      },
       "AdminOverviewOut": {
         "properties": {
           "by_region": {
@@ -159,6 +256,267 @@
           "directories"
         ],
         "title": "AdminOverviewOut",
+        "type": "object"
+      },
+      "AdminRoleOut": {
+        "properties": {
+          "careers_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Careers Url"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          },
+          "directory": {
+            "title": "Directory",
+            "type": "string"
+          },
+          "region": {
+            "title": "Region",
+            "type": "string"
+          },
+          "startup": {
+            "title": "Startup",
+            "type": "string"
+          },
+          "startup_id": {
+            "title": "Startup Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "website": {
+            "title": "Website",
+            "type": "string"
+          }
+        },
+        "required": [
+          "startup_id",
+          "startup",
+          "website",
+          "region",
+          "directory",
+          "title",
+          "url"
+        ],
+        "title": "AdminRoleOut",
+        "type": "object"
+      },
+      "AdminRolesOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminRoleOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "startups": {
+            "title": "Startups",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "startups",
+          "items"
+        ],
+        "title": "AdminRolesOut",
+        "type": "object"
+      },
+      "AdminStartupOut": {
+        "properties": {
+          "batch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Batch"
+          },
+          "careers_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Careers Url"
+          },
+          "contacts": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/AdminContactOut"
+            },
+            "title": "Contacts",
+            "type": "array"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "directory": {
+            "title": "Directory",
+            "type": "string"
+          },
+          "directory_url": {
+            "title": "Directory Url",
+            "type": "string"
+          },
+          "domain": {
+            "title": "Domain",
+            "type": "string"
+          },
+          "founders": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/AdminFounderOut"
+            },
+            "title": "Founders",
+            "type": "array"
+          },
+          "hiring": {
+            "default": false,
+            "title": "Hiring",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "one_liner": {
+            "default": "",
+            "title": "One Liner",
+            "type": "string"
+          },
+          "openings": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/AdminOpeningOut"
+            },
+            "title": "Openings",
+            "type": "array"
+          },
+          "region": {
+            "title": "Region",
+            "type": "string"
+          },
+          "researched_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Researched At"
+          },
+          "sector": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sector"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "default": "",
+            "title": "Summary",
+            "type": "string"
+          },
+          "website": {
+            "title": "Website",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "website",
+          "domain",
+          "directory",
+          "directory_url",
+          "region",
+          "status",
+          "created_at"
+        ],
+        "title": "AdminStartupOut",
+        "type": "object"
+      },
+      "AdminStartupsOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminStartupOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "items"
+        ],
+        "title": "AdminStartupsOut",
         "type": "object"
       },
       "AndroidRelease": {
@@ -7680,6 +8038,107 @@
         ]
       }
     },
+    "/api/admin/startups/list": {
+      "get": {
+        "description": "The startups behind the totals: name, website, who listed it, what it does, its contacts and\nopen roles. Filter by what the tiles count, a region, a directory, or a search.",
+        "operationId": "admin_startup_list_api_admin_startups_list_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "filter",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "pattern": "^(all|researched|new|dead|contacts|openings)$",
+              "title": "Filter",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "region",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 8,
+              "title": "Region",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "directory",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 120,
+              "title": "Directory",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 100,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminStartupsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Startup List",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/admin/startups/overview": {
       "get": {
         "operationId": "admin_overview_api_admin_startups_overview_get",
@@ -7721,6 +8180,85 @@
           }
         },
         "summary": "Run Research",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/startups/roles": {
+      "get": {
+        "description": "Every open role found on the startups' own sites, with the startup and where to apply.",
+        "operationId": "admin_open_roles_api_admin_startups_roles_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "region",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 8,
+              "title": "Region",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 100,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminRolesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Open Roles",
         "tags": [
           "admin"
         ]
