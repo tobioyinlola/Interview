@@ -26,6 +26,21 @@ const {
 
 const { siteOrigin, appUrl, appOrigin, packed } = load();
 
+// On Windows, transparent Electron windows combined with SetWindowDisplayAffinity and
+// desktopCapturer can crash the GPU process, which kills the renderer (white screen).
+// Disabling GPU compositing for transparent windows avoids the crash while keeping the
+// window visually transparent.  This is harmless on macOS (Core Animation handles it).
+if (process.platform === "win32") {
+  app.commandLine.appendSwitch("disable-gpu-compositing");
+}
+
+// Log GPU process crashes so we can diagnose white-screen issues.
+app.on("child-process-gone", (_event, details) => {
+  if (details.type === "GPU") {
+    console.error("[main] GPU process gone:", details.reason, details.exitCode);
+  }
+});
+
 // the interface is served from inside the app, so it opens with no internet
 if (packed) protocolRules.registerScheme(protocol);
 let win = null;
