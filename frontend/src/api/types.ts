@@ -65,6 +65,7 @@ export type AAApplicationPage = S["ApplicationPage"];
 export type AAInterview = S["InterviewOut"];
 export type AARecruiting = S["RecruitingOut"];
 export type AAMailbox = S["MailboxOut"];
+export type AAMailboxCheck = S["MailboxCheckOut"];
 export type AARun = S["RunOut"];
 export type AAOutreach = S["OutreachOut"];
 export type AAPrepared = S["PrepareOut"];

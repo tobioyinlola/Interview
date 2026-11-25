@@ -3291,6 +3291,89 @@
         "title": "LoginIn",
         "type": "object"
       },
+      "MailboxCheckOut": {
+        "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "can_connect": {
+            "default": true,
+            "title": "Can Connect",
+            "type": "boolean"
+          },
+          "checked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checked At"
+          },
+          "connected": {
+            "title": "Connected",
+            "type": "boolean"
+          },
+          "last_synced_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Synced At"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
+          },
+          "smtp_providers": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/SmtpProviderOut"
+            },
+            "title": "Smtp Providers",
+            "type": "array"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "required": [
+          "connected"
+        ],
+        "title": "MailboxCheckOut",
+        "type": "object"
+      },
       "MailboxOut": {
         "properties": {
           "address": {
@@ -4477,6 +4560,24 @@
           "scoring_failed_pct"
         ],
         "title": "QualityOut",
+        "type": "object"
+      },
+      "ReachOut": {
+        "properties": {
+          "companies": {
+            "title": "Companies",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "companies",
+          "label"
+        ],
+        "title": "ReachOut",
         "type": "object"
       },
       "RecruitingOut": {
@@ -10262,6 +10363,28 @@
         ]
       }
     },
+    "/api/autoapply/mailbox/check": {
+      "post": {
+        "description": "Log in to the connected mailbox again to confirm it still works (nothing is sent). A password\nthe provider no longer accepts moves the connection to 'reconnect needed'.",
+        "operationId": "check_mailbox_api_autoapply_mailbox_check_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MailboxCheckOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Check Mailbox",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
     "/api/autoapply/mailbox/connect": {
       "post": {
         "description": "Gmail: returns the Google address to approve access at. Fixture mode connects at once.",
@@ -11204,6 +11327,28 @@
           }
         },
         "summary": "Request Access",
+        "tags": [
+          "hunt"
+        ]
+      }
+    },
+    "/api/hunt/reach": {
+      "get": {
+        "description": "How many startups outreach can write to, so the page can say so truthfully. Open to anyone\nsigned in, invited or not.",
+        "operationId": "reach_api_hunt_reach_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReachOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Reach",
         "tags": [
           "hunt"
         ]

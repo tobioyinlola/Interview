@@ -2,8 +2,7 @@ import { useState } from "react";
 
 import { useMe } from "../../api/hooks";
 import { Loading } from "../../ui/Loading";
-import { useMailbox, useMailboxActions } from "../autoapply/api";
-import { AppPasswordForm } from "../autoapply/AppPasswordForm";
+import { useMailbox } from "../autoapply/api";
 import { Segmented } from "../autoapply/setup/controls";
 import {
   useHuntSettings,
@@ -11,6 +10,7 @@ import {
   useRequestOutreachAccess,
 } from "./api";
 import { HistoryRow, StartupCard } from "./Cards";
+import { GmailConnect, MailboxConfirmed, StartupHero } from "./Connect";
 import { Setup } from "./Setup";
 
 const HOW = [
@@ -55,13 +55,8 @@ function StartupsBoard() {
 
   return (
     <main className="page-narrow space-y-5">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Startups</h1>
-        <p className="text-muted">
-          We read a startup&apos;s careers page and email a short pitch to
-          someone who can hire you.
-        </p>
-      </header>
+      <StartupHero />
+      {s.mailbox && <MailboxConfirmed address={s.mailbox} />}
 
       {s.paused && (
         <p role="status" className="notice-info">
@@ -168,13 +163,7 @@ function RequestAccess({ requested }: { requested: boolean }) {
   const waiting = requested || ask.isSuccess;
   return (
     <main className="page-narrow space-y-5">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Startups</h1>
-        <p className="text-muted">
-          We read startups&apos; careers pages and email a short pitch, from
-          your own Gmail, to someone who can hire you.
-        </p>
-      </header>
+      <StartupHero />
       <section className="card space-y-3" aria-label="Startup outreach access">
         <h2 className="text-lg font-semibold">
           {waiting ? "Your request is in" : "Startup outreach is by invitation"}
@@ -204,56 +193,25 @@ function RequestAccess({ requested }: { requested: boolean }) {
   );
 }
 
-/** Switched on for them, but nothing is sent from a stranger's address: connect Gmail first. */
-function ConnectFirst() {
-  const box = useMailbox();
-  const { connect } = useMailboxActions();
-  const [password, setPassword] = useState(false);
-  const canPassword = (box.data?.smtp_providers?.length ?? 0) > 0;
-  const google = box.data?.can_connect !== false;
+/** Switched on for them, but nothing is sent from a stranger's address: connect Gmail first, then
+ *  see it confirmed before going on. */
+function ConnectFirst({
+  confirmed,
+  onConnected,
+  onContinue,
+}: {
+  confirmed: string | null;
+  onConnected: () => void;
+  onContinue: () => void;
+}) {
   return (
     <main className="page-narrow space-y-5">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Startups</h1>
-        <p className="text-muted">You are in. One step before we start.</p>
-      </header>
-      <section className="card space-y-3" aria-label="Connect your Gmail">
-        <h2 className="text-lg font-semibold">Connect your Gmail first</h2>
-        <p className="text-muted">
-          Pitches go out from your own address and show in your Sent folder, so
-          replies come straight to you. We never read anything else.
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {google && (
-            <button
-              type="button"
-              className="btn-primary"
-              disabled={connect.isPending}
-              onClick={() => connect.mutate()}
-            >
-              Connect Gmail
-            </button>
-          )}
-          {canPassword && (
-            <button
-              type="button"
-              className={google ? "btn-secondary" : "btn-primary"}
-              aria-expanded={password || !google}
-              onClick={() => setPassword(true)}
-            >
-              Use an app password
-            </button>
-          )}
-        </div>
-        {canPassword && (password || !google) && (
-          <AppPasswordForm onDone={() => setPassword(false)} />
-        )}
-        {connect.isError && (
-          <p role="alert" className="notice-error">
-            Gmail could not be connected right now. Try again in a moment.
-          </p>
-        )}
-      </section>
+      <StartupHero />
+      {confirmed ? (
+        <MailboxConfirmed address={confirmed} onContinue={onContinue} />
+      ) : (
+        <GmailConnect onConnected={onConnected} />
+      )}
     </main>
   );
 }
@@ -261,10 +219,18 @@ function ConnectFirst() {
 export function StartupsPage() {
   const { data: me, isPending } = useMe();
   const box = useMailbox();
+  const [welcome, setWelcome] = useState(false); // just connected: show it confirmed first
   if (isPending) return <Loading label="Loading startups" />;
   if (me?.outreach_access !== "active")
     return <RequestAccess requested={me?.outreach_access === "requested"} />;
   if (box.isPending) return <Loading label="Loading startups" />;
-  if (box.data && !box.data.connected) return <ConnectFirst />;
+  if (box.data && (!box.data.connected || welcome))
+    return (
+      <ConnectFirst
+        confirmed={box.data.connected ? (box.data.address ?? null) : null}
+        onConnected={() => setWelcome(true)}
+        onContinue={() => setWelcome(false)}
+      />
+    );
   return <StartupsBoard />;
 }

@@ -2155,3 +2155,25 @@ async def test_the_model_is_given_the_candidate_the_startup_and_why_they_fit():
     assert brief["candidate"]["history"][0]["company"] == "Northwind"
     assert brief["startup"]["opening"] == "Senior Product Manager"
     assert brief["why_it_fits"] == ["They list a Senior Product Manager opening."]
+
+
+# ------------------------------------------------------------------ how many companies
+
+
+def test_a_count_is_said_the_way_a_headline_can_honestly_say_it():
+    from app.routers.hunt import reach_label
+
+    assert [reach_label(n) for n in (0, 7, 14, 99, 100, 250, 999, 1000, 1999, 4321)] == [
+        "0", "7", "10+", "90+", "over 100", "over 200", "over 900", "over 1,000", "over 1,000",
+        "over 4,000",
+    ]  # fmt: skip
+
+
+async def test_anyone_signed_in_can_see_how_many_companies_outreach_reaches(ada, maker):
+    assert (await ada.get("/api/hunt/reach")).json() == {"companies": 0, "label": "0"}
+    async with maker() as db:
+        await add_startup(db, "UsCo", "usco.io", "us")
+        await add_startup(db, "EuCo", "euco.io", "eu")
+        await add_startup(db, "GulfCo", "gulfco.io", "uae")  # never written to: not counted
+        await add_startup(db, "Dead", "dead.io", "us", status="dead")  # could not be read
+    assert (await ada.get("/api/hunt/reach")).json() == {"companies": 2, "label": "2"}
