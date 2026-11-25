@@ -74,11 +74,17 @@ def test_a_listing_that_passes_every_required_rule_is_eligible():
     assert {r.key for r in m.rules} >= {"open", "role", "location", "arrangement", "channel"}
 
 
-def test_remote_alone_does_not_make_a_candidate_eligible_from_their_country():
+def test_a_listing_that_does_not_say_where_it_is_is_not_held_against_it():
     m = decide(CRITERIA, posting(region=None))
-    assert m.decision == "review" and "does not say who may apply" in m.reason
+    assert m.decision == "eligible"
+    where = next(r for r in m.rules if r.key == "location")
+    assert where.status == "pass" and where.stated is False
+    assert "does not say who may apply" in where.evidence and "not held against" in where.evidence
+    # a place that IS stated still has to fit, and one we cannot read is asked about
     wrong = decide(CRITERIA, posting(region="United States"))
     assert wrong.decision == "skip" and "United States" in wrong.reason
+    unclear = decide(CRITERIA, posting(region="Atlantis"))
+    assert unclear.decision == "review" and "could not be compared" in unclear.reason
 
 
 def test_a_different_country_on_the_same_continent_is_not_a_match():
@@ -103,7 +109,7 @@ def test_industries_are_judged_too():
     crit = {**CRITERIA, "industries": [{"value": "fintech", "required": True}]}
     assert decide(crit, posting(industry="Fintech")).decision == "eligible"
     assert decide(crit, posting(industry="Retail")).decision == "skip"
-    assert decide(crit, posting()).decision == "review"
+    assert decide(crit, posting()).decision == "eligible"  # no industry stated: not held against it
 
 
 def test_a_preference_never_blocks_but_changes_the_ranking():
@@ -136,7 +142,10 @@ def test_salary_is_only_compared_on_the_same_currency_and_pay_period():
     none = decide(crit, posting())
     assert ok.decision == "eligible" and low.decision == "skip"
     assert other.decision == "review" and "cannot be compared" in other.reason
-    assert monthly.decision == "review" and none.decision == "review"
+    assert monthly.decision == "review"
+    # no pay stated at all is not held against the job, even for a required floor
+    assert none.decision == "eligible"
+    assert next(r for r in none.rules if r.key == "salary").stated is False
 
 
 def test_missing_salary_only_lowers_the_rank_when_it_is_a_preference():
@@ -173,7 +182,7 @@ def test_an_expired_listing_is_skipped():
 
 
 def test_a_rule_the_candidate_approved_by_hand_counts_as_confirmed():
-    m = decide(CRITERIA, posting(region=None), overrides={"location"})
+    m = decide(CRITERIA, posting(region="Atlantis"), overrides={"location"})
     assert m.decision == "eligible"
     assert any("you confirmed" in r.evidence for r in m.rules if r.key == "location")
 
@@ -185,7 +194,7 @@ async def test_a_daily_run_finds_matches_skips_and_asks_about_the_rest(ada, disc
     discovery_source.postings = [
         job(1),  # a match
         job(2, title="Marketing Director"),  # not the role
-        job(3, region=None),  # remote, but who may apply is not stated
+        job(3, region="Atlantis"),  # a place we cannot read, so the candidate is asked
     ]
     await start(ada)
     r = await run(ada)
@@ -423,7 +432,7 @@ async def test_unsupported_steps_and_captchas_go_to_the_candidate(ada, discovery
 
 
 async def test_the_candidate_can_approve_an_unknown_rule_or_skip(ada, discovery_source):
-    discovery_source.postings = [job(1, region=None), job(2, region=None)]
+    discovery_source.postings = [job(1, region="Atlantis"), job(2, region="Atlantis")]
     await start(ada)
     await run(ada)
     a, b = await apps(ada, "needs_input")
@@ -447,7 +456,7 @@ async def test_the_candidate_can_approve_an_unknown_rule_or_skip(ada, discovery_
 async def test_changing_the_search_rechecks_open_applications_but_not_ones_that_went_out(
     ada, discovery_source, maker
 ):
-    discovery_source.postings = [job(1), job(2, region=None)]
+    discovery_source.postings = [job(1), job(2, region="Atlantis")]
     await start(ada)
     await run(ada)
     assert len(await apps(ada, "queued")) == 1 and len(await apps(ada, "needs_input")) == 1
@@ -602,7 +611,7 @@ async def test_the_cover_note_falls_back_to_a_plain_template_and_never_adds_numb
 async def test_nobody_can_read_or_change_another_candidates_application(
     ada, discovery_source, new_client, sign_in
 ):
-    discovery_source.postings = [job(1, region=None)]
+    discovery_source.postings = [job(1, region="Atlantis")]
     await start(ada)
     await run(ada)
     mine = (await apps(ada))[0]["id"]
@@ -632,3 +641,66 @@ async def test_a_listing_cannot_instruct_the_system(ada, discovery_source):
     await run(ada)
     a = (await apps(ada))[0]
     assert a["status"] == "skipped"  # judged by the rules, not by what the text says
+
+
+# ------------------------------------------------------------------ roles, and listings that say little
+
+
+@pytest.mark.parametrize(
+    ("title", "wanted", "decision"),
+    [
+        ("Product Manager", "Product Manager", "eligible"),
+        ("Senior Product Manager, Payments", "Product Manager", "eligible"),
+        ("Technical Product Manager", "Product Manager", "eligible"),
+        ("Product Manager II", "Senior Product Manager", "eligible"),
+        ("Product Marketing Manager", "Product Manager", "skip"),  # a different job
+        ("Senior Product Marketing Manager", "Product Manager", "skip"),
+        ("Product Owner", "Product Manager", "review"),  # close enough to ask
+        ("Marketing Manager", "Product Manager", "skip"),  # shares only "manager"
+        ("Product Manager", "Product Marketing Manager", "skip"),  # and the other way round
+        ("Product Marketing Manager", "Product Marketing Manager", "eligible"),
+        ("Head of Product Marketing Manager", "Product Marketing Manager", "eligible"),
+    ],
+)
+def test_a_role_is_the_role_wanted_only_when_its_words_stand_together(title, wanted, decision):
+    crit = {**CRITERIA, "roles": [{"value": wanted, "required": True}]}
+    assert decide(crit, posting(title=title)).decision == decision, title
+
+
+def test_the_reason_names_the_word_that_makes_it_a_different_role():
+    crit = {**CRITERIA, "roles": [{"value": "Product Manager", "required": True}]}
+    m = decide(crit, posting(title="Product Marketing Manager"))
+    assert "different role" in m.reason and "marketing" in m.reason
+
+
+def test_a_listing_with_only_a_title_still_passes_when_nothing_else_is_stated():
+    crit = {
+        **CRITERIA,
+        "roles": [{"value": "Product Manager", "required": True}],
+        "arrangement": [{"value": "remote", "required": True}],
+        "contract": [{"value": "full_time", "required": True}],
+        "seniority": [{"value": "senior", "required": True}],
+        "industries": [{"value": "fintech", "required": True}],
+        "salary": {"floor": 90000, "currency": "USD", "period": "year", "required": True},
+    }
+    bare = posting(
+        title="Product Manager",
+        description="A job.",
+        region=None,
+        arrangement=None,
+        contract=None,
+        seniority=None,
+        industry=None,
+    )
+    m = decide(crit, bare)
+    assert m.decision == "eligible" and m.reason == ""
+    silent = {r.key for r in m.rules if not r.stated}
+    assert silent == {"location", "arrangement", "contract", "seniority", "industry", "salary"}
+    # what is stated still counts, so a real conflict is still a skip
+    assert decide(crit, posting(region=None, contract="contract")).decision == "skip"
+
+
+def test_saying_nothing_ranks_below_saying_the_right_thing():
+    said = decide(CRITERIA, posting())
+    silent = decide(CRITERIA, posting(region=None, arrangement=None))
+    assert said.decision == silent.decision == "eligible" and said.score > silent.score

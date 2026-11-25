@@ -92,7 +92,10 @@ async def test_3_a_must_with_too_little_evidence_gives_a_specific_review_item_an
     await tick()
     found = {a["posting"]["application_url"][-1]: a for a in await apps(ada)}
     asked = {n["field"] for a in found.values() for n in a["needs_input"]}
-    assert asked == {"location", "sponsorship", "salary"}  # each names exactly what is unclear
+    # A listing that says nothing about where it is (job 1) is not held against it, so "location"
+    # is not asked. A stated pay that cannot be compared (job 3, naira) and silence on visa
+    # sponsorship for someone who needs it still are: each names exactly what is unclear.
+    assert asked == {"sponsorship", "salary"}
     assert all(a["status"] == "needs_input" for a in found.values())
     assert form.calls == 0 and mailbox.sent == []
 

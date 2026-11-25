@@ -623,7 +623,7 @@ async def test_the_dashboard_walks_through_every_state(ada, discovery_source, ti
         and d["primary"]["label"] == "View last run and matching criteria"
     )
     assert d["last_run"]["status"] == "done" and d["last_run"]["found"] == 0
-    discovery_source.postings = [job(1, region=None)]
+    discovery_source.postings = [job(1, region="Atlantis")]
     clock.now += timedelta(days=1)
     await tick()
     d = (await ada.get("/api/autoapply/dashboard")).json()
@@ -631,7 +631,7 @@ async def test_the_dashboard_walks_through_every_state(ada, discovery_source, ti
     assert d["needs_input"][0]["needs_input"][0]["field"] == "location"
     assert d["primary"]["href"].endswith(d["needs_input"][0]["id"])
     await ada.post(f"/api/autoapply/applications/{d['needs_input'][0]['id']}/skip")
-    discovery_source.postings = [job(1, region=None), job(2)]
+    discovery_source.postings = [job(1, region="Atlantis"), job(2)]
     clock.now += timedelta(days=1)
     await tick()
     d = (await ada.get("/api/autoapply/dashboard")).json()
