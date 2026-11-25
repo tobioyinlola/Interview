@@ -55,7 +55,7 @@ export function ReferralsAdminPage() {
       </dl>
 
       <section aria-labelledby="top-h" className="space-y-2">
-        <h2 id="top-h" className="text-lg font-semibold">
+        <h2 id="top-h" className="text-base font-semibold tracking-tight">
           Top inviters
         </h2>
         {d.top_referrers.length === 0 ? (
@@ -86,7 +86,7 @@ export function ReferralsAdminPage() {
       </section>
 
       <section aria-labelledby="held-h" className="space-y-2">
-        <h2 id="held-h" className="text-lg font-semibold">
+        <h2 id="held-h" className="text-base font-semibold tracking-tight">
           Held sign-ups
         </h2>
         <p className="text-sm text-muted">

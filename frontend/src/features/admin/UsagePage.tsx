@@ -56,7 +56,7 @@ export function UsagePage() {
       </dl>
 
       <section aria-labelledby="days-h" className="space-y-2">
-        <h2 id="days-h" className="text-lg font-semibold">
+        <h2 id="days-h" className="text-base font-semibold tracking-tight">
           By day
         </h2>
         {d.days.length === 0 ? (
@@ -95,7 +95,7 @@ export function UsagePage() {
       </section>
 
       <section aria-labelledby="top-h" className="space-y-2">
-        <h2 id="top-h" className="text-lg font-semibold">
+        <h2 id="top-h" className="text-base font-semibold tracking-tight">
           Heaviest users
         </h2>
         <ol className="list-card">
@@ -113,7 +113,7 @@ export function UsagePage() {
       </section>
 
       <section aria-labelledby="caps-h" className="space-y-1 text-sm">
-        <h2 id="caps-h" className="text-lg font-semibold">
+        <h2 id="caps-h" className="text-base font-semibold tracking-tight">
           Caps in force (per user, per day)
         </h2>
         <p>

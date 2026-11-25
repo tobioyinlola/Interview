@@ -12,10 +12,13 @@ import {
   useToggleDirectory,
 } from "./api";
 import {
+  Avatar,
+  Badge,
   Empty,
   Failed,
   Loading,
   PageHead,
+  SearchField,
   Stat,
   Table,
   num,
@@ -55,60 +58,77 @@ function OutreachAccess() {
   const set = useSetOutreachAccess();
   const d = list.data;
   return (
-    <section className="space-y-3" aria-label="Outreach access">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-lg font-semibold">Who can use startup outreach</h2>
+    <section
+      className="overflow-hidden rounded-2xl bg-surface shadow-card"
+      aria-label="Outreach access"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3 p-5 pb-3">
+        <div>
+          <h2 className="text-base font-semibold tracking-tight">
+            Who can use startup outreach
+          </h2>
+          <p className="mt-0.5 text-sm text-muted">
+            It is by invitation. Switch people on one at a time.
+          </p>
+        </div>
         {d && (
-          <p className="text-sm text-muted">
-            {d.requested} waiting · {d.active} switched on
+          <p className="flex gap-2 text-sm">
+            <Badge tone={d.requested > 0 ? "warn" : "default"}>
+              {d.requested} waiting
+            </Badge>
+            <Badge tone="good">{d.active} switched on</Badge>
           </p>
         )}
       </div>
       <form
         role="search"
-        className="flex gap-2"
+        className="flex gap-2 px-5 pb-3"
         onSubmit={(e) => {
           e.preventDefault();
           setQ(typed.trim());
         }}
       >
-        <input
-          type="search"
-          className="input w-full sm:w-72"
-          aria-label="Find a person by email"
+        <SearchField
+          id="access-q"
+          label="Find a person by email"
           placeholder="Find a person by email"
           value={typed}
-          onChange={(e) => setTyped(e.target.value)}
+          onChange={setTyped}
         />
         <button type="submit" className="btn-secondary">
           Find
         </button>
       </form>
       {list.isPending ? (
-        <p className="text-sm text-muted">Loading…</p>
+        <p className="px-5 pb-5 text-sm text-muted">Loading…</p>
       ) : !d || d.items.length === 0 ? (
-        <Empty>
+        <p className="px-5 pb-6 text-sm text-muted">
           {q ? "Nobody matches that." : "Nobody has asked for it yet."}
-        </Empty>
+        </p>
       ) : (
-        <ul className="divide-y divide-canvas rounded-2xl bg-surface shadow-card">
+        <ul className="pb-2">
           {d.items.map((p) => (
             <li
               key={p.id}
-              className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+              className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 transition-colors hover:bg-accent-soft/40"
             >
-              <span className="min-w-0">
-                <span className="block break-all font-medium">{p.email}</span>
-                <span className="block text-sm text-muted">
-                  {p.name ? `${p.name} · ` : ""}
-                  {p.access === "requested"
-                    ? `asked ${p.requested_at ? when(p.requested_at) : "recently"}`
-                    : p.access === "active"
-                      ? "switched on"
-                      : "not switched on"}
+              <span className="flex min-w-0 items-center gap-3">
+                <Avatar name={p.name || p.email} />
+                <span className="min-w-0">
+                  <span className="block break-all font-medium">{p.email}</span>
+                  <span className="block text-sm text-muted">
+                    {p.name ? `${p.name} · ` : ""}
+                    {p.access === "requested"
+                      ? `asked ${p.requested_at ? when(p.requested_at) : "recently"}`
+                      : p.access === "active"
+                        ? "switched on"
+                        : "not switched on"}
+                  </span>
                 </span>
               </span>
-              <span className="flex gap-2">
+              <span className="flex items-center gap-2">
+                {p.access === "requested" && <Badge tone="warn">Waiting</Badge>}
+                {p.access === "active" && <Badge tone="good">On</Badge>}
                 {p.access !== "active" && (
                   <button
                     type="button"
@@ -192,6 +212,7 @@ export function StartupsAdminPage() {
         title="Startups"
         intro="The accelerator directories we read, and what they have given us. Each is read again every week. Contacts are only addresses a startup publishes on its own site."
       />
+      <OutreachAccess />
       <dl
         className="grid grid-cols-2 gap-3 md:grid-cols-4"
         aria-label="Startup totals"
@@ -218,7 +239,7 @@ export function StartupsAdminPage() {
           to="/admin/startups/roles"
         />
       </dl>
-      <p className="text-xs text-muted">
+      <p className="rounded-2xl bg-accent-soft p-4 text-sm text-ink/80">
         By region:{" "}
         {Object.entries(d.by_region)
           .map(([k, v]) => `${regionName(k)} ${v}`)
@@ -228,10 +249,8 @@ export function StartupsAdminPage() {
         but nobody is written to there.
       </p>
 
-      <OutreachAccess />
-
       <section className="space-y-3" aria-label="Directories">
-        <h2 className="text-lg font-semibold">Directories</h2>
+        <h2 className="text-base font-semibold tracking-tight">Directories</h2>
         {d.directories.length === 0 ? (
           <Empty>No directories yet.</Empty>
         ) : (
@@ -312,104 +331,114 @@ export function StartupsAdminPage() {
         {problem(refresh.error) ?? problem(del.error) ?? problem(toggle.error)}
       </section>
 
-      <form onSubmit={submitDir} className="card space-y-3">
-        <h2 className="text-lg font-semibold">Add a directory</h2>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <input
-            className="input"
-            placeholder="Name"
-            aria-label="Directory name"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
+      <div className="grid items-start gap-6 xl:grid-cols-2">
+        <form onSubmit={submitDir} className="card space-y-3">
+          <h2 className="text-base font-semibold tracking-tight">
+            Add a directory
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <input
+              className="input"
+              placeholder="Name"
+              aria-label="Directory name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+            <input
+              className="input sm:col-span-2"
+              placeholder="https://accelerator.example/portfolio"
+              aria-label="Directory address"
+              value={form.url}
+              onChange={(e) => setForm({ ...form, url: e.target.value })}
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <select
+              className="input w-full sm:w-auto"
+              aria-label="Region when a page gives no country"
+              value={form.region_hint}
+              onChange={(e) =>
+                setForm({ ...form, region_hint: e.target.value })
+              }
+            >
+              {HINTS.map((h) => (
+                <option key={h.v} value={h.v}>
+                  {h.l}
+                </option>
+              ))}
+            </select>
+            {problem(add.error)}
+            <button
+              className="btn-primary"
+              disabled={!form.name.trim() || !form.url.trim() || add.isPending}
+            >
+              Add directory
+            </button>
+          </div>
+        </form>
+
+        <form onSubmit={submitPaste} className="card space-y-3">
+          <div>
+            <h2 className="text-base font-semibold tracking-tight">
+              Paste companies
+            </h2>
+            <p className="text-sm text-muted">
+              For pages that only show in a browser. One per line:{" "}
+              <code>Name, website, country, what they do</code>.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <input
+              className="input"
+              placeholder="Where they are from, e.g. Techstars Berlin"
+              aria-label="Source name"
+              value={paste.directory}
+              onChange={(e) =>
+                setPaste({ ...paste, directory: e.target.value })
+              }
+            />
+            <select
+              className="input"
+              aria-label="Region when no country is given"
+              value={paste.region_hint}
+              onChange={(e) =>
+                setPaste({ ...paste, region_hint: e.target.value })
+              }
+            >
+              {HINTS.map((h) => (
+                <option key={h.v} value={h.v}>
+                  {h.l}
+                </option>
+              ))}
+            </select>
+          </div>
+          <textarea
+            className="input w-full"
+            rows={6}
+            aria-label="Companies"
+            value={paste.text}
+            onChange={(e) => setPaste({ ...paste, text: e.target.value })}
+            placeholder={"Acme, acme.io, Germany, Payments for marketplaces"}
           />
-          <input
-            className="input sm:col-span-2"
-            placeholder="https://accelerator.example/portfolio"
-            aria-label="Directory address"
-            value={form.url}
-            onChange={(e) => setForm({ ...form, url: e.target.value })}
-          />
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <select
-            className="input w-full sm:w-auto"
-            aria-label="Region when a page gives no country"
-            value={form.region_hint}
-            onChange={(e) => setForm({ ...form, region_hint: e.target.value })}
-          >
-            {HINTS.map((h) => (
-              <option key={h.v} value={h.v}>
-                {h.l}
-              </option>
-            ))}
-          </select>
-          {problem(add.error)}
+          {problem(imp.error)}
+          {imp.data && (
+            <p role="status" className="notice-info">
+              Added {imp.data.added}, skipped {imp.data.skipped} (already known
+              or not a company website).
+            </p>
+          )}
           <button
             className="btn-primary"
-            disabled={!form.name.trim() || !form.url.trim() || add.isPending}
-          >
-            Add directory
-          </button>
-        </div>
-      </form>
-
-      <form onSubmit={submitPaste} className="card space-y-3">
-        <div>
-          <h2 className="text-lg font-semibold">Paste companies</h2>
-          <p className="text-sm text-muted">
-            For pages that only show in a browser. One per line:{" "}
-            <code>Name, website, country, what they do</code>.
-          </p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <input
-            className="input"
-            placeholder="Where they are from, e.g. Techstars Berlin"
-            aria-label="Source name"
-            value={paste.directory}
-            onChange={(e) => setPaste({ ...paste, directory: e.target.value })}
-          />
-          <select
-            className="input"
-            aria-label="Region when no country is given"
-            value={paste.region_hint}
-            onChange={(e) =>
-              setPaste({ ...paste, region_hint: e.target.value })
+            disabled={
+              !paste.directory.trim() ||
+              parse(paste.text).length === 0 ||
+              imp.isPending
             }
           >
-            {HINTS.map((h) => (
-              <option key={h.v} value={h.v}>
-                {h.l}
-              </option>
-            ))}
-          </select>
-        </div>
-        <textarea
-          className="input w-full"
-          rows={6}
-          aria-label="Companies"
-          value={paste.text}
-          onChange={(e) => setPaste({ ...paste, text: e.target.value })}
-          placeholder={"Acme, acme.io, Germany, Payments for marketplaces"}
-        />
-        {problem(imp.error)}
-        {imp.data && (
-          <p role="status" className="notice-info">
-            Added {imp.data.added}, skipped {imp.data.skipped} (already known or
-            not a company website).
-          </p>
-        )}
-        <button
-          className="btn-primary"
-          disabled={
-            !paste.directory.trim() ||
-            parse(paste.text).length === 0 ||
-            imp.isPending
-          }
-        >
-          Import
-        </button>
-      </form>
+            Import
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

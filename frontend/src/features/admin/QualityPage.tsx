@@ -48,7 +48,7 @@ export function QualityPage() {
       </dl>
 
       <section aria-labelledby="speed-h" className="space-y-2">
-        <h2 id="speed-h" className="text-lg font-semibold">
+        <h2 id="speed-h" className="text-base font-semibold tracking-tight">
           Speed
         </h2>
         <dl className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -72,7 +72,7 @@ export function QualityPage() {
       </section>
 
       <section aria-labelledby="fail-h" className="space-y-2">
-        <h2 id="fail-h" className="text-lg font-semibold">
+        <h2 id="fail-h" className="text-base font-semibold tracking-tight">
           Background jobs
         </h2>
         <dl className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -85,7 +85,7 @@ export function QualityPage() {
 
       <section aria-labelledby="mix-h" className="grid gap-4 md:grid-cols-2">
         <div className="card space-y-2">
-          <h2 id="mix-h" className="text-lg font-semibold">
+          <h2 id="mix-h" className="text-base font-semibold tracking-tight">
             What people are asked
           </h2>
           {Object.keys(d.by_type).length === 0 ? (
@@ -104,7 +104,9 @@ export function QualityPage() {
           )}
         </div>
         <div className="card space-y-2">
-          <h2 className="text-lg font-semibold">How people score</h2>
+          <h2 className="text-base font-semibold tracking-tight">
+            How people score
+          </h2>
           {Object.keys(d.avg_scores).length === 0 ? (
             <Empty>No scored interviews yet.</Empty>
           ) : (

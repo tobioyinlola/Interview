@@ -23,7 +23,7 @@ export function EmailsAdminPage() {
       />
 
       <section aria-labelledby="tpl-h" className="space-y-2">
-        <h2 id="tpl-h" className="text-lg font-semibold">
+        <h2 id="tpl-h" className="text-base font-semibold tracking-tight">
           Templates
         </h2>
         {templates.isPending && <Loading what="templates" />}
@@ -74,7 +74,7 @@ export function EmailsAdminPage() {
       {preview && (
         <section aria-labelledby="pv-h" className="card space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 id="pv-h" className="text-lg font-semibold">
+            <h2 id="pv-h" className="text-base font-semibold tracking-tight">
               Preview: {templates.data?.find((t) => t.kind === preview)?.title}
             </h2>
             <div className="flex gap-2">
@@ -138,7 +138,7 @@ export function EmailsAdminPage() {
       )}
 
       <section aria-labelledby="elog-h" className="space-y-2">
-        <h2 id="elog-h" className="text-lg font-semibold">
+        <h2 id="elog-h" className="text-base font-semibold tracking-tight">
           Delivery log
         </h2>
         <div className="flex flex-wrap gap-3">

@@ -90,7 +90,7 @@ export function AutoApplyAdminPage() {
       </dl>
 
       <section aria-labelledby="sw-h" className="space-y-3">
-        <h2 id="sw-h" className="text-lg font-semibold">
+        <h2 id="sw-h" className="text-base font-semibold tracking-tight">
           Switches
         </h2>
         <p className="text-sm text-muted">
@@ -138,7 +138,7 @@ export function AutoApplyAdminPage() {
       </section>
 
       <section aria-labelledby="un-h" className="space-y-3">
-        <h2 id="un-h" className="text-lg font-semibold">
+        <h2 id="un-h" className="text-base font-semibold tracking-tight">
           Sends with an unknown outcome
         </h2>
         {d.unresolved.length === 0 ? (
@@ -164,7 +164,7 @@ export function AutoApplyAdminPage() {
       </section>
 
       <section aria-labelledby="sys-h" className="space-y-2 text-sm">
-        <h2 id="sys-h" className="text-lg font-semibold">
+        <h2 id="sys-h" className="text-base font-semibold tracking-tight">
           This server
         </h2>
         <p>
