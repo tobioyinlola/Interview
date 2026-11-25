@@ -183,7 +183,7 @@ describe("Startups inside Auto-Apply", () => {
     ).toBeVisible();
   });
 
-  it("shows the Gmail steps and the two fields, then confirms the connection", async () => {
+  it("asks only for the address and the app password, then confirms the connection", async () => {
     let connected = false;
     const connect = vi.fn(() => {
       connected = true;
@@ -206,17 +206,14 @@ describe("Startups inside Auto-Apply", () => {
     renderApp(<App />, "/startups");
     expect(
       await screen.findByRole("heading", {
-        name: "Connect your Gmail to start sending",
+        name: "Connect your Gmail",
       }),
     ).toBeVisible();
-    expect(screen.getByText("Turn on 2-Step Verification")).toBeVisible();
-    expect(screen.getByText("Make an app password")).toBeVisible();
-    expect(screen.getByRole("link", { name: "App passwords" })).toHaveAttribute(
-      "href",
-      "https://myaccount.google.com/apppasswords",
-    );
+    expect(
+      screen.getByRole("link", { name: "Get an app password" }),
+    ).toHaveAttribute("href", "https://myaccount.google.com/apppasswords");
     expect(screen.queryByText(/Step 1 of 3/)).toBeNull();
-    const go = screen.getByRole("button", { name: "Connect and confirm" });
+    const go = screen.getByRole("button", { name: "Connect" });
     expect(go).toBeDisabled();
     await userEvent.type(
       screen.getByLabelText("Gmail address"),
@@ -235,7 +232,6 @@ describe("Startups inside Auto-Apply", () => {
       within(done).getByText("Gmail connected and confirmed"),
     ).toBeVisible();
     expect(within(done).getByText("ada@example.com")).toBeVisible();
-    expect(within(done).getByText(/Nothing was sent/)).toBeVisible();
     await userEvent.click(
       within(done).getByRole("button", { name: "Continue" }),
     );
@@ -274,9 +270,7 @@ describe("Startups inside Auto-Apply", () => {
       screen.getByLabelText("App password"),
       "wrongwrongwrongwr",
     );
-    await userEvent.click(
-      screen.getByRole("button", { name: "Connect and confirm" }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: "Connect" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
       /did not accept that address and app password/,
     );
@@ -317,22 +311,22 @@ describe("Startups inside Auto-Apply", () => {
     renderApp(<App />, "/startups");
     expect(
       await screen.findByRole("heading", {
-        name: "Connect your Gmail to start sending",
+        name: "Connect your Gmail",
       }),
     ).toBeVisible();
     expect(screen.getByRole("button", { name: "Connect Gmail" })).toBeVisible();
     expect(screen.queryByLabelText("App password")).toBeNull();
   });
 
-  it("shows a connected Gmail as confirmed on the page, and can check it again", async () => {
-    const check = vi.fn(() => ({
-      json: { ...mailbox, checked_at: "2026-11-25T10:00:00Z" },
+  it("shows a connected Gmail with Disconnect and Connect back", async () => {
+    const disconnect = vi.fn(() => ({
+      json: { ...mailbox, connected: false, status: "disconnected" },
     }));
     routes({
       "GET /api/hunt/settings": () => ({
         json: { ...settings, enabled: true, ready: [] },
       }),
-      "POST /api/autoapply/mailbox/check": check,
+      "POST /api/autoapply/mailbox/disconnect": disconnect,
     });
     renderApp(<App />, "/startups");
     const strip = await screen.findByRole("region", {
@@ -340,10 +334,16 @@ describe("Startups inside Auto-Apply", () => {
     });
     expect(within(strip).getByText("ada@example.com")).toBeVisible();
     await userEvent.click(
-      within(strip).getByRole("button", { name: "Check again" }),
+      within(strip).getByRole("button", { name: "Connect back" }),
     );
-    await waitFor(() => expect(check).toHaveBeenCalled());
-    expect(await within(strip).findByText("Confirmed just now")).toBeVisible();
+    expect(within(strip).getByLabelText("App password")).toBeVisible();
+    await userEvent.click(
+      within(strip).getByRole("button", { name: "Cancel" }),
+    );
+    await userEvent.click(
+      within(strip).getByRole("button", { name: "Disconnect" }),
+    );
+    await waitFor(() => expect(disconnect).toHaveBeenCalled());
   });
 
   it("the old address still works", async () => {
