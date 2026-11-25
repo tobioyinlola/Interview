@@ -1,34 +1,16 @@
-import { type FormEvent, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 import { currentEnv, isSupported } from "../../app/browserSupport";
 import { isDesktopApp } from "../../app/desktop";
 import { isMobileApp } from "../../app/native";
-import {
-  useBilling,
-  useCompanies,
-  useCreateCompany,
-  useMe,
-  useNotes,
-  useSessions,
-} from "../../api/hooks";
-import {
-  ArrowIcon,
-  BuildingIcon,
-  ClockIcon,
-  MicIcon,
-  NoteIcon,
-} from "../../app/icons";
+import { useBilling, useMe, useNotes, useSessions } from "../../api/hooks";
+import { ArrowIcon, ClockIcon, MicIcon, NoteIcon } from "../../app/icons";
+import { ProfileMenu } from "../../app/ProfileMenu";
 import { FOCUS, PLAN } from "../onboarding/content";
 export { firstName } from "../account/names";
-import { firstName } from "../account/names";
 import { ConnectGmail } from "../autoapply/ConnectGmail";
-import { GREETING_EMOJI, greeting } from "../account/greeting";
 import { PracticeChart } from "./PracticeChart";
-import { daysSince } from "../companies/ResearchStatus";
-import { formatDuration, formatWhen } from "../review/format";
-
-const STALE_DAYS = 7;
+import { DashboardHeader, QuickActions, RecentActivity } from "./shared";
 
 function Item({
   ok,
@@ -71,21 +53,9 @@ function ReadinessCard() {
 
 function ReadinessChecklist() {
   const notes = useNotes();
-  const companies = useCompanies();
   const cvUploaded = (notes.data?.content ?? "").trim().length > 0;
-  const researched = (companies.data ?? []).filter(
-    (c) => c.job_status === "ready" && c.last_researched_at,
-  );
-  const newest = researched
-    .map((c) => daysSince(c.last_researched_at) ?? 0)
-    .sort((a, b) => a - b)[0];
-  const hasBrief = researched.length > 0;
-  const stale = hasBrief && newest > STALE_DAYS;
   const canCapture = isSupported(currentEnv());
-  const ready = cvUploaded && canCapture;
-  const done = [cvUploaded, hasBrief && !stale, canCapture].filter(
-    Boolean,
-  ).length;
+  const done = [cvUploaded, canCapture].filter(Boolean).length;
 
   return (
     <section
@@ -96,19 +66,19 @@ function ReadinessChecklist() {
         <h2 id="ready-h" className="text-lg font-semibold">
           Readiness
         </h2>
-        <span className="text-sm text-muted">{done} of 3 ready</span>
+        <span className="text-sm text-muted">{done} of 2 ready</span>
       </div>
       <div
         role="progressbar"
         aria-label="Interview readiness"
         aria-valuemin={0}
-        aria-valuemax={3}
+        aria-valuemax={2}
         aria-valuenow={done}
         className="h-2 overflow-hidden rounded-full bg-canvas"
       >
         <div
           className="h-full rounded-full bg-accent transition-all"
-          style={{ width: `${(done / 3) * 100}%` }}
+          style={{ width: `${(done / 2) * 100}%` }}
         />
       </div>
       <ul className="space-y-3 text-sm">
@@ -120,18 +90,6 @@ function ReadinessChecklist() {
             </Link>
           )}
         </Item>
-        <Item ok={hasBrief} warn={stale}>
-          {hasBrief
-            ? stale
-              ? `Company brief is ${newest} days old. Consider researching again.`
-              : "Company brief ready and fresh"
-            : "The company interviewing you"}{" "}
-          {!hasBrief && (
-            <Link to="/companies" className="text-accent-dark underline">
-              Add a company
-            </Link>
-          )}
-        </Item>
         <Item ok={canCapture}>
           {isDesktopApp()
             ? "App can listen to your computer's audio"
@@ -140,7 +98,7 @@ function ReadinessChecklist() {
       </ul>
       <Link
         to="/session/new"
-        className={`inline-block rounded-xl px-4 py-2.5 font-medium ${ready ? "bg-accent text-surface hover:bg-accent-dark" : "bg-accent-soft text-accent-dark"}`}
+        className={`inline-block rounded-xl px-4 py-2.5 font-medium ${cvUploaded && canCapture ? "bg-accent text-surface hover:bg-accent-dark" : "bg-accent-soft text-accent-dark"}`}
       >
         Start interview
       </Link>
@@ -149,118 +107,6 @@ function ReadinessChecklist() {
 }
 
 /** Their chosen focus areas, and a line of advice that matches how soon the interview is. */
-/** Shown until a company has been added: who is interviewing you? Researches them straight away
- *  (what they do and how), so the dashboard is useful from the first minute. */
-function InterviewTargetCard() {
-  const notes = useNotes();
-  const create = useCreateCompany();
-  const navigate = useNavigate();
-  const key = useRef(crypto.randomUUID());
-  const [name, setName] = useState("");
-  const [site, setSite] = useState("");
-  const [role, setRole] = useState<string | null>(null); // null: follow the role from the CV page
-  const shownRole = role ?? notes.data?.role ?? "";
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    create.mutate(
-      {
-        key: key.current,
-        input: {
-          name: name.trim(),
-          website_url: site.trim() || null,
-          job_posting_url: null,
-          extra_links: [],
-          role: shownRole.trim(),
-          known_text: "",
-        },
-      },
-      {
-        onSuccess: (r) => navigate(`/companies/${r.company.id}`),
-        onError: () => {
-          key.current = crypto.randomUUID();
-        },
-      },
-    );
-  };
-  const field = "input mt-1 w-full";
-  return (
-    <section
-      aria-labelledby="target-h"
-      className="space-y-3 rounded-2xl bg-surface p-5 shadow-lift"
-    >
-      <div>
-        <h2 id="target-h" className="text-lg font-semibold">
-          Who is interviewing you?
-        </h2>
-        <p className="mt-1 text-sm text-muted">
-          Tell us the company you are interviewing with, not an employer you
-          have worked for. We research what they do and how they work, so every
-          answer fits them.
-        </p>
-      </div>
-      <form
-        onSubmit={submit}
-        className="space-y-3"
-        aria-label="Interview target"
-      >
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <label htmlFor="t-name" className="block text-sm font-medium">
-              Company interviewing you
-            </label>
-            <input
-              id="t-name"
-              required
-              maxLength={120}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className={field}
-            />
-          </div>
-          <div>
-            <label htmlFor="t-role" className="block text-sm font-medium">
-              Role you&apos;re interviewing for
-            </label>
-            <input
-              id="t-role"
-              maxLength={200}
-              value={shownRole}
-              onChange={(e) => setRole(e.target.value)}
-              className={field}
-            />
-          </div>
-        </div>
-        <div>
-          <label htmlFor="t-site" className="block text-sm font-medium">
-            Company website{" "}
-            <span className="font-normal text-muted">(recommended)</span>
-          </label>
-          <input
-            id="t-site"
-            type="url"
-            placeholder="https://"
-            value={site}
-            onChange={(e) => setSite(e.target.value)}
-            className={field}
-          />
-        </div>
-        {create.isError && (
-          <p role="alert" className="notice-error">
-            {create.error.message}
-          </p>
-        )}
-        <button
-          type="submit"
-          className="btn-primary"
-          disabled={!name.trim() || create.isPending}
-        >
-          {create.isPending ? "Starting…" : "Research this company"}
-        </button>
-      </form>
-    </section>
-  );
-}
-
 /** The free sessions left, and how far along the invite reward is. */
 function SessionsCard() {
   const billing = useBilling();
@@ -377,61 +223,28 @@ function Stat({
   );
 }
 
-/** A round letter for a company, so lists are easy to scan. */
-function Avatar({ name }: { name: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft font-semibold text-accent-dark"
-    >
-      {(name.trim()[0] ?? "?").toUpperCase()}
-    </span>
-  );
-}
-
-const BRIEF: Record<string, { text: string; tone: string }> = {
-  ready: { text: "Brief ready", tone: "bg-emerald-100 text-emerald-700" },
-  failed: { text: "Research failed", tone: "bg-red-100 text-red-700" },
-};
-
 /** The one thing to do next, as a big friendly card at the top. */
-function Hero({
-  name,
-  cv,
-  companies,
-  sessions,
-}: {
-  name: string;
-  cv: boolean;
-  companies: number;
-  sessions: number;
-}) {
+function Hero({ cv, sessions }: { cv: boolean; sessions: number }) {
   const next = !cv
     ? {
         to: "/settings/cv",
         cta: "Add your CV",
         line: "Start with your CV so every answer sounds like you.",
       }
-    : companies === 0
+    : isMobileApp()
       ? {
-          to: "/companies",
-          cta: "Add the company",
-          line: "Tell us who is interviewing you and we will research them.",
+          to: "/auto-apply",
+          cta: "Open Auto-Apply",
+          line: "Review what we found and approve applications. Live interviews run on your computer.",
         }
-      : isMobileApp()
-        ? {
-            to: "/auto-apply",
-            cta: "Open Auto-Apply",
-            line: "Review what we found and approve applications. Live interviews run on your computer.",
-          }
-        : {
-            to: "/session/new",
-            cta: "New interview",
-            line:
-              sessions === 0
-                ? "You are all set. Start your first interview when you are ready."
-                : "Pick a company and share your Meet tab to get live help.",
-          };
+      : {
+          to: "/session/new",
+          cta: "New interview",
+          line:
+            sessions === 0
+              ? "You are all set. Start your first interview when you are ready."
+              : "Pick a company and share your Meet tab to get live help.",
+        };
   return (
     <section
       aria-label="What to do next"
@@ -439,13 +252,8 @@ function Hero({
     >
       <div className="flex flex-wrap items-center justify-between gap-6">
         <div className="min-w-0 flex-1 basis-72">
-          <h1 className="sr-only">Dashboard</h1>
-          <p className="break-words text-3xl font-semibold tracking-tight sm:text-4xl">
-            {greeting()}
-            {name ? `, ${name}` : ""}{" "}
-            <span aria-hidden="true">{GREETING_EMOJI}</span>
-          </p>
-          <p className="mt-4 max-w-md text-lg text-surface/90">{next.line}</p>
+          <p className="text-sm text-surface/70">Next step</p>
+          <p className="mt-1 max-w-md text-xl font-semibold">{next.line}</p>
           <Link
             to={next.to}
             className="btn btn-lg mt-5 bg-surface text-ink hover:bg-canvas"
@@ -490,38 +298,35 @@ const minutes = (s: number) =>
   s >= 3600 ? `${(s / 3600).toFixed(1)} h` : `${Math.round(s / 60)} min`;
 
 export function DashboardPage() {
-  const { data: me } = useMe();
-  const companies = useCompanies();
   const sessions = useSessions();
   const notes = useNotes();
   const all = sessions.data?.pages.flatMap((p) => p.items) ?? [];
-  const recent = (sessions.data?.pages[0]?.items ?? []).slice(0, 5);
   const more = sessions.hasNextPage ? "+" : "";
   const questions = all.reduce((n, s) => n + s.question_count, 0);
   const seconds = all.reduce((n, s) => n + (s.duration_seconds ?? 0), 0);
-  const ready = (companies.data ?? []).filter(
-    (c) => c.job_status === "ready",
-  ).length;
-  // Someone who has not had a session yet sees one clear path (CV, company, first interview), not a
-  // page of empty boxes. Everything else appears once there is something to show.
+  // Someone who has not had a session yet sees one clear path (CV, first interview), not a page of
+  // empty boxes. Everything else appears once there is something to show.
   const fresh = sessions.isSuccess && all.length === 0;
   const hasCv = notes.data ? notes.data.content.trim().length > 0 : false;
 
   return (
     <main className="page-wide">
+      <h1 className="sr-only">Dashboard</h1>
+      <DashboardHeader right={<ProfileMenu />} />
+
       <Hero
-        name={firstName(me?.full_name)}
         cv={notes.data ? notes.data.content.trim().length > 0 : true}
-        companies={companies.data?.length ?? 1}
         sessions={all.length}
       />
 
-      {hasCv && <ConnectGmail />}
-
       <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-5">
+          <QuickActions />
+
+          {hasCv && <ConnectGmail />}
+
           {!fresh && (
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+            <div className="grid grid-cols-3 gap-3 sm:gap-4">
               <Stat
                 label="Sessions"
                 value={`${all.length}${more}`}
@@ -547,18 +352,7 @@ export function DashboardPage() {
                 tone="amber"
                 icon={<ClockIcon className="h-4 w-4" />}
               />
-              <Stat
-                label="Briefs ready"
-                value={String(ready)}
-                hint={`${companies.data?.length ?? 0} companies added`}
-                tone="emerald"
-                icon={<BuildingIcon className="h-4 w-4" />}
-              />
             </div>
-          )}
-
-          {companies.isSuccess && companies.data.length === 0 && (
-            <InterviewTargetCard />
           )}
 
           <ReadinessCard />
@@ -579,119 +373,13 @@ export function DashboardPage() {
               </div>
             </section>
           )}
-
-          {(!fresh || (companies.data?.length ?? 0) > 0) && (
-            <section
-              aria-labelledby="co-h"
-              className="rounded-2xl bg-surface p-5 shadow-card"
-            >
-              <div className="flex items-baseline justify-between">
-                <h2 id="co-h" className="text-lg font-semibold">
-                  Companies
-                </h2>
-                <Link
-                  to="/companies"
-                  className="text-sm font-medium text-accent-dark hover:underline"
-                >
-                  All companies
-                </Link>
-              </div>
-              {companies.isSuccess && companies.data.length === 0 && (
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-canvas p-4">
-                  <p className="text-muted">No companies yet.</p>
-                  <Link to="/companies" className="btn-primary">
-                    Add a company
-                  </Link>
-                </div>
-              )}
-              <ul className="mt-3 space-y-1">
-                {(companies.data ?? []).slice(0, 5).map((c) => {
-                  const b = c.job_status ? BRIEF[c.job_status] : undefined;
-                  return (
-                    <li key={c.id}>
-                      <Link
-                        to={`/companies/${c.id}`}
-                        className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-canvas"
-                      >
-                        <Avatar name={c.name} />
-                        <span className="min-w-0 flex-1 truncate font-medium">
-                          {c.name}
-                        </span>
-                        <span
-                          className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${b?.tone ?? "bg-canvas text-muted"}`}
-                        >
-                          {c.job_status === "ready"
-                            ? "Brief ready"
-                            : c.job_status === "failed"
-                              ? "Research failed"
-                              : c.job_status
-                                ? "Researching…"
-                                : "Not researched"}
-                        </span>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          )}
         </div>
 
         <div className="space-y-5">
+          <RecentActivity />
           <SessionsCard />
           <AutoApplyCard />
           <FocusCard />
-
-          {!fresh && (
-            <section
-              aria-labelledby="se-h"
-              className="rounded-2xl bg-surface p-5 shadow-card"
-            >
-              <div className="flex items-baseline justify-between">
-                <h2 id="se-h" className="text-lg font-semibold">
-                  Recent sessions
-                </h2>
-                <Link
-                  to="/sessions"
-                  className="text-sm font-medium text-accent-dark hover:underline"
-                >
-                  All sessions
-                </Link>
-              </div>
-              {sessions.isSuccess && recent.length === 0 && (
-                <div className="mt-3 rounded-2xl bg-canvas p-4">
-                  <p className="text-muted">No sessions yet.</p>
-                  <Link
-                    to="/session/new"
-                    className="mt-1 inline-block text-sm font-medium text-accent-dark hover:underline"
-                  >
-                    Start your first interview
-                  </Link>
-                </div>
-              )}
-              <ul className="mt-3 space-y-1">
-                {recent.map((s) => (
-                  <li key={s.id} className="flex items-center gap-3 p-2">
-                    <Avatar name={s.company_name ?? "?"} />
-                    <div className="min-w-0">
-                      <Link
-                        to={`/sessions/${s.id}`}
-                        className="font-medium text-accent-dark hover:underline"
-                      >
-                        {formatWhen(s.started_at)}
-                      </Link>
-                      <span className="mt-0.5 block text-sm text-muted">
-                        {s.company_name ?? "No company"} ·{" "}
-                        {formatDuration(s.duration_seconds)} ·{" "}
-                        {s.question_count} question
-                        {s.question_count === 1 ? "" : "s"}
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
         </div>
       </div>
     </main>

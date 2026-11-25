@@ -7,7 +7,7 @@ import { App } from "./App";
 beforeEach(() => stubSupportedBrowser());
 afterEach(() => vi.restoreAllMocks());
 
-const signedIn = (me: object = ME) =>
+const signedIn = (me: object = { ...ME, startup_outreach: true }) =>
   mockApi({
     "GET /api/me": () => ({ json: me }),
     "GET /api/notes": () => ({
@@ -24,9 +24,9 @@ describe("app shell", () => {
     const nav = within(await screen.findByRole("navigation", { name: "Main" }));
     for (const name of [
       "Overview",
-      "Companies",
+      "Startup",
       "Interview",
-      "Sessions",
+      "History",
       "Settings",
       "Privacy",
       "Terms",
@@ -39,7 +39,7 @@ describe("app shell", () => {
       "aria-current",
       "page",
     );
-    expect(nav.getByRole("link", { name: "Companies" })).not.toHaveAttribute(
+    expect(nav.getByRole("link", { name: "Startup" })).not.toHaveAttribute(
       "aria-current",
     );
   });
@@ -74,7 +74,12 @@ describe("app shell", () => {
       "aria-expanded",
       "true",
     );
-    await userEvent.click(screen.getByRole("link", { name: "Companies" }));
+    await userEvent.click(
+      within(screen.getByRole("navigation", { name: "Main" })).getByRole(
+        "link",
+        { name: "Startup" },
+      ),
+    );
     expect(
       await screen.findByRole("button", { name: "Open menu" }),
     ).toBeInTheDocument(); // closed on navigation
@@ -108,9 +113,9 @@ describe("collapsible sidebar", () => {
     expect(expand).toHaveAttribute("aria-expanded", "false");
     // the names are still there for screen readers and as tooltips
     const nav = within(screen.getByRole("navigation", { name: "Main" }));
-    expect(nav.getByRole("link", { name: "Companies" })).toHaveAttribute(
+    expect(nav.getByRole("link", { name: "Startup" })).toHaveAttribute(
       "title",
-      "Companies",
+      "Startup",
     );
     expect(nav.getByRole("link", { name: "Overview" })).toBeInTheDocument();
     await userEvent.click(expand);
@@ -307,14 +312,19 @@ describe("the phone app's tab bar", () => {
 
   it("shows three icons in the phone app, the middle one being Auto-Apply", async () => {
     window.Capacitor = { isNativePlatform: () => true };
-    signedIn({ ...ME, onboarded: true, autoapply: true });
+    signedIn({
+      ...ME,
+      onboarded: true,
+      autoapply: true,
+      startup_outreach: true,
+    });
     renderApp(<App />, "/dashboard");
     const tabs = await screen.findByRole("navigation", { name: "Tabs" });
     const links = within(tabs).getAllByRole("link");
     expect(links.map((l) => l.getAttribute("aria-label"))).toEqual([
       "Home",
       "Auto-Apply",
-      "Companies",
+      "Startups",
     ]);
     expect(within(tabs).getByRole("link", { name: "Home" })).toHaveAttribute(
       "aria-current",

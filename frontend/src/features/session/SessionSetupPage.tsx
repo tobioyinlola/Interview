@@ -1,9 +1,10 @@
-import { useRef, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import {
   useBilling,
   useCompanies,
+  useCreateCompany,
   useCreateSession,
   useNotes,
 } from "../../api/hooks";
@@ -22,6 +23,118 @@ function Tick({ ok, children }: { ok: boolean; children: React.ReactNode }) {
         {children}
       </span>
     </li>
+  );
+}
+
+/** No company to pick? Add the one interviewing you right here: it is researched, and chosen. */
+function AddCompany({
+  role,
+  onAdded,
+}: {
+  role: string;
+  onAdded: (id: string) => void;
+}) {
+  const create = useCreateCompany();
+  const key = useRef(crypto.randomUUID());
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [site, setSite] = useState("");
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    create.mutate(
+      {
+        key: key.current,
+        input: {
+          name: name.trim(),
+          website_url: site.trim() || null,
+          job_posting_url: null,
+          extra_links: [],
+          role,
+          known_text: "",
+        },
+      },
+      {
+        onSuccess: (r) => {
+          key.current = crypto.randomUUID();
+          setOpen(false);
+          setName("");
+          setSite("");
+          onAdded(r.company.id);
+        },
+        onError: () => {
+          key.current = crypto.randomUUID();
+        },
+      },
+    );
+  };
+  if (!open)
+    return (
+      <button
+        type="button"
+        className="btn-secondary w-fit"
+        onClick={() => setOpen(true)}
+      >
+        Add a company
+      </button>
+    );
+  return (
+    <form
+      onSubmit={submit}
+      aria-label="Add a company"
+      className="space-y-3 rounded-2xl bg-canvas p-4"
+    >
+      <p className="text-sm text-muted">
+        The company interviewing you, not an employer you have worked for. We
+        research what they do so every answer fits them.
+      </p>
+      <div>
+        <label htmlFor="new-co" className="block text-sm font-medium">
+          Company name
+        </label>
+        <input
+          id="new-co"
+          required
+          maxLength={120}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="input mt-1 w-full"
+        />
+      </div>
+      <div>
+        <label htmlFor="new-co-site" className="block text-sm font-medium">
+          Website <span className="font-normal text-muted">(recommended)</span>
+        </label>
+        <input
+          id="new-co-site"
+          type="url"
+          placeholder="https://"
+          value={site}
+          onChange={(e) => setSite(e.target.value)}
+          className="input mt-1 w-full"
+        />
+      </div>
+      {create.isError && (
+        <p role="alert" className="notice-error">
+          {create.error.message}
+        </p>
+      )}
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          className="btn-primary"
+          disabled={!name.trim() || create.isPending}
+        >
+          {create.isPending ? "Adding…" : "Add and research"}
+        </button>
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={() => setOpen(false)}
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -112,6 +225,7 @@ export function SessionSetupPage() {
               </option>
             ))}
           </select>
+          <AddCompany role={notes.data?.role ?? ""} onAdded={setChoice} />
           {company && isActive(company.job_status) && (
             <p role="status" className="text-sm text-amber-800">
               This company is still being researched. Outlines will use your CV

@@ -1,9 +1,15 @@
-import { Building2, House, Rocket } from "lucide-react";
+import { House, Rocket, Send } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 /** The phone app's whole navigation: three icons in a floating bar. The middle one, the thing the
  *  app is for, is raised. Everything else (sessions, settings, help...) lives under the profile. */
-export function FloatingNav({ autoapply }: { autoapply: boolean }) {
+export function FloatingNav({
+  autoapply,
+  outreach,
+}: {
+  autoapply: boolean;
+  outreach: boolean;
+}) {
   const side =
     "relative flex h-12 w-16 items-center justify-center rounded-full transition-colors";
   const dot = (on: boolean) =>
@@ -50,15 +56,15 @@ export function FloatingNav({ autoapply }: { autoapply: boolean }) {
         </li>
         <li>
           <NavLink
-            to="/companies"
-            aria-label="Companies"
+            to={outreach ? "/startups" : "/sessions"}
+            aria-label={outreach ? "Startups" : "History"}
             className={({ isActive }) =>
               `${side} ${isActive ? "text-accent-dark" : "text-muted"}`
             }
           >
             {({ isActive }) => (
               <>
-                <Building2 className="h-6 w-6" strokeWidth={2} />
+                <Send className="h-6 w-6" strokeWidth={2} />
                 {dot(isActive)}
               </>
             )}

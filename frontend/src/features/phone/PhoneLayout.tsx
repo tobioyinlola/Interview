@@ -32,7 +32,10 @@ export function PhoneLayout() {
         )}
         <Outlet />
         <div aria-hidden="true" className="h-32" />
-        <FloatingNav autoapply={!!me?.autoapply} />
+        <FloatingNav
+          autoapply={!!me?.autoapply}
+          outreach={!!me?.startup_outreach}
+        />
       </div>
     </TourProvider>
   );

@@ -87,3 +87,7 @@ export const CoinIcon = make(
 );
 
 export const SendIcon = make("M22 2L11 13M22 2l-7 20-4-9-9-4z");
+
+export const RocketIcon = make(
+  "M5 15c-1 1-1.5 4-1.5 4s3-.5 4-1.5M12 15l-3-3a22 22 0 0 1 2-4 11 11 0 0 1 9-5c0 3-1.5 7-5 9a22 22 0 0 1-4 2zM9 12H5l2-3 3-.5M12 15v4l3-2 .5-3",
+);

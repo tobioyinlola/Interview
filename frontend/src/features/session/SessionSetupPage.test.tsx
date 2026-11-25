@@ -42,6 +42,59 @@ describe("SessionSetupPage", () => {
     expect(screen.queryByRole("checkbox")).toBeNull(); // consent was agreed at sign-up
   });
 
+  it("adds the company interviewing you right on this page, and chooses it", async () => {
+    const created = vi.fn(() => ({
+      status: 201,
+      json: {
+        company: { id: "c-new", name: "Northwind", role: "PM", known_text: "" },
+        job_id: "j1",
+      },
+    }));
+    let list = [
+      {
+        id: "c1",
+        name: "Acme",
+        last_researched_at: ago(1),
+        job_status: "ready",
+      },
+    ];
+    mockApi(
+      base({
+        "GET /api/companies": () => ({ json: list }),
+        "POST /api/companies": () => {
+          list = [
+            ...list,
+            {
+              id: "c-new",
+              name: "Northwind",
+              last_researched_at: null,
+              job_status: "searching",
+            },
+          ];
+          return created();
+        },
+      }),
+    );
+    open();
+    await screen.findByRole("option", { name: "Acme" });
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add a company" }),
+    );
+    await userEvent.type(screen.getByLabelText("Company name"), "Northwind");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add and research" }),
+    );
+    await waitFor(() => expect(created).toHaveBeenCalled());
+    // chosen straight away, still on the same page
+    await screen.findByRole("option", { name: "Northwind" });
+    await waitFor(() =>
+      expect(screen.getByLabelText(/Which company/)).toHaveValue("c-new"),
+    );
+    expect(
+      screen.getByRole("heading", { name: "Start an interview" }),
+    ).toBeVisible();
+  });
+
   it("an explicit 'no company' choice counts", async () => {
     mockApi(base());
     open();

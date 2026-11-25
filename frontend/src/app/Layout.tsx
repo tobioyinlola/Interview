@@ -14,7 +14,6 @@ import { ProfileMenu } from "./ProfileMenu";
 import { UpdateBanner } from "./UpdateBanner";
 import { TourProvider } from "../features/tour/TourProvider";
 import {
-  BuildingIcon,
   CloseIcon,
   FileIcon,
   GearIcon,
@@ -28,6 +27,7 @@ import {
   GiftIcon,
   HelpIcon,
   SendIcon,
+  RocketIcon,
 } from "./icons";
 
 type Item = { to: string; label: string; icon: React.ReactNode; end?: boolean };
@@ -123,13 +123,17 @@ export function Layout() {
 
   const menu = [
     item("/dashboard", "Overview", <HomeIcon />, true),
-    item("/companies", "Companies", <BuildingIcon />),
     item("/session/new", "Interview", <MicIcon />),
-    ...(me?.autoapply ? [item("/auto-apply", "Auto-Apply", <SendIcon />)] : []),
+    ...(me?.autoapply
+      ? [item("/auto-apply", "Auto-Apply", <RocketIcon />)]
+      : []),
+    ...(me?.startup_outreach
+      ? [item("/startups", "Startup", <SendIcon />)]
+      : []),
     item("/referrals", "Invite friends", <GiftIcon />),
   ];
   const account = [
-    item("/sessions", "Sessions", <ListIcon />),
+    item("/sessions", "History", <ListIcon />),
     item("/settings", "Settings", <GearIcon />),
   ];
   const support = [
@@ -245,7 +249,8 @@ export function Layout() {
           {/* The top bar on every page: search on the left, the person's account on the right. */}
           <header className="sticky top-0 z-30 flex items-center justify-between gap-3 bg-canvas/85 px-4 py-3 backdrop-blur sm:px-5 lg:rounded-tl-[2rem] lg:px-5">
             <GlobalSearch />
-            <ProfileMenu />
+            {/* the dashboard carries the account circle in its own greeting row */}
+            {location.pathname !== "/dashboard" && <ProfileMenu />}
           </header>
           <Outlet />
         </div>
