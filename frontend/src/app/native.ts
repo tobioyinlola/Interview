@@ -1,8 +1,9 @@
 import { isDesktopApp } from "./desktop";
 
-interface CapacitorGlobal {
+export interface CapacitorGlobal {
   isNativePlatform?: () => boolean;
   getPlatform?: () => string;
+  Plugins?: Record<string, any>;
 }
 
 declare global {

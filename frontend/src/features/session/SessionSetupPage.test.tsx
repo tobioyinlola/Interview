@@ -320,4 +320,14 @@ describe("SessionSetupPage: session credits", () => {
       "You have used your free session.",
     );
   });
+
+  it("shows audio recording options on mobile", async () => {
+    (window as any).Capacitor = { isNativePlatform: () => true };
+    mockApi(base());
+    open();
+    await screen.findByRole("heading", { name: "Start an interview" });
+    expect(screen.getByRole("heading", { name: "Audio recording" })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Device audio and microphone/)).toBeChecked();
+    delete (window as any).Capacitor;
+  });
 });

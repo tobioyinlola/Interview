@@ -13,6 +13,7 @@ public class MainActivity extends BridgeActivity {
 
         // our own plugin: lets the app download and install its own update (see AppInstallerPlugin)
         registerPlugin(AppInstallerPlugin.class);
+        registerPlugin(DualAudioCapturePlugin.class);
         super.onCreate(savedInstanceState);
     }
 }
