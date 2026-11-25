@@ -50,7 +50,12 @@ describe("SessionSetupPage", () => {
         job_id: "j1",
       },
     }));
-    let list = [
+    let list: {
+      id: string;
+      name: string;
+      last_researched_at: string | null;
+      job_status: string;
+    }[] = [
       {
         id: "c1",
         name: "Acme",
