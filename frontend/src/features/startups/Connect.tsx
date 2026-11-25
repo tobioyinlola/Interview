@@ -17,8 +17,8 @@ export function StartupHero() {
         you
       </h1>
       <p className="mt-3 max-w-xl text-surface/85">
-        We find startups hiring for your role, write a short note from your CV,
-        and send it from your own Gmail. You look at each one before it goes.
+        We write to startups hiring for your role, from your Gmail. You approve
+        each one.
       </p>
     </header>
   );
@@ -152,8 +152,8 @@ export function GmailConnect({ onConnected }: { onConnected: () => void }) {
         </h2>
         <p className="mt-1 text-muted">
           {retry
-            ? "Google stopped accepting the app password. Make a new one and paste it below."
-            : "Notes go out from your own address, so replies come straight to you. It takes about two minutes."}
+            ? "Connect again with a Gmail app password to keep sending."
+            : "Replies come straight to you. It takes two minutes."}
         </p>
       </div>
 
@@ -162,7 +162,6 @@ export function GmailConnect({ onConnected }: { onConnected: () => void }) {
           <ol className="space-y-5">
             <Step n={1} title="Turn on 2-Step Verification">
               <p className="text-sm text-muted">
-                Google only makes app passwords once it is on.{" "}
                 <a
                   className={link}
                   href="https://myaccount.google.com/security"
@@ -184,8 +183,7 @@ export function GmailConnect({ onConnected }: { onConnected: () => void }) {
                 >
                   App passwords
                 </a>
-                , type <b>InterviewMeet</b> as the name and press Create. Google
-                shows a 16-letter password once. Copy it.
+                , name it <b>InterviewMeet</b>, then copy the 16 letters.
               </p>
             </Step>
             <Step n={3} title="Paste your address and the app password">
@@ -219,9 +217,7 @@ export function GmailConnect({ onConnected }: { onConnected: () => void }) {
                   />
                 </label>
                 <p className="text-xs text-muted">
-                  This is not your Gmail password. We check it once by signing
-                  in (nothing is sent), then keep it encrypted. You can delete
-                  it in your Google account whenever you like.
+                  Not your Gmail password. Kept encrypted; nothing is sent.
                 </p>
                 <button
                   type="submit"

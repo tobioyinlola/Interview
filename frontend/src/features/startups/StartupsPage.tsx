@@ -13,12 +13,6 @@ import { HistoryRow, StartupCard } from "./Cards";
 import { GmailConnect, MailboxConfirmed, StartupHero } from "./Connect";
 import { Setup } from "./Setup";
 
-const HOW = [
-  ["We find startups", "From accelerators' public directories."],
-  ["We read their careers page", "To see if a role fits you."],
-  ["We write a short pitch", "You approve it, we send it from your email."],
-];
-
 function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-2xl bg-surface p-3 shadow-card sm:p-4">
@@ -63,20 +57,6 @@ function StartupsBoard() {
           Auto-Apply is paused, so startup pitches are paused too. Resume it on
           the Jobs tab.
         </p>
-      )}
-
-      {list.length === 0 && (
-        <ol className="grid gap-3 sm:grid-cols-3" aria-label="How it works">
-          {HOW.map(([title, line], i) => (
-            <li key={title} className="rounded-2xl bg-surface p-4 shadow-card">
-              <span className="text-sm font-semibold text-accent-dark">
-                {i + 1}
-              </span>
-              <p className="font-medium">{title}</p>
-              <p className="text-sm text-muted">{line}</p>
-            </li>
-          ))}
-        </ol>
       )}
 
       <dl className="grid grid-cols-3 gap-2 sm:gap-3" aria-label="At a glance">
@@ -170,8 +150,8 @@ function RequestAccess({ requested }: { requested: boolean }) {
         </h2>
         <p className="text-muted">
           {waiting
-            ? "We will switch it on for you soon. You will see it here as soon as it is ready."
-            : "A small number of people are let in at a time. Ask and we will switch it on for you."}
+            ? "We'll switch it on soon."
+            : "Ask and we'll switch it on for you."}
         </p>
         {!waiting && (
           <button
