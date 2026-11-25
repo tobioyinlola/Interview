@@ -54,6 +54,7 @@ class FetchResult:
     emails: tuple[str, ...] = ()  # addresses the page itself publishes (mailto links and text)
     links: tuple[tuple[str, str], ...] = ()  # (link text, absolute address) for links on the page
     data: tuple[str, ...] = ()  # JSON the page carries for its own scripts (only when asked for)
+    boards: tuple[str, ...] = ()  # job boards named anywhere in the page
 
 
 _ASSIGNED = re.compile(r"\bwindow\.[A-Za-z0-9_$]+\s*=\s*(?=[\[{])")
@@ -101,6 +102,23 @@ def published_emails(html: str) -> tuple[str, ...]:
 
 _ALT = re.compile(r"\balt\s*=\s*[\"']([^\"']*)[\"']", re.I)
 _ANCHOR = re.compile(r"<a\b[^>]*?href\s*=\s*[\"']([^\"'#][^\"']*)[\"'][^>]*>(.*?)</a>", re.S | re.I)
+
+
+_BOARD = re.compile(
+    r"https?://(?:[a-z0-9-]+\.)*(?:greenhouse\.io|lever\.co|ashbyhq\.com|workable\.com|"
+    r"smartrecruiters\.com|recruitee\.com)[^\s\"'<>\\)]*",
+    re.IGNORECASE,
+)
+
+
+def job_boards(html: str) -> tuple[str, ...]:
+    """Addresses of hosted job boards the page links to or embeds: a careers page that loads its
+    roles with a script still names the board it loads them from."""
+    found: list[str] = []
+    for m in _BOARD.finditer(unescape(html)):
+        if m.group(0) not in found:
+            found.append(m.group(0))
+    return tuple(found[:30])
 
 
 def page_links(html: str, base: str, limit: int = 150) -> tuple[tuple[str, str], ...]:
@@ -258,6 +276,7 @@ class Fetcher:
         emails = published_emails(html) if ctype != "text/plain" else ()
         links = page_links(html, final_url, self.links_max) if ctype != "text/plain" else ()
         data = embedded_json(html) if self.embedded_data and ctype != "text/plain" else ()
+        boards = job_boards(html) if ctype != "text/plain" else ()
         # a page that is mostly links (a portfolio of logos) has little text but a lot to read
         if len(text) < MIN_READABLE_CHARS and (emails or len(links) >= MANY_LINKS or data):
             return FetchResult(
@@ -269,6 +288,7 @@ class Fetcher:
                 emails=emails,
                 links=links,
                 data=data,
+                boards=boards,
             )
         if len(text) < MIN_READABLE_CHARS:
             return FetchResult(
@@ -286,6 +306,7 @@ class Fetcher:
             emails=emails,
             links=links,
             data=data,
+            boards=boards,
         )
 
     async def _public_ips(self, parts: SplitResult) -> list[IPAddress]:

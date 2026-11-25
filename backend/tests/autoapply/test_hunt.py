@@ -1661,3 +1661,111 @@ async def test_the_starter_list_is_added_once_and_gets_its_regions_from_the_coun
         and by["Klarna"] == "eu"
     )
     assert "other" not in by.values()
+
+
+# ------------------------------------------------------------------ complete roles, own apply pages
+
+
+def test_job_boards_are_identified_from_links_and_embeds():
+    from app.hunt import jobboards
+
+    got = jobboards.identify(
+        [
+            "https://boards.greenhouse.io/embed/job_board?for=acme&b=x",
+            "https://jobs.lever.co/acme/123",
+            "https://jobs.ashbyhq.com/acme",
+            "https://apply.workable.com/acme/",
+            "https://acme.recruitee.com/o/pm",
+            "https://example.com/x",
+        ]
+    )
+    assert got == [
+        ("greenhouse", "acme"),
+        ("lever", "acme"),
+        ("ashby", "acme"),
+        ("workable", "acme"),
+        ("recruitee", "acme"),
+    ]
+
+
+def test_each_board_feed_gives_every_role_with_its_own_page():
+    from app.hunt import jobboards
+
+    gh = json.dumps(
+        {"jobs": [{"title": "PM", "absolute_url": "https://boards.greenhouse.io/a/jobs/1"}]}
+    )
+    assert jobboards.parse("greenhouse", "a", gh) == [
+        {"title": "PM", "url": "https://boards.greenhouse.io/a/jobs/1"}
+    ]
+    lv = json.dumps(
+        [{"text": "Eng", "hostedUrl": "https://jobs.lever.co/a/9"}, {"text": "No link"}]
+    )
+    assert jobboards.parse("lever", "a", lv) == [
+        {"title": "Eng", "url": "https://jobs.lever.co/a/9"}
+    ]
+    sr = json.dumps({"content": [{"name": "Ops", "id": "77"}]})
+    assert (
+        jobboards.parse("smartrecruiters", "a", sr)[0]["url"]
+        == "https://jobs.smartrecruiters.com/a/77"
+    )
+    assert jobboards.parse("ashby", "a", "not json") == []
+
+
+async def test_research_reads_the_whole_board_not_just_the_visible_roles(maker):
+    feed = json.dumps(
+        {
+            "jobs": [
+                {
+                    "title": f"Role {i}",
+                    "absolute_url": f"https://boards.greenhouse.io/acme/jobs/{i}",
+                }
+                for i in range(30)
+            ]
+        }
+    )
+
+    class Pages:
+        async def fetch(self, url):
+            if url == "https://boards-api.greenhouse.io/v1/boards/acme/jobs":
+                return FetchResult(url, "ok", text=feed, final_url=url)
+            if url == "https://acme.io/careers":
+                return FetchResult(
+                    url, "ok", text="Join us " * 20, final_url=url,
+                    boards=("https://boards.greenhouse.io/embed/job_board?for=acme",),
+                )  # fmt: skip
+            return FetchResult(url, "blocked", "no")
+
+    async with maker() as db:
+        s = await add_startup(db)
+        await research.research(db, Pages(), FakeLlmProvider(), s, NOW)
+        r = s.research
+        assert len(r["openings"]) == 30 and r["hiring"] is True
+        assert r["openings"][7] == {
+            "title": "Role 7",
+            "url": "https://boards.greenhouse.io/acme/jobs/7",
+        }
+        assert r["careers_url"] == "https://acme.io/careers"
+
+
+def test_role_links_on_a_careers_page_are_found_without_the_model():
+    got = research.job_links(
+        (
+            ("Staff Engineer", "https://acme.io/careers/staff-engineer"),
+            ("Apply", "https://acme.io/apply"),
+            ("About", "https://acme.io/about"),
+            ("Data Scientist", "https://elsewhere.example/jobs/1"),
+            ("Designer", "https://jobs.lever.co/acme/5"),
+        ),
+        "acme.io",
+    )
+    assert got == [("Staff Engineer", "https://acme.io/careers/staff-engineer")]
+
+
+def test_a_card_with_extra_words_still_matches_its_role():
+    url = research.opening_url(
+        "Senior Product Manager",
+        (("Senior Product Manager Payments Remote", "https://acme.io/careers/pm-7"),),
+        "acme.io",
+        "https://acme.io/careers",
+    )
+    assert url == "https://acme.io/careers/pm-7"
