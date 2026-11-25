@@ -128,14 +128,20 @@ describe("navigation", () => {
     base({ "GET /api/me": () => ({ json: { ...me, autoapply: false } }) });
     const { unmount } = renderApp(<App />, "/dashboard");
     await screen.findByRole("navigation", { name: "Main" });
-    expect(screen.queryByRole("link", { name: "Auto-Apply" })).toBeNull();
+    expect(
+      within(screen.getByRole("navigation", { name: "Main" })).queryByRole(
+        "link",
+        { name: "Auto-Apply" },
+      ),
+    ).toBeNull();
     unmount();
     vi.restoreAllMocks();
     stubSupportedBrowser();
     base();
     renderApp(<App />, "/dashboard");
+    const nav = within(await screen.findByRole("navigation", { name: "Main" }));
     expect(
-      await screen.findByRole("link", { name: "Auto-Apply" }),
+      await nav.findByRole("link", { name: "Auto-Apply" }),
     ).toHaveAttribute("href", "/auto-apply");
   });
 });
@@ -204,7 +210,7 @@ describe("the dashboard", () => {
     const pitch = await screen.findByRole("link", {
       name: /Pitch to Lumen Labs/,
     });
-    expect(pitch).toHaveAttribute("href", "/auto-apply/startups");
+    expect(pitch).toHaveAttribute("href", "/startups");
     expect(pitch).toHaveTextContent("Startup · Sam Ade");
     expect(pitch).toHaveTextContent("Sent");
     const list = pitch.closest("ul") as HTMLElement;
@@ -579,6 +585,41 @@ describe("one application", () => {
       { kind: "discovered", detail: {}, created_at: "2026-11-10T09:00:00Z" },
     ],
     ...over,
+  });
+
+  it("offers the form's own choices as a list when the form gives them", async () => {
+    const calls = base({
+      "GET /api/autoapply/applications/a1": () => ({
+        json: detail({
+          needs_input: [
+            {
+              kind: "answer",
+              field: "question_9",
+              question: "Are you legally authorized to work in the US?",
+              reason: "The form now asks this and you have not answered it.",
+              options: ["Yes", "No"],
+            },
+          ],
+        }),
+      }),
+      "POST /api/autoapply/applications/a1/answer": () => ({ json: app() }),
+    });
+    renderApp(<App />, "/auto-apply/applications/a1");
+    const pick = await screen.findByLabelText(
+      "Are you legally authorized to work in the US?",
+    );
+    expect(pick.tagName).toBe("SELECT");
+    await userEvent.selectOptions(pick, "Yes");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Save and continue" }),
+    );
+    await waitFor(() =>
+      expect(
+        calls.find(
+          (c) => c.key === "POST /api/autoapply/applications/a1/answer",
+        )?.body,
+      ).toMatchObject({ field: "question_9", value: "Yes" }),
+    );
   });
 
   it("answers the exact question, optionally for reuse", async () => {

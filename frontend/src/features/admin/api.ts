@@ -351,3 +351,32 @@ export const useImportStartups = () =>
         body: JSON.stringify(v),
       }),
   );
+
+export interface AdminAccessPerson {
+  id: string;
+  email: string;
+  name: string | null;
+  access: "none" | "requested" | "active";
+  requested_at: string | null;
+}
+export interface AdminAccessList {
+  requested: number;
+  active: number;
+  items: AdminAccessPerson[];
+}
+
+/** Who asked for startup outreach (waiting first) and who has it; `q` finds anyone by email. */
+export const useOutreachAccess = (q: string) =>
+  useQuery<AdminAccessList>({
+    queryKey: ["admin", "startups", "access", q],
+    queryFn: () => apiFetch(`${SU}/access?${new URLSearchParams({ q })}`),
+    refetchInterval: 30_000,
+  });
+
+export const useSetOutreachAccess = () =>
+  useStartupsMutation((v: { id: string; access: "active" | "none" }) =>
+    apiFetch<AdminAccessPerson>(`${SU}/access/${v.id}`, {
+      method: "PUT",
+      body: JSON.stringify({ access: v.access }),
+    }),
+  );

@@ -349,7 +349,9 @@ def form_problem(schema: Any, pkg: dict[str, Any]) -> list[dict[str, Any]] | Non
     answers = pkg.get("answers", {})
     missing: list[dict[str, Any]] = []
     for f in schema.fields:
-        if f.kind in ("captcha",) or (f.kind == "file" and f.name not in ("resume", "cv")):
+        if f.kind == "captcha" or (
+            f.kind == "file" and f.required and f.name not in ("resume", "cv", "cover_letter")
+        ):
             missing.append(
                 {
                     "kind": "unsupported",
@@ -359,14 +361,15 @@ def form_problem(schema: Any, pkg: dict[str, Any]) -> list[dict[str, Any]] | Non
                 }
             )
         elif f.kind != "file" and f.required and f.name not in answers and f.name != "cover_letter":
-            missing.append(
-                {
-                    "kind": "declaration" if f.kind == "declaration" else "answer",
-                    "field": f.name,
-                    "question": f.label,
-                    "reason": "The form now asks this and you have not answered it.",
-                }
-            )
+            need: dict[str, Any] = {
+                "kind": "declaration" if f.kind == "declaration" else "answer",
+                "field": f.name,
+                "question": f.label,
+                "reason": "The form now asks this and you have not answered it.",
+            }
+            if f.options:
+                need["options"] = list(f.options)
+            missing.append(need)
     return missing or None
 
 

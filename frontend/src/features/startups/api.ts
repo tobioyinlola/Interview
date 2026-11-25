@@ -101,3 +101,12 @@ export function useTargetActions() {
     }),
   };
 }
+
+/** Startup outreach is by invitation: ask to be let in. */
+export function useRequestOutreachAccess() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => post<{ access: string }>("/access/request"),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["me"] }),
+  });
+}

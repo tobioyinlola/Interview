@@ -2,6 +2,8 @@ import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 
 import {
+  useOutreachAccess,
+  useSetOutreachAccess,
   useAddDirectory,
   useDeleteDirectory,
   useImportStartups,
@@ -43,6 +45,102 @@ function parse(text: string) {
       country,
       one_liner: rest.join(", "),
     }));
+}
+
+/** Startup outreach is by invitation: who asked, who has it, and a switch for each. */
+function OutreachAccess() {
+  const [q, setQ] = useState("");
+  const [typed, setTyped] = useState("");
+  const list = useOutreachAccess(q);
+  const set = useSetOutreachAccess();
+  const d = list.data;
+  return (
+    <section className="space-y-3" aria-label="Outreach access">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-lg font-semibold">Who can use startup outreach</h2>
+        {d && (
+          <p className="text-sm text-muted">
+            {d.requested} waiting · {d.active} switched on
+          </p>
+        )}
+      </div>
+      <form
+        role="search"
+        className="flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setQ(typed.trim());
+        }}
+      >
+        <input
+          type="search"
+          className="input w-full sm:w-72"
+          aria-label="Find a person by email"
+          placeholder="Find a person by email"
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+        />
+        <button type="submit" className="btn-secondary">
+          Find
+        </button>
+      </form>
+      {list.isPending ? (
+        <p className="text-sm text-muted">Loading…</p>
+      ) : !d || d.items.length === 0 ? (
+        <Empty>
+          {q ? "Nobody matches that." : "Nobody has asked for it yet."}
+        </Empty>
+      ) : (
+        <ul className="divide-y divide-canvas rounded-2xl bg-surface shadow-card">
+          {d.items.map((p) => (
+            <li
+              key={p.id}
+              className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+            >
+              <span className="min-w-0">
+                <span className="block break-all font-medium">{p.email}</span>
+                <span className="block text-sm text-muted">
+                  {p.name ? `${p.name} · ` : ""}
+                  {p.access === "requested"
+                    ? `asked ${p.requested_at ? when(p.requested_at) : "recently"}`
+                    : p.access === "active"
+                      ? "switched on"
+                      : "not switched on"}
+                </span>
+              </span>
+              <span className="flex gap-2">
+                {p.access !== "active" && (
+                  <button
+                    type="button"
+                    className="btn-primary btn-sm"
+                    disabled={set.isPending}
+                    onClick={() => set.mutate({ id: p.id, access: "active" })}
+                  >
+                    Switch on
+                  </button>
+                )}
+                {p.access !== "none" && (
+                  <button
+                    type="button"
+                    className="btn-secondary btn-sm"
+                    disabled={set.isPending}
+                    onClick={() => set.mutate({ id: p.id, access: "none" })}
+                  >
+                    {p.access === "requested" ? "Decline" : "Switch off"}
+                  </button>
+                )}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {set.isError && (
+        <p role="alert" className="notice-error">
+          That did not save. Try again.
+        </p>
+      )}
+    </section>
+  );
 }
 
 /** Where startups come from: the accelerator directories we read, and anything pasted in. */
@@ -129,6 +227,8 @@ export function StartupsAdminPage() {
         (the Gulf, Africa, Asia and so on) are listed, with their open roles,
         but nobody is written to there.
       </p>
+
+      <OutreachAccess />
 
       <section className="space-y-3" aria-label="Directories">
         <h2 className="text-lg font-semibold">Directories</h2>

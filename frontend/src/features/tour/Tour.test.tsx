@@ -104,11 +104,10 @@ describe("Tour", () => {
 });
 
 describe("the tour's steps", () => {
-  it("cover the CV, companies, practice, the live panel, reviewing, free sessions and the account", () => {
+  it("cover the CV, practice, the live panel, reviewing, free sessions and the account", () => {
     const titles = TOUR_STEPS.map((s) => s.title).join(" | ");
     for (const word of [
       "CV",
-      "company",
       "mock interview",
       "live panel",
       "Review",
@@ -124,7 +123,6 @@ describe("the tour's steps", () => {
     const allowed = [
       "search",
       "nav-settings",
-      "nav-companies",
       "nav-session-new",
       "nav-sessions",
       "nav-referrals",

@@ -63,6 +63,42 @@ describe("Back office: startups", () => {
     expect(table.getByText(/may need JavaScript/)).toBeInTheDocument();
   });
 
+  it("lists who asked for startup outreach and switches them on", async () => {
+    const put = vi.fn(() => ({
+      json: {
+        id: "u1",
+        email: "ada@example.com",
+        name: "Ada",
+        access: "active",
+        requested_at: null,
+      },
+    }));
+    base({
+      "GET /api/admin/startups/access": () => ({
+        json: {
+          requested: 1,
+          active: 0,
+          items: [
+            {
+              id: "u1",
+              email: "ada@example.com",
+              name: "Ada",
+              access: "requested",
+              requested_at: "2026-11-24T08:00:00Z",
+            },
+          ],
+        },
+      }),
+      "PUT /api/admin/startups/access/u1": put,
+    });
+    renderApp(<App />, "/admin/startups");
+    const box = within(await screen.findByLabelText("Outreach access"));
+    expect(await box.findByText("ada@example.com")).toBeVisible();
+    expect(box.getByText(/1 waiting/)).toBeVisible();
+    await userEvent.click(box.getByRole("button", { name: "Switch on" }));
+    await waitFor(() => expect(put).toHaveBeenCalled());
+  });
+
   it("reads a directory now, turns one off, and only offers delete for ones we added", async () => {
     const read = vi.fn(() => ({ json: dir({ last_found: 5 }) }));
     const off = vi.fn(() => ({ json: dir({ enabled: false }) }));

@@ -343,16 +343,31 @@ class AuthRepo:
         await self.db.commit()
         return user_id
 
-    async def user_for_session(self, token: str) -> User | None:
+    async def user_for_session(self, token: str, *, idle: timedelta | None = None) -> User | None:
+        """The person a cookie belongs to. With `idle`, a session not used for that long is ended
+        (and stays ended), and a live one remembers it was just used."""
+        now = _now()
         stmt = (
-            select(User)
+            select(User, AuthSession)
             .join(AuthSession, AuthSession.user_id == User.id)
             .where(
                 AuthSession.token_hash == hash_token(token, self.secret),
-                AuthSession.expires_at > _now(),
+                AuthSession.expires_at > now,
             )
         )
-        return (await self.db.execute(stmt)).scalar_one_or_none()
+        row = (await self.db.execute(stmt)).first()
+        if row is None:
+            return None
+        user, session = row
+        if idle is not None:
+            if session.last_seen_at <= now - idle:
+                await self.db.delete(session)
+                await self.db.commit()
+                return None
+            if session.last_seen_at <= now - timedelta(seconds=30):  # not a write on every call
+                session.last_seen_at = now
+                await self.db.commit()
+        return user
 
     async def delete_session(self, token: str) -> None:
         await self.db.execute(

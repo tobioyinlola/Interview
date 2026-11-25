@@ -2,10 +2,11 @@
 drafting, the sending rules, and what happens when someone replies, opts out or bounces."""
 
 import json
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.adapters.fakes import FakeLlmProvider
 from app.autoapply import switches
@@ -222,6 +223,11 @@ def test_draft_must_stay_grounded():
 async def setup(ada, maker, mailbox, *, roles=("Senior Product Manager",), **over):
     await ada.put("/api/autoapply/facts", json={"data": FACTS, "verified": True})
     await ada.post("/api/autoapply/mailbox/connect")
+    async with maker() as db:  # startup outreach is by invitation: switched on for her
+        await db.execute(
+            update(User).where(User.email == "ada@example.com").values(outreach_access="active")
+        )
+        await db.commit()
     body = {
         "enabled": True, "regions": ["us", "eu"], "roles": list(roles), "pitch": "I turn messy payments into clear roadmaps.",
         "daily_cap": 8, "auto_send": False, "sender_name": "Ada Okoye", "postal_address": "12 Marina, Lagos",
@@ -234,6 +240,13 @@ async def setup(ada, maker, mailbox, *, roles=("Senior Product Manager",), **ove
             await db.execute(select(User.id).where(User.email == "ada@example.com"))
         ).scalar_one()
     return uid
+
+
+async def let_in(maker, email="ada@example.com"):
+    """Startup outreach is by invitation: the operator switches it on for a person."""
+    async with maker() as db:
+        await db.execute(update(User).where(User.email == email).values(outreach_access="active"))
+        await db.commit()
 
 
 async def seed(maker, n=1, **kw):
@@ -269,8 +282,14 @@ def write_llm():
     return FakeLlmProvider(
         json_reply=json.dumps(
             {
-                "subject": "Senior PM, payments",
-                "body": "Hi, I led the payments roadmap at Northwind and grew revenue 30%. Open to a chat?",
+                "subject": "Product manager with payments background",
+                "body": (
+                    "I'm a senior product manager, most recently at Northwind, where I led the "
+                    "payments roadmap and grew revenue 30%. Your platform for marketplace payments "
+                    "is close to that work, and the problems you describe are ones I have solved "
+                    "before.\n\nWould you be open to a short call, or could you point me to "
+                    "whoever handles hiring?"
+                ),
             }
         )
     )
@@ -322,7 +341,8 @@ async def test_no_double_planning_and_region_filter(ada, maker, mailbox, write_l
         assert await engine.plan(db, uid, NOW, write_llm) == 0
 
 
-async def test_cannot_turn_on_until_ready(ada):
+async def test_cannot_turn_on_until_ready(ada, maker):
+    await let_in(maker)
     r = await ada.put(
         "/api/hunt/settings", json={"enabled": True, "regions": ["us"], "roles": ["PM"]}
     )
@@ -492,6 +512,7 @@ async def test_people_only_see_their_own_notes(ada, maker, mailbox, write_llm, n
     tid = (await ada.get("/api/hunt/targets")).json()[0]["id"]
     async with new_client() as other:
         await sign_in(other, "mallory@example.com")
+        await let_in(maker, "mallory@example.com")
         assert (await other.get("/api/hunt/targets")).json() == []
         assert (await other.post(f"/api/hunt/targets/{tid}/approve")).status_code == 404
 
@@ -603,7 +624,8 @@ async def test_one_pause_covers_both(ada, maker, mailbox, settings, write_llm):
     assert await engine.send_next(maker, uid, mailbox, settings, NOW) == "sent"
 
 
-async def test_settings_start_from_the_auto_apply_search(ada):
+async def test_settings_start_from_the_auto_apply_search(ada, maker):
+    await let_in(maker)
     from tests.autoapply.conftest import PROFILE
 
     await ada.put("/api/autoapply/profile", json=PROFILE)
@@ -1963,7 +1985,7 @@ async def test_profile_pages_are_opened_a_batch_at_a_time_and_the_directory_is_r
             n = url.rsplit("/", 1)[1]
             return FetchResult(
                 url, "ok", text="y " * 80, final_url=url,
-                links=((f"Visit website", f"https://{n}.io"),),
+                links=(("Visit website", f"https://{n}.io"),),
             )  # fmt: skip
 
     class Llm(FakeLlmProvider):
@@ -1991,3 +2013,145 @@ def test_a_feed_skips_companies_that_have_shut_down():
     assert [f.name for f in directory.parse_feed(feed, "https://yc-oss.github.io/x.json")] == [
         "Live"
     ]
+
+
+# ------------------------------------------------------------------ by invitation
+
+
+async def test_outreach_is_closed_until_the_operator_lets_a_person_in(ada, maker):
+    assert (await ada.get("/api/me")).json()["outreach_access"] == "none"
+    r = await ada.get("/api/hunt/settings")
+    assert r.status_code == 403 and r.json()["error"]["code"] == "outreach_not_active"
+    assert (await ada.get("/api/hunt/targets")).status_code == 403
+    # asking is allowed, and asking twice changes nothing
+    assert (await ada.post("/api/hunt/access/request")).json() == {"access": "requested"}
+    assert (await ada.post("/api/hunt/access/request")).json() == {"access": "requested"}
+    assert (await ada.get("/api/hunt/settings")).status_code == 403
+    await let_in(maker)
+    assert (await ada.get("/api/hunt/settings")).status_code == 200
+
+
+async def test_the_operator_sees_requests_and_switches_a_person_on_and_off(
+    ada, boss, maker, mailbox
+):
+    await ada.post("/api/hunt/access/request")
+    seen = (await boss.get("/api/admin/startups/access")).json()
+    assert seen["requested"] == 1 and seen["items"][0]["email"] == "ada@example.com"
+    uid = seen["items"][0]["id"]
+    on = await boss.put(f"/api/admin/startups/access/{uid}", json={"access": "active"})
+    assert on.status_code == 200 and on.json()["access"] == "active"
+    assert (await ada.get("/api/me")).json()["outreach_access"] == "active"
+    await setup(ada, maker, mailbox)
+    assert (await ada.get("/api/hunt/settings")).json()["enabled"] is True
+    # switching her off stops her pitches at once
+    await boss.put(f"/api/admin/startups/access/{uid}", json={"access": "none"})
+    assert (await ada.get("/api/hunt/settings")).status_code == 403
+    async with maker() as db:
+        st = await engine.get_settings(db, uuid.UUID(uid))
+        assert st is not None and st.enabled is False
+    # a customer cannot do any of it
+    r = await ada.put(f"/api/admin/startups/access/{uid}", json={"access": "active"})
+    assert r.status_code in (401, 403)
+
+
+# ------------------------------------------------------------------ proper emails
+
+
+def _brief_startup(**kw):
+    return Startup(
+        name="Acme", domain="acme.io", website="https://acme.io", directory="YC",
+        directory_url="https://d.test", one_liner="Payments for marketplaces", region="us",
+        research={"summary": "Acme builds payments for online marketplaces.", "roles": ["Senior Product Manager"]},
+        **kw,
+    )  # fmt: skip
+
+
+def _contact(kind="role", name=None):
+    return StartupContact(
+        email="jobs@acme.io", name=name, kind=kind, source_url="https://acme.io/careers"
+    )
+
+
+async def _written(llm, contact=None, openings=None):
+    from app.models import HuntSettings
+
+    st = HuntSettings(
+        roles=["Senior Product Manager"],
+        pitch="",
+        sender_name="Ada Okoye",
+        postal_address="12 Marina",
+    )
+    return await draft.write(
+        llm, FACTS, st, _brief_startup(), contact or _contact(), region="us", openings=openings
+    )
+
+
+class Scripted(FakeLlmProvider):
+    """A model that gives these replies one after another, and keeps what it was asked."""
+
+    def __init__(self, *replies):
+        super().__init__(json_reply="")
+        self.replies, self.asked = list(replies), []
+
+    async def generate_json(self, *, system, user, schema):
+        self.asked.append((system, user))
+        return self.replies.pop(0) if self.replies else "not json"
+
+
+GOOD = {
+    "subject": "Product manager with payments background",
+    "body": (
+        "I'm Ada Okoye, a senior product manager who most recently led the payments roadmap at "
+        "Northwind and grew revenue 30%. Acme's payments for online marketplaces is close to that "
+        "work, and I would like to help make it better.\n\nWould you be open to a short call, or "
+        "could you point me to whoever handles hiring?"
+    ),
+}
+
+
+async def test_the_greeting_is_added_by_code_to_the_person_or_the_team():
+    subject, body = await _written(Scripted(json.dumps(GOOD)))
+    assert subject == "Product manager with payments background"
+    assert body.startswith("Hi Acme team,\n\nI'm Ada Okoye")
+    _, named = await _written(Scripted(json.dumps(GOOD)), _contact("person", "Sam Ade"))
+    assert named.startswith("Hi Sam,\n\n")
+    assert "My CV is attached.\n\nThank you,\nAda Okoye" in body
+
+
+async def test_a_note_with_a_problem_is_sent_back_once_with_what_was_wrong():
+    greeting_first = {**GOOD, "body": "Hi Sam, " + GOOD["body"]}
+    llm = Scripted(json.dumps(greeting_first), json.dumps(GOOD))
+    _, body = await _written(llm)
+    assert "starts with a greeting" in llm.asked[1][0]  # the second try was told why
+    assert "I'm Ada Okoye, a senior product manager" in body and "Hi Sam" not in body
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {**GOOD, "body": "Short note."},
+        {**GOOD, "body": GOOD["body"] + " I grew it 300% too."},  # a number that is not a fact
+        {**GOOD, "body": GOOD["body"].replace("Acme's", "[Startup]'s")},  # a placeholder
+        {**GOOD, "body": "I hope this finds you well. " + GOOD["body"]},
+    ],
+)
+async def test_a_bad_note_falls_back_to_a_plain_honest_one(bad):
+    _, body = await _written(Scripted(json.dumps(bad), json.dumps(bad)))
+    assert "I'm Ada Okoye, a Senior Product Manager, most recently at Northwind." in body
+    assert "short call" in body and "300%" not in body and "[Startup]" not in body
+
+
+async def test_the_model_is_given_the_candidate_the_startup_and_why_they_fit():
+    llm = Scripted(json.dumps(GOOD))
+    st = __import__("app.models", fromlist=["HuntSettings"]).HuntSettings(
+        roles=["Senior Product Manager"], pitch="", sender_name="Ada Okoye", postal_address="x"
+    )
+    await draft.write(
+        llm, FACTS, st, _brief_startup(), _contact(), region="us",
+        openings=[{"title": "Senior Product Manager", "url": "u"}],
+        why=["They list a Senior Product Manager opening."],
+    )  # fmt: skip
+    brief = json.loads(llm.asked[0][1])
+    assert brief["candidate"]["history"][0]["company"] == "Northwind"
+    assert brief["startup"]["opening"] == "Senior Product Manager"
+    assert brief["why_it_fits"] == ["They list a Senior Product Manager opening."]

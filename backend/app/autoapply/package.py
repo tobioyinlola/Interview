@@ -11,14 +11,37 @@ from app.models import Application, CandidateAnswer, CandidateFacts, JobPosting
 # Application states after which the package may never change again.
 FROZEN = {"sending", "submitted", "sent_email", "confirmation_pending"}
 SUPPORTED_KINDS = {"text", "choice", "declaration"}
-# Form questions the verified CV facts can answer on their own.
-FROM_FACTS = {
-    "name": ("contact", "name"),
-    "full_name": ("contact", "name"),
-    "email": ("contact", "email"),
-    "phone": ("contact", "phone"),
-    "location": ("contact", "location"),
-}
+
+
+def contact_values(facts: dict[str, Any]) -> dict[str, str]:
+    """What the verified CV facts can answer on their own, under the names forms use for it. Only
+    what the facts really hold: a form asking for anything else is asked of the candidate."""
+    c = facts.get("contact") or {}
+    name = str(c.get("name") or "").strip()
+    parts = name.split()
+    location = str(c.get("location") or "").strip()
+    links = [str(x) for x in facts.get("links") or [] if isinstance(x, str)]
+    linkedin = next((x for x in links if "linkedin.com" in x.lower()), "")
+    github = next((x for x in links if "github.com" in x.lower()), "")
+    website = next((x for x in links if x not in (linkedin, github)), "")
+    latest = (facts.get("history") or [{}])[0]
+    out = {
+        "name": name,
+        "full_name": name,
+        "first_name": parts[0] if parts else "",
+        "last_name": " ".join(parts[1:]),
+        "email": str(c.get("email") or "").strip(),
+        "phone": str(c.get("phone") or "").strip(),
+        "location": location,
+        "country": location.rsplit(",", 1)[-1].strip() if "," in location else "",
+        "linkedin": linkedin,
+        "github": github,
+        "website": website,
+        "current_company": str(latest.get("company") or "").strip()
+        if isinstance(latest, dict)
+        else "",
+    }
+    return {k: v for k, v in out.items() if v}
 
 
 class FrozenError(Exception):
@@ -89,12 +112,10 @@ def resolve_answers(
         if field in saved and saved[field].reusable:
             answers[field] = {"value": saved[field].value, "source": "saved answer"}
             continue
-        if field in FROM_FACTS:
-            section, key = FROM_FACTS[field]
-            value = facts.get(section, {}).get(key, "")
-            if value:
-                answers[field] = {"value": value, "source": "your verified CV"}
-                continue
+        known = contact_values(facts)
+        if field in known:
+            answers[field] = {"value": known[field], "source": "your verified CV"}
+            continue
         if required:
             missing.append(
                 {
@@ -138,10 +159,11 @@ async def build(
         return None, missing
     # The contact details every form asks for always travel with the package, taken from the
     # facts the candidate verified, so a form that asks for them later can be filled honestly.
-    for field, (section, key) in FROM_FACTS.items():
-        value = facts.get(section, {}).get(key, "")
-        if value and field not in answers:
-            answers[field] = {"value": value, "source": "your verified CV"}
+    for field, value in contact_values(facts).items():
+        answers.setdefault(field, {"value": value, "source": "your verified CV"})
+    # what the candidate answered for this application, including questions only the live form asked
+    for field, value in (app.answers or {}).items():
+        answers.setdefault(field, {"value": str(value), "source": "this application"})
     cv_out, note = await tailor.tailor_cv(llm, facts, cv_text, posting)
     cover = await tailor.cover_note(llm, facts, cv_text, posting)
     destination = (

@@ -1,6 +1,5 @@
 import { vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 
 import { App } from "../../app/App";
 import { PLAN } from "../onboarding/content";
@@ -11,7 +10,6 @@ import { ME, mockApi, renderApp, stubSupportedBrowser } from "../../test-utils";
 beforeEach(() => stubSupportedBrowser());
 afterEach(() => vi.restoreAllMocks());
 
-const ago = (d: number) => new Date(Date.now() - d * 86_400_000).toISOString();
 const base = (over: Record<string, () => object> = {}) => ({
   "GET /api/me": () => ({ json: ME }),
   "GET /api/notes": () => ({
@@ -34,45 +32,28 @@ describe("DashboardPage (FR-33)", () => {
     );
     renderApp(<App />, "/");
     const c = within(await card());
-    expect(c.getAllByText("Not done:").length).toBeGreaterThanOrEqual(2); // CV and brief
+    expect(c.getAllByText("Not done:").length).toBeGreaterThanOrEqual(1); // the CV
     expect(c.getByRole("link", { name: "Upload your CV" })).toHaveAttribute(
       "href",
       "/settings/cv",
     );
-    expect(c.getByRole("link", { name: "Add a company" })).toHaveAttribute(
-      "href",
-      "/companies",
+    // no company side: the interview page is where a company is chosen or added
+    expect(screen.queryByText("Who is interviewing you?")).toBeNull();
+    expect(screen.queryByRole("region", { name: "Companies" })).toBeNull();
+    // one clear path: no chart or zero tiles yet
+    await waitFor(() =>
+      expect(screen.queryByText("Interview summary")).toBeNull(),
     );
-    // one clear path: no empty "Companies", "Recent sessions", chart or zero tiles yet
-    expect(
-      await screen.findByText("Who is interviewing you?"),
-    ).toBeInTheDocument();
-    expect(screen.queryByText("No companies yet.")).toBeNull();
-    expect(screen.queryByText("No sessions yet.")).toBeNull();
-    expect(screen.queryByText("Interview summary")).toBeNull();
-    expect(screen.queryByText("Recent sessions")).toBeNull();
   });
 
-  it("ticks the CV, a fresh brief and the browser", async () => {
-    mockApi(
-      base({
-        "GET /api/companies": () => ({
-          json: [
-            {
-              id: "c1",
-              name: "Acme",
-              last_researched_at: ago(2),
-              job_status: "ready",
-            },
-          ],
-        }),
-      }),
-    );
+  it("ticks the CV and the browser", async () => {
+    mockApi(base());
     renderApp(<App />, "/");
     const c = within(await card());
-    await screen.findByText("Company brief ready and fresh");
     expect(c.getByText(/CV uploaded/)).toBeInTheDocument();
-    expect(c.queryByRole("link", { name: "Upload your CV" })).toBeNull();
+    await waitFor(() =>
+      expect(c.queryByRole("link", { name: "Upload your CV" })).toBeNull(),
+    );
     expect(c.getByText("Browser can share tab audio")).toBeInTheDocument();
     expect(c.queryByText(/Partner consent/)).toBeNull(); // agreed at sign-up, not a step
     expect(c.getByRole("link", { name: "Start interview" })).toHaveAttribute(
@@ -81,92 +62,33 @@ describe("DashboardPage (FR-33)", () => {
     );
   });
 
-  it("warns when the newest brief is more than 7 days old", async () => {
+  it("has quick actions: Auto-Apply, Interview, History and Startup", async () => {
     mockApi(
       base({
-        "GET /api/companies": () => ({
-          json: [
-            {
-              id: "c1",
-              name: "Old",
-              last_researched_at: ago(12),
-              job_status: "ready",
-            },
-            {
-              id: "c2",
-              name: "Older",
-              last_researched_at: ago(30),
-              job_status: "ready",
-            },
-          ],
+        "GET /api/me": () => ({
+          json: { ...ME, autoapply: true, startup_outreach: true },
         }),
+        "GET /api/autoapply/dashboard": () => ({ status: 404, json: {} }),
       }),
     );
     renderApp(<App />, "/");
-    expect(await screen.findByText(/brief is 12 days old/i)).toHaveTextContent(
-      /researching again/i,
+    const quick = within(
+      await screen.findByRole("region", { name: "Quick actions" }),
     );
-    expect(screen.getByText("Needs attention:")).toBeInTheDocument();
+    for (const [name, href] of [
+      ["Auto-Apply", "/auto-apply"],
+      ["Interview", "/session/new"],
+      ["History", "/sessions"],
+      ["Startup", "/startups"],
+    ])
+      expect(quick.getByRole("link", { name })).toHaveAttribute("href", href);
+    expect(quick.queryByRole("link", { name: "Companies" })).toBeNull();
   });
 
-  it("does not warn if any brief is fresh, even when another is old", async () => {
+  it("shows interviews and applications together in Recent, newest first, with their links", async () => {
     mockApi(
       base({
-        "GET /api/companies": () => ({
-          json: [
-            {
-              id: "c1",
-              name: "Old",
-              last_researched_at: ago(30),
-              job_status: "ready",
-            },
-            {
-              id: "c2",
-              name: "New",
-              last_researched_at: ago(1),
-              job_status: "ready",
-            },
-          ],
-        }),
-      }),
-    );
-    renderApp(<App />, "/");
-    expect(
-      await screen.findByText("Company brief ready and fresh"),
-    ).toBeInTheDocument();
-  });
-
-  it("lists companies with status and recent sessions with links", async () => {
-    mockApi(
-      base({
-        "GET /api/companies": () => ({
-          json: [
-            {
-              id: "a",
-              name: "Alpha",
-              last_researched_at: null,
-              job_status: "searching",
-            },
-            {
-              id: "b",
-              name: "Beta",
-              last_researched_at: ago(1),
-              job_status: "ready",
-            },
-            {
-              id: "c",
-              name: "Gamma",
-              last_researched_at: null,
-              job_status: "failed",
-            },
-            {
-              id: "d",
-              name: "Delta",
-              last_researched_at: null,
-              job_status: null,
-            },
-          ],
-        }),
+        "GET /api/me": () => ({ json: { ...ME, autoapply: true } }),
         "GET /api/sessions": () => ({
           json: {
             items: [
@@ -184,40 +106,66 @@ describe("DashboardPage (FR-33)", () => {
             next_cursor: null,
           },
         }),
-      }),
-    );
-    renderApp(<App />, "/");
-    const co = within(await screen.findByRole("region", { name: "Companies" }));
-    expect(await co.findByText("Researching…")).toBeInTheDocument();
-    expect(co.getByText("Brief ready")).toBeInTheDocument();
-    expect(co.getByText("Research failed")).toBeInTheDocument();
-    expect(co.getByText("Not researched")).toBeInTheDocument();
-    const se = within(screen.getByRole("region", { name: "Recent sessions" }));
-    expect(
-      await se.findByText(/Beta · 2 min 5 s · 4 questions/),
-    ).toBeInTheDocument();
-    expect(se.getByRole("link", { name: /2026|Nov/ })).toHaveAttribute(
-      "href",
-      "/sessions/s1",
-    );
-  });
-
-  it("shows only the five most recent items", async () => {
-    mockApi(
-      base({
-        "GET /api/companies": () => ({
-          json: Array.from({ length: 8 }, (_, i) => ({
-            id: `c${i}`,
-            name: `Company${i}`,
-            last_researched_at: null,
-            job_status: null,
-          })),
+        "GET /api/autoapply/dashboard": () => ({
+          json: {
+            demo: false,
+            state: "running",
+            primary: { kind: "preferences", label: "x", href: "/auto-apply" },
+            campaign: { state: "active", day: 2, days_total: 30 },
+            paused: false,
+            mailbox: { connected: false, address: null, status: "none" },
+            counts: {},
+            channels: {},
+            needs_input: [],
+            open_invites: [],
+            next_interview: null,
+            review_count: 0,
+            sources: [],
+            startup_recent: [],
+            usage: null,
+            last_run: null,
+            recent: [
+              {
+                id: "a1",
+                status: "submitted",
+                channel: "form",
+                score: 1,
+                needs_input: [],
+                skip_reason: null,
+                recruiting_stage: null,
+                created_at: "2026-11-18T09:00:00Z",
+                updated_at: "2026-11-18T09:00:00Z",
+                posting: {
+                  id: "p1",
+                  company: "Acme",
+                  title: "Product Manager",
+                  region: null,
+                  arrangement: null,
+                  application_url: "https://jobs.example/pm",
+                  source: "x",
+                },
+              },
+            ],
+          },
         }),
       }),
     );
     renderApp(<App />, "/");
-    await screen.findByText("Company0");
-    expect(screen.queryByText("Company5")).toBeNull();
+    const recent = within(
+      await screen.findByRole("region", { name: "Recent" }),
+    );
+    const app = await recent.findByRole("link", { name: /^Product Manager/ });
+    expect(app).toHaveAttribute("href", "/auto-apply/applications/a1");
+    expect(
+      recent.getByRole("link", { name: "Open the job: Product Manager" }),
+    ).toHaveAttribute("href", "https://jobs.example/pm");
+    const interview = recent.getByRole("link", { name: /^Beta/ });
+    expect(interview).toHaveAttribute("href", "/sessions/s1");
+    // the application is newer, so it comes first
+    const links = recent.getAllByRole("link").map((l) => l.textContent ?? "");
+    expect(links.findIndex((t) => /^Product Manager/.test(t))).toBeLessThan(
+      links.findIndex((t) => /^Beta/.test(t)),
+    );
   });
 
   it("summarises the user's own sessions in the stat cards", async () => {
@@ -280,7 +228,9 @@ describe("DashboardPage: greeting and focus", () => {
     try {
       mockApi(base({ "GET /api/me": () => ({ json: asJordan }) }));
       renderApp(<App />, "/dashboard");
-      const hello = await screen.findByText(/^Good morning, Jordan/);
+      const hello = await screen.findByRole("heading", {
+        name: /^Good morning, Jordan/,
+      });
       expect(hello).toHaveTextContent("Good morning, Jordan 😊");
       expect(hello.querySelector("[aria-hidden=true]")).toHaveTextContent("😊");
       expect(screen.queryByText(/^Hello/)).toBeNull();
@@ -306,8 +256,12 @@ describe("DashboardPage: greeting and focus", () => {
       }),
     );
     renderApp(<App />, "/dashboard");
-    const hello = await screen.findByText(/^Good (morning|afternoon|evening)/);
-    expect(hello).toHaveTextContent(/^Good (morning|afternoon|evening) 😊$/);
+    const hello = await screen.findByRole("heading", {
+      name: /^Good (morning|afternoon|evening)/,
+    });
+    expect(hello).toHaveTextContent(
+      /^Good (morning|afternoon|evening), there 😊$/,
+    );
     expect(hello.textContent).not.toMatch(/me@|example/i);
   });
 
@@ -402,141 +356,6 @@ describe("DashboardPage: sessions card", () => {
       await card.findByRole("link", { name: "Redeem your free session" }),
     ).toBeInTheDocument();
     expect(card.getByText(/Payments are coming soon/)).toBeInTheDocument();
-  });
-});
-
-describe("DashboardPage: who is interviewing you", () => {
-  const created = {
-    status: 201,
-    json: {
-      company: { id: "c-new", name: "Northwind", role: "PM", known_text: "" },
-      job_id: "j1",
-    },
-  };
-  const none = (over: Record<string, () => object> = {}) =>
-    base({
-      "GET /api/companies": () => ({ json: [] }),
-      "GET /api/notes": () => ({
-        json: {
-          role: "Product Manager",
-          content: "Led a launch.",
-          updated_at: "x",
-        },
-      }),
-      "GET /api/billing": () => ({ status: 404, json: {} }),
-      ...over,
-    });
-
-  it("asks which company is interviewing you, not where you have worked", async () => {
-    mockApi(none());
-    renderApp(<App />, "/dashboard");
-    const card = within(
-      await screen.findByRole("region", { name: "Who is interviewing you?" }),
-    );
-    expect(
-      card.getByText(/not an employer you have worked for/),
-    ).toBeInTheDocument();
-    expect(card.getByLabelText("Company interviewing you")).toBeInTheDocument();
-    expect(card.getByLabelText("Role you're interviewing for")).toHaveValue(
-      "Product Manager",
-    );
-  });
-
-  it("starts the research straight away and opens the company page", async () => {
-    const calls = mockApi(none({ "POST /api/companies": () => created }));
-    renderApp(<App />, "/dashboard");
-    const card = within(
-      await screen.findByRole("region", { name: "Who is interviewing you?" }),
-    );
-    const go = card.getByRole("button", { name: "Research this company" });
-    expect(go).toBeDisabled(); // a name is needed
-    await userEvent.type(
-      card.getByLabelText("Company interviewing you"),
-      "  Northwind  ",
-    );
-    await userEvent.type(
-      card.getByLabelText(/Company website/),
-      "https://northwind.example",
-    );
-    await userEvent.click(go);
-    await waitFor(() =>
-      expect(calls.some((c) => c.key === "POST /api/companies")).toBe(true),
-    );
-    const post = calls.find((c) => c.key === "POST /api/companies")!;
-    expect(post.body).toMatchObject({
-      name: "Northwind",
-      website_url: "https://northwind.example",
-      role: "Product Manager",
-    });
-    expect(post.headers.get("idempotency-key")).toMatch(/^[0-9a-f-]{36}$/);
-  });
-
-  it("is not shown once a company has been added", async () => {
-    mockApi(
-      none({
-        "GET /api/companies": () => ({
-          json: [
-            {
-              id: "c1",
-              name: "Acme",
-              last_researched_at: null,
-              job_status: "searching",
-            },
-          ],
-        }),
-      }),
-    );
-    renderApp(<App />, "/dashboard");
-    await screen.findByRole("region", { name: "Readiness" });
-    expect(
-      screen.queryByRole("region", { name: "Who is interviewing you?" }),
-    ).toBeNull();
-  });
-
-  it("shows the server's message and keeps what was typed, with a fresh key for the retry", async () => {
-    const calls = mockApi(
-      none({
-        "POST /api/companies": () => ({
-          status: 422,
-          json: {
-            error: {
-              code: "bad_url",
-              message: "That link is not allowed.",
-              request_id: "r",
-            },
-          },
-        }),
-      }),
-    );
-    renderApp(<App />, "/dashboard");
-    const card = within(
-      await screen.findByRole("region", { name: "Who is interviewing you?" }),
-    );
-    await userEvent.type(
-      card.getByLabelText("Company interviewing you"),
-      "Northwind",
-    );
-    await userEvent.click(
-      card.getByRole("button", { name: "Research this company" }),
-    );
-    expect(await card.findByRole("alert")).toHaveTextContent(
-      "That link is not allowed.",
-    );
-    expect(card.getByLabelText("Company interviewing you")).toHaveValue(
-      "Northwind",
-    );
-    await userEvent.click(
-      card.getByRole("button", { name: "Research this company" }),
-    );
-    await waitFor(() =>
-      expect(calls.filter((c) => c.key === "POST /api/companies")).toHaveLength(
-        2,
-      ),
-    );
-    const [a, b] = calls.filter((c) => c.key === "POST /api/companies");
-    expect(a.headers.get("idempotency-key")).not.toBe(
-      b.headers.get("idempotency-key"),
-    );
   });
 });
 

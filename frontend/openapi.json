@@ -1,6 +1,105 @@
 {
   "components": {
     "schemas": {
+      "AccessIn": {
+        "properties": {
+          "access": {
+            "pattern": "^(active|none)$",
+            "title": "Access",
+            "type": "string"
+          }
+        },
+        "required": [
+          "access"
+        ],
+        "title": "AccessIn",
+        "type": "object"
+      },
+      "AccessListOut": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "integer"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AccessPersonOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "requested": {
+            "title": "Requested",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "requested",
+          "active",
+          "items"
+        ],
+        "title": "AccessListOut",
+        "type": "object"
+      },
+      "AccessOut": {
+        "properties": {
+          "access": {
+            "title": "Access",
+            "type": "string"
+          }
+        },
+        "required": [
+          "access"
+        ],
+        "title": "AccessOut",
+        "type": "object"
+      },
+      "AccessPersonOut": {
+        "properties": {
+          "access": {
+            "title": "Access",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "requested_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested At"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "access"
+        ],
+        "title": "AccessPersonOut",
+        "type": "object"
+      },
       "ActivityItem": {
         "properties": {
           "actor_email": {
@@ -3426,6 +3525,11 @@
                 "type": "null"
               }
             ]
+          },
+          "outreach_access": {
+            "default": "none",
+            "title": "Outreach Access",
+            "type": "string"
           },
           "phone": {
             "anyOf": [
@@ -7822,6 +7926,105 @@
         ]
       }
     },
+    "/api/admin/startups/access": {
+      "get": {
+        "description": "Everyone who asked (waiting first) or has startup outreach; `q` finds anyone by email.",
+        "operationId": "access_list_api_admin_startups_access_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 100,
+              "title": "Q",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Access List",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/startups/access/{uid}": {
+      "put": {
+        "description": "Switch startup outreach on for one person, or off again (their pitches stop at once).",
+        "operationId": "access_set_api_admin_startups_access__uid__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Uid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessPersonOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Access Set",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/admin/startups/directories": {
       "post": {
         "operationId": "add_directory_api_admin_startups_directories_post",
@@ -10960,6 +11163,49 @@
         "summary": "Remove Source",
         "tags": [
           "companies"
+        ]
+      }
+    },
+    "/api/hunt/access": {
+      "get": {
+        "operationId": "my_access_api_hunt_access_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "My Access",
+        "tags": [
+          "hunt"
+        ]
+      }
+    },
+    "/api/hunt/access/request": {
+      "post": {
+        "description": "Ask to be let in. Asking again changes nothing.",
+        "operationId": "request_access_api_hunt_access_request_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Request Access",
+        "tags": [
+          "hunt"
         ]
       }
     },

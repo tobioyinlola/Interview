@@ -201,7 +201,9 @@ async def plan(
     made = 0
     for pts, why, s, c in ranked[:room]:
         found = fit.openings_for(st.roles, s)
-        subject, body = await draft.write(llm, facts, st, s, c, region=s.region, openings=found)
+        subject, body = await draft.write(
+            llm, facts, st, s, c, region=s.region, openings=found, why=why
+        )
         db.add(
             HuntTarget(
                 id=uuid.uuid4(),

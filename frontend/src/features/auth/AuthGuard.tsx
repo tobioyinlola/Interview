@@ -2,6 +2,7 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 
 import { useMe } from "../../api/hooks";
 import { Loading } from "../../ui/Loading";
+import { IdleGuard } from "./IdleGuard";
 
 export function AuthGuard() {
   const { data: me, isPending, isError } = useMe();
@@ -17,5 +18,10 @@ export function AuthGuard() {
   // Straight after sign-up the person is taken through onboarding once (they can skip it).
   if (me.onboarded === false && pathname !== "/onboarding")
     return <Navigate to="/onboarding" replace />;
-  return <Outlet />;
+  return (
+    <>
+      <IdleGuard />
+      <Outlet />
+    </>
+  );
 }

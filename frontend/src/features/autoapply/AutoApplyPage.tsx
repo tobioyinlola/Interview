@@ -1,8 +1,6 @@
 import { type FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-import { AutoApplyTabs } from "./AutoApplyTabs";
-
 import { Loading } from "../../ui/Loading";
 import {
   useAddJob,
@@ -371,14 +369,13 @@ export function AutoApplyPage() {
 
   return (
     <main className="page-narrow">
-      <AutoApplyTabs waiting={d.startups?.waiting ?? 0} />
       {d.demo && <DemoNotice />}
 
       <Hero d={d} />
 
       {d.startups && (
         <Link
-          to="/auto-apply/startups"
+          to="/startups"
           className="flex min-h-[56px] items-center justify-between gap-3 rounded-2xl bg-surface p-4 shadow-card"
         >
           <span className="min-w-0">
@@ -633,7 +630,7 @@ export function AutoApplyPage() {
                     ) : (
                       <li key={x.p.id}>
                         <Link
-                          to="/auto-apply/startups"
+                          to="/startups"
                           className="flex items-center gap-3 rounded-2xl bg-canvas p-3 transition-colors hover:bg-accent-soft"
                         >
                           <span

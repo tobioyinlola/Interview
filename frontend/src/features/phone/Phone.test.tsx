@@ -18,6 +18,7 @@ const me = {
   onboarded: true,
   tour_done: true,
   autoapply: true,
+  startup_outreach: true,
   full_name: "Jordan Reyes",
 };
 
@@ -105,7 +106,11 @@ describe("the phone home", () => {
   it("greets by first name and offers one number, a few shortcuts and a short list", async () => {
     api();
     renderApp(<App />, "/dashboard");
-    expect(await screen.findByText("Jordan")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", {
+        name: /Good (morning|afternoon|evening), Jordan/,
+      }),
+    ).toBeInTheDocument();
     const summary = await screen.findByRole("link", {
       name: "Auto-Apply summary",
     });
@@ -117,9 +122,9 @@ describe("the phone home", () => {
     const quick = within(screen.getByRole("region", { name: "Quick actions" }));
     for (const [name, href] of [
       ["Auto-Apply", "/auto-apply"],
-      ["Companies", "/companies"],
       ["Interview", "/session/new"],
       ["History", "/sessions"],
+      ["Startup", "/startups"],
     ])
       expect(quick.getByRole("link", { name })).toHaveAttribute("href", href);
     const recent = within(screen.getByRole("region", { name: "Recent" }));
@@ -131,8 +136,11 @@ describe("the phone home", () => {
     try {
       api();
       renderApp(<App />, "/dashboard");
-      expect(await screen.findByText("Good afternoon,")).toBeInTheDocument();
-      expect(screen.getByText("😊")).toBeInTheDocument();
+      const hello = await screen.findByRole("heading", {
+        name: /Good afternoon, Jordan/,
+      });
+      expect(hello).toBeInTheDocument(); // one line: the greeting, the first name and the smile
+      expect(hello).toHaveTextContent("Good afternoon, Jordan 😊");
       expect(screen.getByRole("link", { name: "Your profile" })).toBeVisible();
       expect(screen.queryByRole("link", { name: "Help" })).toBeNull();
     } finally {
@@ -180,14 +188,14 @@ describe("the phone home", () => {
 describe("the three icons", () => {
   it("are the only navigation, with Auto-Apply in the middle", async () => {
     api();
-    renderApp(<App />, "/companies");
+    renderApp(<App />, "/startups");
     const tabs = await screen.findByRole("navigation", { name: "Tabs" });
     expect(within(tabs).getAllByRole("link")).toHaveLength(3);
     expect(
       within(tabs).getByRole("link", { name: "Auto-Apply" }),
     ).toHaveAttribute("href", "/auto-apply");
     expect(
-      within(tabs).getByRole("link", { name: "Companies" }),
+      within(tabs).getByRole("link", { name: "Startups" }),
     ).toHaveAttribute("aria-current", "page");
   });
 });

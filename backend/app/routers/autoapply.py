@@ -31,7 +31,6 @@ from app.autoapply import mailbox as mbx
 from app.autoapply import smtpmail as smtp
 from app.autoapply.adapters import AdapterError, DiscoveryAdapter, FormAdapter, MailboxAdapter
 from app.autoapply.discovery import source_labels
-from app.autoapply.fixtures import FixtureForm
 from app.autoapply.gmail import STATE_COOKIE, GmailOAuth
 from app.autoapply.schemas import (
     AnswerApplicationIn,
@@ -117,11 +116,16 @@ def get_sources(
     return sources
 
 
-def get_form(request: Request) -> FormAdapter:
-    """The employer-form adapter. Only the fixture exists until a real one is approved."""
+def get_form(
+    request: Request,
+    settings: Settings = Depends(get_settings),  # noqa: B008
+) -> FormAdapter:
+    """The employer-form adapter named in the settings (the fixture unless set to the browser)."""
     form = getattr(request.app.state, "autoapply_form", None)
     if form is None:
-        form = FixtureForm()
+        from app.autoapply import forms
+
+        form = forms.build(settings)
         request.app.state.autoapply_form = form
     return form
 
@@ -139,10 +143,16 @@ def get_mailbox_adapter(
     return adapter
 
 
+async def _outreach_active(db: AsyncSession, user_id: Any) -> bool:
+    """Startup outreach is by invitation: only people it was switched on for see any of it."""
+    row = await db.execute(select(User.outreach_access).where(User.id == user_id))
+    return row.scalar_one_or_none() == "active"
+
+
 async def _startup_counts(
     db: AsyncSession, settings: Settings, user_id: Any
 ) -> dict[str, int] | None:
-    if not settings.startup_outreach_enabled:
+    if not settings.startup_outreach_enabled or not await _outreach_active(db, user_id):
         return None
     from app.hunt import engine as hunt_engine  # local: optional feature
 
@@ -153,7 +163,7 @@ async def _startup_recent(
     db: AsyncSession, settings: Settings, user_id: Any
 ) -> list[StartupSentOut]:
     """The latest startup pitches, so they sit in the same activity list as job applications."""
-    if not settings.startup_outreach_enabled:
+    if not settings.startup_outreach_enabled or not await _outreach_active(db, user_id):
         return []
     from app.hunt import engine as hunt_engine  # local: optional feature
 

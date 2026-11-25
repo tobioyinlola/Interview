@@ -1,21 +1,14 @@
-import {
-  Building2,
-  ChevronRight,
-  Gift,
-  History,
-  Mic,
-  Rocket,
-  Sparkles,
-} from "lucide-react";
-import type { ReactNode } from "react";
+import { ChevronRight, Rocket, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { useCompanies, useMe, useNotes, useSessions } from "../../api/hooks";
-import { GREETING_EMOJI, greeting } from "../account/greeting";
-import { firstName } from "../account/names";
+import { useCompanies, useMe, useNotes } from "../../api/hooks";
 import { useDashboard } from "../autoapply/api";
 import { ConnectGmail } from "../autoapply/ConnectGmail";
-import { formatWhen } from "../review/format";
+import {
+  DashboardHeader,
+  QuickActions,
+  RecentActivity,
+} from "../dashboard/shared";
 import { Avatar } from "./Avatar";
 
 /** A small progress ring: how far through the 30 days. */
@@ -52,36 +45,11 @@ function Ring({ day, total }: { day: number; total: number }) {
   );
 }
 
-function Quick({
-  to,
-  icon,
-  label,
-}: {
-  to: string;
-  icon: ReactNode;
-  label: string;
-}) {
-  return (
-    <li>
-      <Link
-        to={to}
-        className="flex flex-col items-center gap-2 active:scale-95"
-      >
-        <span className="flex h-16 w-16 items-center justify-center rounded-full bg-surface text-accent-dark shadow-card">
-          {icon}
-        </span>
-        <span className="text-xs font-medium">{label}</span>
-      </Link>
-    </li>
-  );
-}
-
 /** The phone app's home: one next step, one number that matters, a few shortcuts, a short list. */
 export function PhoneHome() {
   const { data: me } = useMe();
   const notes = useNotes();
   const companies = useCompanies();
-  const sessions = useSessions();
   const aaOn = !!me?.autoapply;
   const aa = useDashboard(aaOn);
   const cv = (notes.data?.content ?? "").trim().length > 0;
@@ -132,28 +100,17 @@ export function PhoneHome() {
     (aa.data?.counts.submitted ?? 0) +
     (aa.data?.counts.sent_email ?? 0) +
     (aa.data?.startups?.sent ?? 0);
-  const recent = aa.data?.recent.slice(0, 3) ?? [];
-  const past = (sessions.data?.pages[0]?.items ?? []).slice(0, 3);
 
   return (
     <main className="space-y-6 px-5 pt-[max(1rem,env(safe-area-inset-top))]">
       <h1 className="sr-only">Home</h1>
-      <div className="flex items-center justify-between">
-        <Link
-          to="/me"
-          className="flex items-center gap-3"
-          aria-label="Your profile"
-        >
-          <Avatar name={me?.full_name} email={me?.email} />
-          <span>
-            <span className="block text-sm text-muted">{greeting()},</span>
-            <span className="block text-lg font-semibold leading-tight">
-              {firstName(me?.full_name) || "there"}{" "}
-              <span aria-hidden="true">{GREETING_EMOJI}</span>
-            </span>
-          </span>
-        </Link>
-      </div>
+      <DashboardHeader
+        right={
+          <Link to="/me" aria-label="Your profile">
+            <Avatar name={me?.full_name} email={me?.email} />
+          </Link>
+        }
+      />
 
       <Link
         to={next.to}
@@ -222,103 +179,9 @@ export function PhoneHome() {
         </Link>
       )}
 
-      <section aria-label="Quick actions">
-        <h2 className="mb-3 text-base font-semibold">Quick actions</h2>
-        <ul className="grid grid-cols-4 gap-2">
-          {aaOn ? (
-            <Quick
-              to="/auto-apply"
-              icon={<Rocket className="h-6 w-6" />}
-              label="Auto-Apply"
-            />
-          ) : (
-            <Quick
-              to="/referrals"
-              icon={<Gift className="h-6 w-6" />}
-              label="Invite"
-            />
-          )}
-          <Quick
-            to="/companies"
-            icon={<Building2 className="h-6 w-6" />}
-            label="Companies"
-          />
-          <Quick
-            to="/session/new"
-            icon={<Mic className="h-6 w-6" />}
-            label="Interview"
-          />
-          <Quick
-            to="/sessions"
-            icon={<History className="h-6 w-6" />}
-            label="History"
-          />
-        </ul>
-      </section>
+      <QuickActions />
 
-      <section aria-label="Recent">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-semibold">Recent</h2>
-          <Link
-            to={recent.length ? "/auto-apply/applications" : "/sessions"}
-            className="flex min-h-[44px] items-center text-sm font-medium text-accent-dark"
-          >
-            See all
-          </Link>
-        </div>
-        <ul className="divide-y divide-canvas overflow-hidden rounded-[1.75rem] bg-surface shadow-card">
-          {recent.map((a) => (
-            <li key={a.id}>
-              <Link
-                to={`/auto-apply/applications/${a.id}`}
-                className="flex min-h-[64px] items-center gap-3 px-4 py-2"
-              >
-                <Avatar name={a.posting.company} />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium">
-                    {a.posting.title}
-                  </span>
-                  <span className="block truncate text-sm text-muted">
-                    {a.posting.company}
-                  </span>
-                </span>
-                <ChevronRight
-                  className="h-5 w-5 text-muted"
-                  aria-hidden="true"
-                />
-              </Link>
-            </li>
-          ))}
-          {recent.length === 0 &&
-            past.map((s) => (
-              <li key={s.id}>
-                <Link
-                  to={`/sessions/${s.id}`}
-                  className="flex min-h-[64px] items-center gap-3 px-4 py-2"
-                >
-                  <Avatar name={s.company_name ?? "?"} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">
-                      {s.company_name ?? "Interview"}
-                    </span>
-                    <span className="block truncate text-sm text-muted">
-                      {formatWhen(s.started_at)}
-                    </span>
-                  </span>
-                  <ChevronRight
-                    className="h-5 w-5 text-muted"
-                    aria-hidden="true"
-                  />
-                </Link>
-              </li>
-            ))}
-          {recent.length === 0 && past.length === 0 && (
-            <li className="p-5 text-center text-sm text-muted">
-              Nothing yet. It shows up here as you go.
-            </li>
-          )}
-        </ul>
-      </section>
+      <RecentActivity />
     </main>
   );
 }

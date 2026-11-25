@@ -101,15 +101,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 async def start_autoapply(settings: Settings) -> None:
     """Run the Auto-Apply scheduler for the life of the server."""
-    from app.autoapply import discovery, mailboxes, scheduler
-    from app.autoapply.fixtures import FixtureForm
+    from app.autoapply import discovery, forms, mailboxes, scheduler
 
     mailbox_adapter: MailboxAdapter = mailboxes.build(settings)
     await scheduler.loop(
         get_sessionmaker(),
         settings=settings,
         sources=discovery.build_sources(settings),
-        form=FixtureForm(),
+        form=forms.build(settings),
         mailbox_adapter=mailbox_adapter,
         llm=build_answer_llm(settings),
     )
