@@ -1827,3 +1827,53 @@ async def test_a_sitemap_directory_is_read_a_batch_at_a_time(maker, monkeypatch)
         assert all(
             r.region == "us" and r.directory_url.startswith(base + "/companies/") for r in rows
         )
+
+
+# ------------------------------------------------------------------ paged directories (Antler)
+
+
+def test_the_next_page_is_the_directorys_own_load_more_link():
+    here = "https://www.antler.co/portfolio"
+    links = (
+        ("Load more", f"{here}?0b933bfd_page=2"),
+        ("Load more", f"{here}?0b933bfd_page=3"),
+        ("UK", "https://www.antler.co/location/uk"),
+        ("Else", "https://elsewhere.example/portfolio?page=2"),
+    )
+    assert directory.next_page(links, here) == f"{here}?0b933bfd_page=2"
+    assert directory.next_page(links, f"{here}?0b933bfd_page=2") == f"{here}?0b933bfd_page=3"
+    assert directory.next_page(links, f"{here}?0b933bfd_page=3") is None
+
+
+async def test_a_paged_directory_is_read_a_few_pages_at_a_time(maker, monkeypatch):
+    base = "https://www.antler.co/portfolio"
+    pages = {
+        base: ("A", f"{base}?x_page=2"),
+        f"{base}?x_page=2": ("B", f"{base}?x_page=3"),
+        f"{base}?x_page=3": ("C", f"{base}?x_page=4"),
+        f"{base}?x_page=4": ("D", None),
+    }
+
+    class Site:
+        async def fetch(self, url):
+            name, nxt = pages[url]
+            links = [(name, f"https://{name.lower()}.io")]
+            if nxt:
+                links.append(("Load more", nxt))
+            return FetchResult(url, "ok", text=f"{name} " * 40, final_url=url, links=tuple(links))
+
+    class Llm(FakeLlmProvider):
+        async def generate_json(self, *, system, user, schema):
+            name = user.split()[0] if user.split()[0] in "ABCD" else "A"
+            return json.dumps(
+                {"startups": [{"name": f"Co{name}", "website": f"https://{name.lower()}.io"}]}
+            )
+
+    monkeypatch.setattr(directory, "PAGES_PER_READ", 2)
+    async with maker() as db:
+        first = await directory.ingest(db, Site(), Llm(), "Antler", base, NOW)
+        assert first["next"] == f"{base}?x_page=3" and first["more"] is True
+        second = await directory.ingest(db, Site(), Llm(), "Antler", base, NOW, "", first["next"])
+        assert second["next"] is None and second["more"] is False
+        rows = (await db.execute(select(Startup))).scalars().all()
+        assert {r.domain for r in rows} == {"a.io", "b.io", "c.io", "d.io"}

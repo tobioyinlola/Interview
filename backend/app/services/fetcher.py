@@ -39,6 +39,7 @@ _REDIRECTS = {301, 302, 303, 307, 308}
 _LOGIN_HINTS = ("login", "signin", "sign-in", "sign_in", "sso", "/auth", "authenticate")
 _ROBOTS_MAX_BYTES = 512 * 1024
 _ROBOTS_TTL = 3600.0
+MAX_CRAWL_DELAY = 15.0  # a site's own request is honoured up to this many seconds between reads
 MIN_READABLE_CHARS = 80
 MANY_LINKS = 20  # this many links make a nearly textless page worth reading
 
@@ -195,6 +196,7 @@ class Fetcher:
         self._host_locks: dict[str, asyncio.Lock] = {}
         self._last_request: dict[str, float] = {}
         self._robots: dict[str, tuple[float, RobotFileParser | bool]] = {}
+        self._delay: dict[str, float] = {}  # host -> the Crawl-delay its robots.txt asks for
 
     # ------------------------------------------------------------------ public
 
@@ -322,7 +324,8 @@ class Fetcher:
         host = (parts.hostname or "").rstrip(".").lower()
         lock = self._host_locks.setdefault(host, asyncio.Lock())
         async with lock:
-            wait = self.host_interval - (self._clock() - self._last_request.get(host, -1e9))
+            gap = max(self.host_interval, self._delay.get(host, 0.0))
+            wait = gap - (self._clock() - self._last_request.get(host, -1e9))
             if wait > 0:
                 await self._sleep(wait)
             self._last_request[host] = self._clock()
@@ -381,6 +384,11 @@ class Fetcher:
         parser = cached[1]
         if isinstance(parser, bool):
             return parser
+        asked = parser.crawl_delay(self.user_agent)
+        if asked:
+            self._delay[(parts.hostname or "").rstrip(".").lower()] = min(
+                float(asked), MAX_CRAWL_DELAY
+            )
         return parser.can_fetch(self.user_agent, normalize_url(parts))
 
     async def _load_robots(

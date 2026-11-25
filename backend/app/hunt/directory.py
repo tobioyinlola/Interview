@@ -579,7 +579,65 @@ async def ingest_sitemap(
     return {"added": added, "found": found, "problem": problem, "more": len(todo) > len(batch)}
 
 
+PAGES_PER_READ = 4  # pages of a long, paged directory read at once (the rest on later passes)
+_PAGE_NO = re.compile(r"(?:^|[?&])[\w-]*page=(\d+)")
+
+
+def _page_number(url: str) -> int:
+    m = _PAGE_NO.search(urlsplit(url).query)
+    return int(m.group(1)) if m else 1
+
+
+def next_page(links: tuple[tuple[str, str], ...], url: str) -> str | None:
+    """The page the directory's own 'load more' or 'next' link leads to: same page, a higher page
+    number in its address."""
+    here, now = urlsplit(url), _page_number(url)
+    best: tuple[int, str] | None = None
+    for _, link in links:
+        parts = urlsplit(link)
+        if (parts.netloc, parts.path.rstrip("/")) != (here.netloc, here.path.rstrip("/")):
+            continue
+        n = _page_number(link)
+        if n > now and (best is None or n < best[0]):
+            best = (n, link)
+    return best[1] if best else None
+
+
 async def ingest(
+    db: AsyncSession,
+    fetcher: Fetcher,
+    llm: LlmProvider,
+    directory: str,
+    url: str,
+    now: datetime,
+    hint: str = "",
+    cursor: str | None = None,
+) -> dict[str, Any]:
+    """Read a directory. A paged one ('load more') is read a few pages at a time, from where the
+    last read stopped; the address to carry on from comes back as `next`."""
+    start = cursor if cursor and policy.domain_of(cursor) == policy.domain_of(url) else url
+    added = found = 0
+    problem: Any = None
+    nxt: str | None = None
+    more = False
+    for _ in range(PAGES_PER_READ):
+        out = await _ingest_page(db, fetcher, llm, directory, start, now, hint)
+        added, found = added + out["added"], found + out["found"]
+        problem, more = out["problem"], bool(out.get("more"))
+        nxt = None if out["problem"] else out.get("next")
+        if not nxt:
+            break
+        start = nxt
+    return {
+        "added": added,
+        "found": found,
+        "problem": None if found else problem,
+        "next": nxt,
+        "more": more or bool(nxt),
+    }
+
+
+async def _ingest_page(
     db: AsyncSession,
     fetcher: Fetcher,
     llm: LlmProvider,
@@ -620,7 +678,12 @@ async def ingest(
         )
     else:
         problem = "No startups could be read from that page."
-    return {"added": added, "found": len(found), "problem": problem}
+    return {
+        "added": added,
+        "found": len(found),
+        "problem": problem,
+        "next": next_page(page.links, url),
+    }
 
 
 async def ensure_defaults(db: AsyncSession, now: datetime) -> int:
@@ -696,7 +759,8 @@ async def refresh(
     db: AsyncSession, fetcher: Fetcher, llm: LlmProvider, d: Directory, now: datetime
 ) -> dict[str, Any]:
     """Read one directory now and record what came of it."""
-    out = await ingest(db, fetcher, llm, d.name, d.url, now, d.region_hint)
+    out = await ingest(db, fetcher, llm, d.name, d.url, now, d.region_hint, d.cursor)
+    d.cursor = out.get("next")
     d.last_run_at, d.last_found, d.last_added = now, out["found"], out["added"]
     if out.get("more"):  # a long sitemap is read in pieces: come back soon for the next one
         d.last_run_at = now - REFRESH_AFTER + timedelta(minutes=10)
