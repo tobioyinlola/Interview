@@ -8,7 +8,10 @@ ARG WITH_BROWSER=0
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 RUN pip install --no-cache-dir .
 RUN if [ "$WITH_BROWSER" = "1" ]; then \
-      pip install --no-cache-dir ".[browser]" && playwright install --with-deps chromium \
+      apt-get update && apt-get install -y --no-install-recommends libatomic1 \
+      && pip install --no-cache-dir ".[browser]" \
+      && playwright install --with-deps chromium \
+      && rm -rf /var/lib/apt/lists/* \
       && chmod -R a+rX /ms-playwright; \
     fi
 COPY . .
