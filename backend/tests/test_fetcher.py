@@ -447,3 +447,13 @@ async def test_a_logo_that_links_to_another_site_is_kept_but_icons_that_lead_now
     assert ("Echelon logo", "https://www.echelon.inc/") in links
     assert ("", "https://tabby.ai") in links  # no description at all: still a link to another site
     assert not any(u in ("https://example.com/", "https://example.com/about") for _, u in links)
+
+
+async def test_waiting_for_a_crawl_delay_does_not_count_as_a_slow_page(site, make):
+    site.add("example.com", "/a")
+    site.add(
+        "example.com", "/robots.txt", body="User-agent: *\nCrawl-delay: 10\n", ctype="text/plain"
+    )
+    f = make(timeout=2.0)  # the wait is ten seconds, the limit two: only the page itself is timed
+    r = await f.fetch("https://example.com/a")
+    assert r.status == "ok"

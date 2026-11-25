@@ -13,6 +13,7 @@ import re
 import ssl
 import time
 from collections.abc import Awaitable, Callable
+from contextvars import ContextVar
 from dataclasses import dataclass
 from html import unescape
 from typing import Literal
@@ -147,6 +148,9 @@ def page_links(html: str, base: str, limit: int = 150) -> tuple[tuple[str, str],
     return tuple(out[:limit])
 
 
+_LIMIT: ContextVar[asyncio.Timeout | None] = ContextVar("fetch_limit", default=None)
+
+
 class _TooLarge(Exception):
     pass
 
@@ -203,8 +207,12 @@ class Fetcher:
     async def fetch(self, url: str) -> FetchResult:
         """Never raises: every failure becomes a status with a plain-language reason."""
         try:
-            async with asyncio.timeout(self.timeout):
-                return await self._fetch(url)
+            async with asyncio.timeout(self.timeout) as limit:
+                token = _LIMIT.set(limit)
+                try:
+                    return await self._fetch(url)
+                finally:
+                    _LIMIT.reset(token)
         except TimeoutError:
             return FetchResult(url, "timeout", "The page took too long to respond.")
         except httpx.TimeoutException:
@@ -328,6 +336,9 @@ class Fetcher:
             wait = gap - (self._clock() - self._last_request.get(host, -1e9))
             if wait > 0:
                 await self._sleep(wait)
+                clock = _LIMIT.get()
+                if clock is not None and (due := clock.when()) is not None:
+                    clock.reschedule(due + wait)  # waiting our turn is not the page being slow
             self._last_request[host] = self._clock()
 
             last_error: Exception | None = None
