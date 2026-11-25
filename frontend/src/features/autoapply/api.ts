@@ -18,6 +18,7 @@ import type {
   AAFacts,
   AAInterview,
   AAMailbox,
+  AAMailboxCheck,
   AAOutreach,
   AAPrepared,
   AAProfile,
@@ -165,6 +166,11 @@ export function useMailboxActions() {
     disconnect: useMutation({
       mutationFn: () => post<AAMailbox>("/mailbox/disconnect"),
       onSuccess: refresh,
+    }),
+    /** Log in to the connected mailbox again to confirm it works (nothing is sent). */
+    check: useMutation({
+      mutationFn: () => post<AAMailboxCheck>("/mailbox/check"),
+      onSettled: refresh,
     }),
     /** Connect with an app password: Gmail, Outlook or Yahoo. */
     connectWithPassword: useMutation({

@@ -1323,6 +1323,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/autoapply/mailbox/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check Mailbox
+         * @description Log in to the connected mailbox again to confirm it still works (nothing is sent). A password
+         *     the provider no longer accepts moves the connection to 'reconnect needed'.
+         */
+        post: operations["check_mailbox_api_autoapply_mailbox_check_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/autoapply/mailbox/connect": {
         parameters: {
             query?: never;
@@ -1718,6 +1739,27 @@ export interface paths {
          * @description Ask to be let in. Asking again changes nothing.
          */
         post: operations["request_access_api_hunt_access_request_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hunt/reach": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reach
+         * @description How many startups outreach can write to, so the page can say so truthfully. Open to anyone
+         *     signed in, invited or not.
+         */
+        get: operations["reach_api_hunt_reach_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3377,6 +3419,31 @@ export interface components {
             /** Password */
             password: string;
         };
+        /** MailboxCheckOut */
+        MailboxCheckOut: {
+            /** Address */
+            address?: string | null;
+            /**
+             * Can Connect
+             * @default true
+             */
+            can_connect: boolean;
+            /** Checked At */
+            checked_at?: string | null;
+            /** Connected */
+            connected: boolean;
+            /** Last Synced At */
+            last_synced_at?: string | null;
+            /** Provider */
+            provider?: string | null;
+            /**
+             * Smtp Providers
+             * @default []
+             */
+            smtp_providers: components["schemas"]["SmtpProviderOut"][];
+            /** Status */
+            status?: string | null;
+        };
         /** MailboxOut */
         MailboxOut: {
             /** Address */
@@ -3744,6 +3811,13 @@ export interface components {
             scoring_failed_pct: number | null;
             /** Scoring Runs */
             scoring_runs: number;
+        };
+        /** ReachOut */
+        ReachOut: {
+            /** Companies */
+            companies: number;
+            /** Label */
+            label: string;
         };
         /** RecruitingOut */
         RecruitingOut: {
@@ -6785,6 +6859,26 @@ export interface operations {
             };
         };
     };
+    check_mailbox_api_autoapply_mailbox_check_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MailboxCheckOut"];
+                };
+            };
+        };
+    };
     connect_mailbox_api_autoapply_mailbox_connect_post: {
         parameters: {
             query?: never;
@@ -7475,6 +7569,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AccessOut"];
+                };
+            };
+        };
+    };
+    reach_api_hunt_reach_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReachOut"];
                 };
             };
         };

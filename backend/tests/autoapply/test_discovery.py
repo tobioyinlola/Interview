@@ -14,6 +14,10 @@ from app.models import Application, DiscoveryRun, JobAlias, JobPosting
 from tests.autoapply.conftest import CV, FACTS, PROFILE, apps, job, run, start
 
 NOW = datetime(2026, 11, 2, 9, 0, tzinfo=UTC)
+# Someone who needs a visa: a listing that says nothing about sponsorship is the question asked.
+ASKS_VISA = {"need": "needed", "required": True}
+VISA_SEARCH = {**PROFILE["criteria"], "sponsorship": ASKS_VISA}
+SPONSORS = "Lead payments product. Remote. We sponsor visas."
 
 
 # -------------------------------------------------------------------------- normalising
@@ -57,7 +61,7 @@ def posting(**over) -> JobPosting:
 
 
 def decide(criteria, p, routes=frozenset({"form"}), **kw):
-    channels = {"form": True, "email": False}
+    channels = kw.pop("channels", {"form": True, "email": False})
     return matching.evaluate(criteria, p, now=NOW, routes=set(routes), channels=channels, **kw)
 
 
@@ -74,16 +78,48 @@ def test_a_listing_that_passes_every_required_rule_is_eligible():
     assert {r.key for r in m.rules} >= {"open", "role", "location", "arrangement", "channel"}
 
 
-def test_remote_alone_does_not_make_a_candidate_eligible_from_their_country():
+def test_a_listing_that_does_not_say_where_it_is_is_not_held_against_it():
     m = decide(CRITERIA, posting(region=None))
-    assert m.decision == "review" and "does not say who may apply" in m.reason
-    wrong = decide(CRITERIA, posting(region="United States"))
-    assert wrong.decision == "skip" and "United States" in wrong.reason
+    assert m.decision == "eligible"
+    where = next(r for r in m.rules if r.key == "location")
+    assert where.status == "pass" and where.stated is False
+    assert "does not say who may apply" in where.evidence and "not held against" in where.evidence
 
 
-def test_a_different_country_on_the_same_continent_is_not_a_match():
-    assert decide(CRITERIA, posting(region="Kenya")).decision == "skip"
-    assert decide(CRITERIA, posting(region="Kenya or Nigeria")).decision == "eligible"
+def test_a_place_is_a_reason_to_skip_only_when_the_listing_says_the_role_is_for_people_there():
+    # named, but only as where the company is: not held against it
+    named = decide(CRITERIA, posting(region="United States"))
+    assert named.decision == "eligible"
+    where = next(r for r in named.rules if r.key == "location")
+    assert (
+        where.stated is False and "does not say the role is only for people there" in where.evidence
+    )
+    # a place we cannot even read is no restriction either
+    assert decide(CRITERIA, posting(region="Atlantis")).decision == "eligible"
+    # said in so many words, it skips and quotes what it said
+    for note in (
+        "Remote. US only.",
+        "You must be based in the United States.",
+        "Open to residents of the United States.",
+        "Candidates must be authorized to work in the United States.",
+        "A United States-based team.",
+    ):
+        m = decide(CRITERIA, posting(region="United States", description=note))
+        assert m.decision == "skip" and "United States" in m.reason, note
+    # an on-site or hybrid role is for the place it is in
+    onsite = decide(CRITERIA, posting(region="United States", arrangement="onsite"))
+    assert onsite.decision == "skip" and "onsite" in onsite.reason
+    # a feed that reports the candidate's required location is saying it outright
+    feed = decide(CRITERIA, posting(region="United States", evidence={"region_scope": "candidate"}))
+    assert feed.decision == "skip" and "required-location" in feed.reason
+
+
+def test_a_different_country_on_the_same_continent_is_not_a_match_when_it_is_a_restriction():
+    assert decide(CRITERIA, posting(region="Kenya")).decision == "eligible"  # just where it is
+    kenya_only = posting(region="Kenya", description="Remote, Kenya only.")
+    assert decide(CRITERIA, kenya_only).decision == "skip"
+    both = posting(region="Kenya or Nigeria", description="Kenya or Nigeria only.")
+    assert decide(CRITERIA, both).decision == "eligible"
     continent = {**CRITERIA, "locations": [{"value": "Africa", "required": True}]}
     assert decide(continent, posting(region="Kenya")).decision == "eligible"
 
@@ -103,7 +139,7 @@ def test_industries_are_judged_too():
     crit = {**CRITERIA, "industries": [{"value": "fintech", "required": True}]}
     assert decide(crit, posting(industry="Fintech")).decision == "eligible"
     assert decide(crit, posting(industry="Retail")).decision == "skip"
-    assert decide(crit, posting()).decision == "review"
+    assert decide(crit, posting()).decision == "eligible"  # no industry stated: not held against it
 
 
 def test_a_preference_never_blocks_but_changes_the_ranking():
@@ -136,7 +172,10 @@ def test_salary_is_only_compared_on_the_same_currency_and_pay_period():
     none = decide(crit, posting())
     assert ok.decision == "eligible" and low.decision == "skip"
     assert other.decision == "review" and "cannot be compared" in other.reason
-    assert monthly.decision == "review" and none.decision == "review"
+    assert monthly.decision == "review"
+    # no pay stated at all is not held against the job, even for a required floor
+    assert none.decision == "eligible"
+    assert next(r for r in none.rules if r.key == "salary").stated is False
 
 
 def test_missing_salary_only_lowers_the_rank_when_it_is_a_preference():
@@ -173,9 +212,11 @@ def test_an_expired_listing_is_skipped():
 
 
 def test_a_rule_the_candidate_approved_by_hand_counts_as_confirmed():
-    m = decide(CRITERIA, posting(region=None), overrides={"location"})
+    crit = {**CRITERIA, "sponsorship": ASKS_VISA}
+    assert decide(crit, posting()).decision == "review"
+    m = decide(crit, posting(), overrides={"sponsorship"})
     assert m.decision == "eligible"
-    assert any("you confirmed" in r.evidence for r in m.rules if r.key == "location")
+    assert any("you confirmed" in r.evidence for r in m.rules if r.key == "sponsorship")
 
 
 # --------------------------------------------------------------------------- the daily run
@@ -183,22 +224,22 @@ def test_a_rule_the_candidate_approved_by_hand_counts_as_confirmed():
 
 async def test_a_daily_run_finds_matches_skips_and_asks_about_the_rest(ada, discovery_source):
     discovery_source.postings = [
-        job(1),  # a match
+        job(1, description=SPONSORS),  # a match
         job(2, title="Marketing Director"),  # not the role
-        job(3, region=None),  # remote, but who may apply is not stated
+        job(3),  # says nothing about visas, so the candidate is asked
     ]
-    await start(ada)
+    await start(ada, criteria=VISA_SEARCH)
     r = await run(ada)
     assert (r["found"], r["new"], r["eligible"], r["needs_input"], r["skipped"]) == (3, 3, 1, 1, 1)
     assert r["status"] == "done"
-    by = {a["posting"]["title"] + a["posting"]["region"].__str__(): a for a in await apps(ada)}
+    by = {a["posting"]["application_url"]: a for a in await apps(ada)}
     assert len(by) == 3
     queued = await apps(ada, "queued")
     assert len(queued) == 1 and queued[0]["channel"] == "form"
     waiting = (await apps(ada, "needs_input"))[0]
     assert (
         waiting["needs_input"][0]["kind"] == "rule"
-        and waiting["needs_input"][0]["field"] == "location"
+        and waiting["needs_input"][0]["field"] == "sponsorship"
     )
     skipped = (await apps(ada, "skipped"))[0]
     assert "role" in skipped["skip_reason"].lower() or "marketing" in skipped["skip_reason"].lower()
@@ -423,11 +464,13 @@ async def test_unsupported_steps_and_captchas_go_to_the_candidate(ada, discovery
 
 
 async def test_the_candidate_can_approve_an_unknown_rule_or_skip(ada, discovery_source):
-    discovery_source.postings = [job(1, region=None), job(2, region=None)]
-    await start(ada)
+    discovery_source.postings = [job(1), job(2)]
+    await start(ada, criteria=VISA_SEARCH)
     await run(ada)
     a, b = await apps(ada, "needs_input")
-    ok = await ada.post(f"/api/autoapply/applications/{a['id']}/approve", json={"rule": "location"})
+    ok = await ada.post(
+        f"/api/autoapply/applications/{a['id']}/approve", json={"rule": "sponsorship"}
+    )
     assert ok.json()["status"] == "queued"
     wrong = await ada.post(
         f"/api/autoapply/applications/{b['id']}/approve", json={"rule": "salary"}
@@ -447,8 +490,8 @@ async def test_the_candidate_can_approve_an_unknown_rule_or_skip(ada, discovery_
 async def test_changing_the_search_rechecks_open_applications_but_not_ones_that_went_out(
     ada, discovery_source, maker
 ):
-    discovery_source.postings = [job(1), job(2, region=None)]
-    await start(ada)
+    discovery_source.postings = [job(1, description=SPONSORS), job(2)]
+    await start(ada, criteria=VISA_SEARCH)
     await run(ada)
     assert len(await apps(ada, "queued")) == 1 and len(await apps(ada, "needs_input")) == 1
     async with maker() as db:
@@ -457,7 +500,7 @@ async def test_changing_the_search_rechecks_open_applications_but_not_ones_that_
         ).scalar_one()
         a.status = "submitted"
         await db.commit()
-    changed = {**PROFILE["criteria"], "locations": [{"value": "Kenya", "required": True}]}
+    changed = {**VISA_SEARCH, "locations": [{"value": "Kenya", "required": True}]}
     await ada.put("/api/autoapply/profile", json={"criteria": changed})
     states = sorted(a["status"] for a in await apps(ada))
     assert states == ["needs_input", "submitted"]  # the sent one is untouched; the other re-judged
@@ -602,8 +645,8 @@ async def test_the_cover_note_falls_back_to_a_plain_template_and_never_adds_numb
 async def test_nobody_can_read_or_change_another_candidates_application(
     ada, discovery_source, new_client, sign_in
 ):
-    discovery_source.postings = [job(1, region=None)]
-    await start(ada)
+    discovery_source.postings = [job(1)]
+    await start(ada, criteria=VISA_SEARCH)
     await run(ada)
     mine = (await apps(ada))[0]["id"]
     async with new_client() as eve:
@@ -632,3 +675,129 @@ async def test_a_listing_cannot_instruct_the_system(ada, discovery_source):
     await run(ada)
     a = (await apps(ada))[0]
     assert a["status"] == "skipped"  # judged by the rules, not by what the text says
+
+
+# ------------------------------------------------------------------ roles, and listings that say little
+
+
+@pytest.mark.parametrize(
+    ("title", "wanted", "decision"),
+    [
+        ("Product Manager", "Product Manager", "eligible"),
+        ("Senior Product Manager, Payments", "Product Manager", "eligible"),
+        ("Technical Product Manager", "Product Manager", "eligible"),
+        ("Product Manager II", "Senior Product Manager", "eligible"),
+        ("Product Marketing Manager", "Product Manager", "skip"),  # a different job
+        ("Senior Product Marketing Manager", "Product Manager", "skip"),
+        ("Product Owner", "Product Manager", "review"),  # close enough to ask
+        ("Marketing Manager", "Product Manager", "skip"),  # shares only "manager"
+        ("Product Manager", "Product Marketing Manager", "skip"),  # and the other way round
+        ("Product Marketing Manager", "Product Marketing Manager", "eligible"),
+        ("Head of Product Marketing Manager", "Product Marketing Manager", "eligible"),
+    ],
+)
+def test_a_role_is_the_role_wanted_only_when_its_words_stand_together(title, wanted, decision):
+    crit = {**CRITERIA, "roles": [{"value": wanted, "required": True}]}
+    assert decide(crit, posting(title=title)).decision == decision, title
+
+
+def test_the_reason_names_the_word_that_makes_it_a_different_role():
+    crit = {**CRITERIA, "roles": [{"value": "Product Manager", "required": True}]}
+    m = decide(crit, posting(title="Product Marketing Manager"))
+    assert "different role" in m.reason and "marketing" in m.reason
+
+
+def test_a_listing_with_only_a_title_still_passes_when_nothing_else_is_stated():
+    crit = {
+        **CRITERIA,
+        "roles": [{"value": "Product Manager", "required": True}],
+        "arrangement": [{"value": "remote", "required": True}],
+        "contract": [{"value": "full_time", "required": True}],
+        "seniority": [{"value": "senior", "required": True}],
+        "industries": [{"value": "fintech", "required": True}],
+        "salary": {"floor": 90000, "currency": "USD", "period": "year", "required": True},
+    }
+    bare = posting(
+        title="Product Manager",
+        description="A job.",
+        region=None,
+        arrangement=None,
+        contract=None,
+        seniority=None,
+        industry=None,
+    )
+    m = decide(crit, bare)
+    assert m.decision == "eligible" and m.reason == ""
+    silent = {r.key for r in m.rules if not r.stated}
+    assert silent == {"location", "arrangement", "contract", "seniority", "industry", "salary"}
+    # what is stated still counts, so a real conflict is still a skip
+    assert decide(crit, posting(region=None, contract="contract")).decision == "skip"
+
+
+def test_saying_nothing_ranks_below_saying_the_right_thing():
+    said = decide(CRITERIA, posting())
+    silent = decide(CRITERIA, posting(region=None, arrangement=None))
+    assert said.decision == silent.decision == "eligible" and said.score > silent.score
+
+
+# ------------------------------------------------------------------ a way to apply
+
+
+def test_a_job_can_be_applied_for_by_email_or_by_a_form_we_fill_in():
+    crit = {"roles": [{"value": "Senior Product Manager", "required": True}]}
+    by_form = decide(crit, posting(), routes={"form"})
+    assert by_form.decision == "eligible"
+    how = next(r for r in by_form.rules if r.key == "channel")
+    assert "application form" in how.evidence and "filled in" in how.evidence
+    by_email = decide(crit, posting(), routes={"email"}, channels={"email": True})
+    assert by_email.decision == "eligible"
+
+
+def test_a_job_with_no_email_and_a_link_we_cannot_fill_in_says_so():
+    crit = {"roles": [{"value": "Senior Product Manager", "required": True}]}
+    link = decide(crit, posting(application_url="https://jobs.example.com/apply/1"), routes=set())
+    assert link.decision == "skip"
+    assert "jobs.example.com" in link.reason and "cannot fill in yet" in link.reason
+    none = decide(crit, posting(application_url=None, apply_email=None), routes=set())
+    assert (
+        none.decision == "skip"
+        and "neither an email address nor an application link" in none.reason
+    )
+
+
+# ------------------------------------------------------------------ seniority, and places with two words
+
+
+def test_seniority_skips_only_when_the_listing_states_a_different_level():
+    crit = {**CRITERIA, "seniority": [{"value": "senior", "required": True}]}
+    silent = decide(crit, posting(title="Product Manager"))
+    assert silent.decision == "eligible"
+    said = next(r for r in silent.rules if r.key == "seniority")
+    assert said.stated is False and "does not state the seniority" in said.evidence
+    assert decide(crit, posting(title="Senior Product Manager")).decision == "eligible"
+    junior = decide(crit, posting(title="Junior Product Manager"))
+    assert junior.decision == "skip" and "junior" in junior.reason
+    # a preference never blocks, and saying nothing never ranks above saying the right thing
+    pref = {**CRITERIA, "seniority": [{"value": "senior", "required": False}]}
+    assert decide(pref, posting(title="Junior Product Manager")).decision == "eligible"
+    right = decide(pref, posting(title="Senior Product Manager"))
+    assert right.score > decide(pref, posting(title="Product Manager")).score
+
+
+def test_places_of_two_words_are_read_as_one_place():
+    named = matching._named
+    assert named("United States") == {"united states"}
+    assert named("South Africa") == {"south africa"}  # not also "Africa"
+    assert named("UK or Ireland") == {"united kingdom", "ireland"}
+    assert named("Join us for fun") == set()  # "us" the word is not the country
+    assert named("US only") == {"united states"}
+    # so South Africa does not quietly cover Nigeria through the continent
+    sa = decide(CRITERIA, posting(region="South Africa", description="South Africa only."))
+    assert sa.decision == "skip"
+    # and "join us" in the text is not a restriction to the United States
+    assert (
+        decide(
+            CRITERIA, posting(region="United States", description="Join us, only the best.")
+        ).decision
+        == "eligible"
+    )

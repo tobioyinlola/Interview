@@ -55,6 +55,7 @@ from app.autoapply.schemas import (
     InterviewOut,
     JobUrlIn,
     LinkEventIn,
+    MailboxCheckOut,
     MailboxOut,
     OutreachIn,
     OutreachOut,
@@ -918,6 +919,40 @@ async def connect_smtp_mailbox(
         address=address,
         status="connected",
         smtp_providers=_smtp_options(settings),
+    )
+
+
+@router.post("/mailbox/check")
+async def check_mailbox(
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    settings: Settings = Depends(get_settings),  # noqa: B008
+    now: datetime = Depends(get_now),  # noqa: B008
+) -> MailboxCheckOut:
+    """Log in to the connected mailbox again to confirm it still works (nothing is sent). A password
+    the provider no longer accepts moves the connection to 'reconnect needed'."""
+    conn = await mbx.get(db, user.id)
+    if conn is None or conn.status == "disconnected":
+        raise ApiError(409, "no_mailbox", "Connect an email address first.")
+    options = _smtp_options(settings)
+    if conn.provider == "smtp":
+        try:
+            provider, address, password = smtp.parse_token(mbx.token(settings, conn))
+            key = next(k for k, v in smtp.PROVIDERS.items() if v is provider)
+            await smtp.SmtpAdapter().verify(key, address, password)
+        except AdapterError as exc:
+            if exc.transient:
+                raise ApiError(503, "mailbox_unreachable", str(exc)) from None
+            await mbx.mark_reauth(db, conn)
+            raise ApiError(422, "mailbox_rejected", str(exc)) from None
+    return MailboxCheckOut(
+        connected=conn.status == "connected",
+        provider=conn.provider,
+        address=conn.address,
+        status=conn.status,
+        last_synced_at=conn.last_synced_at,
+        smtp_providers=options,
+        checked_at=now,
     )
 
 

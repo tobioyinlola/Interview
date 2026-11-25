@@ -110,3 +110,11 @@ export function useRequestOutreachAccess() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["me"] }),
   });
 }
+
+/** How many startups outreach can write to, said the way a headline can honestly say it. */
+export const useReach = () =>
+  useQuery<{ companies: number; label: string }>({
+    queryKey: ["hunt", "reach"],
+    queryFn: () => apiFetch(`${P}/reach`),
+    staleTime: 10 * 60_000,
+  });

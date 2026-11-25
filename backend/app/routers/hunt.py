@@ -58,6 +58,39 @@ async def my_access(user: User = Depends(current_user)) -> AccessOut:  # noqa: B
     return AccessOut(access=user.outreach_access)
 
 
+class ReachOut(BaseModel):
+    companies: int  # startups in the places we write to (US, Europe, UK) whose sites could be read
+    label: str  # "over 1,000": the number said the way a headline can honestly say it
+
+
+def reach_label(n: int) -> str:
+    """A count as a headline can honestly state it: never rounded up."""
+    if n >= 1000:
+        return f"over {n // 1000 * 1000:,}"
+    if n >= 100:
+        return f"over {n // 100 * 100:,}"
+    if n >= 10:
+        return f"{n // 10 * 10}+"
+    return str(n)
+
+
+@router.get("/reach")
+async def reach(
+    _: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> ReachOut:
+    """How many startups outreach can write to, so the page can say so truthfully. Open to anyone
+    signed in, invited or not."""
+    n = (
+        await db.execute(
+            select(func.count())
+            .select_from(Startup)
+            .where(Startup.region.in_(policy.REGIONS), Startup.status != "dead")
+        )
+    ).scalar_one()
+    return ReachOut(companies=n, label=reach_label(n))
+
+
 @router.post("/access/request")
 async def request_access(
     user: User = Depends(current_user),  # noqa: B008

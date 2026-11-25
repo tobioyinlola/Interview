@@ -177,6 +177,10 @@ class MailboxOut(BaseModel):
     smtp_providers: list[SmtpProviderOut] = []  # app-password mailboxes, when they are switched on
 
 
+class MailboxCheckOut(MailboxOut):
+    checked_at: datetime | None = None  # when we last logged in to confirm it works
+
+
 class ConnectOut(BaseModel):
     connected: bool
     url: str | None = None  # where to send the browser to approve access

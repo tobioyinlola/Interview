@@ -310,6 +310,29 @@ async def test_it_can_be_disconnected_and_the_password_is_forgotten(ada, maker, 
     assert conn.status == "disconnected" and conn.token_encrypted is None
 
 
+async def test_a_connection_can_be_checked_again_and_a_dead_password_asks_for_a_new_one(
+    ada, maker, smtp_on
+):
+    await ada.post(
+        "/api/autoapply/mailbox/connect-smtp",
+        json={"provider": "gmail", "address": "ada@gmail.com", "password": PASSWORD},
+    )
+    ok = await ada.post("/api/autoapply/mailbox/check")
+    assert ok.status_code == 200 and ok.json()["connected"] and ok.json()["checked_at"]
+    assert ok.json()["address"] == "ada@gmail.com" and "abcdefghijklmnop" not in ok.text
+    assert FakeSMTP.logins[-1] == ("ada@gmail.com", "abcdefghijklmnop")  # it really logged in
+    FakeSMTP.mode = "bad_login"  # the password was revoked at the provider
+    bad = await ada.post("/api/autoapply/mailbox/check")
+    assert bad.status_code == 422 and "app password" in bad.json()["error"]["message"]
+    got = (await ada.get("/api/autoapply/mailbox")).json()
+    assert got["connected"] is False and got["status"] == "reauth_needed"
+
+
+async def test_checking_with_nothing_connected_says_to_connect_first(ada, smtp_on):
+    r = await ada.post("/api/autoapply/mailbox/check")
+    assert r.status_code == 409 and r.json()["error"]["code"] == "no_mailbox"
+
+
 def test_a_real_server_with_app_passwords_on_needs_the_encryption_key():
     from app.config import Settings
     from app.hardening import _autoapply_problems

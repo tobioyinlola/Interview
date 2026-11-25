@@ -24,6 +24,53 @@ from app.autoapply.browserform import BrowserForm  # noqa: E402
 
 RECEIVED: list[dict] = []
 
+# A copy of the shape of an Ashby application page (public class names and field paths, drawn by
+# script with no <form> tag): entries with a title, ids equal to the field path, Yes/No as a row of
+# buttons, a hidden file input behind an "Upload File" button, and a submit button of its own.
+ASHBY = """<!doctype html><html><head><title>Apply</title></head><body>
+<div class="ashby-application-form-container">
+ <div class="ashby-application-form-field-entry">
+  <label class="ashby-application-form-question-title" for="_systemfield_name">Legal Name</label>
+  <input id="_systemfield_name" name="_systemfield_name" type="text" required></div>
+ <div class="ashby-application-form-field-entry">
+  <label class="ashby-application-form-question-title" for="_systemfield_email">Email</label>
+  <input id="_systemfield_email" name="_systemfield_email" type="email" required></div>
+ <div class="ashby-application-form-field-entry">
+  <label class="ashby-application-form-question-title" for="4b71">Phone</label>
+  <input id="4b71" type="tel" required></div>
+ <div class="ashby-application-form-field-entry">
+  <label class="ashby-application-form-question-title" for="_systemfield_resume">Resume*</label>
+  <button type="button">Upload File</button>
+  <input id="_systemfield_resume" type="file" style="display:none"></div>
+ <div class="ashby-application-form-field-entry">
+  <label class="ashby-application-form-question-title" for="dc91">LinkedIn Profile</label>
+  <input id="dc91" type="text"></div>
+ <div class="ashby-application-form-field-entry" id="yesno">
+  <label class="ashby-application-form-question-title">Do you have 5 years of experience?*</label>
+  <div><button type="button" onclick="pick(this)">Yes</button><button type="button" onclick="pick(this)">No</button></div></div>
+ <div class="ashby-application-form-field-entry">
+  <label class="ashby-application-form-question-title" for="long1">Tell us about a hard problem you solved*</label>
+  <textarea id="long1" required></textarea></div>
+ <button type="submit" class="ashby-application-form-submit-button" onclick="send()">Submit Application</button>
+</div>
+<script>
+ let answer = "";
+ function pick(b) { answer = b.textContent; b.dataset.on = "1"; }
+ async function send() {
+   const f = new FormData();
+   f.append("name", document.getElementById("_systemfield_name").value);
+   f.append("email", document.getElementById("_systemfield_email").value);
+   f.append("phone", document.getElementById("4b71").value);
+   f.append("linkedin", document.getElementById("dc91").value);
+   f.append("long1", document.getElementById("long1").value);
+   f.append("yesno", answer);
+   const file = document.getElementById("_systemfield_resume").files[0];
+   if (file) f.append("resume", file);
+   await fetch("/ashby/apply", {method: "POST", body: f});
+   document.body.innerHTML = "<p>Your application was successfully submitted.</p>";
+ }
+</script></body></html>"""
+
 FORM = """<!doctype html><html><head><title>Apply</title></head><body>
 <h1>Product Manager</h1>
 <form id="f" method="post" action="{action}" enctype="multipart/form-data">
@@ -87,7 +134,23 @@ async def apply(request: Request):
     return RedirectResponse("/confirmation", status_code=303)
 
 
+async def ashby_apply(request: Request):
+    form = await request.form()
+    resume = form.get("resume")
+    RECEIVED.append(
+        {
+            **{k: v for k, v in form.items() if isinstance(v, str)},
+            "resume_bytes": await resume.read() if resume is not None and resume.filename else b"",
+        }
+    )
+    from starlette.responses import JSONResponse
+
+    return JSONResponse({"ok": True})
+
+
 ROUTES = [
+    Route("/ashby/jobs/1", lambda r: HTMLResponse(ASHBY)),
+    Route("/ashby/apply", ashby_apply, methods=["POST"]),
     Route("/jobs/1", lambda r: HTMLResponse(FORM.format(action="/apply", extra=""))),
     Route(
         "/jobs/captcha",
@@ -318,3 +381,66 @@ def test_a_form_we_are_not_approved_for_is_never_opened(form):
     with pytest.raises(AdapterError) as e:
         asyncio.run(form.read_form("https://jobs.example.com/apply/1"))
     assert e.value.code == "rejected"
+
+
+ASHBY_VALUES = {
+    "name": "Ada Okoye",
+    "email": "ada@example.com",
+    "phone": "+234 801 234 5678",
+    "linkedin": "https://linkedin.com/in/adaokoye",
+    "q_do_you_have_5_years_of_experience": "Yes",
+    "long1": "I rebuilt a payments reconciliation job.",
+}
+
+
+def test_reads_an_ashby_shaped_page_without_a_form_tag(form, site):
+    schema = asyncio.run(form.read_form(f"{site}/ashby/jobs/1"))
+    by = {f.name: f for f in schema.fields}
+    assert {"name", "email", "phone", "resume", "linkedin"} <= set(by)  # _systemfield_* are named
+    assert by["name"].label == "Legal Name" and by["name"].required
+    assert by["resume"].kind == "file" and by["linkedin"].required is False
+    yes_no = by["q_do_you_have_5_years_of_experience"]
+    assert yes_no.kind == "choice" and yes_no.options == ["Yes", "No"] and yes_no.required
+    assert by["long1"].kind == "text" and by["long1"].required
+
+
+def test_fills_an_ashby_shaped_page_including_yes_no_buttons(form, site):
+    receipt = asyncio.run(
+        form.submit(
+            f"{site}/ashby/jobs/1",
+            idempotency_key="a1",
+            values=ASHBY_VALUES,
+            cv_text="Ada Okoye\nSenior PM",
+            cv_filename="Ada Okoye - CV.pdf",
+        )
+    )
+    assert "successfully submitted" in receipt.evidence
+    [got] = RECEIVED
+    assert got["name"] == "Ada Okoye" and got["email"] == "ada@example.com"
+    assert got["phone"].startswith("+234") and got["linkedin"].endswith("adaokoye")
+    assert got["yesno"] == "Yes" and got["long1"].startswith("I rebuilt")
+    assert got["resume_bytes"].startswith(b"%PDF")
+
+
+def test_an_answer_that_is_not_one_of_the_buttons_is_not_guessed(form, site):
+    values = {**ASHBY_VALUES, "q_do_you_have_5_years_of_experience": "Sometimes"}
+    with pytest.raises(AdapterError) as e:
+        asyncio.run(
+            form.submit(
+                f"{site}/ashby/jobs/1",
+                idempotency_key="a2",
+                values=values,
+                cv_text="cv",
+                cv_filename="c.pdf",
+            )
+        )
+    assert e.value.code == "rejected" and not RECEIVED
+
+
+def test_ashby_is_on_the_default_list_and_a_lookalike_is_not():
+    f = BrowserForm()
+    assert f.supports(
+        "https://jobs.ashbyhq.com/ramp/34413f8d-26bf-4bbc-8ade-eb309a0e2245/application"
+    )
+    assert not f.supports("https://jobs.ashbyhq.com.evil.example/x")
+    assert not f.supports("https://ashbyhq.com/x")

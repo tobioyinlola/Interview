@@ -9,25 +9,39 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
+from urllib.parse import urlsplit
 
 from app.autoapply.postings import GLOBAL_REGION, is_expired
 from app.models import JobPosting
 
 PASS, FAIL, UNKNOWN = "pass", "fail", "unknown"
+# The listing simply does not say (no pay, no place, no contract type). That is not held against it:
+# the rule passes, but it does not count as evidence of a good fit.
+ABSENT = "absent"
 
 # Only what is needed to know that "Nigeria" is inside "Africa"; anything else is "unknown".
 CONTINENT = {
-    "africa": (
-        "nigeria ghana kenya south africa egypt ethiopia tanzania uganda rwanda senegal morocco"
-    ).split(),
-    "europe": (
-        "united kingdom uk ireland germany france spain portugal italy netherlands poland sweden"
-    ).split(),
-    "north america": "united states usa us canada mexico".split(),
-    "asia": "india singapore japan philippines indonesia pakistan bangladesh vietnam".split(),
-}
+    "africa": [
+        "nigeria", "ghana", "kenya", "south africa", "egypt", "ethiopia", "tanzania", "uganda",
+        "rwanda", "senegal", "morocco",
+    ],
+    "europe": [
+        "united kingdom", "ireland", "germany", "france", "spain", "portugal", "italy",
+        "netherlands", "poland", "sweden",
+    ],
+    "north america": ["united states", "canada", "mexico"],
+    "asia": [
+        "india", "singapore", "japan", "philippines", "indonesia", "pakistan", "bangladesh",
+        "vietnam",
+    ],
+}  # fmt: skip
 COUNTRY_ALIASES = {"uk": "united kingdom", "usa": "united states", "us": "united states"}
 STOP = {"the", "and", "of", "a", "an", "for", "in", "at", "to", "senior", "junior", "lead"}
+# Words that say "some kind of manager" and nothing about which: sharing only them is no match.
+GENERIC = {
+    "manager", "director", "head", "engineer", "analyst", "specialist", "associate", "officer",
+    "executive", "coordinator", "consultant", "developer", "intern", "assistant", "partner",
+}  # fmt: skip
 
 
 def words(text: str) -> list[str]:
@@ -37,7 +51,15 @@ def words(text: str) -> list[str]:
 def _named(text: str) -> set[str]:
     """The countries and regions a text names (no guessing about what else they contain)."""
     low = " " + re.sub(r"[^a-z ]+", " ", text.lower()) + " "
-    return {COUNTRY_ALIASES.get(c, c) for c in _all_places() if f" {c} " in low}
+    found = set()
+    for c in _all_places():
+        if f" {c} " not in low:
+            continue
+        if c == "us" and not re.search(r"\bUS\b", text):
+            continue  # "join us" is not a country
+        found.add(COUNTRY_ALIASES.get(c, c))
+    # "South Africa" is not also "Africa", and "Ireland" is not inside "Northern Ireland" twice
+    return {p for p in found if not any(q != p and f" {p} " in f" {q} " for q in found)}
 
 
 def _continent_of(place: str) -> str | None:
@@ -78,6 +100,7 @@ class Rule:
     required: bool
     status: str
     evidence: str
+    stated: bool = True  # false: the listing did not say, so the rule passed by default
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -86,6 +109,7 @@ class Rule:
             "required": self.required,
             "status": self.status,
             "evidence": self.evidence,
+            "stated": self.stated,
         }
 
 
@@ -107,7 +131,8 @@ class Match:
 
 def _any_of(items: list[dict[str, Any]], judge: Any) -> tuple[str, str, bool]:
     """Judge a list of acceptable values. Passing any one of them is enough. (status, evidence,
-    required) where required means every entry is a hard rule."""
+    required) where required means every entry is a hard rule. A listing that does not say is
+    ABSENT for every value, which is not a failure."""
     results = [(judge(i["value"]), i["value"]) for i in items]
     required = any(i.get("required") for i in items)
     for (status, ev), _value in results:
@@ -115,7 +140,40 @@ def _any_of(items: list[dict[str, Any]], judge: Any) -> tuple[str, str, bool]:
             return PASS, ev, required
     if any(s == UNKNOWN for (s, _), _v in results):
         return UNKNOWN, next(ev for (s, ev), _v in results if s == UNKNOWN), required
+    if any(s == ABSENT for (s, _), _v in results):
+        return ABSENT, next(ev for (s, ev), _v in results if s == ABSENT), required
     return FAIL, results[0][0][1], required
+
+
+def role_fit(title: str, target: str) -> tuple[str, str]:
+    """Is this job title the role wanted? The wanted words must stand together in the title:
+    'Senior Product Manager, Payments' is a Product Manager, but 'Product Marketing Manager' is a
+    different job, and so is 'Product Owner'."""
+    want = words(target)
+    if not want:
+        return UNKNOWN, "no role words to compare"
+    have = words(title)
+    n = len(want)
+    if any(have[i : i + n] == want for i in range(len(have) - n + 1)):
+        return PASS, f"'{title}' matches '{target}'"
+    present = [w for w in want if w in have]
+    if len(present) == n:
+        # every word is there, but not together
+        positions = [have.index(w) for w in want]
+        if positions == sorted(positions):
+            extra = [w for w in have[positions[0] : positions[-1] + 1] if w not in want]
+            return FAIL, (
+                f"'{title}' is a different role from '{target}'"
+                + (f" ('{' '.join(extra)}' sits inside it)" if extra else "")
+            )
+        return UNKNOWN, f"'{title}' has the words of '{target}' in a different order"
+    missing = [w for w in want if w not in have]
+    if len(present) / n < 0.34 or all(w in GENERIC for w in present):
+        return FAIL, f"'{title}' does not look like '{target}'"
+    if any(w not in GENERIC for w in missing):
+        # the wanted role has a specific word ('marketing') the title lacks: a different job
+        return FAIL, f"'{title}' is a different role from '{target}' (no '{missing[0]}')"
+    return UNKNOWN, f"'{title}' only partly matches '{target}'"
 
 
 def role_could_fit(criteria: dict[str, Any], title: str) -> bool:
@@ -124,29 +182,63 @@ def role_could_fit(criteria: dict[str, Any], title: str) -> bool:
     wanted = [r["value"] for r in (criteria.get("roles") or [])]
     if not wanted:
         return True
-    have = set(words(title))
     for target in wanted:
-        want = words(target)
-        if want and sum(w in have for w in want) / len(want) >= 0.75:
+        status, why = role_fit(title, target)
+        if status == PASS or "different order" in why:
             return True
     return False
 
 
 def _role(posting: JobPosting) -> Any:
-    title = set(words(posting.title))
-
     def judge(target: str) -> tuple[str, str]:
-        want = words(target)
-        if not want:
-            return UNKNOWN, "no role words to compare"
-        share = sum(w in title for w in want) / len(want)
-        if share >= 0.75:
-            return PASS, f"'{posting.title}' matches '{target}'"
-        if share < 0.34:
-            return FAIL, f"'{posting.title}' does not look like '{target}'"
-        return UNKNOWN, f"'{posting.title}' only partly matches '{target}'"
+        return role_fit(posting.title, target)
 
     return judge
+
+
+# Words that make a place a requirement on the candidate ("US only", "must be based in Germany"),
+# as opposed to just saying where the company or its office is.
+_ONLY = r"(?:only|exclusively)"
+_NEED = r"(?:must|need to|have to|required to)\s+(?:be|reside|live|work|be\s+located|be\s+based)"
+_WHO = r"(?:based|located|resident|residents|citizens?|eligible|authori[sz]ed|permitted)"
+
+
+def _restricts(posting: JobPosting, places: set[str]) -> str | None:
+    """Does the listing say, in so many words, that the role is for people in one of these places?
+    Returns the words that say so. A place that is only where the company or office is does not
+    count, and neither does silence."""
+    if (posting.evidence or {}).get("region_scope") == "candidate":
+        return "the listing's own required-location field"  # the feed reports who may apply
+    if posting.arrangement in ("onsite", "hybrid"):
+        return f"the role is {posting.arrangement}"
+    original = f"{posting.region or ''}. {posting.title}. {posting.description[:3000]}"
+    text = original.lower()
+    for place in sorted(places):
+        aliases = {a for a, canon in COUNTRY_ALIASES.items() if canon == place}
+        long_names = {place} | {a for a in aliases if len(a) > 2}
+        p = "(?:" + "|".join(re.escape(n) for n in sorted(long_names)) + ")"
+        for pattern in (
+            rf"\b{p}\b[^.\n]{{0,25}}\b{_ONLY}\b",
+            rf"\b{_ONLY}\b[^.\n]{{0,30}}\b{p}\b",
+            rf"\b{_NEED}\b[^.\n]{{0,40}}\b{p}\b",
+            rf"\b{_WHO}\b[^.\n]{{0,25}}\b(?:in|of|to work in)\b[^.\n]{{0,15}}\b{p}\b",
+            rf"\b{p}[- ]based\b",
+        ):
+            m = re.search(pattern, text)
+            if m:
+                return f"it says '{m.group(0).strip()}'"
+        # "US" and "UK" are only the places when written in capitals ("join us" is not)
+        for short in sorted(a.upper() for a in aliases if len(a) <= 2):
+            for pattern in (
+                rf"\b{short}[- ](?:only|based)\b",
+                rf"\b{short}\s+(?:citizens?|residents?)\b",
+                rf"(?i:\b{_ONLY}\b)\s+(?:in\s+)?(?:the\s+)?{short}\b",
+                rf"(?i:\b{_NEED}\b)[^.\n]{{0,40}}?\b(?:the\s+)?{short}\b",
+            ):
+                m = re.search(pattern, original)
+                if m:
+                    return f"it says '{m.group(0).strip()}'"
+    return None
 
 
 def _where(posting: JobPosting) -> Any:
@@ -158,16 +250,22 @@ def _where(posting: JobPosting) -> Any:
                 if posting.arrangement == "remote"
                 else "the listing does not say where the role is"
             )
-            return UNKNOWN, why
+            return ABSENT, why
         low = region.lower()
         if any(g in low for g in GLOBAL_REGION):
             return PASS, f"open to candidates anywhere ('{region}')"
         have = _named(region)
-        if not have:
-            return UNKNOWN, f"'{region}' could not be compared with '{target}'"
-        if _covers(have, target):
+        if have and _covers(have, target):
             return PASS, f"'{region}' includes '{target}'"
-        return FAIL, f"the role is for '{region}', not '{target}'"
+        # A place that does not include the candidate is a reason to skip only when the listing
+        # says the role is for people there. Otherwise it is where the company is, and not held
+        # against the job.
+        said = _restricts(posting, have) if have else None
+        if said:
+            return FAIL, f"the role is for '{region}' ({said}), not '{target}'"
+        return ABSENT, (
+            f"the listing names '{region}' but does not say the role is only for people there"
+        )
 
     return judge
 
@@ -175,7 +273,7 @@ def _where(posting: JobPosting) -> Any:
 def _same(actual: str | None, label: str) -> Any:
     def judge(target: str) -> tuple[str, str]:
         if actual is None:
-            return UNKNOWN, f"the listing does not state the {label}"
+            return ABSENT, f"the listing does not state the {label}"
         if actual == target:
             return PASS, f"{label}: {actual.replace('_', ' ')}"
         return FAIL, f"{label} is {actual.replace('_', ' ')}, not {target.replace('_', ' ')}"
@@ -186,7 +284,7 @@ def _same(actual: str | None, label: str) -> Any:
 def _industry(posting: JobPosting) -> Any:
     def judge(target: str) -> tuple[str, str]:
         if not posting.industry:
-            return UNKNOWN, "the listing does not state the industry"
+            return ABSENT, "the listing does not state the industry"
         if target.lower() in posting.industry.lower() or posting.industry.lower() in target.lower():
             return PASS, f"industry: {posting.industry}"
         return FAIL, f"industry is {posting.industry}"
@@ -195,10 +293,11 @@ def _industry(posting: JobPosting) -> Any:
 
 
 def _salary(floor: dict[str, Any], posting: JobPosting) -> tuple[str, str]:
-    """Compared only when the currency and the pay period are the same; otherwise unknown."""
+    """Compared only when the currency and the pay period are the same; otherwise unknown. A listing
+    that gives no pay at all is not held against it."""
     top = posting.salary_max if posting.salary_max is not None else posting.salary_min
     if top is None:
-        return UNKNOWN, "the listing does not state the pay"
+        return ABSENT, "the listing does not state the pay"
     if posting.salary_currency != floor["currency"] or posting.salary_period != floor["period"]:
         return UNKNOWN, (
             f"the listing pays in {posting.salary_currency or '?'} per "
@@ -227,6 +326,20 @@ def _sponsorship(need: dict[str, Any], posting: JobPosting) -> tuple[str, str]:
     return UNKNOWN, "the listing does not say whether it sponsors visas"
 
 
+def _no_way_to_apply(posting: JobPosting) -> str:
+    """Why a job cannot be applied for from here: it needs an email address to write to, or an
+    application link on a site whose form we can fill in."""
+    host = urlsplit(posting.application_url or "").hostname
+    if host:
+        return (
+            f"it lists no email address, and its application link ({host}) is on a site we cannot "
+            "fill in yet: open the job to apply yourself"
+        )
+    return (
+        "it lists neither an email address nor an application link: open the job to apply yourself"
+    )
+
+
 def evaluate(
     criteria: dict[str, Any],
     posting: JobPosting,
@@ -242,9 +355,12 @@ def evaluate(
     rules: list[Rule] = []
 
     def add(key: str, label: str, status: str, evidence: str, required: bool) -> None:
+        stated = status != ABSENT
+        if status == ABSENT:  # the listing does not say: it passes, without counting as a good sign
+            status, evidence = PASS, f"{evidence}, so it is not held against the job"
         if status == UNKNOWN and key in overrides:
             status, evidence = PASS, f"you confirmed this yourself ({evidence})"
-        rules.append(Rule(key, label, required, status, evidence))
+        rules.append(Rule(key, label, required, status, evidence, stated))
 
     if is_expired(posting, now):
         return Match(
@@ -282,7 +398,14 @@ def evaluate(
 
     usable = {r for r in routes if channels.get(r)}
     if usable:
-        add("channel", "A way to apply", PASS, f"can apply by {' or '.join(sorted(usable))}", True)
+        how = {"form": "its application form (filled in for you)", "email": "email"}
+        add(
+            "channel",
+            "A way to apply",
+            PASS,
+            "can apply by " + " or ".join(how.get(r, r) for r in sorted(usable)),
+            True,
+        )
     elif routes:
         add(
             "channel",
@@ -292,21 +415,12 @@ def evaluate(
             True,
         )
     else:
-        add(
-            "channel",
-            "A way to apply",
-            FAIL,
-            (
-                "this job has to be applied to on the employer's own site: "
-                "open the job to apply yourself"
-            ),
-            True,
-        )
+        add("channel", "A way to apply", FAIL, _no_way_to_apply(posting), True)
 
     failed = [r for r in rules if r.required and r.status == FAIL]
     unknown = [r for r in rules if r.required and r.status == UNKNOWN]
     score = sum(
-        (1.0 if r.status == PASS else -1.0 if r.status == FAIL else 0.0)
+        (1.0 if r.status == PASS and r.stated else -1.0 if r.status == FAIL else 0.0)
         * (1.0 if not r.required else 0.25)
         for r in rules
         if r.key not in ("open", "channel")

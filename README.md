@@ -195,6 +195,18 @@ folder. It uses the same Google client as "Continue with Google" (`GOOGLE_CLIENT
 3. Set `AUTOAPPLY_MAILBOX_PROVIDER=gmail` on the server. Real sending still needs the dispatch switches
    (`AUTOAPPLY_EMAIL_DISPATCH`, `AUTOAPPLY_OUTREACH_DISPATCH`); until then nothing reaches a real inbox.
 
+## How a job is matched
+
+Each wanted detail is judged pass, fail or unclear (`autoapply/matching.py`). A job is skipped only for
+something it **states**: a listing that does not say where it is, its contract type, seniority, work
+arrangement, industry or pay passes those rules (shown as met, "so it is not held against the job", and
+counting for nothing in the ranking). **Location** skips a job only when the listing says the role is for
+people in one region or country ("US only", "must be based in...", "residents of...", an on-site or hybrid
+role, or a feed that reports the candidate's required location); a place named only as where the company is
+passes. **Roles** need the wanted words together in the title: Senior Product Manager, Payments is a Product
+Manager; Product Marketing Manager is not. Still asked: pay in another currency than the candidate's floor,
+and visa sponsorship when the candidate needs it and the listing is silent.
+
 ## Filling in employers' application forms (browser)
 
 `AUTOAPPLY_FORM_ADAPTER=browser` swaps the pretend form handler for one that opens the employer's own
@@ -203,8 +215,14 @@ it from the candidate's confirmed CV facts and from answers they typed for that 
 their CV, presses submit and judges the result from the page.
 
 - **Only approved sites.** `AUTOAPPLY_FORM_HOSTS` (default: Greenhouse's own job boards,
-  `boards.greenhouse.io` and `job-boards.greenhouse.io`). Anything else is not "supported", so the job goes
-  by email or waits for the candidate. Add a site only after reading and filling its form in a real browser.
+  `boards.greenhouse.io` and `job-boards.greenhouse.io`, and Ashby's, `jobs.ashbyhq.com`). Anything else is not
+  "supported", so the job goes by email or is skipped with the reason (no email, and a link on a site we cannot
+  fill in yet). A job can be applied for by **email or by an application link on a supported site**. Add a
+  site only after reading and filling its form in a real browser.
+- **Ashby** is built from its public page structure (field names such as `_systemfield_email`, Yes/No drawn as
+  buttons) and tested on a copy of it; it has not been seen in a real browser from this repo, and its form
+  may run a spam check that flags automated submissions (reported, never worked around). Its own `/api/` is
+  disallowed by its robots.txt, so nothing here calls it: the page is read in the browser only.
 - **Nothing guessed.** A question nobody has answered goes back to the candidate (with the form's own
   choices as a list); an answer that matches no choice stops the application before anything is sent.
 - **Handed back, never worked around:** CAPTCHA, a sign-in wall, a closed job, a form that wants a file

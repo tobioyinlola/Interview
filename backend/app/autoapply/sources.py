@@ -98,7 +98,11 @@ class RemotiveSource(JsonSource):
             industry=job.get("category") or None,
             posted_at=when(job.get("publication_date")),
             application_url=job.get("url") or None,  # the listing page, not an employer form
-            evidence={"region": "Remotive's required-location field", "listing": "remotive.com"},
+            evidence={
+                "region": "Remotive's required-location field",
+                "region_scope": "candidate",
+                "listing": "remotive.com",
+            },
         )
 
     async def search(self, criteria: dict[str, Any], now: datetime) -> list[RawPosting]:
@@ -173,7 +177,11 @@ class RemoteOkSource(JsonSource):
             salary_period="year" if job.get("salary_min") else None,
             posted_at=when(job.get("date") or job.get("epoch")),
             application_url=job.get("url") or None,
-            evidence={"region": "Remote OK's location field", "listing": "remoteok.com"},
+            evidence={
+                "region": "Remote OK's location field",
+                "region_scope": "candidate",
+                "listing": "remoteok.com",
+            },
         )
 
     async def search(self, criteria: dict[str, Any], now: datetime) -> list[RawPosting]:

@@ -68,6 +68,10 @@ module = ["sentry_sdk", "sentry_sdk.*"]  # optional dependency
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
+module = ["playwright", "playwright.*"]  # optional dependency (the browser extra)
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 module = ["tests.*"]
 disallow_untyped_defs = false
 
