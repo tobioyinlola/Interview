@@ -1944,3 +1944,50 @@ def test_path_style_pages_are_followed_too():
         directory.next_page(links, "https://d.test/portfolio/page/2/")
         == "https://d.test/portfolio/page/3/"
     )
+
+
+# ------------------------------------------------------------------ profile hops, big feeds
+
+
+async def test_profile_pages_are_opened_a_batch_at_a_time_and_the_directory_is_read_again_soon(
+    maker, monkeypatch
+):
+    base = "https://dir.test/companies"
+    names = [f"Firm{i:02d}" for i in range(5)]
+    links = tuple((n, f"{base}/{n.lower()}") for n in names)
+
+    class Site:
+        async def fetch(self, url):
+            if url == base:
+                return FetchResult(url, "ok", text="x " * 80, final_url=url, links=links)
+            n = url.rsplit("/", 1)[1]
+            return FetchResult(
+                url, "ok", text="y " * 80, final_url=url,
+                links=((f"Visit website", f"https://{n}.io"),),
+            )  # fmt: skip
+
+    class Llm(FakeLlmProvider):
+        async def generate_json(self, *, system, user, schema):
+            return json.dumps({"startups": [{"name": n, "website": ""} for n in names]})
+
+    monkeypatch.setattr(directory, "PROFILES_PER_READ", 2)
+    async with maker() as db:
+        first = await directory.ingest(db, Site(), Llm(), "Dir", base, NOW)
+        assert first["added"] == 2 and first["more"] is True
+        await directory.ingest(db, Site(), Llm(), "Dir", base, NOW)
+        last = await directory.ingest(db, Site(), Llm(), "Dir", base, NOW)
+        assert last["added"] == 1 and last["more"] is False
+        assert len((await db.execute(select(Startup))).scalars().all()) == 5
+
+
+def test_a_feed_skips_companies_that_have_shut_down():
+    feed = json.dumps(
+        [
+            {"name": "Live", "website": "https://live.io", "status": "Active"},
+            {"name": "Gone", "website": "https://gone.io", "status": "Inactive"},
+        ]
+        * 3
+    )
+    assert [f.name for f in directory.parse_feed(feed, "https://yc-oss.github.io/x.json")] == [
+        "Live"
+    ]

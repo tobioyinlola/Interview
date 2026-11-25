@@ -26,7 +26,7 @@ from app.services.fetcher import Fetcher
 # of every region, never guessed into one. Pages built only in the browser may yield little to a
 # polite fetcher; the admin page shows what each read actually found, and companies can be pasted.
 DEFAULTS: list[tuple[str, str, str]] = [
-    ("Y Combinator", "https://www.ycombinator.com/companies", ""),
+    ("Y Combinator", "https://yc-oss.github.io/api/companies/all.json", ""),
     ("Techstars", "https://www.techstars.com/portfolio", ""),
     ("Techstars companies", "https://jobs.techstars.com/sitemap_companies.xml", ""),
     ("Seedcamp", "https://seedcamp.com/our-companies/", "eu"),
@@ -87,6 +87,8 @@ RETIRED = ("Plug and Play", "Creandum", "Cherry Ventures", "Atomico", "Startupbo
 FIXED_URLS = {
     "Point Nine": "https://www.pointnine.com/companies",
     "Antler": "https://www.antler.co/portfolio",
+    # the companies page is drawn in the browser and gives nothing: YC publishes its list as data
+    "Y Combinator": "https://yc-oss.github.io/api/companies/all.json",
 }
 
 # More places to look, tried a couple a day. A candidate becomes a real directory only after a trial
@@ -204,7 +206,8 @@ def page_reader() -> Fetcher:
         links_max=LINKS_MAX,
         allow_json=True,
         embedded_data=True,
-        max_bytes=8 * 1024 * 1024,
+        max_bytes=16 * 1024 * 1024,
+        json_max_chars=16_000_000,
     )
 
 
@@ -411,8 +414,8 @@ def link_for_name(name: str, links: tuple[tuple[str, str], ...], directory_url: 
     return None
 
 
-PROFILES_PER_READ = 20  # profile pages opened in one read: each is one polite request
-FEED_MAX = 1500
+PROFILES_PER_READ = 40  # profile pages opened in one read: each is one polite request
+FEED_MAX = 8000
 
 
 async def resolve_sites(
@@ -422,9 +425,10 @@ async def resolve_sites(
     links: tuple[tuple[str, str], ...],
     directory: str,
     directory_url: str,
-) -> list[Found]:
+) -> tuple[list[Found], bool]:
     """Names the directory page gave without a website: open each company's profile page on the
-    directory and take the website it links to. A few at a time, never twice for the same name."""
+    directory and take the website it links to. A batch at a time, never twice for the same name.
+    Also says whether profile pages are left to open, so the directory is read again soon."""
     have = {
         _norm(n)
         for n in (
@@ -435,9 +439,11 @@ async def resolve_sites(
     }
     out: list[Found] = []
     opened = 0
-    for f in named:
-        if _norm(f.name) in have or opened >= PROFILES_PER_READ:
-            continue
+    pending = [f for f in named if _norm(f.name) not in have]
+    random.shuffle(pending)  # a profile with no website must not block the ones behind it
+    for f in pending:
+        if opened >= PROFILES_PER_READ:
+            break
         target = profile_link(f.name, links, directory_url)
         if not target:
             continue
@@ -448,7 +454,7 @@ async def resolve_sites(
         site = company_site(got.links, directory_url, f.name)
         if site:
             out.append(replace(f, website=site))
-    return out
+    return out, bool(out) and len(pending) > opened
 
 
 _TAGS = re.compile(r"<[^>]+>")
@@ -486,6 +492,8 @@ def parse_feed(text: str, directory_url: str, minimum: int = 1) -> list[Found]:
         for item in records:
             if len(out) >= FEED_MAX:
                 return out
+            if str(item.get("status") or "").lower() in ("inactive", "dead", "closed"):
+                continue  # a company that has shut down is not one to write to
             place = str(
                 item.get("country") or item.get("all_locations") or item.get("location") or ""
             )
@@ -646,7 +654,7 @@ async def ingest(
     for _ in range(PAGES_PER_READ):
         out = await _ingest_page(db, fetcher, llm, directory, start, now, hint)
         added, found = added + out["added"], found + out["found"]
-        problem, more = out["problem"], bool(out.get("more"))
+        problem, more = out["problem"], more or bool(out.get("more"))
         nxt = None if out["problem"] else out.get("next")
         if not nxt:
             break
@@ -674,6 +682,7 @@ async def _ingest_page(
         return {"added": 0, "found": 0, "problem": page.reason}
     if page.text.lstrip().startswith(("<?xml", "<urlset", "<sitemapindex")):
         return await ingest_sitemap(db, fetcher, directory, url, page.text, now, hint)
+    left = False  # profile pages still to open on a later read
     if page.text.lstrip().startswith(("[", "{")):
         found = parse_feed(page.text, url)
         named: list[Found] = []
@@ -684,7 +693,8 @@ async def _ingest_page(
         matched = {f.name: link_for_name(f.name, page.links, url) or "" for f in named}
         found += [replace(f, website=matched[f.name]) for f in named if matched[f.name]]
         named = [f for f in named if not matched[f.name]]
-        found += await resolve_sites(db, fetcher, named, page.links, directory, url)
+        resolved, left = await resolve_sites(db, fetcher, named, page.links, directory, url)
+        found += resolved
         have = {policy.domain_of(f.website) for f in found}
         for blob in page.data:  # the list the page itself draws its grid from, when it carries one
             found += [
@@ -706,6 +716,7 @@ async def _ingest_page(
         "found": len(found),
         "problem": problem,
         "next": next_page(page.links, url),
+        "more": left,
     }
 
 
