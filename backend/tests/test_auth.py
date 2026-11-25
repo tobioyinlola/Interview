@@ -113,3 +113,41 @@ async def test_mutations_need_the_csrf_header(app):
     assert r.status_code == 403
     assert r.json()["error"]["code"] == "csrf_failed"
     assert g.status_code == 401  # GETs are not blocked by the CSRF check
+
+
+# ------------------------------------------------------------------ inactivity
+
+
+async def _age_session(db, minutes: int) -> None:
+    from datetime import UTC, datetime, timedelta
+
+    from sqlalchemy import update
+
+    from app.models import AuthSession
+
+    await db.execute(
+        update(AuthSession).values(last_seen_at=datetime.now(UTC) - timedelta(minutes=minutes))
+    )
+    await db.commit()
+
+
+async def test_a_session_unused_for_twenty_minutes_is_signed_out(new_client, sign_in, db):
+    async with new_client() as c:
+        await sign_in(c, "ada@example.com")
+        assert (await c.get("/api/me")).status_code == 200
+        await _age_session(db, 19)  # still within the limit
+        assert (await c.get("/api/me")).status_code == 200
+        await _age_session(db, 21)
+        r = await c.get("/api/me")
+        assert r.status_code == 401 and r.json()["error"]["code"] == "not_authenticated"
+        # and it stays ended: the cookie is no longer any good
+        assert (await c.get("/api/me")).status_code == 401
+
+
+async def test_using_the_app_keeps_the_session_alive(new_client, sign_in, db):
+    async with new_client() as c:
+        await sign_in(c, "ada@example.com")
+        await _age_session(db, 15)
+        assert (await c.get("/api/me")).status_code == 200  # a request counts as being here
+        await _age_session(db, 15)
+        assert (await c.get("/api/me")).status_code == 200

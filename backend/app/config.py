@@ -74,6 +74,8 @@ class Settings(BaseSettings):
     login_link_ttl_minutes: int = 15
     login_requests_per_hour: int = 5
     session_ttl_days: int = 30
+    # Signed out after this many minutes without a request from the app (0 = never).
+    idle_logout_minutes: int = 20
 
     # Hardening.
     metrics_token: SecretStr = SecretStr("")  # Bearer token for /metrics ("" = open only in local)

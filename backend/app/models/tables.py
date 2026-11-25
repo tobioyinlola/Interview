@@ -140,6 +140,8 @@ class AuthSession(Base):
     token_hash: Mapped[str] = mapped_column(String(64), unique=True)
     expires_at: Mapped[datetime] = mapped_column(_TS)
     created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+    # The last request made with this cookie: a session unused for the idle limit is signed out.
+    last_seen_at: Mapped[datetime] = mapped_column(_TS, default=_now)
 
 
 class AudioToken(Base):

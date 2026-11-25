@@ -1,6 +1,5 @@
 import { vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 
 import { App } from "../../app/App";
 import { PLAN } from "../onboarding/content";
@@ -11,7 +10,6 @@ import { ME, mockApi, renderApp, stubSupportedBrowser } from "../../test-utils";
 beforeEach(() => stubSupportedBrowser());
 afterEach(() => vi.restoreAllMocks());
 
-const ago = (d: number) => new Date(Date.now() - d * 86_400_000).toISOString();
 const base = (over: Record<string, () => object> = {}) => ({
   "GET /api/me": () => ({ json: ME }),
   "GET /api/notes": () => ({

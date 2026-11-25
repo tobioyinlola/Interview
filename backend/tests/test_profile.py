@@ -228,6 +228,19 @@ async def test_finishing_onboarding_saves_the_four_answers(new_client, sign_in) 
     assert me["onboarded"] is True and me["onboarding"] == ANSWERS
 
 
+async def test_onboarding_is_a_one_time_step_signing_in_again_does_not_bring_it_back(
+    new_client, sign_in
+) -> None:
+    async with new_client() as c:
+        await sign_in(c, EMAIL)
+        assert (await c.get("/api/me")).json()["onboarded"] is False
+        await c.put("/api/onboarding", json=ANSWERS)
+    async with new_client() as later:  # another day, another device
+        await sign_in(later, EMAIL)
+        me = (await later.get("/api/me")).json()
+    assert me["onboarded"] is True and me["onboarding"] == ANSWERS
+
+
 async def test_skipping_onboarding_is_remembered_and_keeps_any_partial_answers(
     new_client, sign_in
 ) -> None:

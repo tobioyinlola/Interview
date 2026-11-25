@@ -148,6 +148,12 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
             {urlError}
           </p>
         )}
+        {!signup && params.get("idle") === "1" && (
+          <p role="status" className="notice-info mt-4">
+            You were signed out after 20 minutes of inactivity. Sign in again to
+            carry on.
+          </p>
+        )}
 
         {sent ? (
           <p

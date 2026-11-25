@@ -1,5 +1,6 @@
 import uuid
 from collections.abc import Callable
+from datetime import timedelta
 
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -40,7 +41,14 @@ async def current_user(
     token = session_token(request)
     user = None
     if token:
-        user = await AuthRepo(db, settings.cookie_secret.get_secret_value()).user_for_session(token)
+        idle = (
+            timedelta(minutes=settings.idle_logout_minutes)
+            if settings.idle_logout_minutes
+            else None
+        )
+        user = await AuthRepo(db, settings.cookie_secret.get_secret_value()).user_for_session(
+            token, idle=idle
+        )
     if user is None:
         raise ApiError(401, "not_authenticated", "Please sign in.")
     return user
