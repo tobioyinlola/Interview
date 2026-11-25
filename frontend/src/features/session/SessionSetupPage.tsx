@@ -76,7 +76,7 @@ export function SessionSetupPage() {
       </h1>
       <p className="text-sm text-muted">
         {isMobileApp()
-          ? "Run a mock interview with a friend, mentor or peer who knows the assistant is on. On the next screen the assistant captures your interview audio directly or through the microphone. You can also type a question."
+          ? "Run a mock interview with a friend, mentor or peer who knows the assistant is on. On the next screen the assistant listens through its microphone or internal device audio. You can also type a question."
           : "Run a mock interview with a friend, mentor or peer who knows the assistant is on. Join them on Google Meet, then share the Meet tab with its audio on the next screen."}
       </p>
 

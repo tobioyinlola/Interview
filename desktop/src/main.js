@@ -286,6 +286,14 @@ function exitStealthMode() {
 }
 
 // IPC surface exposed to the renderer (through preload.js)
+ipcMain.handle("im:stealth-set-mode", (_event, enable) => {
+  if (enable) {
+    enterStealthMode();
+  } else {
+    exitStealthMode();
+  }
+  return { ok: true, stealth: !!enable };
+});
 ipcMain.handle("im:stealth-enter", () => enterStealthMode());
 ipcMain.handle("im:stealth-exit", () => exitStealthMode());
 ipcMain.handle("im:stealth-set-click-through", (_event, enable) => {
@@ -302,6 +310,14 @@ ipcMain.handle("im:stealth-query", () => ({
 }));
 
 // Frameless window control handlers for desktop normal mode
+ipcMain.handle("im:window-control", (_event, action) => {
+  if (!win || win.isDestroyed()) return;
+  if (action === "minimize") win.minimize();
+  else if (action === "maximize") {
+    if (win.isMaximized()) win.unmaximize();
+    else win.maximize();
+  } else if (action === "close") win.close();
+});
 ipcMain.handle("im:window-minimize", () => {
   if (win && !win.isDestroyed()) win.minimize();
 });

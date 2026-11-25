@@ -31,7 +31,7 @@ if (typeof window !== "undefined") {
     globalStealthState = s;
     listeners.forEach((l) => l(s));
   });
-  void window.interviewMeetDesktop?.stealth?.query().then((s) => {
+  void (window.interviewDesktop?.stealth ?? window.interviewMeetDesktop?.stealth)?.query().then((s: StealthState) => {
     if (s) {
       globalStealthState = s;
       listeners.forEach((l) => l(s));
@@ -55,7 +55,7 @@ export function useStealthHud(): StealthHudControls {
     setState(globalStealthState);
 
     // Check initial state from main process on mount
-    void window.interviewMeetDesktop?.stealth?.query().then((s) => {
+    void (window.interviewDesktop?.stealth ?? window.interviewMeetDesktop?.stealth)?.query().then((s: StealthState) => {
       if (s) {
         globalStealthState = s;
         setState(s);

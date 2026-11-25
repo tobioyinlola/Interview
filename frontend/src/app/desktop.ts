@@ -19,22 +19,20 @@ interface DesktopWindowControls {
   close: () => Promise<void>;
 }
 
-interface DesktopBridge {
-  isDesktop: true;
-  platform: string;
-  arch?: string;
-  systemAudio: boolean;
-  /** Opens an address in the person's normal browser (used for Google sign-in). */
-  openInBrowser?: (url: string) => void;
-  /** Frameless window controls for desktop normal mode. */
-  windowControls?: DesktopWindowControls;
-  /** Stealth HUD controls — only usable from the live interview page. */
-  stealth?: DesktopStealth;
-}
-
 declare global {
   interface Window {
-    interviewMeetDesktop?: DesktopBridge;
+    interviewDesktop?: {
+      isDesktop: boolean;
+      platform: string;
+      setStealthMode: (enable: boolean) => Promise<{ ok: boolean; stealth: boolean }>;
+      windowControl: (action: "minimize" | "maximize" | "close") => Promise<void>;
+      arch?: string;
+      systemAudio?: boolean;
+      openInBrowser?: (url: string) => void;
+      windowControls?: DesktopWindowControls;
+      stealth?: DesktopStealth;
+    };
+    interviewMeetDesktop?: any;
   }
 }
 
@@ -44,32 +42,47 @@ declare module "react" {
   }
 }
 
-/** True when running inside the InterviewMeet desktop app. */
-export function isDesktopApp(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    window.interviewMeetDesktop?.isDesktop === true
-  );
+export const isDesktopApp = () =>
+  Boolean(window.interviewDesktop?.isDesktop ?? window.interviewMeetDesktop?.isDesktop);
+
+export async function setDesktopStealthMode(enable: boolean): Promise<void> {
+  if (window.interviewDesktop?.setStealthMode) {
+    await window.interviewDesktop.setStealthMode(enable);
+  } else if (window.interviewMeetDesktop?.stealth) {
+    if (enable) {
+      await window.interviewMeetDesktop.stealth.enter();
+    } else {
+      await window.interviewMeetDesktop.stealth.exit();
+    }
+  }
 }
 
 /** True when the desktop app supports the stealth HUD. */
 export function hasStealthSupport(): boolean {
-  return isDesktopApp() && !!window.interviewMeetDesktop?.stealth;
+  return (
+    isDesktopApp() &&
+    Boolean(
+      window.interviewDesktop?.setStealthMode ||
+        window.interviewDesktop?.stealth ||
+        window.interviewMeetDesktop?.stealth,
+    )
+  );
 }
 
 /** Enter stealth HUD mode — morphs the window into a compact floating overlay. */
 export async function enterStealth(): Promise<void> {
-  await window.interviewMeetDesktop?.stealth?.enter();
+  await setDesktopStealthMode(true);
 }
 
 /** Exit stealth HUD mode — restores the full desktop window. */
 export async function exitStealth(): Promise<void> {
-  await window.interviewMeetDesktop?.stealth?.exit();
+  await setDesktopStealthMode(false);
 }
 
 /** Toggle pointer-event passthrough on the HUD. */
 export async function setStealthClickThrough(enable: boolean): Promise<void> {
-  await window.interviewMeetDesktop?.stealth?.setClickThrough(enable);
+  const stealth = window.interviewDesktop?.stealth ?? window.interviewMeetDesktop?.stealth;
+  await stealth?.setClickThrough(enable);
 }
 
 /** Subscribe to stealth state changes pushed from the main process.
@@ -77,20 +90,39 @@ export async function setStealthClickThrough(enable: boolean): Promise<void> {
 export function onStealthStateChanged(
   cb: (state: StealthState) => void,
 ): () => void {
-  return window.interviewMeetDesktop?.stealth?.onStateChanged(cb) ?? (() => {});
+  const stealth = window.interviewDesktop?.stealth ?? window.interviewMeetDesktop?.stealth;
+  return stealth?.onStateChanged(cb) ?? (() => {});
 }
 
 /** Minimize the desktop application window. */
 export function minimizeDesktopWindow(): void {
-  void window.interviewMeetDesktop?.windowControls?.minimize();
+  if (window.interviewDesktop?.windowControl) {
+    void window.interviewDesktop.windowControl("minimize");
+  } else {
+    void (
+      window.interviewDesktop?.windowControls ?? window.interviewMeetDesktop?.windowControls
+    )?.minimize();
+  }
 }
 
 /** Maximize or unmaximize the desktop application window. */
 export function maximizeDesktopWindow(): void {
-  void window.interviewMeetDesktop?.windowControls?.maximize();
+  if (window.interviewDesktop?.windowControl) {
+    void window.interviewDesktop.windowControl("maximize");
+  } else {
+    void (
+      window.interviewDesktop?.windowControls ?? window.interviewMeetDesktop?.windowControls
+    )?.maximize();
+  }
 }
 
 /** Close the desktop application window. */
 export function closeDesktopWindow(): void {
-  void window.interviewMeetDesktop?.windowControls?.close();
+  if (window.interviewDesktop?.windowControl) {
+    void window.interviewDesktop.windowControl("close");
+  } else {
+    void (
+      window.interviewDesktop?.windowControls ?? window.interviewMeetDesktop?.windowControls
+    )?.close();
+  }
 }

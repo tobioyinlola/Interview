@@ -144,6 +144,9 @@ test("preload exposes stealth bridge to the renderer", () => {
   const fs = require("node:fs");
   const path = require("node:path");
   const preload = fs.readFileSync(path.join(__dirname, "..", "src", "preload.js"), "utf8");
+  assert.match(preload, /interviewDesktop/);
+  assert.match(preload, /setStealthMode/);
+  assert.match(preload, /windowControl/);
   assert.match(preload, /stealth/);
   assert.match(preload, /im:stealth-enter/);
   assert.match(preload, /im:stealth-exit/);

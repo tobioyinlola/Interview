@@ -1,4 +1,4 @@
-import { exitStealth, isDesktopApp } from "../../app/desktop";
+import { exitStealth, isDesktopApp, setDesktopStealthMode } from "../../app/desktop";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useParams } from "react-router-dom";
@@ -442,6 +442,13 @@ export function LiveSessionPage() {
   );
 
   useEffect(() => {
+    void setDesktopStealthMode(true);
+    return () => {
+      void setDesktopStealthMode(false);
+    };
+  }, []);
+
+  useEffect(() => {
     useLiveStore.getState().reset();
     return () => {
       controller.dispose(); // leaving the page stops capture; the session is ended explicitly
@@ -498,7 +505,7 @@ export function LiveSessionPage() {
               <button
                 type="button"
                 className="btn-primary whitespace-nowrap shadow-sm"
-                onClick={() => void stealth.enter()}
+                onClick={() => void setDesktopStealthMode(true)}
                 disabled={status === "ended"}
               >
                 Launch Stealth HUD
