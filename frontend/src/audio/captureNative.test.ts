@@ -39,7 +39,7 @@ describe("captureNative", () => {
   });
 
   it("requests capture permission for dual and device modes", async () => {
-    let capturedListener: ((event: any) => void) | null = null;
+    let capturedListener: any = null;
     const requestCapture = vi.fn().mockResolvedValue({ granted: true });
     const startCapture = vi.fn().mockResolvedValue({ started: true });
     const stopCapture = vi.fn().mockResolvedValue({ stopped: true });
