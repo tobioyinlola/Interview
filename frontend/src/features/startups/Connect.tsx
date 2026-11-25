@@ -1,4 +1,4 @@
-import { type FormEvent, type ReactNode, useState } from "react";
+import { type FormEvent, useState } from "react";
 
 import { useMe } from "../../api/hooks";
 import { useMailbox, useMailboxActions } from "../autoapply/api";
@@ -24,102 +24,12 @@ export function StartupHero() {
   );
 }
 
-function Step({
-  n,
-  title,
-  children,
-}: {
-  n: number;
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <li className="flex gap-3">
-      <span
-        aria-hidden="true"
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-semibold text-surface"
-      >
-        {n}
-      </span>
-      <div className="min-w-0 flex-1 space-y-2 pt-0.5">
-        <p className="font-medium">{title}</p>
-        {children}
-      </div>
-    </li>
-  );
-}
-
 const link = "font-medium text-accent-dark underline";
 
-/** Check that a connected mailbox still works, by logging in to it again. Nothing is sent. */
-export function MailboxConfirmed({
-  address,
-  onContinue,
-}: {
-  address: string;
-  onContinue?: () => void;
-}) {
-  const { check } = useMailboxActions();
-  return (
-    <section
-      aria-label="Gmail connected"
-      className="space-y-3 rounded-2xl bg-emerald-50 p-5 text-emerald-950 shadow-card"
-    >
-      <div className="flex items-start gap-3">
-        <span
-          aria-hidden="true"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-lg font-bold text-surface"
-        >
-          ✓
-        </span>
-        <div className="min-w-0">
-          <h2 className="text-lg font-semibold">
-            Gmail connected and confirmed
-          </h2>
-          <p className="break-all font-medium">{address}</p>
-          <p className="mt-1 text-sm">
-            We signed in with it and it worked. Nothing was sent. Pitches go out
-            from this address and show in your Sent folder.
-          </p>
-        </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-3">
-        {onContinue && (
-          <button type="button" className="btn-primary" onClick={onContinue}>
-            Continue
-          </button>
-        )}
-        <button
-          type="button"
-          className="btn-secondary"
-          disabled={check.isPending}
-          onClick={() => check.mutate()}
-        >
-          {check.isPending ? "Checking…" : "Check again"}
-        </button>
-        {check.isSuccess && (
-          <span role="status" className="text-sm font-medium">
-            Confirmed just now
-          </span>
-        )}
-      </div>
-      {check.isError && (
-        <p role="alert" className="notice-error">
-          {check.error.message}
-        </p>
-      )}
-    </section>
-  );
-}
-
-/** The Gmail steps, and the two fields that finish them: the address and an app password. */
-export function GmailConnect({ onConnected }: { onConnected: () => void }) {
+/** The two things an SMTP connection needs: the Gmail address and an app password. */
+function PasswordFields({ onConnected }: { onConnected: () => void }) {
   const { data: me } = useMe();
-  const box = useMailbox();
-  const { connect, connectWithPassword } = useMailboxActions();
-  const viaPassword = (box.data?.smtp_providers ?? []).some(
-    (p) => p.id === "gmail",
-  );
+  const { connectWithPassword } = useMailboxActions();
   const guess = /@(gmail|googlemail)\.com$/i.test(me?.email ?? "")
     ? (me?.email ?? "")
     : "";
@@ -138,115 +48,160 @@ export function GmailConnect({ onConnected }: { onConnected: () => void }) {
       },
     );
   };
+  return (
+    <form onSubmit={submit} className="space-y-3">
+      <label className="block text-sm">
+        <span className="font-medium">Gmail address</span>
+        <input
+          type="email"
+          required
+          className="input mt-1 w-full"
+          autoComplete="email"
+          autoCapitalize="none"
+          placeholder="you@gmail.com"
+          value={shown}
+          onChange={(e) => setAddress(e.target.value)}
+        />
+      </label>
+      <label className="block text-sm">
+        <span className="font-medium">App password</span>
+        <input
+          type="password"
+          required
+          minLength={16}
+          className="input mt-1 w-full"
+          autoComplete="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          placeholder="16 letters, spaces do not matter"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+      </label>
+      <p className="text-xs text-muted">
+        <a
+          className={link}
+          href="https://myaccount.google.com/apppasswords"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Get an app password
+        </a>{" "}
+        (needs 2-Step Verification on).
+      </p>
+      <button
+        type="submit"
+        className="btn-primary"
+        disabled={
+          connectWithPassword.isPending ||
+          password.replace(/\s/g, "").length < 16 ||
+          !shown.trim()
+        }
+      >
+        {connectWithPassword.isPending ? "Checking with Gmail…" : "Connect"}
+      </button>
+      {connectWithPassword.isError && (
+        <p role="alert" className="notice-error">
+          {connectWithPassword.error.message}
+        </p>
+      )}
+    </form>
+  );
+}
+
+/** A connected mailbox: the address, with Disconnect and Connect back. */
+export function MailboxConfirmed({
+  address,
+  onContinue,
+}: {
+  address: string;
+  onContinue?: () => void;
+}) {
+  const { disconnect } = useMailboxActions();
+  const [again, setAgain] = useState(false);
+  return (
+    <section
+      aria-label="Gmail connected"
+      className="space-y-3 rounded-2xl bg-emerald-50 p-5 text-emerald-950 shadow-card"
+    >
+      <div className="flex items-start gap-3">
+        <span
+          aria-hidden="true"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-lg font-bold text-surface"
+        >
+          ✓
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-lg font-semibold">
+            Gmail connected and confirmed
+          </h2>
+          <p className="break-all font-medium">{address}</p>
+        </div>
+      </div>
+      {again ? (
+        <div className="space-y-3 rounded-xl bg-surface p-4 text-ink">
+          <PasswordFields onConnected={() => setAgain(false)} />
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => setAgain(false)}
+          >
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-3">
+          {onContinue && (
+            <button type="button" className="btn-primary" onClick={onContinue}>
+              Continue
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={disconnect.isPending}
+            onClick={() => disconnect.mutate()}
+          >
+            {disconnect.isPending ? "Disconnecting…" : "Disconnect"}
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => setAgain(true)}
+          >
+            Connect back
+          </button>
+        </div>
+      )}
+      {disconnect.isError && (
+        <p role="alert" className="notice-error">
+          {disconnect.error.message}
+        </p>
+      )}
+    </section>
+  );
+}
+
+/** Connect Gmail: just the address and an app password. */
+export function GmailConnect({ onConnected }: { onConnected: () => void }) {
+  const box = useMailbox();
+  const { connect } = useMailboxActions();
+  const viaPassword = (box.data?.smtp_providers ?? []).some(
+    (p) => p.id === "gmail",
+  );
   const retry = box.data?.status === "reauth_needed";
   return (
     <section
       aria-label="Connect your Gmail"
-      className="space-y-5 rounded-2xl bg-surface p-5 shadow-card sm:p-6"
+      className="space-y-4 rounded-2xl bg-surface p-5 shadow-card sm:p-6"
     >
-      <div>
-        <h2 className="text-xl font-semibold">
-          {retry
-            ? "Reconnect your Gmail"
-            : "Connect your Gmail to start sending"}
-        </h2>
-        <p className="mt-1 text-muted">
-          {retry
-            ? "Connect again with a Gmail app password to keep sending."
-            : "Replies come straight to you. It takes two minutes."}
-        </p>
-      </div>
-
+      <h2 className="text-xl font-semibold">
+        {retry ? "Reconnect your Gmail" : "Connect your Gmail"}
+      </h2>
       {viaPassword ? (
-        <>
-          <ol className="space-y-5">
-            <Step n={1} title="Turn on 2-Step Verification">
-              <p className="text-sm text-muted">
-                <a
-                  className={link}
-                  href="https://myaccount.google.com/security"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Open Google security
-                </a>
-              </p>
-            </Step>
-            <Step n={2} title="Make an app password">
-              <p className="text-sm text-muted">
-                Open{" "}
-                <a
-                  className={link}
-                  href="https://myaccount.google.com/apppasswords"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  App passwords
-                </a>
-                , name it <b>InterviewMeet</b>, then copy the 16 letters.
-              </p>
-            </Step>
-            <Step n={3} title="Paste your address and the app password">
-              <form onSubmit={submit} className="space-y-3">
-                <label className="block text-sm">
-                  <span className="font-medium">Gmail address</span>
-                  <input
-                    type="email"
-                    required
-                    className="input mt-1 w-full"
-                    autoComplete="email"
-                    autoCapitalize="none"
-                    placeholder="you@gmail.com"
-                    value={shown}
-                    onChange={(e) => setAddress(e.target.value)}
-                  />
-                </label>
-                <label className="block text-sm">
-                  <span className="font-medium">App password</span>
-                  <input
-                    type="password"
-                    required
-                    minLength={16}
-                    className="input mt-1 w-full"
-                    autoComplete="off"
-                    autoCapitalize="none"
-                    spellCheck={false}
-                    placeholder="16 letters, spaces do not matter"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </label>
-                <p className="text-xs text-muted">
-                  Not your Gmail password. Kept encrypted; nothing is sent.
-                </p>
-                <button
-                  type="submit"
-                  className="btn-primary"
-                  disabled={
-                    connectWithPassword.isPending ||
-                    password.replace(/\s/g, "").length < 16 ||
-                    !shown.trim()
-                  }
-                >
-                  {connectWithPassword.isPending
-                    ? "Checking with Gmail…"
-                    : "Connect and confirm"}
-                </button>
-                {connectWithPassword.isError && (
-                  <p role="alert" className="notice-error">
-                    {connectWithPassword.error.message}
-                  </p>
-                )}
-              </form>
-            </Step>
-          </ol>
-        </>
+        <PasswordFields onConnected={onConnected} />
       ) : (
         <div className="space-y-3">
-          <p className="text-sm text-muted">
-            Press the button, choose your Google account, and allow
-            InterviewMeet to send and read replies on your behalf.
-          </p>
           <button
             type="button"
             className="btn-primary"

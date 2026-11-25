@@ -41,7 +41,7 @@ navigation blocked) was run under a virtual display with Playwright's Electron s
 * **The app carries its own copy of the interface**, so website changes reach it through a new release. A
   change to `frontend/` or `desktop/` that lands on `Staging` builds and publishes one automatically.
 * **The app** is released automatically: a change to `desktop/` (or `frontend/`) that lands on `Staging`
-  builds the Windows and Mac installers and publishes release `desktop-v0.2.<run number>`.
+  builds the Windows and Mac installers and publishes release `desktop-v0.3.<run number>`.
 * **Windows** apps look for a new release when they start and every 4 hours, download it quietly, and offer
   a restart (or install it when the app is next closed).
 * **Mac** apps that are not yet signed cannot install updates by themselves. The app shows an

@@ -4,7 +4,7 @@ name: desktop
 #  - Any change to desktop/ (or a manual run): tests, and a Windows installer you can download from
 #    the run page under "Artifacts" (unsigned, for trying out).
 #  - A change to desktop/ that lands on Staging: builds the Windows and Mac installers and publishes them
-#    as a new release by itself (version 0.2.<run number>). Installed Windows apps find it and update
+#    as a new release by itself (version 0.3.<run number>). Installed Windows apps find it and update (0.3 so it is always newer than the hand-made 0.3.x builds)
 #    themselves. The app carries its own copy of the interface (from frontend/), so a website change
 #    reaches it through a new release.
 #  - A tag like desktop-v0.1.0: builds Mac and Windows installers and attaches them to a GitHub release,
@@ -43,7 +43,7 @@ jobs:
       contents: write   # needed to create the release and its tag
     env:
       RELEASE: ${{ (github.event_name == 'workflow_dispatch' && inputs.release) || (github.event_name == 'push' && github.ref == 'refs/heads/Staging') }}
-      VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || format('0.2.{0}', github.run_number) }}
+      VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || format('0.3.{0}', github.run_number) }}
     steps:
       - name: Check the version before building
         if: env.RELEASE == 'true'
@@ -136,7 +136,7 @@ jobs:
       contents: write
     env:
       RELEASE: ${{ (github.event_name == 'workflow_dispatch' && inputs.release) || (github.event_name == 'push' && github.ref == 'refs/heads/Staging') }}
-      VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || format('0.2.{0}', github.run_number) }}
+      VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || format('0.3.{0}', github.run_number) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
