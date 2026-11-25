@@ -260,9 +260,9 @@ def _where(posting: JobPosting) -> Any:
         # A place that does not include the candidate is a reason to skip only when the listing
         # says the role is for people there. Otherwise it is where the company is, and not held
         # against the job.
-        why = _restricts(posting, have) if have else None
-        if why:
-            return FAIL, f"the role is for '{region}' ({why}), not '{target}'"
+        said = _restricts(posting, have) if have else None
+        if said:
+            return FAIL, f"the role is for '{region}' ({said}), not '{target}'"
         return ABSENT, (
             f"the listing names '{region}' but does not say the role is only for people there"
         )
