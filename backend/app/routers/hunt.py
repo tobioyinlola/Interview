@@ -15,7 +15,7 @@ from app.autoapply import facts as facts_mod
 from app.autoapply import mailbox
 from app.config import Settings, get_settings
 from app.db import get_db
-from app.deps import current_user, require_admin
+from app.deps import current_user, get_notifier, require_admin
 from app.errors import ApiError
 from app.hunt import directory, engine, policy, research
 from app.models import (
@@ -30,6 +30,7 @@ from app.models import (
 from app.routers.autoapply import get_llm, get_now
 from app.services.events import record_from
 from app.services.fetcher import Fetcher
+from app.services.notify import Notifier
 
 
 def feature_on(settings: Settings = Depends(get_settings)) -> None:  # noqa: B008
@@ -866,11 +867,13 @@ async def access_set(
     body: AccessIn,
     admin: User = Depends(require_admin),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008
+    notifier: Notifier = Depends(get_notifier),  # noqa: B008
 ) -> AccessPersonOut:
     """Switch startup outreach on for one person, or off again (their pitches stop at once)."""
     u = await db.get(User, uid)
     if u is None:
         raise ApiError(404, "not_found", "Not found.")
+    newly = body.access == "active" and u.outreach_access != "active"
     u.outreach_access = body.access
     if body.access == "none":
         st = await engine.get_settings(db, u.id)
@@ -881,4 +884,6 @@ async def access_set(
         db, f"outreach.{'approved' if body.access == 'active' else 'revoked'}",
         user_id=u.id, actor_id=admin.id,
     )  # fmt: skip
+    if newly:
+        await notifier.outreach_approved(u.id)
     return _person(u)

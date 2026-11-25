@@ -24,6 +24,7 @@ import { OnboardingPage } from "../features/onboarding/OnboardingPage";
 import { BrowserNotice } from "./BrowserNotice";
 import { currentEnv, isSupported } from "./browserSupport";
 import { Layout } from "./Layout";
+import { AccessToast } from "../features/startups/AccessToast";
 import { AppReturnPage } from "../features/auth/AppReturnPage";
 import { VerifiedToast } from "../features/auth/VerifiedToast";
 import { Splash } from "../features/splash/Splash";
@@ -210,7 +211,14 @@ function AppRoutes() {
           <Route path="/auth/app" element={<AppReturnPage />} />
           <Route element={<AuthGuard />}>
             <Route path="/onboarding" element={<OnboardingPage />} />
-            <Route element={isMobileApp() ? <PhoneLayout /> : <Layout />}>
+            <Route
+              element={
+                <>
+                  <AccessToast />
+                  {isMobileApp() ? <PhoneLayout /> : <Layout />}
+                </>
+              }
+            >
               <Route
                 path="/dashboard"
                 element={isMobileApp() ? <PhoneHome /> : <DashboardPage />}

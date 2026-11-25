@@ -143,6 +143,11 @@ class Notifier:
         except Exception as exc:
             log.warning("trial email failed", extra={"fields": {"error": type(exc).__name__}})
 
+    async def outreach_approved(self, user_id: uuid.UUID) -> None:
+        user = await self._user(user_id)
+        if user:
+            await self._send(emails.outreach_approved, user.email, user.full_name)
+
     async def credit_granted(self, user_id: uuid.UUID, count: int, reason: str | None) -> None:
         user = await self._user(user_id)
         if user:
