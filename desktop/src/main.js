@@ -23,7 +23,7 @@ const {
   isGoogleStartUrl,
   linkFromArgv,
 } = require("./policy");
-const { applyNativeStealth } = require("./stealth");
+const { applyNativeStealth, reEnforceStealth } = require("./stealth");
 
 const { siteOrigin, appUrl, appOrigin, packed } = load();
 
@@ -134,7 +134,7 @@ function createWindow() {
     // WS_EX_LAYERED, which causes DWM to silently reject SetWindowDisplayAffinity
     // with error code 8 — the window then shows up in screen captures.
     // The Tauri app works because it uses transparent:false.
-    // For semi-transparent HUD, we use win.setOpacity() instead (DWM-level opacity).
+    // For semi-transparent HUD appearance, use CSS (rgba / opacity) in the renderer.
     transparent: false,
     backgroundColor: "#0f172a",
     frame: false,
@@ -162,11 +162,19 @@ function createWindow() {
   win.once("ready-to-show", () => {
     win.show();
   });
-  // macOS only: re-assert content protection on show/restore because WindowServer can
-  // silently reset NSWindowSharingType.
+  // Re-assert capture protection on show/restore:
+  //   macOS: WindowServer silently resets NSWindowSharingType
+  //   Windows: SetWindowDisplayAffinity can be lost after hide/show (Electron #45868)
   if (process.platform === "darwin") {
     win.on("show", () => win.setContentProtection(true));
     win.on("restore", () => win.setContentProtection(true));
+  } else if (process.platform === "win32") {
+    win.on("show", () => {
+      if (isStealthActive) reEnforceStealth(win);
+    });
+    win.on("restore", () => {
+      if (isStealthActive) reEnforceStealth(win);
+    });
   }
   // The title bar always says the app's name, not whatever the current web page is called.
   win.on("page-title-updated", (event) => event.preventDefault());
@@ -285,6 +293,13 @@ function enterStealthMode() {
   // 5. Show without stealing focus from the interviewer's meeting window.
   win.showInactive();
 
+  // 6. CRITICAL: Re-apply capture exclusion AFTER the window is visible.
+  //    SetWindowDisplayAffinity called on a hidden window may not persist
+  //    after show (confirmed bug in Electron PRs #45868, #47020).
+  //    Also, Electron APIs like setAlwaysOnTop/setBounds/etc. above may have
+  //    sneaked WS_EX_LAYERED back.  reEnforceStealth checks and fixes it.
+  reEnforceStealth(win);
+
   // Notify renderer that stealth state changed.
   win.webContents.send("im:stealth-state", { active: true, clickThrough: false });
   stealthTransitioning = false;
@@ -300,6 +315,7 @@ function exitStealthMode() {
   if (isClickThrough) {
     isClickThrough = false;
     win.setIgnoreMouseEvents(false);
+    reEnforceStealth(win);
   }
 
   // 1. Hide while we restore the window so the morphing is invisible.
@@ -351,6 +367,9 @@ ipcMain.handle("im:stealth-set-click-through", (_event, enable) => {
   // { forward: true } passes pointer events to whatever is beneath the HUD
   // while still letting CSS :hover states fire on the drag-handle area.
   win.setIgnoreMouseEvents(isClickThrough, { forward: true });
+  // setIgnoreMouseEvents may sneak WS_EX_LAYERED back — re-strip it and
+  // re-apply WDA_EXCLUDEFROMCAPTURE so the HUD stays invisible to capture.
+  reEnforceStealth(win);
   win.webContents.send("im:stealth-state", { active: true, clickThrough: isClickThrough });
 });
 ipcMain.handle("im:stealth-query", () => ({
@@ -462,10 +481,12 @@ app.whenReady().then(() => {
     } else {
       win.showInactive();
       // Re-assert capture protection when re-showing after a manual hide.
-      // macOS needs this because WindowServer can reset sharingType; on Windows the
-      // affinity persists from the initial setup.
+      // macOS: WindowServer can reset sharingType
+      // Windows: SetWindowDisplayAffinity can be lost after hide/show
       if (process.platform === "darwin") {
         win.setContentProtection(true);
+      } else {
+        reEnforceStealth(win);
       }
     }
   });
@@ -474,6 +495,9 @@ app.whenReady().then(() => {
     if (!win || !isStealthActive) return;
     isClickThrough = !isClickThrough;
     win.setIgnoreMouseEvents(isClickThrough, { forward: true });
+    // setIgnoreMouseEvents may sneak WS_EX_LAYERED back — re-strip it and
+    // re-apply WDA_EXCLUDEFROMCAPTURE so the HUD stays invisible to capture.
+    reEnforceStealth(win);
     win.webContents.send("im:stealth-state", { active: true, clickThrough: isClickThrough });
   });
 
