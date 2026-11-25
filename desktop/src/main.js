@@ -254,6 +254,36 @@ function createWindow() {
     event.preventDefault();
     if (d === "external") openExternal(url);
   });
+  // --- Renderer crash / failure recovery ---
+  // Without these handlers a renderer crash leaves a permanent white screen with no way
+  // to recover.  Auto-reload lets the user continue without restarting the whole app.
+  win.webContents.on("render-process-gone", (_event, details) => {
+    console.error("[main] renderer gone:", details.reason, details.exitCode);
+    if (win && !win.isDestroyed()) {
+      // "clean-exit" means the page navigated normally — no reload needed.
+      if (details.reason !== "clean-exit") {
+        setTimeout(() => {
+          if (win && !win.isDestroyed()) win.loadURL(appUrl);
+        }, 500);
+      }
+    }
+  });
+  win.webContents.on("did-fail-load", (_event, code, desc, url, isMainFrame) => {
+    if (!isMainFrame) return; // sub-frame failures are harmless
+    console.error("[main] did-fail-load:", code, desc, url);
+    // ERR_ABORTED (-3) fires on normal navigations — ignore it.
+    if (code === -3) return;
+    setTimeout(() => {
+      if (win && !win.isDestroyed()) win.loadURL(appUrl);
+    }, 1000);
+  });
+  win.webContents.on("unresponsive", () => {
+    console.error("[main] renderer unresponsive");
+  });
+  win.webContents.on("responsive", () => {
+    console.log("[main] renderer responsive again");
+  });
+
   win.on("closed", () => {
     win = null;
     win32AffinityApplied = false; // allow re-application on a new window
