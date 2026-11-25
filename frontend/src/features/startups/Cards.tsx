@@ -150,6 +150,10 @@ function Pitch({ t }: { t: HuntTarget }) {
           <p className="whitespace-pre-line text-muted">{text}</p>
         </div>
       )}
+      <p className="text-xs text-muted">
+        <span aria-hidden="true">📎</span> Your CV is attached as a PDF
+        {waiting ? ". You can change the words before you send." : "."}
+      </p>
       {waiting && !editing && (
         <div className="flex flex-wrap gap-2">
           <button

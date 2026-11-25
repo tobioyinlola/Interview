@@ -330,6 +330,21 @@ async def test_at_most_one_request_per_second_to_a_host(site, make):
     assert len(f.ft.sleeps) == 2 and all(s >= 0.99 for s in f.ft.sleeps)
 
 
+async def test_a_crawl_delay_in_robots_txt_is_honoured_up_to_a_limit(site, make):
+    site.add("example.com", "/a")
+    site.add("example.com", "/b")
+    site.add(
+        "example.com",
+        "/robots.txt",
+        body="User-agent: *\nCrawl-delay: 10\n",
+        ctype="text/plain",
+    )
+    f = make()
+    await f.fetch("https://example.com/a")
+    await f.fetch("https://example.com/b")
+    assert f.ft.sleeps[-1] >= 9.9  # the second page waited the ten seconds the site asked for
+
+
 async def test_different_hosts_are_not_delayed(site, make):
     site.add("example.com", "/a")
     site.add("other.com", "/b")
@@ -339,3 +354,96 @@ async def test_different_hosts_are_not_delayed(site, make):
     # Each host waits once, between its own robots.txt request and its page request. Nothing
     # waits for the other host: a cross-host delay would add a third sleep.
     assert len(f.ft.sleeps) == 2
+
+
+# --------------------------------------------------------------------- links
+
+
+async def test_a_normal_page_keeps_its_links(site, make):
+    body = GOOD_HTML.replace(
+        "</article>",
+        '<a href="/careers">Careers</a><a href="https://other.com/x">Their site</a></article>',
+    )
+    site.add("example.com", "/about", body=body)
+    r = await make().fetch("https://example.com/about")
+    assert ("Careers", "https://example.com/careers") in r.links
+    assert ("Their site", "https://other.com/x") in r.links
+
+
+async def test_the_number_of_links_kept_can_be_raised(site, make):
+    anchors = "".join(f'<a href="https://co{i}.io/">Co{i}</a>' for i in range(300))
+    site.add("example.com", "/p", body=GOOD_HTML.replace("</article>", anchors + "</article>"))
+    assert len((await make().fetch("https://example.com/p")).links) == 150  # the usual limit
+    assert len((await make(links_max=500).fetch("https://example.com/p")).links) == 300
+
+
+async def test_a_page_of_mostly_links_is_readable_but_a_bare_one_is_not(site, make):
+    many = "".join(f'<a href="https://co{i}.io/">Co{i}</a>' for i in range(25))
+    site.add("example.com", "/logos", body=f"<html><body><p>Hi</p>{many}</body></html>")
+    site.add("example.com", "/bare", body="<html><body><p>Hi</p></body></html>")
+    ok = await make().fetch("https://example.com/logos")
+    assert ok.status == "ok" and len(ok.links) == 25
+    bare = await make().fetch("https://example.com/bare")
+    assert bare.status == "blocked" and "JavaScript" in bare.reason
+
+
+# --------------------------------------------------------------------- JSON the page carries
+
+
+def _rows(n=40):
+    return ",".join(
+        f'{{"title":"Co{i}","web":"https://co{i}.io","overview":"Builds thing number {i} for people"}}'
+        for i in range(n)
+    )
+
+
+async def test_a_page_that_draws_its_grid_from_a_script_hands_that_list_over(site, make):
+    body = (
+        "<html><body><p>Our portfolio</p><script>window.portfolio_companies = ["
+        + _rows()
+        + "];</script><script>window.tiny = [1];</script></body></html>"
+    )
+    site.add("example.com", "/p", body=body)
+    r = await make(embedded_data=True).fetch("https://example.com/p")
+    assert r.status == "ok" and len(r.data) == 1  # the small one is a setting, not a list
+    assert '"title":"Co39"' in r.data[0] and r.data[0].startswith("[")
+    off = await make().fetch("https://example.com/p")  # asked for only when wanted
+    assert off.data == ()
+
+
+async def test_json_script_tags_are_kept_too_and_a_data_only_page_is_still_readable(site, make):
+    body = (
+        '<html><body><script id="__NEXT_DATA__" type="application/json">{"props":{"companies":['
+        + _rows()
+        + "]}}</script></body></html>"
+    )
+    site.add("example.com", "/n", body=body)
+    r = await make(embedded_data=True).fetch("https://example.com/n")
+    assert r.status == "ok" and '"companies"' in r.data[0]  # almost no text, plenty of data
+
+
+async def test_the_size_message_names_the_real_limit(site, make):
+    site.add(
+        "example.com", "/big", body="x" * 5000, ctype="text/plain", **{"content-length": "99999999"}
+    )
+    assert (await make().fetch("https://example.com/big")).reason == "The page is larger than 2 MB."
+    r = await make(max_bytes=8 * 1024 * 1024).fetch("https://example.com/big")
+    assert r.reason == "The page is larger than 8 MB."
+
+
+async def test_a_logo_that_links_to_another_site_is_kept_but_icons_that_lead_nowhere_new_are_not(
+    site, make
+):
+    body = GOOD_HTML.replace(
+        "</article>",
+        '<div><a href="https://www.echelon.inc/" target="_blank" class="logo-link">'
+        '<img src="/l.png" alt="Echelon logo"></a>'
+        '<a href="https://tabby.ai"><img src="/t.png"></a>'
+        '<a href="/"><img src="/home.png" alt="Home"></a>'  # a logo back to this site: not a lead
+        '<a href="/about"><svg></svg></a></div></article>',
+    )
+    site.add("example.com", "/portfolio", body=body)
+    links = (await make().fetch("https://example.com/portfolio")).links
+    assert ("Echelon logo", "https://www.echelon.inc/") in links
+    assert ("", "https://tabby.ai") in links  # no description at all: still a link to another site
+    assert not any(u in ("https://example.com/", "https://example.com/about") for _, u in links)

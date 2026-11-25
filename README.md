@@ -100,7 +100,7 @@ variants of your own address) does not count, and neither does a sign-up from th
 (a device-id cookie; or the same coarse device fingerprint from the same network address, in another
 browser or a private window), nor a second account made on the same device as another invited one. Those
 are recorded as "held" and the inviter is told. Only keyed hashes are kept, deleted with the account. Settings: `REFERRALS_PER_FREE_SESSION` (default 3) and
-`ENFORCE_SESSION_CREDITS` (default true; only tests turn it off).
+`ENFORCE_SESSION_CREDITS` (default false while testing: every session is free and invite rewards are not tied to sessions; set true to bring the free trial, invite and paid credits back).
 
 ## Live practice session
 Sign in, upload your CV, optionally add a company, then **Practice**: start a
@@ -195,3 +195,63 @@ login, CV upload, consent, the live audio socket and OpenAI transcription were c
 **Not yet verified against the real world:** answer quality and the evaluation scores (evals above),
 research adapters, a real Google Meet call, the GitHub Actions workflow, Google sign-in against real Google.
 **Open decisions:** transcript retention policy, daily budget figure.
+
+## Sending from the person's own Gmail
+
+Startup pitches and job emails can go out from the person's own Gmail, so each one shows in their Sent
+folder. It uses the same Google client as "Continue with Google" (`GOOGLE_CLIENT_ID` and
+`GOOGLE_CLIENT_SECRET`); set `GMAIL_CLIENT_ID` and `GMAIL_CLIENT_SECRET` only to use a different one.
+
+1. In Google Cloud, enable the **Gmail API** for the project and add the scopes `gmail.send` and
+   `gmail.readonly` to the consent screen (while the app is in testing, add the test users).
+2. Add the redirect address `<API_PUBLIC_URL>/api/autoapply/mailbox/callback` to the Google client.
+3. Set `AUTOAPPLY_MAILBOX_PROVIDER=gmail` on the server. Real sending still needs the dispatch switches
+   (`AUTOAPPLY_EMAIL_DISPATCH`, `AUTOAPPLY_OUTREACH_DISPATCH`); until then nothing reaches a real inbox.
+
+## Startup directories
+
+About 30 accelerator and fund portfolio pages are built in, plus a list of more places that are tried
+two a day (`hunt/directory.py`, `CANDIDATES`). A candidate is switched on only if a trial read finds at
+least three startups on it; otherwise it stays off with the reason, which the back-office page shows.
+Every directory is read again weekly.
+
+### Or with an app password (Gmail, Outlook, Yahoo)
+
+Set `SMTP_MAILBOX_ENABLED=true` to let people connect an email address with an **app password** instead
+of the Google button. The server logs in once to check it (nothing is sent), keeps it encrypted
+(`MAILBOX_ENCRYPTION_KEY` must be set), sends over SMTP so the provider files each message in the
+person's Sent folder, and reads replies over IMAP. It only reads new mail since the connection, and only
+the headers and the first few hundred characters, to match replies to notes we sent. Only Gmail,
+Outlook and Yahoo are allowed, with fixed server names. This makes sending real, so the dispatch
+switches and recipient allow-list rules apply exactly as for any real mailbox.
+
+### Checking the directories in a browser
+
+`node scripts/check-directories.cjs` opens each built-in directory page in a real browser and prints its
+status, how much text it has, and how many companies' own websites it links to. Use it after adding or
+changing a directory. A page with no text (built only in the browser) cannot be read by the server; paste
+its companies in on the back-office page instead.
+
+### Directories from around the world, and how a company's website is found
+
+About 45 built-in directories now include accelerators and funds from Africa, Asia, Latin America, Australia,
+Canada and the Gulf (Dubai, Abu Dhabi, Saudi Arabia), plus the YC list of companies that are hiring, read as a
+data feed (`yc-oss.github.io`). A company's own website comes from, in order: the directory page's links
+(given to the model with the page text), or the company's profile page on the directory (opened a few at a
+time, only when an outside link is named like the company or labelled "Visit website"), or a data feed. A
+company with no website found is never stored.
+
+Startups outside the US, Europe and the UK are listed, researched, and their open roles are shown in the back
+office, but nobody is emailed there (`policy.REGIONS`). Gulf places carry a region label (`uae`, `ksa`, and
+`mena` for a directory that covers the whole region) so they can be filtered.
+
+A directory page that draws its grid from a list inside the page (a `window.x = [...]` assignment, or a JSON
+script tag such as `__NEXT_DATA__`) is read from that list as data (`fetcher.embedded_json`,
+`directory.parse_feed`). Andreessen Horowitz works this way: 891 companies with websites and descriptions in
+one 3.7 MB page. A directory read that failed is tried again after 6 hours instead of a week.
+
+A logo that links out to a company's site (an `<a>` around an `<img>`, with no words) is kept by the page reader
+when it leads to another site (`fetcher.page_links`): that is how many portfolio pages, and each company's profile
+page, link to the company. A name in the page's text is matched to such a link only when the address is the
+name itself, or the name with a common ending or beginning (deep.sa, deephq.com, tryspare.com), and the model also
+sees these links when it reads the page.

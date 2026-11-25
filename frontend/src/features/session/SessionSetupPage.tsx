@@ -39,7 +39,9 @@ export function SessionSetupPage() {
   const billing = useBilling();
   // Only a loaded answer of "none left" blocks; while it loads, or if it fails, the server decides.
   const noCredit =
-    billing.data !== undefined && billing.data.sessions_available < 1;
+    billing.data !== undefined &&
+    !billing.data.sessions_free &&
+    billing.data.sessions_available < 1;
   const cvUploaded = (notes.data?.content ?? "").trim().length > 0;
   const chosen = choice !== "";
   const ready = (interviewId ? true : cvUploaded && chosen) && !noCredit;
@@ -187,7 +189,12 @@ export function SessionSetupPage() {
           </Link>
         </section>
       )}
-      {billing.data && !noCredit && (
+      {billing.data?.sessions_free && (
+        <p className="text-sm text-muted">
+          Sessions are free while we test, so start as many as you like.
+        </p>
+      )}
+      {billing.data && !billing.data.sessions_free && !noCredit && (
         <p className="text-sm text-muted">
           This uses one of your {billing.data.sessions_available} available{" "}
           {billing.data.sessions_available === 1 ? "session" : "sessions"}

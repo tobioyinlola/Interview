@@ -155,6 +155,18 @@ class RunOut(BaseModel):
     finished_at: datetime | None
 
 
+class SmtpProviderOut(BaseModel):
+    id: str
+    label: str
+    help: str  # where the person makes an app password
+
+
+class ConnectSmtpIn(BaseModel):
+    provider: str = Field(max_length=20)
+    address: str = Field(min_length=3, max_length=320)
+    password: str = Field(min_length=4, max_length=200)  # an app password, never their own
+
+
 class MailboxOut(BaseModel):
     connected: bool
     provider: str | None = None
@@ -162,6 +174,7 @@ class MailboxOut(BaseModel):
     status: str | None = None  # connected | reauth_needed | disconnected
     last_synced_at: datetime | None = None
     can_connect: bool = True
+    smtp_providers: list[SmtpProviderOut] = []  # app-password mailboxes, when they are switched on
 
 
 class ConnectOut(BaseModel):
@@ -268,6 +281,17 @@ class PrimaryAction(BaseModel):
     interview_id: str | None = None
 
 
+class StartupSentOut(BaseModel):
+    """A pitch sent to a startup, shown beside the job applications in one activity list."""
+
+    id: str
+    company: str
+    to_name: str = ""  # the person it was written to, when the site named one
+    status: str  # sent | replied | declined
+    subject: str = ""
+    sent_at: datetime | None = None
+
+
 class DashboardOut(BaseModel):
     demo: bool  # sample jobs and simulated sending only: nothing reaches a real employer
     sources: list[str] = []  # where jobs are looked for, as readable names
@@ -286,3 +310,4 @@ class DashboardOut(BaseModel):
     counts: dict[str, int]
     review_count: int
     startups: dict[str, int] | None = None  # startup outreach, when it is switched on
+    startup_recent: list[StartupSentOut] = []  # the latest pitches that went out

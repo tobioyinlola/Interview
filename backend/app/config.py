@@ -95,8 +95,10 @@ class Settings(BaseSettings):
     referrals_per_free_session: int = 3
     # How long the admin event log is kept. Older events are deleted when the server starts.
     event_retention_days: int = 180
-    # Off only in tests that start many sessions without caring about credits.
-    enforce_session_credits: bool = True
+    # OFF while the product is being tested: every session is free and invite rewards are not
+    # tied to sessions. Set ENFORCE_SESSION_CREDITS=true to bring the free trial, invite and
+    # paid credits back.
+    enforce_session_credits: bool = False
     dev_log_email_links: bool = False
     resend_api_key: SecretStr = SecretStr("")  # sends the sign-in email
     email_from: str = ""  # e.g. "Meet Practice <login@yourdomain.com>", a Resend-verified domain
@@ -128,6 +130,10 @@ class Settings(BaseSettings):
     startup_outreach_enabled: bool = False  # feature flag: startup outreach routes and jobs
     startup_outreach_dispatch: bool = False  # kill switch: startup notes from a real mailbox
     autoapply_mailbox_provider: str = "fixture"  # fixture | gmail
+    # Let people connect Gmail, Outlook or Yahoo with an app password. Off by default: it makes
+    # sending real, so it also needs MAILBOX_ENCRYPTION_KEY and the dispatch switches, like any
+    # real mailbox.
+    smtp_mailbox_enabled: bool = False
     autoapply_discovery_sources: str = "fixture"  # comma-separated adapter names
     autoapply_reconcile_hours: int = (
         24  # how long an unknown outcome waits before asking the person

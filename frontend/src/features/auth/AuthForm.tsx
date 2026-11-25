@@ -69,6 +69,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const [confirm, setConfirm] = useState("");
   const [agreed, setAgreed] = useState(false);
   const emailRef = useRef<HTMLInputElement>(null);
+  const termsRef = useRef<HTMLInputElement>(null);
   const hintId = useId();
   const matchId = useId();
   const create = useSignUp();
@@ -101,6 +102,13 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     if (emailRef.current?.reportValidity()) link.mutate(email.trim());
   };
   const google = () => {
+    if (signup && !agreed) {
+      setGoogleError(
+        "Please accept the terms below, then tap Continue with Google again.",
+      );
+      termsRef.current?.focus();
+      return;
+    }
     const query = new URLSearchParams();
     if (savedInvite()) query.set("ref", savedInvite()!);
     const utm = savedUtm();
@@ -125,27 +133,6 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
 
   return (
     <AuthLayout>
-      {isNativeApp() && (
-        <nav
-          aria-label="Sign in or get started"
-          className="mb-6 grid grid-cols-2 gap-1 rounded-2xl bg-accent-soft p-1 text-sm font-medium"
-        >
-          <Link
-            to="/login"
-            aria-current={signup ? undefined : "page"}
-            className={`flex min-h-[44px] items-center justify-center rounded-xl ${signup ? "text-accent-dark" : "bg-surface shadow-card"}`}
-          >
-            Log in
-          </Link>
-          <Link
-            to="/signup"
-            aria-current={signup ? "page" : undefined}
-            className={`flex min-h-[44px] items-center justify-center rounded-xl ${signup ? "bg-surface shadow-card" : "text-accent-dark"}`}
-          >
-            Get started
-          </Link>
-        </nav>
-      )}
       <div>
         <h1 className="text-[1.75rem] font-semibold leading-tight tracking-tight sm:text-3xl">
           {signup ? "Create your account" : "Sign in"}
@@ -181,7 +168,34 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           </p>
         ) : (
           <>
-            <form onSubmit={submit} className="mt-6 space-y-4">
+            {providers.data?.google && (
+              <div className="mt-6">
+                <button
+                  type="button"
+                  onClick={google}
+                  className="btn-secondary btn-lg w-full"
+                >
+                  <GoogleMark /> Continue with Google
+                </button>
+                {googleError && (
+                  <p role="alert" className="notice-error mt-2">
+                    {googleError}
+                  </p>
+                )}
+                {isNativeApp() && (
+                  <p className="mt-2 text-center text-xs text-muted">
+                    Google opens in your browser, then brings you back here.
+                  </p>
+                )}
+                <Divider />
+              </div>
+            )}
+            <form
+              onSubmit={submit}
+              className={
+                providers.data?.google ? "space-y-4" : "mt-6 space-y-4"
+              }
+            >
               {signup && (
                 <div>
                   <label
@@ -251,6 +265,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
 
                   <label className="flex items-start gap-3 py-1 text-sm leading-relaxed">
                     <input
+                      ref={termsRef}
                       type="checkbox"
                       checked={agreed}
                       onChange={(e) => setAgreed(e.target.checked)}
@@ -311,35 +326,6 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
                   Email me a sign-in link
                 </button>
               </div>
-            )}
-
-            {providers.data?.google && (
-              <>
-                <Divider />
-                <button
-                  type="button"
-                  onClick={google}
-                  disabled={signup && !agreed}
-                  className="btn-secondary btn-lg w-full"
-                >
-                  <GoogleMark /> Continue with Google
-                </button>
-                {signup && !agreed && (
-                  <p className="mt-2 text-center text-xs text-muted">
-                    Accept the terms above to continue with Google.
-                  </p>
-                )}
-                {googleError && (
-                  <p role="alert" className="notice-error mt-2">
-                    {googleError}
-                  </p>
-                )}
-                {isNativeApp() && (
-                  <p className="mt-2 text-center text-xs text-muted">
-                    Google opens in your browser, then brings you back here.
-                  </p>
-                )}
-              </>
             )}
           </>
         )}

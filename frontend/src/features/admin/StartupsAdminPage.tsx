@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 
 import {
   useAddDirectory,
@@ -8,13 +9,26 @@ import {
   useStartupsAdmin,
   useToggleDirectory,
 } from "./api";
-import { Empty, Failed, Loading, PageHead, Stat, Table, num, when } from "./ui";
+import {
+  Empty,
+  Failed,
+  Loading,
+  PageHead,
+  Stat,
+  Table,
+  num,
+  regionName,
+  when,
+} from "./ui";
 
 const HINTS = [
   { v: "", l: "No region (use each company's country)" },
   { v: "us", l: "United States" },
   { v: "eu", l: "Europe" },
   { v: "uk", l: "United Kingdom" },
+  { v: "uae", l: "United Arab Emirates (label only)" },
+  { v: "ksa", l: "Saudi Arabia (label only)" },
+  { v: "mena", l: "Middle East and North Africa (label only)" },
 ];
 
 /** "Name, website, country, what they do" per line, as people paste them. */
@@ -84,21 +98,36 @@ export function StartupsAdminPage() {
         className="grid grid-cols-2 gap-3 md:grid-cols-4"
         aria-label="Startup totals"
       >
-        <Stat label="Startups known" value={num(d.startups)} />
+        <Stat
+          label="Startups known"
+          value={num(d.startups)}
+          to="/admin/startups/list"
+        />
         <Stat
           label="Researched"
           value={num(d.by_status.researched ?? 0)}
           hint={`${d.by_status.new ?? 0} waiting, ${d.by_status.dead ?? 0} unreadable`}
+          to="/admin/startups/list?filter=researched"
         />
-        <Stat label="With a contact" value={num(d.with_contacts)} />
-        <Stat label="With an open role" value={num(d.with_openings)} />
+        <Stat
+          label="With a contact"
+          value={num(d.with_contacts)}
+          to="/admin/startups/list?filter=contacts"
+        />
+        <Stat
+          label="With an open role"
+          value={num(d.with_openings)}
+          to="/admin/startups/roles"
+        />
       </dl>
       <p className="text-xs text-muted">
         By region:{" "}
         {Object.entries(d.by_region)
-          .map(([k, v]) => `${k} ${v}`)
+          .map(([k, v]) => `${regionName(k)} ${v}`)
           .join(" · ") || "none yet"}
-        . Companies with no region are never researched or written to.
+        . Only startups in the US, Europe and the UK are ever emailed. The rest
+        (the Gulf, Africa, Asia and so on) are listed, with their open roles,
+        but nobody is written to there.
       </p>
 
       <section className="space-y-3" aria-label="Directories">
@@ -134,7 +163,18 @@ export function StartupsAdminPage() {
                 <td className="px-4 py-3">
                   {x.last_run_at ? when(x.last_run_at) : "Not yet"}
                 </td>
-                <td className="px-4 py-3">{num(x.last_found)}</td>
+                <td className="px-4 py-3">
+                  {x.last_found > 0 ? (
+                    <Link
+                      to={`/admin/startups/list?directory=${encodeURIComponent(x.name)}`}
+                      className="underline"
+                    >
+                      {num(x.last_found)}
+                    </Link>
+                  ) : (
+                    num(x.last_found)
+                  )}
+                </td>
                 <td className="px-4 py-3">{num(x.last_added)}</td>
                 <td className="px-4 py-3">
                   <input

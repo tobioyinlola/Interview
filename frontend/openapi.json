@@ -951,6 +951,11 @@
             "title": "Sessions Available",
             "type": "integer"
           },
+          "sessions_free": {
+            "default": false,
+            "title": "Sessions Free",
+            "type": "boolean"
+          },
           "trial_available": {
             "title": "Trial Available",
             "type": "boolean"
@@ -1623,6 +1628,34 @@
         "title": "ConnectOut",
         "type": "object"
       },
+      "ConnectSmtpIn": {
+        "properties": {
+          "address": {
+            "maxLength": 320,
+            "minLength": 3,
+            "title": "Address",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 200,
+            "minLength": 4,
+            "title": "Password",
+            "type": "string"
+          },
+          "provider": {
+            "maxLength": 20,
+            "title": "Provider",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "address",
+          "password"
+        ],
+        "title": "ConnectSmtpIn",
+        "type": "object"
+      },
       "CreditBreakdown": {
         "properties": {
           "gifted": {
@@ -1799,6 +1832,14 @@
               "type": "string"
             },
             "title": "Sources",
+            "type": "array"
+          },
+          "startup_recent": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/StartupSentOut"
+            },
+            "title": "Startup Recent",
             "type": "array"
           },
           "startups": {
@@ -2837,6 +2878,14 @@
               }
             ],
             "title": "Provider"
+          },
+          "smtp_providers": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/SmtpProviderOut"
+            },
+            "title": "Smtp Providers",
+            "type": "array"
           },
           "status": {
             "anyOf": [
@@ -5119,6 +5168,29 @@
         "title": "SignUpIn",
         "type": "object"
       },
+      "SmtpProviderOut": {
+        "properties": {
+          "help": {
+            "title": "Help",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "help"
+        ],
+        "title": "SmtpProviderOut",
+        "type": "object"
+      },
       "SourceOut": {
         "properties": {
           "fetched_at": {
@@ -5293,6 +5365,52 @@
           "website"
         ],
         "title": "StartupIn",
+        "type": "object"
+      },
+      "StartupSentOut": {
+        "description": "A pitch sent to a startup, shown beside the job applications in one activity list.",
+        "properties": {
+          "company": {
+            "title": "Company",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "sent_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "subject": {
+            "default": "",
+            "title": "Subject",
+            "type": "string"
+          },
+          "to_name": {
+            "default": "",
+            "title": "To Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "company",
+          "status"
+        ],
+        "title": "StartupSentOut",
         "type": "object"
       },
       "SuggestIn": {
@@ -9420,6 +9538,48 @@
           }
         },
         "summary": "Connect Mailbox",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/mailbox/connect-smtp": {
+      "post": {
+        "description": "Connect Gmail, Outlook or Yahoo with an app password. We log in once to check it (nothing is\nsent), then keep it encrypted. It is never logged and never returned.",
+        "operationId": "connect_smtp_mailbox_api_autoapply_mailbox_connect_smtp_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectSmtpIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MailboxOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Connect Smtp Mailbox",
         "tags": [
           "autoapply"
         ]

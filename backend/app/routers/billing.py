@@ -31,6 +31,7 @@ async def billing_out(db: AsyncSession, user: User, settings: Settings) -> Billi
         paid_credits_available=s.paid_available,
         gifted_credits_available=s.granted_available,
         payments_enabled=PAYMENTS_ENABLED,
+        sessions_free=not settings.enforce_session_credits,
         referral_code=user.referral_code or "",
         referral_link=f"{settings.web_origin}/signup?ref={user.referral_code}",
         referrals_qualified=s.referrals_qualified,

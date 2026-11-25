@@ -59,6 +59,14 @@ const StartupsAdminPage = lazyPage(
   () => import("../features/admin/StartupsAdminPage"),
   "StartupsAdminPage",
 );
+const StartupListPage = lazyPage(
+  () => import("../features/admin/StartupLists"),
+  "StartupListPage",
+);
+const OpenRolesPage = lazyPage(
+  () => import("../features/admin/StartupLists"),
+  "OpenRolesPage",
+);
 const AutoApplyAdminPage = lazyPage(
   () => import("../features/admin/AutoApplyAdminPage"),
   "AutoApplyAdminPage",
@@ -191,6 +199,8 @@ function AppRoutes() {
           <Route path="emails" element={<EmailsAdminPage />} />
           <Route path="auto-apply" element={<AutoApplyAdminPage />} />
           <Route path="startups" element={<StartupsAdminPage />} />
+          <Route path="startups/list" element={<StartupListPage />} />
+          <Route path="startups/roles" element={<OpenRolesPage />} />
           <Route path="usage" element={<UsagePage />} />
         </Route>
         <Route element={<SupportedBrowser />}>

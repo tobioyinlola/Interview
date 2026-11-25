@@ -154,7 +154,7 @@ const CV =
   await page
     .getByRole("button", { name: /Employers' application forms/ })
     .click();
-  await page.getByRole("button", { name: "Connect my email" }).click();
+  await page.getByRole("button", { name: "Connect Gmail" }).click();
   await page.getByText(/Connected: /).waitFor();
   await page.getByRole("button", { name: /Email applications/ }).click();
   await shot("2e-step-5");

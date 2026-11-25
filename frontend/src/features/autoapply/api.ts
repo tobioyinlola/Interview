@@ -1,3 +1,4 @@
+import { openGoogleStep } from "../auth/nativeGoogle";
 import {
   useInfiniteQuery,
   useMutation,
@@ -157,12 +158,21 @@ export function useMailboxActions() {
       mutationFn: () =>
         post<{ connected: boolean; url: string | null }>("/mailbox/connect"),
       onSuccess: (res) => {
-        if (res.url) window.location.assign(res.url);
+        if (res.url) void openGoogleStep(res.url);
         else refresh();
       },
     }),
     disconnect: useMutation({
       mutationFn: () => post<AAMailbox>("/mailbox/disconnect"),
+      onSuccess: refresh,
+    }),
+    /** Connect with an app password: Gmail, Outlook or Yahoo. */
+    connectWithPassword: useMutation({
+      mutationFn: (b: {
+        provider: string;
+        address: string;
+        password: string;
+      }) => post<AAMailbox>("/mailbox/connect-smtp", b),
       onSuccess: refresh,
     }),
   };

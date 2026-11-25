@@ -7,6 +7,7 @@ stop at the size and time limits; keep only HTML or plain text; obey robots.txt;
 user agent; and send at most one request per second to a host."""
 
 import asyncio
+import json
 import logging
 import re
 import ssl
@@ -38,7 +39,9 @@ _REDIRECTS = {301, 302, 303, 307, 308}
 _LOGIN_HINTS = ("login", "signin", "sign-in", "sign_in", "sso", "/auth", "authenticate")
 _ROBOTS_MAX_BYTES = 512 * 1024
 _ROBOTS_TTL = 3600.0
+MAX_CRAWL_DELAY = 15.0  # a site's own request is honoured up to this many seconds between reads
 MIN_READABLE_CHARS = 80
+MANY_LINKS = 20  # this many links make a nearly textless page worth reading
 
 
 @dataclass
@@ -51,6 +54,35 @@ class FetchResult:
     final_url: str = ""
     emails: tuple[str, ...] = ()  # addresses the page itself publishes (mailto links and text)
     links: tuple[tuple[str, str], ...] = ()  # (link text, absolute address) for links on the page
+    data: tuple[str, ...] = ()  # JSON the page carries for its own scripts (only when asked for)
+    boards: tuple[str, ...] = ()  # job boards named anywhere in the page
+
+
+_ASSIGNED = re.compile(r"\bwindow\.[A-Za-z0-9_$]+\s*=\s*(?=[\[{])")
+_JSON_SCRIPT = re.compile(
+    r"<script\b[^>]*type\s*=\s*[\"'](?:application/json|application/ld\+json)[\"'][^>]*>(.*?)</script>",
+    re.S | re.I,
+)
+EMBEDDED_MAX = 8  # blocks of embedded JSON kept per page
+EMBEDDED_MIN_CHARS = 2_000  # smaller ones are settings, not a list of companies
+
+
+def embedded_json(html: str) -> tuple[str, ...]:
+    """Large JSON a page carries for its own scripts: `window.x = [...]` assignments and JSON script
+    tags (which is where many portfolio pages keep the whole list their grid is drawn from)."""
+    found: list[str] = []
+    for m in _ASSIGNED.finditer(html):
+        try:
+            value, end = json.JSONDecoder().raw_decode(html, m.end())
+        except ValueError:
+            continue
+        if end - m.end() >= EMBEDDED_MIN_CHARS and isinstance(value, (list, dict)):
+            found.append(html[m.end() : end])
+    for m in _JSON_SCRIPT.finditer(html):
+        body = unescape(m.group(1)).strip()
+        if len(body) >= EMBEDDED_MIN_CHARS and body[:1] in "[{":
+            found.append(body)
+    return tuple(sorted(found, key=len, reverse=True)[:EMBEDDED_MAX])
 
 
 _MAILTO = re.compile(r"mailto:([^\"'?<>\s&]+)", re.IGNORECASE)
@@ -69,22 +101,50 @@ def published_emails(html: str) -> tuple[str, ...]:
     return tuple(found[:20])
 
 
+_ALT = re.compile(r"\balt\s*=\s*[\"']([^\"']*)[\"']", re.I)
 _ANCHOR = re.compile(r"<a\b[^>]*?href\s*=\s*[\"']([^\"'#][^\"']*)[\"'][^>]*>(.*?)</a>", re.S | re.I)
 
 
-def page_links(html: str, base: str) -> tuple[tuple[str, str], ...]:
+_BOARD = re.compile(
+    r"https?://(?:[a-z0-9-]+\.)*(?:greenhouse\.io|lever\.co|ashbyhq\.com|workable\.com|"
+    r"smartrecruiters\.com|recruitee\.com)[^\s\"'<>\\)]*",
+    re.IGNORECASE,
+)
+
+
+def job_boards(html: str) -> tuple[str, ...]:
+    """Addresses of hosted job boards the page links to or embeds: a careers page that loads its
+    roles with a script still names the board it loads them from."""
+    found: list[str] = []
+    for m in _BOARD.finditer(unescape(html)):
+        if m.group(0) not in found:
+            found.append(m.group(0))
+    return tuple(found[:30])
+
+
+def page_links(html: str, base: str, limit: int = 150) -> tuple[tuple[str, str], ...]:
     """Links on the page as (visible text, absolute http address). Used to find a startup's careers
     page and the address of each opening it lists."""
     out: list[tuple[str, str]] = []
+    here = urlsplit(base).hostname
     for href, inner in _ANCHOR.findall(html):
         href = unescape(href).strip()
         if href.lower().startswith(("mailto:", "tel:", "javascript:")):
             continue
-        text = " ".join(unescape(re.sub(r"<[^>]+>", " ", inner)).split())[:160]
         url = urljoin(base, href)
-        if text and url.startswith(("http://", "https://")) and (text, url) not in out:
+        if not url.startswith(("http://", "https://")):
+            continue
+        text = " ".join(unescape(re.sub(r"<[^>]+>", " ", inner)).split())[:160]
+        if not text:
+            # a logo or icon with no words: its picture's description, if it has one. Kept only when
+            # it leads to another site, which is how a portfolio page links to each company
+            alt = _ALT.search(inner)
+            text = unescape(alt.group(1)).strip()[:160] if alt else ""
+            if urlsplit(url).hostname == here:
+                continue
+        if (text, url) not in out:
             out.append((text, url))
-    return tuple(out[:150])
+    return tuple(out[:limit])
 
 
 class _TooLarge(Exception):
@@ -111,6 +171,10 @@ class Fetcher:
         max_redirects: int = 3,
         host_interval: float = 1.0,
         text_max_chars: int = 20_000,
+        links_max: int = 150,
+        allow_json: bool = False,
+        embedded_data: bool = False,
+        json_max_chars: int = 8_000_000,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
@@ -123,11 +187,16 @@ class Fetcher:
         self.max_redirects = max_redirects
         self.host_interval = host_interval
         self.text_max_chars = text_max_chars
+        self.links_max = links_max
+        self.allow_json = allow_json
+        self.embedded_data = embedded_data
+        self.json_max_chars = json_max_chars
         self._sleep = sleep
         self._clock = clock
         self._host_locks: dict[str, asyncio.Lock] = {}
         self._last_request: dict[str, float] = {}
         self._robots: dict[str, tuple[float, RobotFileParser | bool]] = {}
+        self._delay: dict[str, float] = {}  # host -> the Crawl-delay its robots.txt asks for
 
     # ------------------------------------------------------------------ public
 
@@ -163,7 +232,8 @@ class Fetcher:
             try:
                 raw = await self._request(parts, ips, self.max_bytes)
             except _TooLarge:
-                return FetchResult(url, "too_large", "The page is larger than 2 MB.")
+                limit = f"{self.max_bytes // (1024 * 1024)} MB"
+                return FetchResult(url, "too_large", f"The page is larger than {limit}.")
 
             if raw.status_code in _REDIRECTS:
                 location = raw.headers.get("location")
@@ -191,6 +261,14 @@ class Fetcher:
             return FetchResult(url, "blocked", f"The site returned an error ({code}).")
 
         ctype = raw.headers.get("content-type", "").split(";")[0].strip().lower()
+        if ctype == "application/json" and self.allow_json:
+            # a data feed (a directory published as JSON): handed over as it is
+            body = raw.body.decode("utf-8", errors="replace")[: self.json_max_chars]
+            return FetchResult(url, "ok", text=body, final_url=final_url)
+        if ctype in ("application/xml", "text/xml") and self.allow_json:
+            # a sitemap: the list of pages a site publishes for crawlers, handed over as it is
+            body = raw.body.decode("utf-8", errors="replace")[: self.json_max_chars]
+            return FetchResult(url, "ok", text=body, final_url=final_url)
         if ctype not in ("text/html", "text/plain", "application/xhtml+xml"):
             return FetchResult(url, "blocked", "That link is not a web page.")
 
@@ -202,10 +280,21 @@ class Fetcher:
             title, text = await asyncio.to_thread(_extract, html)
         text = text[: self.text_max_chars]
         emails = published_emails(html) if ctype != "text/plain" else ()
-        links = page_links(html, final_url) if ctype != "text/plain" else ()
-        if len(text) < MIN_READABLE_CHARS and emails:
+        links = page_links(html, final_url, self.links_max) if ctype != "text/plain" else ()
+        data = embedded_json(html) if self.embedded_data and ctype != "text/plain" else ()
+        boards = job_boards(html) if ctype != "text/plain" else ()
+        # a page that is mostly links (a portfolio of logos) has little text but a lot to read
+        if len(text) < MIN_READABLE_CHARS and (emails or len(links) >= MANY_LINKS or data):
             return FetchResult(
-                url, "ok", title=title, text=text, final_url=final_url, emails=emails, links=links
+                url,
+                "ok",
+                title=title,
+                text=text,
+                final_url=final_url,
+                emails=emails,
+                links=links,
+                data=data,
+                boards=boards,
             )
         if len(text) < MIN_READABLE_CHARS:
             return FetchResult(
@@ -214,7 +303,17 @@ class Fetcher:
                 "No readable text was found. The page may need JavaScript or a sign-in.",
                 final_url=final_url,
             )
-        return FetchResult(url, "ok", title=title, text=text, final_url=final_url, emails=emails)
+        return FetchResult(
+            url,
+            "ok",
+            title=title,
+            text=text,
+            final_url=final_url,
+            emails=emails,
+            links=links,
+            data=data,
+            boards=boards,
+        )
 
     async def _public_ips(self, parts: SplitResult) -> list[IPAddress]:
         port = parts.port or (443 if parts.scheme == "https" else 80)
@@ -225,7 +324,8 @@ class Fetcher:
         host = (parts.hostname or "").rstrip(".").lower()
         lock = self._host_locks.setdefault(host, asyncio.Lock())
         async with lock:
-            wait = self.host_interval - (self._clock() - self._last_request.get(host, -1e9))
+            gap = max(self.host_interval, self._delay.get(host, 0.0))
+            wait = gap - (self._clock() - self._last_request.get(host, -1e9))
             if wait > 0:
                 await self._sleep(wait)
             self._last_request[host] = self._clock()
@@ -284,6 +384,11 @@ class Fetcher:
         parser = cached[1]
         if isinstance(parser, bool):
             return parser
+        asked = parser.crawl_delay(self.user_agent)
+        if asked:
+            self._delay[(parts.hostname or "").rstrip(".").lower()] = min(
+                float(asked), MAX_CRAWL_DELAY
+            )
         return parser.can_fetch(self.user_agent, normalize_url(parts))
 
     async def _load_robots(

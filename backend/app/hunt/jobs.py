@@ -57,10 +57,11 @@ async def run(
     llm: LlmProvider,
     fetcher: Fetcher | None = None,
 ) -> dict[str, int]:
-    fetcher = fetcher or Fetcher()
+    fetcher = fetcher or directory.page_reader()
     try:
         async with maker() as db:
             await directory.refresh_due(db, fetcher, llm, now)
+            await directory.scout(db, fetcher, llm, now)
     except Exception:  # noqa: BLE001 - a directory being down must not stop the rest
         log.exception("directory refresh failed")
     researched = await research_pending(maker, fetcher, llm, now)

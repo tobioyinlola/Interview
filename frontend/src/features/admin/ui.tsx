@@ -1,4 +1,5 @@
 import { type ReactNode } from "react";
+import { Link } from "react-router-dom";
 
 /** Small building blocks shared by the admin pages. */
 
@@ -37,25 +38,57 @@ export function Trend({ now, before }: { now: number; before: number }) {
   );
 }
 
+const REGION_NAMES: Record<string, string> = {
+  us: "United States",
+  eu: "Europe",
+  uk: "United Kingdom",
+  uae: "UAE",
+  ksa: "Saudi Arabia",
+  mena: "MENA",
+  other: "Elsewhere",
+};
+/** A region label as people say it. */
+export const regionName = (r: string) => REGION_NAMES[r] ?? r;
+
 export function Stat({
   label,
   value,
   hint,
   children,
+  to,
 }: {
   label: string;
   value: ReactNode;
   hint?: string;
   children?: ReactNode;
+  to?: string; // makes the number a link to the list it counts
 }) {
   return (
     <div className="card !p-4">
       <dt className="text-xs text-muted">{label}</dt>
       <dd className="mt-1 text-2xl font-semibold">
-        {value}
+        {to ? (
+          <Link
+            to={to}
+            className="hover:underline"
+            aria-label={`${label}: ${value}, see the list`}
+          >
+            {value}
+          </Link>
+        ) : (
+          value
+        )}
         {children}
       </dd>
       {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
+      {to && (
+        <Link
+          to={to}
+          className="mt-1 inline-block text-xs font-medium text-accent-dark hover:underline"
+        >
+          See the list
+        </Link>
+      )}
     </div>
   );
 }

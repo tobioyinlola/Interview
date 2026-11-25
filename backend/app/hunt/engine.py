@@ -11,19 +11,21 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.adapters.interfaces import LlmProvider
-from app.autoapply import clock, mailbox, outbox, switches
+from app.autoapply import clock, cvfile, mailbox, outbox, switches
 from app.autoapply import facts as facts_mod
-from app.autoapply.adapters import AdapterError, InboundMessage, MailboxAdapter
+from app.autoapply.adapters import AdapterError, InboundMessage, MailAttachment, MailboxAdapter
 from app.config import Settings
 from app.hunt import draft, fit, policy
 from app.models import (
     HuntSettings,
     HuntTarget,
+    Note,
     SearchProfile,
     Startup,
     StartupContact,
     Suppression,
 )
+from app.repositories import NotesRepo
 from app.services.events import record_from
 
 MAX_DAILY = 25
@@ -108,6 +110,26 @@ async def counts(db: AsyncSession, user_id: uuid.UUID) -> dict[str, int]:
         "replied": by.get("replied", 0),
         "openings": with_roles,
     }
+
+
+async def recent_sent(
+    db: AsyncSession, user_id: uuid.UUID, limit: int = 5
+) -> list[tuple[HuntTarget, Startup, StartupContact]]:
+    """The latest pitches that actually went out, newest first, with who they went to."""
+    rows = (
+        await db.execute(
+            select(HuntTarget, Startup, StartupContact)
+            .join(Startup, Startup.id == HuntTarget.startup_id)
+            .join(StartupContact, StartupContact.id == HuntTarget.contact_id)
+            .where(
+                HuntTarget.user_id == user_id,
+                HuntTarget.status.in_(("sent", "replied", "declined")),
+            )
+            .order_by(HuntTarget.sent_at.desc().nulls_last(), HuntTarget.created_at.desc())
+            .limit(limit)
+        )
+    ).all()
+    return [(t, s, c) for t, s, c in rows]
 
 
 async def get_settings(db: AsyncSession, user_id: uuid.UUID) -> HuntSettings | None:
@@ -288,6 +310,12 @@ async def sent_today(db: AsyncSession, user_id: uuid.UUID, now: datetime, tz: st
     ).scalar_one()
 
 
+def cv_filename(name: str) -> str:
+    """'Ada Lovelace - CV.pdf': a name a hiring manager can file, with nothing odd in it."""
+    clean = re.sub(r"[^A-Za-z0-9 .'-]", "", name or "").strip()
+    return f"{clean} - CV.pdf" if clean else "CV.pdf"
+
+
 async def send_next(
     maker: async_sessionmaker[AsyncSession],
     user_id: uuid.UUID,
@@ -367,12 +395,24 @@ async def send_next(
         token = mailbox.token(settings, conn)
         sender, subject, body, mid = conn.address, chosen.subject, chosen.body, chosen.message_id
         tid = chosen.id
+        cv_text = ((await NotesRepo(db, user_id).get()) or Note()).content or ""
+        sign = st.sender_name
         await db.commit()
+    # the candidate's CV goes with every note, as a PDF made from the CV text they confirmed
+    attachments = (
+        [MailAttachment(cv_filename(sign), cvfile.render_pdf(cv_text))] if cv_text.strip() else []
+    )
     error: AdapterError | None = None
     thread = None
     try:
         sent = await adapter.send(
-            token, sender=sender, to=to, subject=subject, body=body, attachments=[], message_id=mid
+            token,
+            sender=sender,
+            to=to,
+            subject=subject,
+            body=body,
+            attachments=attachments,
+            message_id=mid,
         )
         thread = sent.thread_id
     except AdapterError as exc:

@@ -342,6 +342,8 @@ const staffLinks = () =>
     "/admin/marketing",
     "/admin/quality",
     "/admin/emails",
+    "/admin/startups/list",
+    "/admin/startups/roles",
   ]) {
     await page.goto(BASE + path);
     await page.getByRole("button", { name: "Open menu" }).waitFor();

@@ -444,6 +444,7 @@ class BillingOut(BaseModel):
     paid_credits_available: int
     gifted_credits_available: int = 0  # free interviews the InterviewMeet team added
     payments_enabled: bool  # false until per-session payments exist
+    sessions_free: bool = False  # true while testing: no credit is needed to start a session
     referral_code: str
     referral_link: str
     referrals_qualified: int  # people who signed up with their link

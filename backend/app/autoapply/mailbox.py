@@ -52,7 +52,14 @@ async def connect(
 def token(settings: Settings, conn: MailboxConnection) -> str:
     if conn.status != "connected" or not conn.token_encrypted:
         raise AdapterError("reauth", "The mailbox is not connected.")
-    return crypto.decrypt(settings, conn.token_encrypted)
+    try:
+        return crypto.decrypt(settings, conn.token_encrypted)
+    except crypto.CryptoError:
+        # saved under a key we no longer have: the person has to connect it again, which every
+        # caller already handles as "reauth" (it stops, marks the mailbox, and asks)
+        raise AdapterError(
+            "reauth", "The saved mailbox access cannot be read. Connect it again."
+        ) from None
 
 
 async def mark_reauth(db: AsyncSession, conn: MailboxConnection) -> None:
