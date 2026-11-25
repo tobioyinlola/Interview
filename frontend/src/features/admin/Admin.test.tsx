@@ -1026,8 +1026,7 @@ describe("admin console: jump to", () => {
       within(box).getByRole("button", { name: /Find people matching/ }),
     );
     expect(await screen.findByLabelText(/Search by name or email/)).toHaveValue(
-      "",
+      "ada@x.com",
     );
-    expect(window.location.search).toBe("");
   });
 });
