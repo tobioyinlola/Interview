@@ -370,6 +370,28 @@ def company_site(links: tuple[tuple[str, str], ...], directory_url: str, name: s
     return None
 
 
+_NAME_SUFFIXES = ("", "app", "hq", "ai", "io", "co", "inc", "tech", "labs", "global")
+_NAME_PREFIXES = ("try", "get", "use", "go", "my", "join", "with")
+
+
+def link_for_name(name: str, links: tuple[tuple[str, str], ...], directory_url: str) -> str | None:
+    """A company named in the page's text, matched to an outside link whose address is its name (a
+    logo that links to deep.sa for 'Deep'). Strict on purpose: the address must be the name itself,
+    or the name with a common ending or beginning (deephq.com, tryspare.com), so 'Think' is not
+    matched to thinkific.com."""
+    key = _norm(name)
+    if len(key) < 4:
+        return None
+    for line in outside_links(links, directory_url):
+        dom = policy.domain_of(line.rsplit("-> ", 1)[-1])
+        label = _norm(dom.split(".")[0])
+        if any(label == key + s for s in _NAME_SUFFIXES) or any(
+            label == p + key for p in _NAME_PREFIXES
+        ):
+            return f"https://{dom}"
+    return None
+
+
 PROFILES_PER_READ = 20  # profile pages opened in one read: each is one polite request
 FEED_MAX = 1500
 
@@ -499,6 +521,9 @@ async def ingest(
         every = await extract(llm, page.text, url, page.links)
         found = [f for f in every if f.website]
         named = [f for f in every if not f.website]
+        matched = {f.name: link_for_name(f.name, page.links, url) or "" for f in named}
+        found += [replace(f, website=matched[f.name]) for f in named if matched[f.name]]
+        named = [f for f in named if not matched[f.name]]
         found += await resolve_sites(db, fetcher, named, page.links, directory, url)
         have = {policy.domain_of(f.website) for f in found}
         for blob in page.data:  # the list the page itself draws its grid from, when it carries one
@@ -557,13 +582,18 @@ async def ensure_defaults(db: AsyncSession, now: datetime) -> int:
     stale = (
         (
             await db.execute(
-                select(Directory).where(Directory.last_problem == "The page is larger than 2 MB.")
+                select(Directory).where(
+                    (Directory.last_problem == "The page is larger than 2 MB.")
+                    | Directory.last_problem.like("%companies were listed but none gave a website%")
+                )
             )
         )
         .scalars()
         .all()
     )
-    for d in stale:  # read before directory pages were allowed to be 8 MB: try again now
+    # Problems that came from the reader before it was fixed (directory pages could only be 2 MB,
+    # and logo links were dropped, so a company's website was missed): read again now, once.
+    for d in stale:
         d.last_run_at, d.last_problem = None, None
     await db.commit()
     return added
