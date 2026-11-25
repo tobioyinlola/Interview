@@ -256,7 +256,8 @@ async def test_disconnecting_the_mailbox_before_the_final_check_stops_the_email(
 async def test_changing_the_search_after_queueing_stops_a_send_that_has_not_started(
     ada, discovery_source, form, tick
 ):
-    discovery_source.postings = [job(1)]
+    # the listing says it is for Nigeria, so a search for Kenya no longer fits it
+    discovery_source.postings = [job(1, description="Lead payments product. Remote. Nigeria only.")]
     await start(ada)
     await run(ada)
     assert (await apps(ada))[0]["status"] == "queued"

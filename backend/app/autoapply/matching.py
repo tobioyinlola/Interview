@@ -21,15 +21,20 @@ ABSENT = "absent"
 
 # Only what is needed to know that "Nigeria" is inside "Africa"; anything else is "unknown".
 CONTINENT = {
-    "africa": (
-        "nigeria ghana kenya south africa egypt ethiopia tanzania uganda rwanda senegal morocco"
-    ).split(),
-    "europe": (
-        "united kingdom uk ireland germany france spain portugal italy netherlands poland sweden"
-    ).split(),
-    "north america": "united states usa us canada mexico".split(),
-    "asia": "india singapore japan philippines indonesia pakistan bangladesh vietnam".split(),
-}
+    "africa": [
+        "nigeria", "ghana", "kenya", "south africa", "egypt", "ethiopia", "tanzania", "uganda",
+        "rwanda", "senegal", "morocco",
+    ],
+    "europe": [
+        "united kingdom", "ireland", "germany", "france", "spain", "portugal", "italy",
+        "netherlands", "poland", "sweden",
+    ],
+    "north america": ["united states", "canada", "mexico"],
+    "asia": [
+        "india", "singapore", "japan", "philippines", "indonesia", "pakistan", "bangladesh",
+        "vietnam",
+    ],
+}  # fmt: skip
 COUNTRY_ALIASES = {"uk": "united kingdom", "usa": "united states", "us": "united states"}
 STOP = {"the", "and", "of", "a", "an", "for", "in", "at", "to", "senior", "junior", "lead"}
 # Words that say "some kind of manager" and nothing about which: sharing only them is no match.
@@ -46,7 +51,15 @@ def words(text: str) -> list[str]:
 def _named(text: str) -> set[str]:
     """The countries and regions a text names (no guessing about what else they contain)."""
     low = " " + re.sub(r"[^a-z ]+", " ", text.lower()) + " "
-    return {COUNTRY_ALIASES.get(c, c) for c in _all_places() if f" {c} " in low}
+    found = set()
+    for c in _all_places():
+        if f" {c} " not in low:
+            continue
+        if c == "us" and not re.search(r"\bUS\b", text):
+            continue  # "join us" is not a country
+        found.add(COUNTRY_ALIASES.get(c, c))
+    # "South Africa" is not also "Africa", and "Ireland" is not inside "Northern Ireland" twice
+    return {p for p in found if not any(q != p and f" {p} " in f" {q} " for q in found)}
 
 
 def _continent_of(place: str) -> str | None:
@@ -183,6 +196,51 @@ def _role(posting: JobPosting) -> Any:
     return judge
 
 
+# Words that make a place a requirement on the candidate ("US only", "must be based in Germany"),
+# as opposed to just saying where the company or its office is.
+_ONLY = r"(?:only|exclusively)"
+_NEED = r"(?:must|need to|have to|required to)\s+(?:be|reside|live|work|be\s+located|be\s+based)"
+_WHO = r"(?:based|located|resident|residents|citizens?|eligible|authori[sz]ed|permitted)"
+
+
+def _restricts(posting: JobPosting, places: set[str]) -> str | None:
+    """Does the listing say, in so many words, that the role is for people in one of these places?
+    Returns the words that say so. A place that is only where the company or office is does not
+    count, and neither does silence."""
+    if (posting.evidence or {}).get("region_scope") == "candidate":
+        return "the listing's own required-location field"  # the feed reports who may apply
+    if posting.arrangement in ("onsite", "hybrid"):
+        return f"the role is {posting.arrangement}"
+    original = f"{posting.region or ''}. {posting.title}. {posting.description[:3000]}"
+    text = original.lower()
+    for place in sorted(places):
+        aliases = {a for a, canon in COUNTRY_ALIASES.items() if canon == place}
+        long_names = {place} | {a for a in aliases if len(a) > 2}
+        p = "(?:" + "|".join(re.escape(n) for n in sorted(long_names)) + ")"
+        for pattern in (
+            rf"\b{p}\b[^.\n]{{0,25}}\b{_ONLY}\b",
+            rf"\b{_ONLY}\b[^.\n]{{0,30}}\b{p}\b",
+            rf"\b{_NEED}\b[^.\n]{{0,40}}\b{p}\b",
+            rf"\b{_WHO}\b[^.\n]{{0,25}}\b(?:in|of|to work in)\b[^.\n]{{0,15}}\b{p}\b",
+            rf"\b{p}[- ]based\b",
+        ):
+            m = re.search(pattern, text)
+            if m:
+                return f"it says '{m.group(0).strip()}'"
+        # "US" and "UK" are only the places when written in capitals ("join us" is not)
+        for short in sorted(a.upper() for a in aliases if len(a) <= 2):
+            for pattern in (
+                rf"\b{short}[- ](?:only|based)\b",
+                rf"\b{short}\s+(?:citizens?|residents?)\b",
+                rf"(?i:\b{_ONLY}\b)\s+(?:in\s+)?(?:the\s+)?{short}\b",
+                rf"(?i:\b{_NEED}\b)[^.\n]{{0,40}}?\b(?:the\s+)?{short}\b",
+            ):
+                m = re.search(pattern, original)
+                if m:
+                    return f"it says '{m.group(0).strip()}'"
+    return None
+
+
 def _where(posting: JobPosting) -> Any:
     def judge(target: str) -> tuple[str, str]:
         region = posting.region
@@ -197,11 +255,17 @@ def _where(posting: JobPosting) -> Any:
         if any(g in low for g in GLOBAL_REGION):
             return PASS, f"open to candidates anywhere ('{region}')"
         have = _named(region)
-        if not have:
-            return UNKNOWN, f"'{region}' could not be compared with '{target}'"
-        if _covers(have, target):
+        if have and _covers(have, target):
             return PASS, f"'{region}' includes '{target}'"
-        return FAIL, f"the role is for '{region}', not '{target}'"
+        # A place that does not include the candidate is a reason to skip only when the listing
+        # says the role is for people there. Otherwise it is where the company is, and not held
+        # against the job.
+        why = _restricts(posting, have) if have else None
+        if why:
+            return FAIL, f"the role is for '{region}' ({why}), not '{target}'"
+        return ABSENT, (
+            f"the listing names '{region}' but does not say the role is only for people there"
+        )
 
     return judge
 

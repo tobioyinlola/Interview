@@ -195,6 +195,18 @@ folder. It uses the same Google client as "Continue with Google" (`GOOGLE_CLIENT
 3. Set `AUTOAPPLY_MAILBOX_PROVIDER=gmail` on the server. Real sending still needs the dispatch switches
    (`AUTOAPPLY_EMAIL_DISPATCH`, `AUTOAPPLY_OUTREACH_DISPATCH`); until then nothing reaches a real inbox.
 
+## How a job is matched
+
+Each wanted detail is judged pass, fail or unclear (`autoapply/matching.py`). A job is skipped only for
+something it **states**: a listing that does not say where it is, its contract type, seniority, work
+arrangement, industry or pay passes those rules (shown as met, "so it is not held against the job", and
+counting for nothing in the ranking). **Location** skips a job only when the listing says the role is for
+people in one region or country ("US only", "must be based in...", "residents of...", an on-site or hybrid
+role, or a feed that reports the candidate's required location); a place named only as where the company is
+passes. **Roles** need the wanted words together in the title: Senior Product Manager, Payments is a Product
+Manager; Product Marketing Manager is not. Still asked: pay in another currency than the candidate's floor,
+and visa sponsorship when the candidate needs it and the listing is silent.
+
 ## Filling in employers' application forms (browser)
 
 `AUTOAPPLY_FORM_ADAPTER=browser` swaps the pretend form handler for one that opens the employer's own

@@ -16,6 +16,7 @@ from app.models import (
     SubmissionAttempt,
 )
 from tests.autoapply.conftest import (
+    PROFILE,
     apps,
     connect_mailbox,
     email_job,
@@ -23,6 +24,7 @@ from tests.autoapply.conftest import (
     start,
 )
 
+ASKS_VISA = {"need": "needed", "required": True}
 NOW = datetime(2026, 11, 2, 9, 0, tzinfo=UTC)
 
 # ------------------------------------------------------------------------------ reading text
@@ -613,7 +615,8 @@ async def test_the_dashboard_walks_through_every_state(ada, discovery_source, ti
     d = (await ada.get("/api/autoapply/dashboard")).json()
     assert d["state"] == "setup" and d["primary"]["label"] == "Set up Auto-Apply"
     discovery_source.postings = []
-    await start(ada)
+    # needs a visa and the listing must say it sponsors: a silent listing is the question asked
+    await start(ada, criteria={**PROFILE["criteria"], "sponsorship": ASKS_VISA})
     d = (await ada.get("/api/autoapply/dashboard")).json()
     assert d["state"] == "awaiting_first_run" and d["primary"]["label"] == "View search preferences"
     await tick()
@@ -623,15 +626,18 @@ async def test_the_dashboard_walks_through_every_state(ada, discovery_source, ti
         and d["primary"]["label"] == "View last run and matching criteria"
     )
     assert d["last_run"]["status"] == "done" and d["last_run"]["found"] == 0
-    discovery_source.postings = [job(1, region="Atlantis")]
+    discovery_source.postings = [job(1)]
     clock.now += timedelta(days=1)
     await tick()
     d = (await ada.get("/api/autoapply/dashboard")).json()
     assert d["state"] == "answer" and d["primary"]["label"] == "Resolve the question"
-    assert d["needs_input"][0]["needs_input"][0]["field"] == "location"
+    assert d["needs_input"][0]["needs_input"][0]["field"] == "sponsorship"
     assert d["primary"]["href"].endswith(d["needs_input"][0]["id"])
     await ada.post(f"/api/autoapply/applications/{d['needs_input'][0]['id']}/skip")
-    discovery_source.postings = [job(1, region="Atlantis"), job(2)]
+    discovery_source.postings = [
+        job(1),
+        job(2, description="Lead payments product. We sponsor visas."),
+    ]
     clock.now += timedelta(days=1)
     await tick()
     d = (await ada.get("/api/autoapply/dashboard")).json()

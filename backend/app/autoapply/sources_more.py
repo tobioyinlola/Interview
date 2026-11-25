@@ -52,7 +52,11 @@ class JobicySource(JsonSource):
             salary_period=(job.get("salaryPeriod") or "").lower() or None if lo else None,
             posted_at=when(job.get("pubDate")),
             application_url=job.get("url") or None,
-            evidence={"region": "Jobicy's eligibility field", "listing": "jobicy.com"},
+            evidence={
+                "region": "Jobicy's eligibility field",
+                "region_scope": "candidate",
+                "listing": "jobicy.com",
+            },
         )
 
     async def search(self, criteria: dict[str, Any], now: datetime) -> list[RawPosting]:
@@ -86,7 +90,11 @@ class HimalayasSource(JsonSource):
             salary_period="year" if lo else None,
             posted_at=when(job.get("pubDate")),
             application_url=job.get("applicationLink") or None,
-            evidence={"region": "Himalayas' location restrictions", "listing": "himalayas.app"},
+            evidence={
+                "region": "Himalayas' location restrictions",
+                "region_scope": "candidate",
+                "listing": "himalayas.app",
+            },
         )
 
     async def search(self, criteria: dict[str, Any], now: datetime) -> list[RawPosting]:
@@ -157,7 +165,11 @@ class WorkingNomadsSource(JsonSource):
             industry=job.get("category_name") or None,
             posted_at=when(job.get("pub_date")),
             application_url=job.get("url") or None,
-            evidence={"region": "Working Nomads' location", "listing": "workingnomads.com"},
+            evidence={
+                "region": "Working Nomads' location",
+                "region_scope": "candidate",
+                "listing": "workingnomads.com",
+            },
         )
 
     async def search(self, criteria: dict[str, Any], now: datetime) -> list[RawPosting]:
@@ -223,7 +235,11 @@ class WeWorkRemotelySource(_XmlSource):
             industry=(item.findtext("category") or "").strip() or None,
             posted_at=posted,
             application_url=link or None,
-            evidence={"region": "We Work Remotely's region", "listing": "weworkremotely.com"},
+            evidence={
+                "region": "We Work Remotely's region",
+                "region_scope": "candidate",
+                "listing": "weworkremotely.com",
+            },
         )
 
     async def search(self, criteria: dict[str, Any], now: datetime) -> list[RawPosting]:
