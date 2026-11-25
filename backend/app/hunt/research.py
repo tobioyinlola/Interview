@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.interfaces import LlmProvider, ProviderError
-from app.hunt import policy
+from app.hunt import jobboards, policy
 from app.models import Startup, StartupContact
 from app.services.fetcher import Fetcher
 
@@ -89,11 +89,46 @@ def careers_link(links: tuple[tuple[str, str], ...], domain: str) -> str | None:
 def opening_url(title: str, links: tuple[tuple[str, str], ...], domain: str, fallback: str) -> str:
     """The address of one opening: the link whose text is the title, if the page has one."""
     t = title.lower().strip()
-    for text, url in links:
+    own = [(text, url) for text, url in links if _on_site(url, domain) or _job_board(url)]
+    for text, url in own:
         low = text.lower()
-        if t and (t in low or low in t) and (_on_site(url, domain) or _job_board(url)):
+        if t and (t in low or low in t):
             return url
-    return fallback
+    # the link's words contain the title's words (a card that also says team and place)
+    tw = _words(title)
+    best: tuple[float, str] = (0.0, fallback)
+    for text, url in own:
+        lw = _words(text)
+        if tw and lw:
+            score = len(tw & lw) / len(tw | lw)
+            if score >= 0.6 and score > best[0]:
+                best = (score, url)
+    return best[1]
+
+
+JOB_PATHS = ("/job", "/jobs/", "/careers/", "/positions", "/openings", "/vacanc", "/apply", "/role")
+GENERIC = ("apply", "view all", "see all", "all jobs", "open roles", "careers", "learn more")
+MAX_ROLES = 60
+CAREERS_CHARS = 12_000
+
+
+def job_links(links: tuple[tuple[str, str], ...], domain: str) -> list[tuple[str, str]]:
+    """Links on a careers page that look like one role each (role-shaped path, words as text)."""
+    out: list[tuple[str, str]] = []
+    for text, url in links:
+        t = " ".join(text.split())
+        if not 3 <= len(t) <= 100 or t.lower() in GENERIC or t.lower().startswith(GENERIC):
+            continue
+        if not (_on_site(url, domain) or _job_board(url)):
+            continue
+        path = url.split("//", 1)[-1].partition("/")[2].lower()
+        if any(w in "/" + path for w in JOB_PATHS) and path.rstrip("/") not in ("careers", "jobs"):
+            out.append((t, url))
+    return out
+
+
+def _words(s: str) -> set[str]:
+    return {w for w in "".join(c if c.isalnum() else " " for c in s.lower()).split() if len(w) > 1}
 
 
 def _name_appears(name: str, text: str) -> bool:
@@ -107,6 +142,7 @@ async def research(
     pages: list[tuple[str, str]] = []
     emails: dict[str, str] = {}  # address -> page it was published on
     links: dict[str, tuple[tuple[str, str], ...]] = {}  # page -> its links
+    boards: list[str] = []  # hosted job boards the pages link to or embed
     for path in PATHS[:MAX_PAGES]:
         url = startup.website.rstrip("/") + path
         got = await fetcher.fetch(url)
@@ -116,6 +152,7 @@ async def research(
             continue  # redirected off the company's own site
         pages.append((url, got.text))
         links[url] = got.links
+        boards.extend(got.boards)
         for addr in got.emails:
             emails.setdefault(addr, url)
     # the careers page: one of the pages above, or the startup's own link to one (often a job board)
@@ -129,12 +166,15 @@ async def research(
                 careers = got.final_url or target
                 pages.append((careers, got.text))
                 links[careers] = got.links
+                boards.extend(got.boards)
+                if _job_board(careers):
+                    boards.append(careers)
     if not pages:
         startup.status, startup.researched_at = "dead", now
         await db.commit()
         return {"contacts": 0, "problem": "The site could not be read."}
 
-    joined = "\n\n".join(f"[{u}]\n{t[:4000]}" for u, t in pages)
+    joined = "\n\n".join(f"[{u}]\n{t[: CAREERS_CHARS if u == careers else 4000]}" for u, t in pages)
     info: dict[str, Any] = {
         "summary": "",
         "hiring": False,
@@ -194,16 +234,35 @@ async def research(
             )
         )
         added += 1
-    titles = [str(r)[:120] for r in info.get("roles", []) if str(r).strip()][:15]
     where = careers or startup.website
+    # a hosted board lists every role with the address of its own page
+    board_urls = [*boards, *(u for _, u in all_links if _job_board(u))]
+    listed = await jobboards.openings(fetcher, board_urls)
+    if listed:
+        openings = listed
+        if careers is None:
+            careers = next(iter(b for b in board_urls if jobboards.identify([b])), None)
+            where = careers or where
+        info["hiring"] = True
+    else:
+        titles = [str(r)[:120] for r in info.get("roles", []) if str(r).strip()]
+        seen = {t.lower() for t in titles}
+        # roles the page links to but the model did not list
+        for text, _ in job_links(links.get(careers or "", ()), startup.domain):
+            if text.lower() not in seen:
+                titles.append(text[:120])
+                seen.add(text.lower())
+        titles = titles[:MAX_ROLES]
+        openings = [
+            {"title": t, "url": opening_url(t, all_links, startup.domain, where)} for t in titles
+        ]
+    titles = [o["title"] for o in openings]
     startup.research = {
         "summary": str(info.get("summary", ""))[:600],
         "hiring": bool(info.get("hiring")),
         "roles": titles,
         "careers_url": careers,
-        "openings": [
-            {"title": t, "url": opening_url(t, all_links, startup.domain, where)} for t in titles
-        ],
+        "openings": openings,
         "pages": [u for u, _ in pages],
     }
     startup.status, startup.researched_at = "researched", now

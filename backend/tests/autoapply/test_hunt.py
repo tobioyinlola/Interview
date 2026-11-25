@@ -1661,3 +1661,169 @@ async def test_the_starter_list_is_added_once_and_gets_its_regions_from_the_coun
         and by["Klarna"] == "eu"
     )
     assert "other" not in by.values()
+
+
+# ------------------------------------------------------------------ complete roles, own apply pages
+
+
+def test_job_boards_are_identified_from_links_and_embeds():
+    from app.hunt import jobboards
+
+    got = jobboards.identify(
+        [
+            "https://boards.greenhouse.io/embed/job_board?for=acme&b=x",
+            "https://jobs.lever.co/acme/123",
+            "https://jobs.ashbyhq.com/acme",
+            "https://apply.workable.com/acme/",
+            "https://acme.recruitee.com/o/pm",
+            "https://example.com/x",
+        ]
+    )
+    assert got == [
+        ("greenhouse", "acme"),
+        ("lever", "acme"),
+        ("ashby", "acme"),
+        ("workable", "acme"),
+        ("recruitee", "acme"),
+    ]
+
+
+def test_each_board_feed_gives_every_role_with_its_own_page():
+    from app.hunt import jobboards
+
+    gh = json.dumps(
+        {"jobs": [{"title": "PM", "absolute_url": "https://boards.greenhouse.io/a/jobs/1"}]}
+    )
+    assert jobboards.parse("greenhouse", "a", gh) == [
+        {"title": "PM", "url": "https://boards.greenhouse.io/a/jobs/1"}
+    ]
+    lv = json.dumps(
+        [{"text": "Eng", "hostedUrl": "https://jobs.lever.co/a/9"}, {"text": "No link"}]
+    )
+    assert jobboards.parse("lever", "a", lv) == [
+        {"title": "Eng", "url": "https://jobs.lever.co/a/9"}
+    ]
+    sr = json.dumps({"content": [{"name": "Ops", "id": "77"}]})
+    assert (
+        jobboards.parse("smartrecruiters", "a", sr)[0]["url"]
+        == "https://jobs.smartrecruiters.com/a/77"
+    )
+    assert jobboards.parse("ashby", "a", "not json") == []
+
+
+async def test_research_reads_the_whole_board_not_just_the_visible_roles(maker):
+    feed = json.dumps(
+        {
+            "jobs": [
+                {
+                    "title": f"Role {i}",
+                    "absolute_url": f"https://boards.greenhouse.io/acme/jobs/{i}",
+                }
+                for i in range(30)
+            ]
+        }
+    )
+
+    class Pages:
+        async def fetch(self, url):
+            if url == "https://boards-api.greenhouse.io/v1/boards/acme/jobs":
+                return FetchResult(url, "ok", text=feed, final_url=url)
+            if url == "https://acme.io/careers":
+                return FetchResult(
+                    url, "ok", text="Join us " * 20, final_url=url,
+                    boards=("https://boards.greenhouse.io/embed/job_board?for=acme",),
+                )  # fmt: skip
+            return FetchResult(url, "blocked", "no")
+
+    async with maker() as db:
+        s = await add_startup(db)
+        await research.research(db, Pages(), FakeLlmProvider(), s, NOW)
+        r = s.research
+        assert len(r["openings"]) == 30 and r["hiring"] is True
+        assert r["openings"][7] == {
+            "title": "Role 7",
+            "url": "https://boards.greenhouse.io/acme/jobs/7",
+        }
+        assert r["careers_url"] == "https://acme.io/careers"
+
+
+def test_role_links_on_a_careers_page_are_found_without_the_model():
+    got = research.job_links(
+        (
+            ("Staff Engineer", "https://acme.io/careers/staff-engineer"),
+            ("Apply", "https://acme.io/apply"),
+            ("About", "https://acme.io/about"),
+            ("Data Scientist", "https://elsewhere.example/jobs/1"),
+            ("Designer", "https://jobs.lever.co/acme/5"),
+        ),
+        "acme.io",
+    )
+    assert got == [("Staff Engineer", "https://acme.io/careers/staff-engineer")]
+
+
+def test_a_card_with_extra_words_still_matches_its_role():
+    url = research.opening_url(
+        "Senior Product Manager",
+        (("Senior Product Manager Payments Remote", "https://acme.io/careers/pm-7"),),
+        "acme.io",
+        "https://acme.io/careers",
+    )
+    assert url == "https://acme.io/careers/pm-7"
+
+
+# ------------------------------------------------------------------ sitemap directories (Techstars)
+
+
+def _company_blob(name, domain, place="Boulder, CO, USA"):
+    return json.dumps(
+        {
+            "props": {
+                "pageProps": {
+                    "company": {
+                        "name": name,
+                        "domain": domain,
+                        "websiteUrl": f"http://{domain}",
+                        "description": f"{name} builds things.",
+                        "locations": [{"name": place}],
+                        "industryTags": ["Aerospace"],
+                    }
+                }
+            }
+        }
+    )
+
+
+async def test_a_sitemap_directory_is_read_a_batch_at_a_time(maker, monkeypatch):
+    base = "https://jobs.techstars.com"
+    names = [f"Co{i}" for i in range(5)]
+    sitemap = (
+        "<?xml version='1.0'?><urlset>"
+        + "".join(f"<url><loc>{base}/companies/co{i}</loc></url>" for i in range(5))
+        + f"<url><loc>{base}/about</loc></url></urlset>"
+    )
+
+    class Site:
+        async def fetch(self, url):
+            if url.endswith("sitemap_companies.xml"):
+                return FetchResult(url, "ok", text=sitemap, final_url=url)
+            i = int(url.rsplit("co", 1)[1])
+            return FetchResult(
+                url, "ok", text="x", final_url=url, data=(_company_blob(names[i], f"co{i}.io"),)
+            )
+
+    monkeypatch.setattr(directory, "SITEMAP_BATCH", 3)
+    url = f"{base}/sitemap_companies.xml"
+    async with maker() as db:
+        first = await directory.ingest(
+            db, Site(), FakeLlmProvider(), "Techstars companies", url, NOW
+        )
+        assert first["added"] == 3 and first["more"] is True
+        second = await directory.ingest(
+            db, Site(), FakeLlmProvider(), "Techstars companies", url, NOW
+        )
+        assert second["added"] == 2 and second["more"] is False
+        rows = (await db.execute(select(Startup))).scalars().all()
+        assert {r.domain for r in rows} == {f"co{i}.io" for i in range(5)}
+        assert all(
+            r.region == "us" and r.directory_url.startswith(base + "/companies/") for r in rows
+        )

@@ -3,6 +3,7 @@ fetched politely (robots.txt respected, one request a second) and a model copies
 page says. A person can also paste companies in. Everything is validated before it is stored."""
 
 import json
+import random
 import re
 import uuid
 from dataclasses import dataclass, replace
@@ -27,6 +28,7 @@ from app.services.fetcher import Fetcher
 DEFAULTS: list[tuple[str, str, str]] = [
     ("Y Combinator", "https://www.ycombinator.com/companies", ""),
     ("Techstars", "https://www.techstars.com/portfolio", ""),
+    ("Techstars companies", "https://jobs.techstars.com/sitemap_companies.xml", ""),
     ("Seedcamp", "https://seedcamp.com/our-companies/", "eu"),
     ("Antler", "https://www.antler.co/portfolio", ""),
     ("Alchemist Accelerator", "https://alchemistaccelerator.com/portfolio", ""),
@@ -502,6 +504,81 @@ def parse_feed(text: str, directory_url: str, minimum: int = 1) -> list[Found]:
     return out
 
 
+SITEMAP_BATCH = 40  # company pages opened per read: each is one polite request
+_LOC = re.compile(r"<loc>\s*([^<\s]+)\s*</loc>")
+
+
+def getro_company(blob: str, directory_url: str) -> Found | None:
+    """One company from a job board's own company page (the data the page was drawn from)."""
+    try:
+        c = json.loads(blob)["props"]["pageProps"]["company"]
+        place = c["locations"][0]["name"] if c.get("locations") else ""
+        site = c.get("websiteUrl") or c.get("domain") or ""
+        tags = c.get("industryTags") or []
+        return _clean(
+            {
+                "name": c.get("name"),
+                "website": site if isinstance(site, str) else "",
+                "one_liner": _TAGS.sub(" ", str(c.get("description") or "")).strip(),
+                "country": str(place).rsplit(",", 1)[-1].strip(),
+                "batch": "",
+                "sector": ", ".join(str(t) for t in tags[:3]),
+            },
+            policy.domain_of(directory_url),
+        )
+    except (ValueError, KeyError, TypeError, AttributeError, IndexError):
+        return None
+
+
+async def ingest_sitemap(
+    db: AsyncSession,
+    fetcher: Fetcher,
+    directory: str,
+    url: str,
+    text: str,
+    now: datetime,
+    hint: str,
+) -> dict[str, Any]:
+    """A directory that publishes a sitemap of company pages (the job boards run for accelerators).
+    A few not-yet-read pages are opened per pass and each company's own details are read from the
+    data the page carries; the rest follow on the next passes."""
+    locs = _LOC.findall(text)
+    if "<sitemapindex" in text:
+        child = next((u for u in locs if "compan" in u.lower()), None)
+        if child is None:
+            return {"added": 0, "found": 0, "problem": "The sitemap lists no company pages."}
+        got = await fetcher.fetch(child)
+        if got.status != "ok":
+            return {"added": 0, "found": 0, "problem": got.reason}
+        locs = _LOC.findall(got.text)
+    host = policy.domain_of(url)
+    pages = [u for u in locs if policy.domain_of(u) == host and "/companies/" in u]
+    done = set(
+        (
+            await db.execute(
+                select(Startup.directory_url).where(Startup.directory == directory[:120])
+            )
+        )
+        .scalars()
+        .all()
+    )
+    todo = [u for u in pages if u not in done]
+    batch = random.sample(todo, min(SITEMAP_BATCH, len(todo)))
+    found = added = 0
+    for page_url in batch:
+        page = await fetcher.fetch(page_url)
+        if page.status != "ok":
+            continue
+        for blob in page.data:
+            one = getro_company(blob, url)
+            if one and one.website:
+                found += 1
+                added += await save(db, directory, page_url, [one], now, hint)
+                break
+    problem = None if found or not batch else "No company details could be read from the pages."
+    return {"added": added, "found": found, "problem": problem, "more": len(todo) > len(batch)}
+
+
 async def ingest(
     db: AsyncSession,
     fetcher: Fetcher,
@@ -514,6 +591,8 @@ async def ingest(
     page = await fetcher.fetch(url)
     if page.status != "ok":
         return {"added": 0, "found": 0, "problem": page.reason}
+    if page.text.lstrip().startswith(("<?xml", "<urlset", "<sitemapindex")):
+        return await ingest_sitemap(db, fetcher, directory, url, page.text, now, hint)
     if page.text.lstrip().startswith(("[", "{")):
         found = parse_feed(page.text, url)
         named: list[Found] = []
@@ -619,6 +698,8 @@ async def refresh(
     """Read one directory now and record what came of it."""
     out = await ingest(db, fetcher, llm, d.name, d.url, now, d.region_hint)
     d.last_run_at, d.last_found, d.last_added = now, out["found"], out["added"]
+    if out.get("more"):  # a long sitemap is read in pieces: come back soon for the next one
+        d.last_run_at = now - REFRESH_AFTER + timedelta(minutes=10)
     d.last_problem = (out["problem"] or None) and str(out["problem"])[:300]
     await db.commit()
     return out
