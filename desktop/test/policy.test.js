@@ -101,6 +101,9 @@ test("main window strictly enforces content protection against screen capture an
   const mainJs = fs.readFileSync(path.join(__dirname, "..", "src", "main.js"), "utf8");
   // Content protection is always on (createWindow + re-asserted on stealth transitions).
   assert.match(mainJs, /win\.setContentProtection\(true\)/);
+  // Win32 native protection uses SetWindowDisplayAffinity with WDA_EXCLUDEFROMCAPTURE (matching Tauri app)
+  assert.match(mainJs, /SetWindowDisplayAffinity/);
+  assert.match(mainJs, /WDA_EXCLUDEFROMCAPTURE/);
 });
 
 test("stealth IPC handlers are present and cover all required operations", () => {

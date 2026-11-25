@@ -30,6 +30,63 @@ const { siteOrigin, appUrl, appOrigin, packed } = load();
 if (packed) protocolRules.registerScheme(protocol);
 let win = null;
 
+// --- Native Win32 Screen Capture Protection & Click-Through ---
+// Matches the Tauri stealth client using SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)
+// and SetWindowLongW(hwnd, GWL_EXSTYLE, WS_EX_TRANSPARENT | WS_EX_LAYERED).
+let win32Native = null;
+if (process.platform === "win32") {
+  try {
+    const koffi = require("koffi");
+    const user32 = koffi.load("user32.dll");
+    const SetWindowDisplayAffinity = user32.func("bool __stdcall SetWindowDisplayAffinity(intptr_t hwnd, uint32_t dwAffinity)");
+    const GetWindowLongW = user32.func("int32_t __stdcall GetWindowLongW(intptr_t hwnd, int32_t nIndex)");
+    const SetWindowLongW = user32.func("int32_t __stdcall SetWindowLongW(intptr_t hwnd, int32_t nIndex, int32_t dwNewLong)");
+
+    const GWL_EXSTYLE = -20;
+    const WS_EX_LAYERED = 0x00080000;
+    const WS_EX_TRANSPARENT = 0x00000020;
+    // WDA_EXCLUDEFROMCAPTURE (0x00000011 / 17) completely excludes the window from Windows Graphics Capture,
+    // Desktop Duplication, BitBlt, Zoom, Teams, Meet, Discord, OBS, and proctoring software.
+    const WDA_EXCLUDEFROMCAPTURE = 0x00000011;
+
+    win32Native = {
+      setExcludeFromCapture: (targetWin) => {
+        if (!targetWin || targetWin.isDestroyed()) return false;
+        try {
+          const buf = targetWin.getNativeWindowHandle();
+          const hwnd = process.arch === "x64" ? buf.readBigInt64LE() : buf.readInt32LE();
+          return SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE);
+        } catch {
+          return false;
+        }
+      },
+      setClickThrough: (targetWin, enable) => {
+        if (!targetWin || targetWin.isDestroyed()) return false;
+        try {
+          const buf = targetWin.getNativeWindowHandle();
+          const hwnd = process.arch === "x64" ? buf.readBigInt64LE() : buf.readInt32LE();
+          const ex_style = GetWindowLongW(hwnd, GWL_EXSTYLE);
+          const new_style = enable
+            ? (ex_style | WS_EX_TRANSPARENT | WS_EX_LAYERED)
+            : (ex_style & ~WS_EX_TRANSPARENT & ~WS_EX_LAYERED);
+          SetWindowLongW(hwnd, GWL_EXSTYLE, new_style);
+          return true;
+        } catch {
+          return false;
+        }
+      },
+    };
+  } catch (err) {
+    // Falls back gracefully if native binding cannot be loaded
+  }
+}
+
+function applyWin32ScreenProtection(targetWin) {
+  if (win32Native && targetWin) {
+    win32Native.setExcludeFromCapture(targetWin);
+  }
+}
+
 // --- Stealth Mode State ---
 let isStealthActive = false;
 let isClickThrough = false;
@@ -139,8 +196,15 @@ function createWindow() {
 
   // STRICT REQUIREMENT: App must be hidden from screen sharing, proctoring or monitoring tools at all times.
   win.setContentProtection(true);
+  applyWin32ScreenProtection(win);
 
-  win.once("ready-to-show", () => win.show());
+  win.once("ready-to-show", () => {
+    applyWin32ScreenProtection(win);
+    win.show();
+    applyWin32ScreenProtection(win);
+  });
+  win.on("show", () => applyWin32ScreenProtection(win));
+  win.on("restore", () => applyWin32ScreenProtection(win));
   // The title bar always says the app's name, not whatever the current web page is called.
   win.on("page-title-updated", (event) => event.preventDefault());
   win.webContents.setUserAgent(
@@ -214,6 +278,7 @@ function enterStealthMode() {
   // 3. Re-assert content protection AFTER the Dock hide.
   //    macOS WindowServer can silently reset sharingType when the Dock policy changes.
   win.setContentProtection(true);
+  applyWin32ScreenProtection(win);
 
   // 4. Morph window into compact floating HUD (450x680, matching terminal overlay ergonomics).
   const { screen } = require("electron");
@@ -232,6 +297,7 @@ function enterStealthMode() {
 
   // 5. Show without stealing focus from the interviewer's meeting window.
   win.showInactive();
+  applyWin32ScreenProtection(win);
 
   // Notify renderer that stealth state changed.
   win.webContents.send("im:stealth-state", { active: true, clickThrough: false });
@@ -246,6 +312,7 @@ function exitStealthMode() {
   if (isClickThrough) {
     isClickThrough = false;
     win.setIgnoreMouseEvents(false);
+    if (win32Native) win32Native.setClickThrough(win, false);
   }
 
   // 1. Hide while we restore the window so the morphing is invisible.
@@ -276,10 +343,12 @@ function exitStealthMode() {
 
   // 5. Screen-capture protection stays on — it is always enforced.
   win.setContentProtection(true);
+  applyWin32ScreenProtection(win);
 
   // 6. Bring the app to the front normally.
   win.show();
   win.focus();
+  applyWin32ScreenProtection(win);
 
   // Notify renderer.
   win.webContents.send("im:stealth-state", { active: false, clickThrough: false });
@@ -302,6 +371,7 @@ ipcMain.handle("im:stealth-set-click-through", (_event, enable) => {
   // { forward: true } passes pointer events to whatever is beneath the HUD
   // while still letting CSS :hover states fire on the drag-handle area.
   win.setIgnoreMouseEvents(isClickThrough, { forward: true });
+  if (win32Native) win32Native.setClickThrough(win, isClickThrough);
   win.webContents.send("im:stealth-state", { active: true, clickThrough: isClickThrough });
 });
 ipcMain.handle("im:stealth-query", () => ({
@@ -414,6 +484,7 @@ app.whenReady().then(() => {
       win.showInactive();
       // Always re-assert capture protection when re-showing after a manual hide.
       win.setContentProtection(true);
+      applyWin32ScreenProtection(win);
     }
   });
 
@@ -421,6 +492,7 @@ app.whenReady().then(() => {
     if (!win || !isStealthActive) return;
     isClickThrough = !isClickThrough;
     win.setIgnoreMouseEvents(isClickThrough, { forward: true });
+    if (win32Native) win32Native.setClickThrough(win, isClickThrough);
     win.webContents.send("im:stealth-state", { active: true, clickThrough: isClickThrough });
   });
 
