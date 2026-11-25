@@ -192,7 +192,14 @@ function enterStealthMode() {
   isClickThrough = false;
 
   // Save bounds so we can restore them when exiting stealth.
-  normalBounds = win.getBounds();
+  // If window is currently maximized, unmaximize first so Win32 allows sizing down.
+  const wasMaximized = win.isMaximized();
+  if (wasMaximized) {
+    normalBounds = win.getNormalBounds ? win.getNormalBounds() : win.getBounds();
+    win.unmaximize();
+  } else {
+    normalBounds = win.getBounds();
+  }
 
   // 1. Hide briefly to prevent OS resize / frame-removal flicker.
   win.hide();
@@ -209,19 +216,21 @@ function enterStealthMode() {
   win.setContentProtection(true);
 
   // 4. Morph window into compact floating HUD (450x680, matching terminal overlay ergonomics).
+  const { screen } = require("electron");
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width: sw } = primaryDisplay.workAreaSize;
+  const targetX = Math.max(20, sw - 470);
+  const targetY = 30;
+
+  win.setMinimumSize(300, 300);
+  win.setBounds({ x: targetX, y: targetY, width: 450, height: 680 });
   win.setResizable(false);
   win.setHasShadow(false);
-  win.setSize(450, 680);
   win.setAlwaysOnTop(true, "screen-saver", 1);
   // Float above full-screen spaces on macOS (Zoom, Meet, Teams maximised)
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
-  // 5. Position in top-right corner of the primary display for quick glance.
-  const { screen } = require("electron");
-  const { width: sw } = screen.getPrimaryDisplay().workAreaSize;
-  win.setPosition(Math.max(20, sw - 470), 30);
-
-  // 6. Show without stealing focus from the interviewer's meeting window.
+  // 5. Show without stealing focus from the interviewer's meeting window.
   win.showInactive();
 
   // Notify renderer that stealth state changed.
@@ -246,6 +255,7 @@ function exitStealthMode() {
   win.setAlwaysOnTop(false);
   win.setVisibleOnAllWorkspaces(false);
   win.setResizable(true);
+  win.setMinimumSize(420, 500);
   win.setHasShadow(true);
 
   // 3. Restore taskbar / Dock.

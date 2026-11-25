@@ -23,6 +23,22 @@ export interface StealthHudControls {
 
 const DEFAULT_STATE: StealthState = { active: false, clickThrough: false };
 
+let globalStealthState: StealthState = DEFAULT_STATE;
+const listeners = new Set<(s: StealthState) => void>();
+
+if (typeof window !== "undefined") {
+  onStealthStateChanged((s) => {
+    globalStealthState = s;
+    listeners.forEach((l) => l(s));
+  });
+  void window.interviewMeetDesktop?.stealth?.query().then((s) => {
+    if (s) {
+      globalStealthState = s;
+      listeners.forEach((l) => l(s));
+    }
+  });
+}
+
 /** Hook for the live interview page to control the Electron stealth HUD.
  *
  *  - Subscribes to main-process push events so React state stays in sync.
@@ -30,19 +46,25 @@ const DEFAULT_STATE: StealthState = { active: false, clickThrough: false };
  */
 export function useStealthHud(): StealthHudControls {
   const supported = hasStealthSupport();
-  const [state, setState] = useState<StealthState>(DEFAULT_STATE);
+  const [state, setState] = useState<StealthState>(globalStealthState);
 
   useEffect(() => {
     if (!supported) return;
 
+    listeners.add(setState);
+    setState(globalStealthState);
+
     // Check initial state from main process on mount
     void window.interviewMeetDesktop?.stealth?.query().then((s) => {
-      if (s) setState(s);
+      if (s) {
+        globalStealthState = s;
+        setState(s);
+      }
     });
 
-    // Subscribe to main-process push updates
-    const unsub = onStealthStateChanged((s) => setState(s));
-    return unsub;
+    return () => {
+      listeners.delete(setState);
+    };
   }, [supported]);
 
   const enter = useCallback(async () => {

@@ -1,4 +1,4 @@
-import { isDesktopApp } from "../../app/desktop";
+import { exitStealth, isDesktopApp } from "../../app/desktop";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useParams } from "react-router-dom";
@@ -443,7 +443,12 @@ export function LiveSessionPage() {
 
   useEffect(() => {
     useLiveStore.getState().reset();
-    return () => controller.dispose(); // leaving the page stops capture; the session is ended explicitly
+    return () => {
+      controller.dispose(); // leaving the page stops capture; the session is ended explicitly
+      if (isDesktopApp()) {
+        void exitStealth();
+      }
+    };
   }, [controller]);
 
   // Toggle body styling for true frameless transparency when in stealth mode
@@ -457,15 +462,6 @@ export function LiveSessionPage() {
       document.body.classList.remove("stealth-active");
     };
   }, [stealth.state.active]);
-
-  // If the user navigates away from the live interview page, ensure the window restores to normal size
-  useEffect(() => {
-    return () => {
-      if (isDesktopApp()) {
-        void stealth.exit();
-      }
-    };
-  }, [stealth]);
 
   // Dynamic Single-Window Morphing:
   // If in desktop app and stealth mode is active, render ONLY the floating Terminal HUD
