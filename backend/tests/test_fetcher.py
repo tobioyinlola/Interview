@@ -330,6 +330,21 @@ async def test_at_most_one_request_per_second_to_a_host(site, make):
     assert len(f.ft.sleeps) == 2 and all(s >= 0.99 for s in f.ft.sleeps)
 
 
+async def test_a_crawl_delay_in_robots_txt_is_honoured_up_to_a_limit(site, make):
+    site.add("example.com", "/a")
+    site.add("example.com", "/b")
+    site.add(
+        "example.com",
+        "/robots.txt",
+        body="User-agent: *\nCrawl-delay: 10\n",
+        ctype="text/plain",
+    )
+    f = make()
+    await f.fetch("https://example.com/a")
+    await f.fetch("https://example.com/b")
+    assert f.ft.sleeps[-1] >= 9.9  # the second page waited the ten seconds the site asked for
+
+
 async def test_different_hosts_are_not_delayed(site, make):
     site.add("example.com", "/a")
     site.add("other.com", "/b")

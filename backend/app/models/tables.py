@@ -867,4 +867,5 @@ class Directory(Base):
     last_found: Mapped[int] = mapped_column(Integer, default=0)
     last_added: Mapped[int] = mapped_column(Integer, default=0)
     last_problem: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    cursor: Mapped[str | None] = mapped_column(String(500), nullable=True)  # next page to read
     created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
