@@ -26,6 +26,7 @@ def all_messages(brand: t.Brand = BRAND, name: str | None = "Jordan Reyes") -> l
         t.reward_earned(brand, "a@b.com", name, 3),
         t.trial_used(brand, "a@b.com", name, 3),
         t.credit_granted(brand, "a@b.com", name, 2, "Thanks for the feedback."),
+        t.outreach_approved(brand, "a@b.com", name),
     ]
 
 
@@ -42,6 +43,7 @@ KINDS = [
     "reward_earned",
     "trial_used",
     "credit_granted",
+    "outreach_approved",
 ]
 
 
@@ -93,6 +95,7 @@ def test_subjects_are_short_plain_and_on_brand(m: EmailMessage) -> None:
         "reward_earned",
         "trial_used",
         "credit_granted",
+        "outreach_approved",
     }
 
 
@@ -104,7 +107,7 @@ def test_the_action_emails_carry_their_link_in_the_button_the_fallback_and_the_t
 
 
 def test_the_other_emails_have_no_one_time_link_so_it_can_never_be_logged() -> None:
-    assert [m.link for m in all_messages()[3:]] == [None] * 9
+    assert [m.link for m in all_messages()[3:]] == [None] * 10
 
 
 def test_expiry_is_stated_and_the_ignore_advice_is_there() -> None:

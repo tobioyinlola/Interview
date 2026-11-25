@@ -567,6 +567,31 @@ def credit_granted(
     )
 
 
+def outreach_approved(brand: Brand, to: str, name: str | None) -> EmailMessage:
+    return _message(
+        "outreach_approved",
+        brand,
+        to,
+        subject="You now have access to startup outreach",
+        preheader="Connect your Gmail and start reaching startups.",
+        heading="Startup outreach is open to you",
+        blocks=[
+            ("p", _greeting(name)),
+            (
+                "p",
+                "Your request was approved. You can now reach startups that are hiring for your "
+                "role, with a short note written from your CV.",
+            ),
+            (
+                "p",
+                "Connect your Gmail with an app password, then look at each note before it goes.",
+            ),
+            ("button", "Open startup outreach", f"{_origin(brand)}/startups"),
+        ],
+        why="You got this email because the InterviewMeet team approved your request for startup outreach.",
+    )
+
+
 # ---------------------------------------------------------------------------- the catalogue
 
 # Every message the platform sends, for the admin console: what it is, when it goes out, who gets it,
@@ -612,6 +637,12 @@ CATALOG: list[tuple[str, str, str, str]] = [
         "The person",
     ),
     ("credit_granted", "Free interview added", "An admin adds free interviews.", "The person"),
+    (
+        "outreach_approved",
+        "Startup outreach approved",
+        "An admin switches startup outreach on for someone.",
+        "The person",
+    ),
 ]
 
 
@@ -634,6 +665,7 @@ def sample_message(kind: str, brand: Brand, to: str = "jordan@example.com") -> E
         "reward_earned": lambda: reward_earned(brand, to, name, 3),
         "trial_used": lambda: trial_used(brand, to, name, 3),
         "credit_granted": lambda: credit_granted(brand, to, name, 2, "Thanks for your feedback."),
+        "outreach_approved": lambda: outreach_approved(brand, to, name),
     }
     if kind not in builders:
         raise KeyError(kind)

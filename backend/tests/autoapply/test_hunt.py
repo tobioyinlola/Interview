@@ -2032,7 +2032,7 @@ async def test_outreach_is_closed_until_the_operator_lets_a_person_in(ada, maker
 
 
 async def test_the_operator_sees_requests_and_switches_a_person_on_and_off(
-    ada, boss, maker, mailbox
+    ada, boss, maker, mailbox, sender
 ):
     await ada.post("/api/hunt/access/request")
     seen = (await boss.get("/api/admin/startups/access")).json()
@@ -2041,6 +2041,11 @@ async def test_the_operator_sees_requests_and_switches_a_person_on_and_off(
     on = await boss.put(f"/api/admin/startups/access/{uid}", json={"access": "active"})
     assert on.status_code == 200 and on.json()["access"] == "active"
     assert (await ada.get("/api/me")).json()["outreach_access"] == "active"
+    # she is told by email, once
+    (mail,) = [m for m in sender.messages if m.kind == "outreach_approved"]
+    assert mail.to == "ada@example.com" and "/startups" in mail.text
+    await boss.put(f"/api/admin/startups/access/{uid}", json={"access": "active"})
+    assert len([m for m in sender.messages if m.kind == "outreach_approved"]) == 1
     await setup(ada, maker, mailbox)
     assert (await ada.get("/api/hunt/settings")).json()["enabled"] is True
     # switching her off stops her pitches at once

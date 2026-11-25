@@ -2,6 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { App } from "../../app/App";
+import { AccessToast } from "./AccessToast";
 import { ME, mockApi, renderApp, stubSupportedBrowser } from "../../test-utils";
 
 beforeEach(() => stubSupportedBrowser());
@@ -351,5 +352,28 @@ describe("Startups inside Auto-Apply", () => {
     expect(
       await screen.findByRole("heading", { name: /Auto outreach to/ }),
     ).toBeVisible();
+  });
+});
+
+describe("the notice when access is granted", () => {
+  afterEach(() => localStorage.clear());
+
+  it("shows once when a waiting request becomes active", async () => {
+    localStorage.setItem("im-outreach-access", "requested");
+    mockApi({ "GET /api/me": () => ({ json: me }) });
+    renderApp(<AccessToast />, "/dashboard");
+    expect(
+      await screen.findByText(/startup outreach is now open to you/i),
+    ).toBeInTheDocument();
+  });
+
+  it("stays quiet for someone who was already in", async () => {
+    localStorage.setItem("im-outreach-access", "active");
+    mockApi({ "GET /api/me": () => ({ json: me }) });
+    renderApp(<AccessToast />, "/dashboard");
+    await waitFor(() =>
+      expect(localStorage.getItem("im-outreach-access")).toBe("active"),
+    );
+    expect(screen.queryByText(/now open to you/i)).not.toBeInTheDocument();
   });
 });
