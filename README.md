@@ -203,8 +203,14 @@ it from the candidate's confirmed CV facts and from answers they typed for that 
 their CV, presses submit and judges the result from the page.
 
 - **Only approved sites.** `AUTOAPPLY_FORM_HOSTS` (default: Greenhouse's own job boards,
-  `boards.greenhouse.io` and `job-boards.greenhouse.io`). Anything else is not "supported", so the job goes
-  by email or waits for the candidate. Add a site only after reading and filling its form in a real browser.
+  `boards.greenhouse.io` and `job-boards.greenhouse.io`, and Ashby's, `jobs.ashbyhq.com`). Anything else is not
+  "supported", so the job goes by email or is skipped with the reason (no email, and a link on a site we cannot
+  fill in yet). A job can be applied for by **email or by an application link on a supported site**. Add a
+  site only after reading and filling its form in a real browser.
+- **Ashby** is built from its public page structure (field names such as `_systemfield_email`, Yes/No drawn as
+  buttons) and tested on a copy of it; it has not been seen in a real browser from this repo, and its form
+  may run a spam check that flags automated submissions (reported, never worked around). Its own `/api/` is
+  disallowed by its robots.txt, so nothing here calls it: the page is read in the browser only.
 - **Nothing guessed.** A question nobody has answered goes back to the candidate (with the form's own
   choices as a list); an answer that matches no choice stops the application before anything is sent.
 - **Handed back, never worked around:** CAPTCHA, a sign-in wall, a closed job, a form that wants a file

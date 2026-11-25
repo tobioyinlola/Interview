@@ -310,7 +310,8 @@ async def test_a_job_that_fits_but_needs_the_employers_own_site_says_so(ada):
     await start(ada)
     await ada.post("/api/autoapply/discovery/run")
     (a,) = await apps(ada)
-    assert a["status"] == "skipped" and "applied to on the employer's own site" in a["skip_reason"]
+    assert a["status"] == "skipped" and "careers.example.com" in a["skip_reason"]
+    assert "cannot fill in yet" in a["skip_reason"] and "apply yourself" in a["skip_reason"]
     assert a["posting"]["application_url"] == "https://careers.example.com/apply/1"
 
 

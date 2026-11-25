@@ -9,6 +9,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
+from urllib.parse import urlsplit
 
 from app.autoapply.postings import GLOBAL_REGION, is_expired
 from app.models import JobPosting
@@ -261,6 +262,20 @@ def _sponsorship(need: dict[str, Any], posting: JobPosting) -> tuple[str, str]:
     return UNKNOWN, "the listing does not say whether it sponsors visas"
 
 
+def _no_way_to_apply(posting: JobPosting) -> str:
+    """Why a job cannot be applied for from here: it needs an email address to write to, or an
+    application link on a site whose form we can fill in."""
+    host = urlsplit(posting.application_url or "").hostname
+    if host:
+        return (
+            f"it lists no email address, and its application link ({host}) is on a site we cannot "
+            "fill in yet: open the job to apply yourself"
+        )
+    return (
+        "it lists neither an email address nor an application link: open the job to apply yourself"
+    )
+
+
 def evaluate(
     criteria: dict[str, Any],
     posting: JobPosting,
@@ -319,7 +334,14 @@ def evaluate(
 
     usable = {r for r in routes if channels.get(r)}
     if usable:
-        add("channel", "A way to apply", PASS, f"can apply by {' or '.join(sorted(usable))}", True)
+        how = {"form": "its application form (filled in for you)", "email": "email"}
+        add(
+            "channel",
+            "A way to apply",
+            PASS,
+            "can apply by " + " or ".join(how.get(r, r) for r in sorted(usable)),
+            True,
+        )
     elif routes:
         add(
             "channel",
@@ -329,16 +351,7 @@ def evaluate(
             True,
         )
     else:
-        add(
-            "channel",
-            "A way to apply",
-            FAIL,
-            (
-                "this job has to be applied to on the employer's own site: "
-                "open the job to apply yourself"
-            ),
-            True,
-        )
+        add("channel", "A way to apply", FAIL, _no_way_to_apply(posting), True)
 
     failed = [r for r in rules if r.required and r.status == FAIL]
     unknown = [r for r in rules if r.required and r.status == UNKNOWN]

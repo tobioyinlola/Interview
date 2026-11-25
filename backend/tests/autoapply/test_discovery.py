@@ -57,7 +57,7 @@ def posting(**over) -> JobPosting:
 
 
 def decide(criteria, p, routes=frozenset({"form"}), **kw):
-    channels = {"form": True, "email": False}
+    channels = kw.pop("channels", {"form": True, "email": False})
     return matching.evaluate(criteria, p, now=NOW, routes=set(routes), channels=channels, **kw)
 
 
@@ -704,3 +704,28 @@ def test_saying_nothing_ranks_below_saying_the_right_thing():
     said = decide(CRITERIA, posting())
     silent = decide(CRITERIA, posting(region=None, arrangement=None))
     assert said.decision == silent.decision == "eligible" and said.score > silent.score
+
+
+# ------------------------------------------------------------------ a way to apply
+
+
+def test_a_job_can_be_applied_for_by_email_or_by_a_form_we_fill_in():
+    crit = {"roles": [{"value": "Senior Product Manager", "required": True}]}
+    by_form = decide(crit, posting(), routes={"form"})
+    assert by_form.decision == "eligible"
+    how = next(r for r in by_form.rules if r.key == "channel")
+    assert "application form" in how.evidence and "filled in" in how.evidence
+    by_email = decide(crit, posting(), routes={"email"}, channels={"email": True})
+    assert by_email.decision == "eligible"
+
+
+def test_a_job_with_no_email_and_a_link_we_cannot_fill_in_says_so():
+    crit = {"roles": [{"value": "Senior Product Manager", "required": True}]}
+    link = decide(crit, posting(application_url="https://jobs.example.com/apply/1"), routes=set())
+    assert link.decision == "skip"
+    assert "jobs.example.com" in link.reason and "cannot fill in yet" in link.reason
+    none = decide(crit, posting(application_url=None, apply_email=None), routes=set())
+    assert (
+        none.decision == "skip"
+        and "neither an email address nor an application link" in none.reason
+    )

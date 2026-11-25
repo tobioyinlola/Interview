@@ -66,6 +66,22 @@
       selector: sel(el, tag), label: clean(raw), required: el.required || el.getAttribute('aria-required') === 'true' || mark(raw),
       options, multi: false, one: '' });
   }
+  // Yes/No and other choices drawn as a row of buttons (no radio inputs behind them), each question
+  // in its own entry or group with a title.
+  let bi = 0;
+  for (const box of root.querySelectorAll('[class*="field-entry"], [class*="fieldEntry"], [role=group], [role=radiogroup]')) {
+    if (box.querySelector('input:not([type=hidden]):not([type=file]), select, textarea')) continue;
+    const btns = [...box.querySelectorAll('button')].filter(b => (b.getAttribute('type') || 'button') !== 'submit'
+      && shown(b) && (b.innerText || '').trim().length > 0 && (b.innerText || '').trim().length <= 40);
+    if (btns.length < 2 || btns.length > 12) continue;
+    const found = box.querySelector('label, legend, [class*=question], [class*=title]');
+    const label = (found && found.innerText) || groupLabel(btns[0], btns.map(b => clean(b.innerText)));
+    if (!clean(label)) continue;
+    const key = 'buttons-' + (bi++);
+    box.setAttribute('data-im-key', key);
+    out.push({ ctl: 'buttons', type: 'buttons', key, selector: `[data-im-key="${key}"] button`,
+      label: clean(label), required: mark(label), options: btns.map(b => clean(b.innerText)), multi: false, one: '' });
+  }
   const captcha = !!document.querySelector(
     'iframe[src*=recaptcha], iframe[src*=hcaptcha], iframe[src*=turnstile], .g-recaptcha, .h-captcha, [data-sitekey]');
   return { url: location.href, title: document.title, text: (document.body.innerText || '').slice(0, 4000),

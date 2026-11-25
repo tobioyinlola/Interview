@@ -31,9 +31,11 @@ from urllib.parse import urlsplit
 from app.autoapply import cvfile
 from app.autoapply.adapters import AdapterError, FormField, FormReceipt, FormSchema
 
-# The sites whose forms are filled in. Greenhouse's own job boards are the ones checked in a real
-# browser; others are added in AUTOAPPLY_FORM_HOSTS only after they have been checked the same way.
-DEFAULT_HOSTS = ("boards.greenhouse.io", "job-boards.greenhouse.io")
+# The sites whose forms are filled in. Greenhouse's own job boards were read in a real browser.
+# Ashby's (jobs.ashbyhq.com) are built from its public page structure and tested on a copy of it,
+# not yet seen in a real browser; both need a first supervised submission before anyone relies on
+# them. Others are added in AUTOAPPLY_FORM_HOSTS only after they have been checked the same way.
+DEFAULT_HOSTS = ("boards.greenhouse.io", "job-boards.greenhouse.io", "jobs.ashbyhq.com")
 
 LOAD_MS = 45_000
 SUBMIT_MS = 40_000
@@ -57,6 +59,11 @@ CLOSED_TEXT = re.compile(
 )
 BLOCK_TITLE = re.compile(r"just a moment|access denied|attention required|are you a robot", re.I)
 LOGIN_TEXT = re.compile(r"\b(sign in|log in|create an account) to (apply|continue)\b", re.I)
+SPAM_TEXT = re.compile(
+    r"flagged|possible spam|suspicious|unusual activity|automated (request|submission)"
+    r"|are you a (human|robot)",
+    re.I,
+)
 ERROR_TEXT = re.compile(
     r"(is|are) required|required field|please (enter|select|choose|fill|provide)|invalid", re.I
 )
@@ -73,8 +80,14 @@ CANON = (
     ("current_company", r"current (company|employer)|^org$|^employer"),
     ("country", r"^country"),
     ("location", r"location|^city\b|where are you (based|located)|^address"),
-    ("name", r"^(full )?name$"),
+    ("name", r"^(legal |full |your )?name$"),
 )
+# Ashby's own names for its built-in questions
+SYSTEM_FIELDS = {
+    "_systemfield_name": "name",
+    "_systemfield_email": "email",
+    "_systemfield_location": "location",
+}
 
 STATE = (
     "() => ({ url: location.href, text: (document.body.innerText || '').slice(0, 3000), "
@@ -104,6 +117,8 @@ class Control:
 def canonical(label: str, key: str) -> str:
     """The name the facts use for this question, when it plainly is one of the usual ones."""
     low, k = label.lower().strip(), key.lower()
+    if k in SYSTEM_FIELDS:
+        return SYSTEM_FIELDS[k]
     if len(low) <= 40:
         for name, pattern in CANON:
             if re.search(pattern, low):
@@ -134,6 +149,11 @@ def controls_from(raw: dict[str, Any]) -> list[Control]:
                 Control(
                     c["key"], c["one"] or label, "declaration", c["required"], c["selector"], ctl
                 )
+            )
+        elif ctl == "buttons":
+            slug = "q_" + re.sub(r"[^a-z0-9]+", "_", label.lower()).strip("_")[:50]
+            out.append(
+                Control(slug, label or slug, "choice", c["required"], c["selector"], ctl, options)
             )
         elif ctl in ("group", "select", "combo"):
             name = canonical(label, c["key"]) if ctl != "group" else c["key"]
@@ -340,8 +360,8 @@ class BrowserForm:
 
     async def _press_and_wait(self, page: Any, key: str) -> FormReceipt:
         button = page.locator(
-            "button[type=submit], input[type=submit], button:has-text('Submit'), "
-            "button:has-text('Apply')"
+            ".ashby-application-form-submit-button, button[type=submit], input[type=submit], "
+            "button:has-text('Submit'), button:has-text('Apply')"
         ).last
         before = page.url
         try:
@@ -367,6 +387,10 @@ class BrowserForm:
                 return FormReceipt(
                     reference=f"browser-{ref}",
                     evidence=(m.group(0) if m else state["url"])[:200],
+                )
+            if SPAM_TEXT.search(state["text"]):
+                raise AdapterError(
+                    "rejected", "The employer's site flagged the submission as automated."
                 )
             if state["bad"] and waited >= 2000:
                 raise AdapterError("rejected", "The form refused the application as filled in.")
@@ -426,6 +450,12 @@ async def _fill(
         elif c.ctl == "single":
             if norm(value) in ("yes", "true", "agree", "i agree", "accept", "i accept", "1"):
                 await where.first.check(timeout=8000)
+        elif c.ctl == "buttons":
+            i = pick(c.options, value)
+            if i is None:
+                raise AdapterError("rejected", f"'{c.label}' has no choice matching your answer.")
+            label = re.compile(rf"^\s*{re.escape(c.options[i])}\s*$")
+            await where.filter(has_text=label).first.click(timeout=8000)
         elif c.ctl == "group":
             wanted = [v.strip() for v in value.split(";")] if c.multi else [value]
             for w in wanted:
