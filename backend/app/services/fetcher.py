@@ -263,6 +263,10 @@ class Fetcher:
             # a data feed (a directory published as JSON): handed over as it is
             body = raw.body.decode("utf-8", errors="replace")[: self.json_max_chars]
             return FetchResult(url, "ok", text=body, final_url=final_url)
+        if ctype in ("application/xml", "text/xml") and self.allow_json:
+            # a sitemap: the list of pages a site publishes for crawlers, handed over as it is
+            body = raw.body.decode("utf-8", errors="replace")[: self.json_max_chars]
+            return FetchResult(url, "ok", text=body, final_url=final_url)
         if ctype not in ("text/html", "text/plain", "application/xhtml+xml"):
             return FetchResult(url, "blocked", "That link is not a web page.")
 

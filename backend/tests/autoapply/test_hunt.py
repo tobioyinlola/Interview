@@ -1769,3 +1769,61 @@ def test_a_card_with_extra_words_still_matches_its_role():
         "https://acme.io/careers",
     )
     assert url == "https://acme.io/careers/pm-7"
+
+
+# ------------------------------------------------------------------ sitemap directories (Techstars)
+
+
+def _company_blob(name, domain, place="Boulder, CO, USA"):
+    return json.dumps(
+        {
+            "props": {
+                "pageProps": {
+                    "company": {
+                        "name": name,
+                        "domain": domain,
+                        "websiteUrl": f"http://{domain}",
+                        "description": f"{name} builds things.",
+                        "locations": [{"name": place}],
+                        "industryTags": ["Aerospace"],
+                    }
+                }
+            }
+        }
+    )
+
+
+async def test_a_sitemap_directory_is_read_a_batch_at_a_time(maker, monkeypatch):
+    base = "https://jobs.techstars.com"
+    names = [f"Co{i}" for i in range(5)]
+    sitemap = (
+        "<?xml version='1.0'?><urlset>"
+        + "".join(f"<url><loc>{base}/companies/co{i}</loc></url>" for i in range(5))
+        + f"<url><loc>{base}/about</loc></url></urlset>"
+    )
+
+    class Site:
+        async def fetch(self, url):
+            if url.endswith("sitemap_companies.xml"):
+                return FetchResult(url, "ok", text=sitemap, final_url=url)
+            i = int(url.rsplit("co", 1)[1])
+            return FetchResult(
+                url, "ok", text="x", final_url=url, data=(_company_blob(names[i], f"co{i}.io"),)
+            )
+
+    monkeypatch.setattr(directory, "SITEMAP_BATCH", 3)
+    url = f"{base}/sitemap_companies.xml"
+    async with maker() as db:
+        first = await directory.ingest(
+            db, Site(), FakeLlmProvider(), "Techstars companies", url, NOW
+        )
+        assert first["added"] == 3 and first["more"] is True
+        second = await directory.ingest(
+            db, Site(), FakeLlmProvider(), "Techstars companies", url, NOW
+        )
+        assert second["added"] == 2 and second["more"] is False
+        rows = (await db.execute(select(Startup))).scalars().all()
+        assert {r.domain for r in rows} == {f"co{i}.io" for i in range(5)}
+        assert all(
+            r.region == "us" and r.directory_url.startswith(base + "/companies/") for r in rows
+        )
