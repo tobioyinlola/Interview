@@ -128,14 +128,20 @@ describe("navigation", () => {
     base({ "GET /api/me": () => ({ json: { ...me, autoapply: false } }) });
     const { unmount } = renderApp(<App />, "/dashboard");
     await screen.findByRole("navigation", { name: "Main" });
-    expect(screen.queryByRole("link", { name: "Auto-Apply" })).toBeNull();
+    expect(
+      within(screen.getByRole("navigation", { name: "Main" })).queryByRole(
+        "link",
+        { name: "Auto-Apply" },
+      ),
+    ).toBeNull();
     unmount();
     vi.restoreAllMocks();
     stubSupportedBrowser();
     base();
     renderApp(<App />, "/dashboard");
+    const nav = within(await screen.findByRole("navigation", { name: "Main" }));
     expect(
-      await screen.findByRole("link", { name: "Auto-Apply" }),
+      await nav.findByRole("link", { name: "Auto-Apply" }),
     ).toHaveAttribute("href", "/auto-apply");
   });
 });

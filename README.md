@@ -195,6 +195,20 @@ folder. It uses the same Google client as "Continue with Google" (`GOOGLE_CLIENT
 3. Set `AUTOAPPLY_MAILBOX_PROVIDER=gmail` on the server. Real sending still needs the dispatch switches
    (`AUTOAPPLY_EMAIL_DISPATCH`, `AUTOAPPLY_OUTREACH_DISPATCH`); until then nothing reaches a real inbox.
 
+## Startup outreach is by invitation
+
+Auto-Apply is for jobs from public job boards. Startup outreach (`STARTUP_OUTREACH_ENABLED`) is separate
+and invite-only: a person asks for access on the Startups page, and the operator switches it on (or off)
+for that person under **Back office, Startups, Who can use startup outreach**. Until then the whole
+`/api/hunt` API answers 403 for them. Once in, they must connect Gmail before anything else. Switching
+someone off stops their pitches at once.
+
+## Signing out after inactivity
+
+A session unused for 20 minutes (`IDLE_LOGOUT_MINUTES`, 0 turns it off) is ended on its next request, and
+the apps sign out by themselves: any touch, key or movement counts, a prompt appears a minute before, and
+a live interview never counts as idle. The back office has its own, longer session.
+
 ## Startup directories
 
 About 30 accelerator and fund portfolio pages are built in, plus a list of more places that are tried

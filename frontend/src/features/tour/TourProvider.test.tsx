@@ -71,7 +71,7 @@ describe("the first-time tour", () => {
     renderApp(<App />, "/dashboard");
     await screen.findByRole("dialog");
     await userEvent.click(screen.getByRole("button", { name: "Start" }));
-    for (let i = 0; i < 7; i++)
+    for (let i = 0; i < 6; i++)
       await userEvent.click(screen.getByRole("button", { name: "Next" }));
     await userEvent.click(screen.getByRole("button", { name: "Done" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
@@ -108,7 +108,6 @@ describe("the first-time tour", () => {
     for (const t of [
       "search",
       "nav-settings",
-      "nav-companies",
       "nav-session-new",
       "nav-sessions",
       "nav-referrals",
@@ -122,19 +121,19 @@ describe("the first-time tour", () => {
     renderApp(<App />, "/dashboard");
     const seen: string[] = [];
     await screen.findByRole("dialog");
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < 8; i++) {
       seen.push(
         within(screen.getByRole("dialog")).getByRole("heading").textContent ??
           "",
       );
-      if (i < 8)
+      if (i < 7)
         await userEvent.click(
           screen.getByRole("button", { name: i === 0 ? "Start" : "Next" }),
         );
     }
     expect(seen[0]).toBe("Welcome to InterviewMeet");
     expect(seen[2]).toBe("1. Upload your CV");
-    expect(seen[5]).toBe("The live panel");
-    expect(seen[8]).toBe("Your account");
+    expect(seen[4]).toBe("The live panel");
+    expect(seen[7]).toBe("Your account");
   });
 });

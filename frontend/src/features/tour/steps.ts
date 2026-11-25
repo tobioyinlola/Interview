@@ -27,16 +27,10 @@ export const TOUR_STEPS: TourStep[] = [
     body: "Open Settings, then the CV tab. Your own stories and numbers in an answer come only from your CV. Set your target role there too, along with your details and password.",
   },
   {
-    id: "companies",
-    target: "nav-companies",
-    title: "2. Add a company",
-    body: "We research the company and build a brief where every fact names its source. Answers use it to link your experience to what the company does.",
-  },
-  {
     id: "practice",
     target: "nav-session-new",
-    title: "3. Run a mock interview",
-    body: "Start a session, join a Google Meet with a friend who knows the assistant is on, and share the Meet tab with its audio.",
+    title: "2. Run a mock interview",
+    body: "Pick the company interviewing you, or add it right there and we research it. Join a Google Meet with a friend who knows the assistant is on, and share the Meet tab with its audio.",
   },
   {
     id: "panel",
@@ -46,7 +40,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: "review",
     target: "nav-sessions",
-    title: "4. Review your sessions",
+    title: "3. Review your sessions",
     body: "After a session, read the transcript, score your answers and see where your CV has gaps.",
   },
   {
