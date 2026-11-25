@@ -56,26 +56,44 @@ if (process.platform === "win32") {
   try {
     const koffi = require("koffi");
     const user32 = koffi.load("user32.dll");
-    const SetWindowDisplayAffinity = user32.func("bool __stdcall SetWindowDisplayAffinity(intptr_t hwnd, uint32_t dwAffinity)");
-    const GetWindowLongW = user32.func("int32_t __stdcall GetWindowLongW(intptr_t hwnd, int32_t nIndex)");
-    const SetWindowLongW = user32.func("int32_t __stdcall SetWindowLongW(intptr_t hwnd, int32_t nIndex, int32_t dwNewLong)");
+    // Use Ptr variants — GetWindowLongW truncates extended styles on 64-bit Windows.
+    const SetWindowDisplayAffinity = user32.func(
+      "bool __stdcall SetWindowDisplayAffinity(uintptr_t hWnd, uint32_t dwAffinity)"
+    );
+    const GetWindowLongPtrW = user32.func(
+      "intptr_t __stdcall GetWindowLongPtrW(uintptr_t hWnd, int nIndex)"
+    );
+    const SetWindowLongPtrW = user32.func(
+      "intptr_t __stdcall SetWindowLongPtrW(uintptr_t hWnd, int nIndex, intptr_t dwNewLong)"
+    );
+    const SetWindowPos = user32.func(
+      "bool __stdcall SetWindowPos(uintptr_t hWnd, uintptr_t hWndInsertAfter, int X, int Y, int cx, int cy, uint32_t uFlags)"
+    );
 
     const GWL_EXSTYLE = -20;
-    const WS_EX_LAYERED = 0x00080000;
-    const WS_EX_TRANSPARENT = 0x00000020;
+    const WS_EX_LAYERED = 0x00080000n;
+    const WS_EX_TRANSPARENT = 0x00000020n;
+    const WS_EX_TOOLWINDOW = 0x00000080n;   // Hides from Alt+Tab / Win+Tab
+    const WS_EX_APPWINDOW = 0x00040000n;    // Shows in taskbar — removed in stealth
     // WDA_EXCLUDEFROMCAPTURE (0x00000011 / 17) completely excludes the window from Windows
     // Graphics Capture, Desktop Duplication, BitBlt, Zoom, Teams, Meet, Discord, OBS, and
     // proctoring software.  Unlike WDA_MONITOR (0x01) it does NOT render a black rectangle;
     // the window is simply invisible to capture APIs.
     const WDA_EXCLUDEFROMCAPTURE = 0x00000011;
+    const WDA_NONE = 0x00000000;
+    // SWP flags: NOSIZE | NOMOVE | NOZORDER | FRAMECHANGED — forces the OS to re-read
+    // the extended styles without moving or resizing the window.
+    const SWP_FRAMECHANGED_FLAGS = 0x0001 | 0x0002 | 0x0004 | 0x0020;
 
-    /** Read the native HWND from an Electron BrowserWindow.  Returns null when the window
-     *  is gone or the handle cannot be read. */
+    /** Read the native HWND from an Electron BrowserWindow.  Returns a BigInt suitable
+     *  for passing to the Ptr-width Win32 functions. */
     function readHwnd(targetWin) {
       if (!targetWin || targetWin.isDestroyed()) return null;
       try {
         const buf = targetWin.getNativeWindowHandle();
-        return process.arch === "x64" ? buf.readBigInt64LE() : buf.readInt32LE();
+        return process.arch === "x64" || process.arch === "arm64"
+          ? buf.readBigUInt64LE(0)
+          : BigInt(buf.readUInt32LE(0));
       } catch {
         return null;
       }
@@ -99,11 +117,25 @@ if (process.platform === "win32") {
       setClickThrough: (targetWin, enable) => {
         const hwnd = readHwnd(targetWin);
         if (hwnd === null) return false;
-        const ex_style = GetWindowLongW(hwnd, GWL_EXSTYLE);
-        const new_style = enable
-          ? (ex_style | WS_EX_TRANSPARENT | WS_EX_LAYERED)
-          : (ex_style & ~WS_EX_TRANSPARENT); // keep WS_EX_LAYERED
-        SetWindowLongW(hwnd, GWL_EXSTYLE, new_style);
+        const currentStyle = BigInt(GetWindowLongPtrW(hwnd, GWL_EXSTYLE));
+        const newStyle = enable
+          ? (currentStyle | WS_EX_TRANSPARENT | WS_EX_LAYERED)
+          : (currentStyle & ~WS_EX_TRANSPARENT); // keep WS_EX_LAYERED
+        SetWindowLongPtrW(hwnd, GWL_EXSTYLE, newStyle);
+        SetWindowPos(hwnd, 0n, 0, 0, 0, 0, SWP_FRAMECHANGED_FLAGS);
+        return true;
+      },
+      /** Hide window from Alt+Tab and taskbar (WS_EX_TOOLWINDOW), or restore it
+       *  (WS_EX_APPWINDOW).  Matches the Tauri client's stealth behaviour exactly. */
+      setToolWindow: (targetWin, enable) => {
+        const hwnd = readHwnd(targetWin);
+        if (hwnd === null) return false;
+        const currentStyle = BigInt(GetWindowLongPtrW(hwnd, GWL_EXSTYLE));
+        const newStyle = enable
+          ? (currentStyle | WS_EX_TOOLWINDOW) & ~WS_EX_APPWINDOW
+          : (currentStyle & ~WS_EX_TOOLWINDOW) | WS_EX_APPWINDOW;
+        SetWindowLongPtrW(hwnd, GWL_EXSTYLE, newStyle);
+        SetWindowPos(hwnd, 0n, 0, 0, 0, 0, SWP_FRAMECHANGED_FLAGS);
         return true;
       },
     };
@@ -215,6 +247,8 @@ function createWindow() {
     backgroundColor: "#00000000",
     transparent: true,
     frame: false,
+    hasShadow: false,          // Prevents OS drop-shadow outline from appearing in captures
+    thickFrame: false,         // Disables Windows thick frame that can leak into capture
     show: false,
     title: "InterviewMeet",
     autoHideMenuBar: true,
@@ -348,10 +382,12 @@ function enterStealthMode() {
   // 1. Hide briefly to prevent OS resize / frame-removal flicker.
   win.hide();
 
-  // 2. Suppress taskbar / Dock presence so the HUD is invisible to task switchers.
+  // 2. Suppress taskbar / Dock / Alt+Tab presence so the HUD is invisible to task switchers.
   if (process.platform === "darwin") {
     app.dock.hide();
   } else {
+    // WS_EX_TOOLWINDOW hides from Alt+Tab AND taskbar (matches Tauri stealth)
+    if (win32Native) win32Native.setToolWindow(win, true);
     win.setSkipTaskbar(true);
   }
 
@@ -408,10 +444,12 @@ function exitStealthMode() {
   win.setMinimumSize(420, 500);
   win.setHasShadow(true);
 
-  // 3. Restore taskbar / Dock.
+  // 3. Restore taskbar / Dock / Alt+Tab visibility.
   if (process.platform === "darwin") {
     app.dock.show();
   } else {
+    // Reverse WS_EX_TOOLWINDOW → restore WS_EX_APPWINDOW so it shows in Alt+Tab again
+    if (win32Native) win32Native.setToolWindow(win, false);
     win.setSkipTaskbar(false);
   }
 
