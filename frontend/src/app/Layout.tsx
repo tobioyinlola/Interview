@@ -8,6 +8,8 @@ import {
 } from "react-router-dom";
 
 import { useLogout, useMe } from "../api/hooks";
+import { isDesktopApp } from "./desktop";
+import { useStealthHud } from "../features/session/useStealthHud";
 import { DesktopTitleBar } from "./DesktopTitleBar";
 import { LogoMark } from "../features/landing/Logo";
 import { GlobalSearch } from "../features/search/GlobalSearch";
@@ -105,6 +107,11 @@ function Group({
 }
 
 export function Layout() {
+  const stealth = useStealthHud();
+  if (isDesktopApp() && stealth.state.active) {
+    return <Outlet />;
+  }
+
   const { data: me } = useMe();
   const logout = useLogout();
   const navigate = useNavigate();

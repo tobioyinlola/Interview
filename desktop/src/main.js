@@ -195,8 +195,11 @@ function createWindow() {
   });
 
   // STRICT REQUIREMENT: App must be hidden from screen sharing, proctoring or monitoring tools at all times.
-  win.setContentProtection(true);
-  applyWin32ScreenProtection(win);
+  if (process.platform === "darwin") {
+    win.setContentProtection(true);
+  } else {
+    applyWin32ScreenProtection(win);
+  }
 
   win.once("ready-to-show", () => {
     applyWin32ScreenProtection(win);
@@ -277,8 +280,11 @@ function enterStealthMode() {
 
   // 3. Re-assert content protection AFTER the Dock hide.
   //    macOS WindowServer can silently reset sharingType when the Dock policy changes.
-  win.setContentProtection(true);
-  applyWin32ScreenProtection(win);
+  if (process.platform === "darwin") {
+    win.setContentProtection(true);
+  } else {
+    applyWin32ScreenProtection(win);
+  }
 
   // 4. Morph window into compact floating HUD (450x680, matching terminal overlay ergonomics).
   const { screen } = require("electron");
@@ -342,8 +348,11 @@ function exitStealthMode() {
   }
 
   // 5. Screen-capture protection stays on — it is always enforced.
-  win.setContentProtection(true);
-  applyWin32ScreenProtection(win);
+  if (process.platform === "darwin") {
+    win.setContentProtection(true);
+  } else {
+    applyWin32ScreenProtection(win);
+  }
 
   // 6. Bring the app to the front normally.
   win.show();
@@ -483,8 +492,11 @@ app.whenReady().then(() => {
     } else {
       win.showInactive();
       // Always re-assert capture protection when re-showing after a manual hide.
-      win.setContentProtection(true);
-      applyWin32ScreenProtection(win);
+      if (process.platform === "darwin") {
+        win.setContentProtection(true);
+      } else {
+        applyWin32ScreenProtection(win);
+      }
     }
   });
 

@@ -1,9 +1,11 @@
 import { isDesktopApp, minimizeDesktopWindow, maximizeDesktopWindow, closeDesktopWindow } from "./desktop";
+import { useStealthHud } from "../features/session/useStealthHud";
 import { LogoMark } from "../features/landing/Logo";
 
 /** Sleek top window title bar for the frameless Electron desktop app in normal mode. */
 export function DesktopTitleBar() {
-  if (!isDesktopApp()) return null;
+  const { state } = useStealthHud();
+  if (!isDesktopApp() || state.active) return null;
 
   return (
     <header
