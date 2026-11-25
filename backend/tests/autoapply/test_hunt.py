@@ -282,8 +282,14 @@ def write_llm():
     return FakeLlmProvider(
         json_reply=json.dumps(
             {
-                "subject": "Senior PM, payments",
-                "body": "Hi, I led the payments roadmap at Northwind and grew revenue 30%. Open to a chat?",
+                "subject": "Product manager with payments background",
+                "body": (
+                    "I'm a senior product manager, most recently at Northwind, where I led the "
+                    "payments roadmap and grew revenue 30%. Your platform for marketplace payments "
+                    "is close to that work, and the problems you describe are ones I have solved "
+                    "before.\n\nWould you be open to a short call, or could you point me to "
+                    "whoever handles hiring?"
+                ),
             }
         )
     )
@@ -2046,3 +2052,106 @@ async def test_the_operator_sees_requests_and_switches_a_person_on_and_off(
     # a customer cannot do any of it
     r = await ada.put(f"/api/admin/startups/access/{uid}", json={"access": "active"})
     assert r.status_code in (401, 403)
+
+
+# ------------------------------------------------------------------ proper emails
+
+
+def _brief_startup(**kw):
+    return Startup(
+        name="Acme", domain="acme.io", website="https://acme.io", directory="YC",
+        directory_url="https://d.test", one_liner="Payments for marketplaces", region="us",
+        research={"summary": "Acme builds payments for online marketplaces.", "roles": ["Senior Product Manager"]},
+        **kw,
+    )  # fmt: skip
+
+
+def _contact(kind="role", name=None):
+    return StartupContact(
+        email="jobs@acme.io", name=name, kind=kind, source_url="https://acme.io/careers"
+    )
+
+
+async def _written(llm, contact=None, openings=None):
+    from app.models import HuntSettings
+
+    st = HuntSettings(
+        roles=["Senior Product Manager"],
+        pitch="",
+        sender_name="Ada Okoye",
+        postal_address="12 Marina",
+    )
+    return await draft.write(
+        llm, FACTS, st, _brief_startup(), contact or _contact(), region="us", openings=openings
+    )
+
+
+class Scripted(FakeLlmProvider):
+    """A model that gives these replies one after another, and keeps what it was asked."""
+
+    def __init__(self, *replies):
+        super().__init__(json_reply="")
+        self.replies, self.asked = list(replies), []
+
+    async def generate_json(self, *, system, user, schema):
+        self.asked.append((system, user))
+        return self.replies.pop(0) if self.replies else "not json"
+
+
+GOOD = {
+    "subject": "Product manager with payments background",
+    "body": (
+        "I'm Ada Okoye, a senior product manager who most recently led the payments roadmap at "
+        "Northwind and grew revenue 30%. Acme's payments for online marketplaces is close to that "
+        "work, and I would like to help make it better.\n\nWould you be open to a short call, or "
+        "could you point me to whoever handles hiring?"
+    ),
+}
+
+
+async def test_the_greeting_is_added_by_code_to_the_person_or_the_team():
+    subject, body = await _written(Scripted(json.dumps(GOOD)))
+    assert subject == "Product manager with payments background"
+    assert body.startswith("Hi Acme team,\n\nI'm Ada Okoye")
+    _, named = await _written(Scripted(json.dumps(GOOD)), _contact("person", "Sam Ade"))
+    assert named.startswith("Hi Sam,\n\n")
+    assert "My CV is attached.\n\nThank you,\nAda Okoye" in body
+
+
+async def test_a_note_with_a_problem_is_sent_back_once_with_what_was_wrong():
+    greeting_first = {**GOOD, "body": "Hi Sam, " + GOOD["body"]}
+    llm = Scripted(json.dumps(greeting_first), json.dumps(GOOD))
+    _, body = await _written(llm)
+    assert "starts with a greeting" in llm.asked[1][0]  # the second try was told why
+    assert "I'm Ada Okoye, a senior product manager" in body and "Hi Sam" not in body
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {**GOOD, "body": "Short note."},
+        {**GOOD, "body": GOOD["body"] + " I grew it 300% too."},  # a number that is not a fact
+        {**GOOD, "body": GOOD["body"].replace("Acme's", "[Startup]'s")},  # a placeholder
+        {**GOOD, "body": "I hope this finds you well. " + GOOD["body"]},
+    ],
+)
+async def test_a_bad_note_falls_back_to_a_plain_honest_one(bad):
+    _, body = await _written(Scripted(json.dumps(bad), json.dumps(bad)))
+    assert "I'm Ada Okoye, a Senior Product Manager, most recently at Northwind." in body
+    assert "short call" in body and "300%" not in body and "[Startup]" not in body
+
+
+async def test_the_model_is_given_the_candidate_the_startup_and_why_they_fit():
+    llm = Scripted(json.dumps(GOOD))
+    st = __import__("app.models", fromlist=["HuntSettings"]).HuntSettings(
+        roles=["Senior Product Manager"], pitch="", sender_name="Ada Okoye", postal_address="x"
+    )
+    await draft.write(
+        llm, FACTS, st, _brief_startup(), _contact(), region="us",
+        openings=[{"title": "Senior Product Manager", "url": "u"}],
+        why=["They list a Senior Product Manager opening."],
+    )  # fmt: skip
+    brief = json.loads(llm.asked[0][1])
+    assert brief["candidate"]["history"][0]["company"] == "Northwind"
+    assert brief["startup"]["opening"] == "Senior Product Manager"
+    assert brief["why_it_fits"] == ["They list a Senior Product Manager opening."]
