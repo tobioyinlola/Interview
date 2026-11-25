@@ -143,6 +143,14 @@ const startup = (over: object = {}) => ({
   openings: [
     { title: "Senior Product Manager", url: "https://lumen.io/careers/pm" },
   ],
+  founders: [
+    {
+      name: "Ada Lumen",
+      title: "Co-founder and CEO",
+      source: "https://lumen.io/team",
+      email: null,
+    },
+  ],
   contacts: [
     {
       email: "jobs@lumen.io",
@@ -219,6 +227,10 @@ describe("Back office: the lists behind the totals", () => {
       "href",
       "https://lumen.io/careers/pm",
     );
+    expect(card.getByText("Ada Lumen")).toBeVisible();
+    expect(
+      card.getByRole("link", { name: "where it is named" }),
+    ).toHaveAttribute("href", "https://lumen.io/team");
     expect(card.getByText("jobs@lumen.io")).toBeVisible();
     expect(
       card.getByRole("link", { name: "where it is published" }),

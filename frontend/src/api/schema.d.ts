@@ -441,6 +441,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/startups/list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Admin Startup List
+         * @description The startups behind the totals: name, website, who listed it, what it does, its contacts and
+         *     open roles. Filter by what the tiles count, a region, a directory, or a search.
+         */
+        get: operations["admin_startup_list_api_admin_startups_list_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/startups/overview": {
         parameters: {
             query?: never;
@@ -469,6 +490,26 @@ export interface paths {
         put?: never;
         /** Run Research */
         post: operations["run_research_api_admin_startups_research_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/startups/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Admin Open Roles
+         * @description Every open role found on the startups' own sites, with the startup and where to apply.
+         */
+        get: operations["admin_open_roles_api_admin_startups_roles_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2130,6 +2171,43 @@ export interface components {
             /** Next Before */
             next_before: string | null;
         };
+        /** AdminContactOut */
+        AdminContactOut: {
+            /** Email */
+            email: string;
+            /** Kind */
+            kind: string;
+            /** Name */
+            name?: string | null;
+            /** Source Url */
+            source_url: string;
+            /** Title */
+            title?: string | null;
+        };
+        /** AdminFounderOut */
+        AdminFounderOut: {
+            /** Email */
+            email?: string | null;
+            /** Name */
+            name: string;
+            /**
+             * Source
+             * @default
+             */
+            source: string;
+            /**
+             * Title
+             * @default
+             */
+            title: string;
+        };
+        /** AdminOpeningOut */
+        AdminOpeningOut: {
+            /** Title */
+            title: string;
+            /** Url */
+            url: string;
+        };
         /** AdminOverviewOut */
         AdminOverviewOut: {
             /** By Region */
@@ -2148,6 +2226,107 @@ export interface components {
             with_contacts: number;
             /** With Openings */
             with_openings: number;
+        };
+        /** AdminRoleOut */
+        AdminRoleOut: {
+            /** Careers Url */
+            careers_url?: string | null;
+            /** Country */
+            country?: string | null;
+            /** Directory */
+            directory: string;
+            /** Region */
+            region: string;
+            /** Startup */
+            startup: string;
+            /** Startup Id */
+            startup_id: string;
+            /** Title */
+            title: string;
+            /** Url */
+            url: string;
+            /** Website */
+            website: string;
+        };
+        /** AdminRolesOut */
+        AdminRolesOut: {
+            /** Items */
+            items: components["schemas"]["AdminRoleOut"][];
+            /** Startups */
+            startups: number;
+            /** Total */
+            total: number;
+        };
+        /** AdminStartupOut */
+        AdminStartupOut: {
+            /** Batch */
+            batch?: string | null;
+            /** Careers Url */
+            careers_url?: string | null;
+            /**
+             * Contacts
+             * @default []
+             */
+            contacts: components["schemas"]["AdminContactOut"][];
+            /** Country */
+            country?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Directory */
+            directory: string;
+            /** Directory Url */
+            directory_url: string;
+            /** Domain */
+            domain: string;
+            /**
+             * Founders
+             * @default []
+             */
+            founders: components["schemas"]["AdminFounderOut"][];
+            /**
+             * Hiring
+             * @default false
+             */
+            hiring: boolean;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * One Liner
+             * @default
+             */
+            one_liner: string;
+            /**
+             * Openings
+             * @default []
+             */
+            openings: components["schemas"]["AdminOpeningOut"][];
+            /** Region */
+            region: string;
+            /** Researched At */
+            researched_at?: string | null;
+            /** Sector */
+            sector?: string | null;
+            /** Status */
+            status: string;
+            /**
+             * Summary
+             * @default
+             */
+            summary: string;
+            /** Website */
+            website: string;
+        };
+        /** AdminStartupsOut */
+        AdminStartupsOut: {
+            /** Items */
+            items: components["schemas"]["AdminStartupOut"][];
+            /** Total */
+            total: number;
         };
         /** AndroidRelease */
         AndroidRelease: {
@@ -5108,6 +5287,42 @@ export interface operations {
             };
         };
     };
+    admin_startup_list_api_admin_startups_list_get: {
+        parameters: {
+            query?: {
+                filter?: string;
+                region?: string;
+                directory?: string;
+                q?: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminStartupsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     admin_overview_api_admin_startups_overview_get: {
         parameters: {
             query?: never;
@@ -5146,6 +5361,40 @@ export interface operations {
                     "application/json": {
                         [key: string]: number;
                     };
+                };
+            };
+        };
+    };
+    admin_open_roles_api_admin_startups_roles_get: {
+        parameters: {
+            query?: {
+                region?: string;
+                q?: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminRolesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

@@ -338,6 +338,13 @@ class AdminOpeningOut(BaseModel):
     url: str  # where to apply, or the careers page when the opening has no page of its own
 
 
+class AdminFounderOut(BaseModel):
+    name: str
+    title: str = ""
+    source: str = ""  # the page of the startup's own site that names them
+    email: str | None = None  # only if the startup itself published it
+
+
 class AdminStartupOut(BaseModel):
     id: str
     name: str
@@ -357,6 +364,7 @@ class AdminStartupOut(BaseModel):
     hiring: bool = False
     careers_url: str | None = None
     openings: list[AdminOpeningOut] = []
+    founders: list[AdminFounderOut] = []
     contacts: list[AdminContactOut] = []
 
 
@@ -508,6 +516,16 @@ def _startup_out(s: Startup, contacts: list[StartupContact]) -> AdminStartupOut:
             AdminOpeningOut(title=str(o.get("title", "")), url=str(o.get("url", "")))
             for o in r.get("openings", [])
             if isinstance(o, dict) and o.get("title")
+        ],
+        founders=[
+            AdminFounderOut(
+                name=str(f["name"]),
+                title=str(f.get("title", "")),
+                source=str(f.get("source", "")),
+                email=f.get("email"),
+            )
+            for f in r.get("founders", [])
+            if isinstance(f, dict) and f.get("name")
         ],
         contacts=[
             AdminContactOut(

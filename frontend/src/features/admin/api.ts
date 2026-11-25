@@ -200,6 +200,12 @@ export interface AdminContact {
   kind: string;
   source_url: string;
 }
+export interface AdminFounder {
+  name: string;
+  title: string;
+  source: string;
+  email: string | null;
+}
 export interface AdminStartup {
   id: string;
   name: string;
@@ -219,6 +225,7 @@ export interface AdminStartup {
   hiring: boolean;
   careers_url: string | null;
   openings: AdminOpening[];
+  founders: AdminFounder[];
   contacts: AdminContact[];
 }
 export interface AdminStartupList {

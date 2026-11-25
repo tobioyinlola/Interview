@@ -828,7 +828,11 @@ def test_a_long_page_is_cut_into_pieces_at_spaces_and_only_so_many():
     assert directory._chunks("short page") == ["short page"] and directory._chunks("  ") == []
 
 
-async def test_a_long_directory_page_is_read_in_pieces_and_what_each_piece_finds_is_kept():
+async def test_a_long_directory_page_is_read_in_pieces_and_what_each_piece_finds_is_kept(
+    monkeypatch,
+):
+    monkeypatch.setattr(directory, "MAX_CHUNKS", 4)
+
     class PerPiece:
         """Each call gets the next piece and names a different company; one call fails."""
 
@@ -868,7 +872,9 @@ async def test_the_same_company_named_in_two_pieces_counts_once():
     assert len(found) == 60 and len({f.website for f in found}) == 60
 
 
-async def test_one_directory_gives_at_most_two_hundred_companies():
+async def test_one_directory_page_gives_at_most_the_total_allowed(monkeypatch):
+    monkeypatch.setattr(directory, "MAX_TOTAL", 200)
+
     class Many:
         calls = 0
 
@@ -1877,3 +1883,64 @@ async def test_a_paged_directory_is_read_a_few_pages_at_a_time(maker, monkeypatc
         assert second["next"] is None and second["more"] is False
         rows = (await db.execute(select(Startup))).scalars().all()
         assert {r.domain for r in rows} == {"a.io", "b.io", "c.io", "d.io"}
+
+
+# ------------------------------------------------------------------ founders, and long directories
+
+
+async def test_founders_are_kept_only_when_a_page_names_them_and_emails_only_when_published(maker):
+    pages = Pages(
+        {
+            "https://acme.io": ("Acme builds payments. " * 8, [], []),
+            "https://acme.io/team": (
+                "Our team: Ada Lovelace, Co-founder and CEO. Reach her at ada@acme.io. "
+                "Grace Hopper, CTO. " * 2,
+                ["ada@acme.io"],
+                [],
+            ),
+        }
+    )
+    llm = FakeLlmProvider(
+        json_reply=json.dumps(
+            {
+                "summary": "Acme builds payments.",
+                "hiring": False,
+                "roles": [],
+                "founders": [
+                    {"name": "Ada Lovelace", "title": "Co-founder and CEO"},
+                    {"name": "Grace Hopper", "title": "CTO"},
+                    {"name": "Invented Person", "title": "Co-founder"},
+                ],
+                "people": [{"name": "Ada Lovelace", "title": "CEO", "email": "ada@acme.io"}],
+            }
+        )
+    )
+    async with maker() as db:
+        s = await add_startup(db)
+        await research.research(db, pages, llm, s, NOW)
+        got = {f["name"]: f for f in s.research["founders"]}
+        assert set(got) == {"Ada Lovelace", "Grace Hopper"}  # the invented name is not on a page
+        assert got["Ada Lovelace"]["email"] == "ada@acme.io"
+        assert got["Ada Lovelace"]["source"] == "https://acme.io/team"
+        assert "email" not in got["Grace Hopper"]  # never guessed or patterned from a name
+
+
+def test_a_long_directory_page_gives_each_piece_its_own_links():
+    lines = [f"Firm{i:04d} -> https://firm{i:04d}.io" for i in range(1000)]
+    got = directory.links_for("intro Firm0007 builds things. Firm0900 too.", lines)
+    assert got == ["Firm0007 -> https://firm0007.io", "Firm0900 -> https://firm0900.io"]
+    assert len(directory.links_for("nothing named here", lines)) == directory.LINKS_PER_PIECE
+
+
+def test_path_style_pages_are_followed_too():
+    links = (
+        ("Older", "https://d.test/portfolio/page/2/"),
+        ("x", "https://d.test/portfolio/page/3/"),
+    )
+    assert (
+        directory.next_page(links, "https://d.test/portfolio") == "https://d.test/portfolio/page/2/"
+    )
+    assert (
+        directory.next_page(links, "https://d.test/portfolio/page/2/")
+        == "https://d.test/portfolio/page/3/"
+    )

@@ -205,6 +205,33 @@ function Card({ s }: { s: AdminStartup }) {
       </div>
 
       <div>
+        <h3 className="text-sm font-medium">Founders ({s.founders.length})</h3>
+        {s.founders.length === 0 ? (
+          <p className="text-sm text-muted">None named on its own site.</p>
+        ) : (
+          <ul className="mt-1 space-y-1 text-sm">
+            {s.founders.map((f) => (
+              <li key={f.name}>
+                <span className="font-medium">{f.name}</span>
+                {f.title && <span className="text-muted"> · {f.title}</span>}
+                {f.email && (
+                  <span className="break-all"> · {f.email}</span>
+                )}{" "}
+                <a
+                  href={f.source}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-accent-dark hover:underline"
+                >
+                  where it is named
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div>
         <h3 className="text-sm font-medium">
           Contacts they publish ({s.contacts.length})
         </h3>
