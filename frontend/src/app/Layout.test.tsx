@@ -47,6 +47,7 @@ describe("app shell", () => {
       "Interview",
       "History",
       "Settings",
+      "Contact support",
       "Privacy",
       "Terms",
     ]) {

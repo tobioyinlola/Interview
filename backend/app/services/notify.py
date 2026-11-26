@@ -11,7 +11,16 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.adapters.email import EmailSender
 from app.config import Settings
-from app.models import Company, Event, PracticeSession, Referral, Score, User
+from app.models import (
+    Company,
+    Event,
+    PracticeSession,
+    Referral,
+    Score,
+    SupportMessage,
+    SupportTicket,
+    User,
+)
 from app.services import email_templates as emails
 from app.services.names import first_name
 
@@ -152,3 +161,58 @@ class Notifier:
         user = await self._user(user_id)
         if user:
             await self._send(emails.credit_granted, user.email, user.full_name, count, reason)
+
+    # ---- support
+
+    def _support_recipients(self) -> list[str]:
+        raw = self.settings.support_email or self.settings.admin_emails
+        return [e.strip() for e in raw.split(",") if e.strip()][:10]
+
+    async def support_opened(self, ticket_id: uuid.UUID) -> None:
+        """Tell the support list that someone wrote in; the thread lives in the back office."""
+        try:
+            async with self.sf() as db:
+                ticket = await db.get(SupportTicket, ticket_id)
+                user = await db.get(User, ticket.user_id) if ticket else None
+                first = (
+                    await db.execute(
+                        select(SupportMessage.body)
+                        .where(SupportMessage.ticket_id == ticket_id)
+                        .order_by(SupportMessage.created_at)
+                        .limit(1)
+                    )
+                ).scalar_one_or_none()
+            if ticket is None or user is None:
+                return
+            platform = str((ticket.context or {}).get("platform") or "")
+            for to in self._support_recipients():
+                await self._send(
+                    emails.support_new,
+                    to,
+                    user.email,
+                    ticket.subject,
+                    first or "",
+                    ticket.category,
+                    platform,
+                    str(ticket.id),
+                )
+        except Exception as exc:
+            log.warning("support email failed", extra={"fields": {"error": type(exc).__name__}})
+
+    async def support_replied(self, ticket_id: uuid.UUID, reply: str) -> None:
+        """Tell the person the team answered."""
+        try:
+            async with self.sf() as db:
+                ticket = await db.get(SupportTicket, ticket_id)
+                user = await db.get(User, ticket.user_id) if ticket else None
+            if ticket and user:
+                await self._send(
+                    emails.support_reply,
+                    user.email,
+                    user.full_name,
+                    ticket.subject,
+                    reply,
+                    str(ticket.id),
+                )
+        except Exception as exc:
+            log.warning("support email failed", extra={"fields": {"error": type(exc).__name__}})

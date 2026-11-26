@@ -76,3 +76,11 @@ export type AdminJobSources = S["JobSourcesOut"];
 export type AdminJobSource = S["JobSourceRow"];
 export type AdminJobSourceList = S["JobSourceListOut"];
 export type AdminSwitch = S["SwitchOut"];
+
+export type SupportTicket = S["TicketOut"];
+export type SupportTicketDetail = S["TicketDetailOut"];
+export type SupportMessage = S["MessageOut"];
+export type SupportTicketInput = S["TicketIn"];
+export type AdminSupportList = S["AdminTicketListOut"];
+export type AdminSupportTicket = S["AdminTicketOut"];
+export type AdminSupportDetail = S["AdminTicketDetailOut"];

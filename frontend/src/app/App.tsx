@@ -50,6 +50,18 @@ function lazyPage<M extends Record<string, ComponentType<any>>>(
   return lazy(async () => ({ default: (await load())[name] }));
 }
 
+const SupportPage = lazyPage(
+  () => import("../features/support/SupportPage"),
+  "SupportPage",
+);
+const SupportThreadPage = lazyPage(
+  () => import("../features/support/SupportPage"),
+  "SupportThreadPage",
+);
+const SupportAdminPage = lazyPage(
+  () => import("../features/admin/SupportAdminPage"),
+  "SupportAdminPage",
+);
 const HelpPage = lazyPage(
   () => import("../features/help/HelpPage"),
   "HelpPage",
@@ -201,6 +213,8 @@ function AppRoutes() {
           <Route index element={<OverviewPage />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="users/:id" element={<UserPage />} />
+          <Route path="support" element={<SupportAdminPage />} />
+          <Route path="support/:id" element={<SupportAdminPage />} />
           <Route path="engagement" element={<EngagementPage />} />
           <Route path="activity" element={<ActivityPage />} />
           <Route path="referrals" element={<ReferralsAdminPage />} />
@@ -265,6 +279,8 @@ function AppRoutes() {
               />
               <Route path="/referrals" element={<ReferralPage />} />
               <Route path="/help" element={<HelpPage />} />
+              <Route path="/support" element={<SupportPage />} />
+              <Route path="/support/:id" element={<SupportThreadPage />} />
               <Route
                 path="/settings"
                 element={<Navigate to="/settings/profile" replace />}

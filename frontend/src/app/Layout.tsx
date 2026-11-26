@@ -12,6 +12,8 @@ import { LogoMark } from "../features/landing/Logo";
 import { GlobalSearch } from "../features/search/GlobalSearch";
 import { ProfileMenu } from "./ProfileMenu";
 import { UpdateBanner } from "./UpdateBanner";
+import { useUnread } from "../features/support/api";
+import { rememberPage } from "../features/support/lastPage";
 import { TourProvider } from "../features/tour/TourProvider";
 import {
   CloseIcon,
@@ -26,11 +28,18 @@ import {
   ChevronIcon,
   GiftIcon,
   HelpIcon,
+  MailIcon,
   SendIcon,
   RocketIcon,
 } from "./icons";
 
-type Item = { to: string; label: string; icon: React.ReactNode; end?: boolean };
+type Item = {
+  to: string;
+  label: string;
+  icon: React.ReactNode;
+  end?: boolean;
+  badge?: number; // a small count on the link, for something waiting for the person
+};
 
 const item = (
   to: string,
@@ -58,7 +67,7 @@ const readCollapsed = (): boolean => {
 const linkClass =
   (collapsed: boolean) =>
   ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
+    `relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
       collapsed ? "lg:justify-center lg:px-0" : ""
     } ${
       isActive
@@ -95,6 +104,18 @@ function Group({
             >
               {i.icon}
               <span className={collapsed ? "lg:sr-only" : ""}>{i.label}</span>
+              {!!i.badge && (
+                <span
+                  className={`ml-auto rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold text-surface ${
+                    collapsed
+                      ? "lg:absolute lg:right-1 lg:top-1 lg:ml-0 lg:px-1.5"
+                      : ""
+                  }`}
+                >
+                  <span className="sr-only">{i.badge} new: </span>
+                  {i.badge}
+                </span>
+              )}
             </NavLink>
           </li>
         ))}
@@ -120,6 +141,8 @@ export function Layout() {
       return !c;
     });
   useEffect(() => setOpen(false), [location.pathname]); // close the drawer after navigating
+  useEffect(() => rememberPage(location.pathname), [location.pathname]);
+  const unread = useUnread(Boolean(me));
 
   const menu = [
     item("/dashboard", "Overview", <HomeIcon />, true),
@@ -138,6 +161,10 @@ export function Layout() {
   ];
   const support = [
     item("/help", "Help", <HelpIcon />),
+    {
+      ...item("/support", "Contact support", <MailIcon />),
+      badge: unread.data?.count,
+    },
     item("/privacy", "Privacy", <ShieldIcon />),
     item("/terms", "Terms", <FileIcon />),
   ];

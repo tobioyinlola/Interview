@@ -22,10 +22,17 @@ import {
 import { LogoMark } from "../landing/Logo";
 import { CommandPalette } from "./CommandPalette";
 import { PrivateScreen } from "../../app/usePrivateScreen";
+import { useAdminSupport } from "./api";
 import { useStaff, useStaffLogout } from "./staff";
 import { Avatar, Loading } from "./ui";
 
-type Item = { to: string; label: string; icon: React.ReactNode; end?: boolean };
+type Item = {
+  to: string;
+  label: string;
+  icon: React.ReactNode;
+  end?: boolean;
+  badge?: number;
+};
 
 const GROUPS: { title: string; items: Item[] }[] = [
   {
@@ -33,6 +40,7 @@ const GROUPS: { title: string; items: Item[] }[] = [
     items: [
       { to: "/admin", label: "Overview", icon: <ChartIcon />, end: true },
       { to: "/admin/users", label: "Users", icon: <UsersIcon /> },
+      { to: "/admin/support", label: "Support", icon: <MailIcon /> },
       { to: "/admin/engagement", label: "Engagement", icon: <CompassIcon /> },
       { to: "/admin/activity", label: "Activity log", icon: <ActivityIcon /> },
     ],
@@ -130,6 +138,8 @@ export function AdminLayout() {
     [],
   );
   const clock = useClock();
+  const support = useAdminSupport("", "", Boolean(staff));
+  const waiting = support.data?.counts.open ?? 0;
 
   if (isPending)
     return (
@@ -233,6 +243,14 @@ export function AdminLayout() {
                       <span className={collapsed ? "lg:sr-only" : ""}>
                         {i.label}
                       </span>
+                      {i.to === "/admin/support" && !!waiting && (
+                        <span className="ml-auto rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold text-surface group-aria-[current=page]:bg-surface group-aria-[current=page]:text-accent-dark">
+                          <span className="sr-only">
+                            {waiting} need a reply:{" "}
+                          </span>
+                          {waiting}
+                        </span>
+                      )}
                     </NavLink>
                   </li>
                 ))}
