@@ -149,6 +149,12 @@ A listing is applied for by one of three ways, in this order:
 
 A job with no link and no email still cannot be acted on and is skipped, with the reason.
 
+A job whose own end date has passed is **Expired**, a status of its own, not Skipped (Skipped is for
+jobs that do not fit, or that you skipped). It happens when the job is matched, and also when the end
+date passes while a prepared application is waiting to go out; such a role leaves "Ready to send"
+instead of waiting forever. Applications → Expired lists them. Migration 0037 moved the ones that
+were already skipped for this reason.
+
 Why not submit every site's form: most employer sites have their own bot checks (CAPTCHA and the
 like) and different forms; the app does not work round those, and it does not submit to a site it has
 not been checked against. Adding a site is a decision made after reading its real form.

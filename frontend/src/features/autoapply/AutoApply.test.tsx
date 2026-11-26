@@ -609,6 +609,37 @@ describe("skipped roles", () => {
     expect(post?.body).toEqual({ ids: ["s1", "s2"] });
   });
 
+  it("keeps roles whose listing expired on their own tab", async () => {
+    const calls = base({
+      "GET /api/autoapply/applications": () => ({
+        json: {
+          items: [
+            app({
+              id: "e1",
+              status: "expired",
+              skip_reason: "The listing has expired.",
+            }),
+          ],
+          next_cursor: null,
+        },
+      }),
+    });
+    renderApp(<App />, "/auto-apply/applications?show=expired");
+    expect(await screen.findByRole("tab", { name: "Expired" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(
+      await screen.findByText("The listing has expired."),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Expired").length).toBeGreaterThan(1); // the tab and the status
+    const asked = calls.find(
+      (c) => c.key === "GET /api/autoapply/applications",
+    );
+    expect(asked).toBeDefined();
+    expect(screen.queryByRole("checkbox")).toBeNull(); // nothing to check again
+  });
+
   it("offers no selection on the other tabs", async () => {
     base({
       "GET /api/autoapply/applications": () => ({

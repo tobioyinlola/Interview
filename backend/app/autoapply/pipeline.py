@@ -15,6 +15,7 @@ from app import metrics
 from app.adapters.interfaces import LlmProvider
 from app.autoapply import matching, package
 from app.autoapply.adapters import FormAdapter
+from app.autoapply.postings import is_expired
 from app.models import (
     Application,
     ApplicationEvent,
@@ -201,9 +202,16 @@ async def process(
         await log(db, app, "needs_input", reason="possible duplicate")
         return app, "needs_input"
     if result.decision == "skip":
-        app.status, app.skip_reason, app.needs_input = "skipped", result.reason[:300], []
-        await log(db, app, "skipped", reason=result.reason)
-        return app, "skipped"
+        # a listing whose own end date has passed is "expired", apart from the ones that were
+        # skipped because they do not fit
+        gone = is_expired(posting, ctx.now)
+        app.status, app.skip_reason, app.needs_input = (
+            "expired" if gone else "skipped",
+            result.reason[:300],
+            [],
+        )
+        await log(db, app, "expired" if gone else "skipped", reason=result.reason)
+        return app, "skipped"  # (the daily run counts both as skipped)
     if result.decision == "review":
         app.status = "needs_input"
         app.needs_input = [

@@ -592,6 +592,27 @@ def test_a_real_mailbox_in_staging_only_reaches_allowlisted_recipients(settings)
     assert outbox.dispatch_allowed(settings, "email", True, "me@test.example") is False
 
 
+async def test_a_listing_that_expires_before_it_is_sent_becomes_expired(
+    ada, discovery_source, form, tick, maker
+):
+    from datetime import UTC, datetime
+
+    from app.models import JobPosting
+
+    discovery_source.postings = [job(1)]
+    await start(ada)
+    await run(ada)  # prepared and waiting to go out
+    async with maker() as db:
+        for p in (await db.execute(select(JobPosting))).scalars():
+            p.expires_at = datetime(2020, 1, 1, tzinfo=UTC)  # the end date passes meanwhile
+        await db.commit()
+    discovery_source.postings = []  # the next search brings nothing new; the stored listing is what counts
+    await tick()
+    a = (await apps(ada))[0]
+    assert a["status"] == "expired" and "expired" in a["skip_reason"]
+    assert form.calls == 0  # nothing reached the employer
+
+
 async def test_a_listing_cannot_change_who_an_email_goes_to(
     ada, discovery_source, mailbox, tick, maker
 ):

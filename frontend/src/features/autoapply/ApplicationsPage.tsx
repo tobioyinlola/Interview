@@ -12,6 +12,7 @@ const TABS: [string, string][] = [
   ["needs_input", "Needs your input"],
   ["apply_yourself,applied_by_you", "Apply yourself"],
   ["skipped", "Skipped"],
+  ["expired", "Expired"],
   ["failed", "Failed"],
 ];
 
@@ -20,6 +21,7 @@ const SHOW: Record<string, string> = {
   sent: "submitted,sent_email,confirmation_pending",
   ready: "queued,sending",
   skipped: "skipped",
+  expired: "expired",
   apply: "apply_yourself,applied_by_you",
 };
 
