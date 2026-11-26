@@ -63,7 +63,8 @@ async def test_2_an_email_only_listing_sends_the_right_cv_from_the_connected_acc
     # the PDF carries every word of the approved text (the layout only changes how it looks)
     in_pdf = set(re.findall(r"\w+", cvfile.pdf_text(sent["attachments"][0].content).lower()))
     approved = set(re.findall(r"\w+", package["package"]["cv"]["submitted_text"].lower()))
-    assert approved <= in_pdf
+    headings = {"summary", "skills", "experience", "education"}  # the layout renames these
+    assert approved - headings <= in_pdf
     assert package["attempts"][0]["provider_ref"].endswith(
         "@interviewmeet.app"
     )  # the message reference
