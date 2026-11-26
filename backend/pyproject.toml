@@ -19,6 +19,7 @@ dependencies = [
   "websockets>=13,<17",
   "prometheus-client>=0.20,<1",
   "pypdf>=5,<7",
+  "reportlab>=4,<6",  # the tailored CV as a PDF, in the look of the uploaded one
   "cryptography>=50.0.2,<51",
 ]
 

@@ -2245,6 +2245,11 @@
             ],
             "title": "Cv Filename"
           },
+          "cv_layout_kept": {
+            "default": false,
+            "title": "Cv Layout Kept",
+            "type": "boolean"
+          },
           "cv_uploaded_at": {
             "anyOf": [
               {
@@ -4363,6 +4368,11 @@
             ],
             "title": "Cv Filename"
           },
+          "cv_layout_kept": {
+            "default": false,
+            "title": "Cv Layout Kept",
+            "type": "boolean"
+          },
           "cv_uploaded_at": {
             "anyOf": [
               {
@@ -5360,6 +5370,52 @@
           "label"
         ],
         "title": "ReachOut",
+        "type": "object"
+      },
+      "RecheckIn": {
+        "properties": {
+          "ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ids"
+        ],
+        "title": "RecheckIn",
+        "type": "object"
+      },
+      "RecheckOut": {
+        "properties": {
+          "checked": {
+            "title": "Checked",
+            "type": "integer"
+          },
+          "left_alone": {
+            "title": "Left Alone",
+            "type": "integer"
+          },
+          "now_ready": {
+            "title": "Now Ready",
+            "type": "integer"
+          },
+          "still_skipped": {
+            "title": "Still Skipped",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "checked",
+          "now_ready",
+          "still_skipped",
+          "left_alone"
+        ],
+        "title": "RecheckOut",
         "type": "object"
       },
       "RecruitingOut": {
@@ -10932,6 +10988,48 @@
         ]
       }
     },
+    "/api/autoapply/applications/recheck": {
+      "post": {
+        "description": "Judge several skipped roles again against the search as it is now. Only skipped ones are\ntouched; anything already sent, or not yours, is left alone.",
+        "operationId": "recheck_skipped_api_autoapply_applications_recheck_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecheckIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecheckOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recheck Skipped",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
     "/api/autoapply/applications/{application_id}": {
       "get": {
         "operationId": "application_detail_api_autoapply_applications__application_id__get",
@@ -11118,6 +11216,47 @@
           }
         },
         "summary": "Approve Rule",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/applications/{application_id}/cv.pdf": {
+      "get": {
+        "description": "The CV prepared for this role as a PDF, in the look of the CV that was uploaded.",
+        "operationId": "tailored_cv_pdf_api_autoapply_applications__application_id__cv_pdf_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "application_id",
+            "required": true,
+            "schema": {
+              "title": "Application Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Tailored Cv Pdf",
         "tags": [
           "autoapply"
         ]

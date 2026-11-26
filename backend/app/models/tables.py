@@ -184,6 +184,8 @@ class Note(Base):
     content: Mapped[str] = mapped_column(Text, default="")  # the CV's text, up to 16,000 characters
     cv_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)  # name only
     cv_uploaded_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    # how the uploaded file looked (fonts, sizes, colours, headings, margins); never its words
+    cv_layout: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(_TS, default=_now, onupdate=_now)
 
 

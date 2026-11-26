@@ -136,6 +136,7 @@ async def build(
     facts_row: CandidateFacts | None,
     cv_text: str,
     saved: dict[str, CandidateAnswer],
+    cv_layout: dict[str, Any] | None = None,
     llm: LlmProvider,
     channel: str,
     match: dict[str, Any],
@@ -185,6 +186,7 @@ async def build(
             "submitted_text": cv_out,  # exactly what is sent
             "facts_version": facts_row.version,
             "tailoring": note,
+            "layout": cv_layout,  # the look of the uploaded CV, so the PDF matches it
         },
         "answers": answers,
         "cover_text": cover,

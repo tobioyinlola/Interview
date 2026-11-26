@@ -10,6 +10,7 @@ from sqlalchemy import select
 from app.autoapply import cvfile, outbox
 from app.autoapply.adapters import AdapterError
 from app.models import Application, MailboxConnection, SubmissionAttempt
+from app.services.cvlayout import read_layout
 from tests.autoapply.conftest import (
     PROFILE,
     apps,
@@ -103,6 +104,40 @@ async def test_an_email_only_listing_is_sent_from_the_connected_account_with_the
     d = (await ada.get(f"/api/autoapply/applications/{a['id']}")).json()
     att = d["attempts"][0]
     assert att["state"] == "confirmed" and att["provider_ref"].endswith("@interviewmeet.app")
+
+
+async def test_the_cv_sent_and_downloaded_is_a_pdf_in_the_look_of_the_uploaded_cv(
+    ada, discovery_source, mailbox, tick
+):
+    from tests.test_cvlayout import a_serif_cv_with_blue_headings
+
+    up = await ada.post(
+        "/api/notes/cv",
+        content=a_serif_cv_with_blue_headings(),
+        headers={"x-filename": "Ada CV.pdf", "content-type": "application/pdf"},
+    )
+    assert up.status_code == 200 and up.json()["cv_layout_kept"] is True
+    discovery_source.postings = [email_job(1)]
+    await start(ada)
+    await connect_mailbox(ada)
+    await tick()
+    a = (await apps(ada))[0]
+    sent = mailbox.sent[0]["attachments"][0].content
+    for pdf in (
+        sent,
+        (await ada.get(f"/api/autoapply/applications/{a['id']}/cv.pdf")).content,
+    ):
+        look = read_layout(pdf, "pdf")
+        assert look is not None
+        assert look["font"] == "Times-Roman" and look["heading"]["color"] == "#1f4080"
+        assert look["name"]["align"] == "center" and look["heading"]["rule"]
+    got = await ada.get(f"/api/autoapply/applications/{a['id']}/cv.pdf")
+    assert got.headers["content-type"] == "application/pdf"
+    assert "attachment" in got.headers["content-disposition"]
+    stranger = await ada.get(
+        "/api/autoapply/applications/00000000-0000-0000-0000-000000000000/cv.pdf"
+    )
+    assert stranger.status_code == 404
 
 
 async def test_email_is_only_used_when_the_listing_itself_designates_it(

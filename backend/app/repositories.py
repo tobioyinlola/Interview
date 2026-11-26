@@ -423,12 +423,15 @@ class NotesRepo:
                 note.content = content
                 note.cv_filename = None
                 note.cv_uploaded_at = None
+                note.cv_layout = None
             note.updated_at = _now()
         await self.db.commit()
         await self.db.refresh(note)
         return note
 
-    async def set_cv(self, *, text: str, filename: str) -> Note:
+    async def set_cv(
+        self, *, text: str, filename: str, layout: dict[str, Any] | None = None
+    ) -> Note:
         note = await self.get()
         if note is None:
             note = Note(user_id=self.user_id, role="", content=text)
@@ -437,6 +440,7 @@ class NotesRepo:
             note.content = text
         note.cv_filename = filename
         note.cv_uploaded_at = _now()
+        note.cv_layout = layout
         note.updated_at = _now()
         await self.db.commit()
         await self.db.refresh(note)
@@ -448,6 +452,7 @@ class NotesRepo:
             note.content = ""
             note.cv_filename = None
             note.cv_uploaded_at = None
+            note.cv_layout = None
             note.updated_at = _now()
             await self.db.commit()
             await self.db.refresh(note)

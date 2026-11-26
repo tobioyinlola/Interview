@@ -16,6 +16,7 @@ from app.adapters.interfaces import LlmProvider
 from app.autoapply import campaign as camp
 from app.autoapply import (
     clock,
+    cvfile,
     dashboard,
     discovery,
     facts,
@@ -827,6 +828,26 @@ async def skip_application(
     await pipeline.log(db, a, "skipped", reason="by you")
     await db.commit()
     return _app_out(a, p)
+
+
+@router.get("/applications/{application_id}/cv.pdf")
+async def tailored_cv_pdf(
+    application_id: str,
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> Response:
+    """The CV prepared for this role as a PDF, in the look of the CV that was uploaded."""
+    a, _ = await _owned(db, user.id, application_id)
+    cv = (a.package or {}).get("cv") or {}
+    text = cv.get("submitted_text") or ""
+    if not text.strip():
+        raise ApiError(404, "no_cv", "No CV has been prepared for this role yet.")
+    data = cvfile.render_pdf(text, cv.get("layout"))
+    return Response(
+        data,
+        media_type="application/pdf",
+        headers={"content-disposition": 'attachment; filename="Tailored CV.pdf"'},
+    )
 
 
 @router.post("/applications/recheck")

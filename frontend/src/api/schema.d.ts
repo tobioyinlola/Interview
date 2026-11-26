@@ -1094,6 +1094,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/autoapply/applications/recheck": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Recheck Skipped
+         * @description Judge several skipped roles again against the search as it is now. Only skipped ones are
+         *     touched; anything already sent, or not yours, is left alone.
+         */
+        post: operations["recheck_skipped_api_autoapply_applications_recheck_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/autoapply/applications/{application_id}": {
         parameters: {
             query?: never;
@@ -1166,6 +1187,26 @@ export interface paths {
          * @description The candidate has looked at a criterion the listing did not settle and says to go ahead.
          */
         post: operations["approve_rule_api_autoapply_applications__application_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/autoapply/applications/{application_id}/cv.pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tailored Cv Pdf
+         * @description The CV prepared for this role as a PDF, in the look of the CV that was uploaded.
+         */
+        get: operations["tailored_cv_pdf_api_autoapply_applications__application_id__cv_pdf_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3288,6 +3329,11 @@ export interface components {
             content: string;
             /** Cv Filename */
             cv_filename?: string | null;
+            /**
+             * Cv Layout Kept
+             * @default false
+             */
+            cv_layout_kept: boolean;
             /** Cv Uploaded At */
             cv_uploaded_at?: string | null;
             /** Role */
@@ -4010,6 +4056,11 @@ export interface components {
             content: string;
             /** Cv Filename */
             cv_filename?: string | null;
+            /**
+             * Cv Layout Kept
+             * @default false
+             */
+            cv_layout_kept: boolean;
             /** Cv Uploaded At */
             cv_uploaded_at?: string | null;
             /** Role */
@@ -4289,6 +4340,22 @@ export interface components {
             companies: number;
             /** Label */
             label: string;
+        };
+        /** RecheckIn */
+        RecheckIn: {
+            /** Ids */
+            ids: string[];
+        };
+        /** RecheckOut */
+        RecheckOut: {
+            /** Checked */
+            checked: number;
+            /** Left Alone */
+            left_alone: number;
+            /** Now Ready */
+            now_ready: number;
+            /** Still Skipped */
+            still_skipped: number;
         };
         /** RecruitingOut */
         RecruitingOut: {
@@ -7062,6 +7129,39 @@ export interface operations {
             };
         };
     };
+    recheck_skipped_api_autoapply_applications_recheck_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecheckIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecheckOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     application_detail_api_autoapply_applications__application_id__get: {
         parameters: {
             query?: never;
@@ -7181,6 +7281,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApplicationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    tailored_cv_pdf_api_autoapply_applications__application_id__cv_pdf_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

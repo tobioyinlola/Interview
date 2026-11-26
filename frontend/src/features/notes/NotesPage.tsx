@@ -53,6 +53,7 @@ export function CvPanel() {
 
   const hasText = data.content.trim().length > 0;
   const fromFile = Boolean(data.cv_filename);
+  const layoutKept = data.cv_layout_kept === true;
   const busy = upload.isPending || remove.isPending;
   const error = problem ?? (upload.error ?? remove.error)?.message ?? null;
 
@@ -192,6 +193,13 @@ export function CvPanel() {
           {!fromFile && (
             <p className="text-sm text-muted">
               These are notes you typed earlier. Upload your CV to replace them.
+            </p>
+          )}
+          {fromFile && (
+            <p className="text-sm text-muted">
+              {layoutKept
+                ? "The CV we make for each role is a PDF in the same look as this one."
+                : "Upload this CV again and the CV we make for each role will be a PDF in the same look as it."}
             </p>
           )}
 
