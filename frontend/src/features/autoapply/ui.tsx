@@ -101,27 +101,3 @@ export function DemoNotice() {
     </p>
   );
 }
-
-/** The places jobs are looked for, as quiet chips. */
-export function SourceChips({ sources }: { sources: string[] }) {
-  if (!sources.length) return null;
-  return (
-    <section aria-label="Where we look for jobs" className="card">
-      <h2 className="font-semibold">Where we look for jobs</h2>
-      <p className="mt-1 text-sm text-muted">
-        Every day we search all of these together and drop any job we have
-        already found.
-      </p>
-      <ul className="mt-3 flex flex-wrap gap-2">
-        {sources.map((s) => (
-          <li
-            key={s}
-            className="rounded-full bg-accent-soft px-3 py-1 text-sm font-medium text-accent"
-          >
-            {s}
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}

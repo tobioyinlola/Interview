@@ -1,5 +1,11 @@
 import { type FormEvent, useState } from "react";
-import { NavLink, Navigate, useNavigate, useParams } from "react-router-dom";
+import {
+  Link,
+  NavLink,
+  Navigate,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
 
 import {
   useAnalyticsPreference,
@@ -104,6 +110,7 @@ const TABS = [
   { id: "password", label: "Password" },
   { id: "cv", label: "CV" },
   { id: "email", label: "Email" },
+  { id: "auto-apply", label: "Auto-Apply" },
   { id: "privacy", label: "Privacy and data" },
 ] as const;
 
@@ -477,6 +484,23 @@ function UsageStatistics() {
   );
 }
 
+function AutoApplyTab() {
+  return (
+    <section aria-labelledby="aa-prefs" className="card space-y-3">
+      <h2 id="aa-prefs" className="text-lg font-semibold">
+        Search preferences
+      </h2>
+      <p className="text-sm text-muted">
+        The roles, places, industries, pay and other choices Auto-Apply uses
+        when it looks for jobs for you.
+      </p>
+      <Link to="/auto-apply/setup" className="btn-secondary">
+        Edit your search preferences
+      </Link>
+    </section>
+  );
+}
+
 function PrivacyTab() {
   return (
     <>
@@ -533,6 +557,7 @@ export function SettingsPage() {
             {tab === "password" && <PasswordTab />}
             {tab === "cv" && <CvPanel />}
             {tab === "email" && <EmailTab />}
+            {tab === "auto-apply" && <AutoApplyTab />}
           </PrivateScreen>
         )}
         {tab === "privacy" && <PrivacyTab />}

@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 
-import { useDashboard, useMailbox } from "../api";
-import { SourceChips } from "../ui";
+import { useMailbox } from "../api";
 import { OptionTile } from "./controls";
 import type { Draft } from "./draft";
 
@@ -14,7 +13,6 @@ export function StepApply({
   set: (p: Partial<Draft>) => void;
 }) {
   const box = useMailbox();
-  const dash = useDashboard();
   const connected = !!box.data?.connected;
   const flip = (k: keyof Draft["channels"]) =>
     set({ channels: { ...d.channels, [k]: !d.channels[k] } });
@@ -25,7 +23,6 @@ export function StepApply({
         Choose each way separately. You can change this at any time, and one tap
         pauses everything.
       </p>
-      <SourceChips sources={dash.data?.sources ?? []} />
       <OptionTile
         selected={d.channels.form}
         onClick={() => flip("form")}
