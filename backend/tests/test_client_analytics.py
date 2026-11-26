@@ -14,6 +14,19 @@ DEVICE = "0f8fad5b-d9cb-469f-a165-70867728950e"
 SESSION = "7c9e6679-7425-40de-944b-e07fc1f90ae7"
 
 
+@pytest.fixture(autouse=True)
+async def fresh_global_engine(monkeypatch, engine):  # type: ignore[no-untyped-def]
+    """The rate-limit test builds the real app, which shares one module-level database engine. Give
+    each test its own (the event loop changes per test), as test_hardening does."""
+    from app import db as dbmod
+
+    monkeypatch.setattr(dbmod, "_engine", None)
+    monkeypatch.setattr(dbmod, "_sessionmaker", None)
+    yield
+    if dbmod._engine is not None:
+        await dbmod._engine.dispose()
+
+
 def batch(*events, **over):  # type: ignore[no-untyped-def]
     return {
         "device_id": DEVICE, "session_id": SESSION, "platform": "ios", "form_factor": "phone",

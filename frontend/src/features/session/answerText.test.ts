@@ -44,3 +44,23 @@ describe("answerOf", () => {
     );
   });
 });
+
+describe("short speaking notes", () => {
+  const notes =
+    "TYPE: behavioral\nANSWER:\nI led a launch that cut onboarding time by 30%.\n• Owned the plan and the weekly risk review\n• Onboarding time fell by 30%\nSOURCES:\n- Led the launch [note: Launch]";
+  it("shows the line and its points, and nothing of the sources", () => {
+    expect(answerOf(notes)).toBe(
+      "I led a launch that cut onboarding time by 30%.\n• Owned the plan and the weekly risk review\n• Onboarding time fell by 30%",
+    );
+  });
+  it("never shows a half-typed SOURCES while it streams", () => {
+    expect(answerOf(notes.slice(0, notes.indexOf("SOURCES:") + 4), true)).toBe(
+      "I led a launch that cut onboarding time by 30%.\n• Owned the plan and the weekly risk review\n• Onboarding time fell by 30%",
+    );
+  });
+  it("keeps several numbered answers", () => {
+    const two =
+      "TYPE: other\nANSWER:\n1. First answer.\n• a point\n2. Second answer.\n• another\nSOURCES:\n- x";
+    expect(answerOf(two)).toContain("2. Second answer.");
+  });
+});

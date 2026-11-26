@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 
+import { isDesktopApp } from "../../app/desktop";
+import { isMobileApp } from "../../app/native";
+
+/** The name the desktop shell recognises as the answer panel's own window (desktop/src/policy.js). */
+const FLOAT_FRAME = "im-float";
+const WIDTH = 420;
+const HEIGHT = 560;
+
 /** Document Picture-in-Picture: a small always-on-top window that can hold real DOM (Chromium). */
 interface DocumentPip {
   requestWindow: (o?: { width?: number; height?: number }) => Promise<Window>;
@@ -40,28 +48,55 @@ export function copyStyles(
   }
 }
 
-/** Opens the answer panel in a small always-on-top window, so it stays visible over Meet and the
- *  capture tab is not hidden (Chrome slows hidden tabs). It returns to the page when closed. */
+/** Opens the answer panel in a small window that stays on top, so it is visible over Meet and the
+ *  capture tab is not hidden (Chrome slows hidden tabs). It returns to the page when closed.
+ *
+ *  In the browser this is Chrome's Document Picture-in-Picture. The desktop app has that API but it
+ *  cannot open the window there ("Internal error: no window"), so the app opens a small window of its
+ *  own instead (the desktop shell makes it stay on top). The phone apps have no floating window. */
 export function useFloatingPanel() {
   const [win, setWin] = useState<Window | null>(null);
-  const supported =
+  const [problem, setProblem] = useState<string | null>(null);
+  const desktop = isDesktopApp();
+  const pip =
     typeof window !== "undefined" && !!window.documentPictureInPicture;
+  const supported = desktop || (pip && !isMobileApp());
 
   const open = useCallback(async () => {
-    if (!window.documentPictureInPicture || win) return;
+    if (win) return;
+    setProblem(null);
     try {
-      const w = await window.documentPictureInPicture.requestWindow({
-        width: 420,
-        height: 560,
-      });
+      let w: Window | null;
+      if (desktop) {
+        w = window.open(
+          "",
+          FLOAT_FRAME,
+          `popup=yes,width=${WIDTH},height=${HEIGHT}`,
+        );
+        if (!w) throw new Error("blocked");
+        // the page going away takes its panel with it
+        window.addEventListener("pagehide", () => w?.close(), { once: true });
+      } else if (window.documentPictureInPicture) {
+        w = await window.documentPictureInPicture.requestWindow({
+          width: WIDTH,
+          height: HEIGHT,
+        });
+      } else {
+        return;
+      }
       copyStyles(document, w.document);
       w.document.title = "Question and answer";
       w.addEventListener("pagehide", () => setWin(null)); // closed by the user: panel returns
       setWin(w);
-    } catch {
-      /* the browser refused (no user gesture, or the user dismissed it): stay in the page */
+    } catch (e) {
+      // Dismissing the browser's own prompt is a choice, not a problem; anything else is said, so a
+      // button never just does nothing.
+      if (e instanceof DOMException && e.name === "NotAllowedError") return;
+      setProblem(
+        "The floating window could not open. The answer panel stays here on the page.",
+      );
     }
-  }, [win]);
+  }, [win, desktop]);
 
   const close = useCallback(() => {
     win?.close();
@@ -70,5 +105,5 @@ export function useFloatingPanel() {
 
   useEffect(() => () => win?.close(), [win]);
 
-  return { supported, win, open, close };
+  return { supported, win, open, close, problem };
 }

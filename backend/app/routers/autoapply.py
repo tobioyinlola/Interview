@@ -827,6 +827,23 @@ async def skip_application(
     return _app_out(a, p)
 
 
+@router.post("/applications/{application_id}/applied")
+async def applied_by_you(
+    application_id: str,
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> ApplicationOut:
+    """The candidate submitted a prepared application themselves, on the employer's own site. It is
+    kept apart from what Auto-Apply sent: the numbers say which was which."""
+    a, p = await _owned(db, user.id, application_id)
+    if a.status != "apply_yourself":
+        raise ApiError(409, "not_waiting", "That is not waiting for you to apply.")
+    a.status = "applied_by_you"
+    await pipeline.log(db, a, "applied_by_you", url=p.application_url)
+    await db.commit()
+    return _app_out(a, p)
+
+
 @router.post("/applications/{application_id}/retry")
 async def retry_application(
     application_id: str,

@@ -4,7 +4,10 @@ import userEvent from "@testing-library/user-event";
 import { App } from "../../app/App";
 import { ME, mockApi, renderApp, stubSupportedBrowser } from "../../test-utils";
 import {
+  ARRANGEMENTS,
   FOCUS,
+  HELPS,
+  SEARCHES,
   GOALS,
   LEVELS,
   MAX_FOCUS,
@@ -54,6 +57,9 @@ function api(
           level: body.level ?? null,
           timeline: body.timeline ?? null,
           focus: body.focus ?? [],
+          help: body.help ?? [],
+          search: body.search ?? null,
+          arrangement: body.arrangement ?? [],
         },
       };
       return { json: current };
@@ -65,10 +71,17 @@ function api(
 
 const pick = (name: string | RegExp) =>
   userEvent.click(screen.getByRole("radio", { name }));
+/** From the last interview question to the help question, choosing only mock interviews. */
+const practise = async () => {
+  await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+  await userEvent.click(
+    screen.getByRole("checkbox", { name: /Practise interviews/ }),
+  );
+};
 const next = () =>
   userEvent.click(screen.getByRole("button", { name: "Continue" }));
 
-async function walk(until: 1 | 2 | 3 | 4 = 4) {
+async function walk(until: 1 | 2 | 3 | 4 | 5 = 5) {
   await screen.findByRole("heading", { name: STEPS[0].title });
   await pick(/A new job/);
   await next();
@@ -88,6 +101,12 @@ async function walk(until: 1 | 2 | 3 | 4 = 4) {
   );
   await userEvent.click(
     screen.getByRole("checkbox", { name: /Backing claims with results/ }),
+  );
+  if (until === 4) return;
+  await next();
+  // the help question: practising interviews only, so the job-search questions are not asked
+  await userEvent.click(
+    screen.getByRole("checkbox", { name: /Practise interviews/ }),
   );
 }
 
@@ -168,14 +187,14 @@ describe("the four steps", () => {
   it("shows where you are: step number, a progress bar, and the same on every step", async () => {
     api();
     renderApp(<App />, "/onboarding");
-    await screen.findByText("Step 1 of 4");
+    await screen.findByText("Step 1 of 5");
     const bar = screen.getByRole("progressbar", {
       name: "Onboarding progress",
     });
     expect(bar).toHaveAttribute("aria-valuenow", "1");
     await pick(/A new job/);
     await next();
-    expect(await screen.findByText("Step 2 of 4")).toBeInTheDocument();
+    expect(await screen.findByText("Step 2 of 5")).toBeInTheDocument();
     expect(screen.getByRole("progressbar")).toHaveAttribute(
       "aria-valuenow",
       "2",
@@ -237,9 +256,9 @@ describe("the four steps", () => {
     expect(boxes.map((b) => b.getAttribute("value"))).toEqual(
       Object.keys(FOCUS),
     );
-    expect(screen.getByRole("button", { name: "Finish" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
     await userEvent.click(boxes[0]);
-    expect(screen.getByRole("button", { name: "Finish" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
   });
 
   it("allows at most three focus areas and says how many are chosen", async () => {
@@ -318,6 +337,7 @@ describe("the person's name", () => {
     await pick(/In the next few weeks/);
     await next();
     await userEvent.click(screen.getAllByRole("checkbox")[0]);
+    await practise();
     await userEvent.click(screen.getByRole("button", { name: "Finish" }));
     expect(
       await screen.findByRole("heading", { name: /You're all set, Ada/ }),
@@ -332,7 +352,7 @@ describe("the person's name", () => {
   it("is not sent when it was already known", async () => {
     const calls = api();
     renderApp(<App />, "/onboarding");
-    await walk(4);
+    await walk();
     await userEvent.click(screen.getByRole("button", { name: "Finish" }));
     await screen.findByRole("heading", { name: /You're all set/ });
     expect(
@@ -345,7 +365,7 @@ describe("finishing", () => {
   it("saves all four answers and the role, then shows a personal plan", async () => {
     const calls = api();
     renderApp(<App />, "/onboarding");
-    await walk(4);
+    await walk();
     await userEvent.click(screen.getByRole("button", { name: "Finish" }));
     expect(
       await screen.findByRole("heading", { name: /You're all set, Jordan/ }),
@@ -353,6 +373,8 @@ describe("finishing", () => {
     const put = calls.find((c) => c.key === "PUT /api/onboarding")!;
     expect(put.body).toEqual({
       ...ANSWERS,
+      help: ["interviews"], // the job-search questions were not asked, so none are sent
+      arrangement: [],
       role: "Senior Product Manager",
       skipped: false,
     });
@@ -366,7 +388,7 @@ describe("finishing", () => {
   it("points to the three next steps and the dashboard", async () => {
     api();
     renderApp(<App />, "/onboarding");
-    await walk(4);
+    await walk();
     await userEvent.click(screen.getByRole("button", { name: "Finish" }));
     await screen.findByRole("heading", { name: /You're all set/ });
     const hrefs = (n: string) =>
@@ -394,6 +416,7 @@ describe("finishing", () => {
       );
       await next();
       await userEvent.click(screen.getAllByRole("checkbox")[0]);
+      await practise();
       await userEvent.click(screen.getByRole("button", { name: "Finish" }));
       expect(await screen.findByText(text)).toBeInTheDocument();
     },
@@ -410,6 +433,7 @@ describe("finishing", () => {
     await pick(/In the next few weeks/);
     await next();
     await userEvent.click(screen.getAllByRole("checkbox")[0]);
+    await practise();
     await userEvent.click(screen.getByRole("button", { name: "Finish" }));
     await screen.findByRole("heading", { name: /You're all set/ });
     expect(
@@ -431,11 +455,11 @@ describe("finishing", () => {
       }),
     });
     renderApp(<App />, "/onboarding");
-    await walk(4);
+    await walk();
     await userEvent.click(screen.getByRole("button", { name: "Finish" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/went wrong/i);
     expect(
-      screen.getByRole("heading", { name: STEPS[3].title }),
+      screen.getByRole("heading", { name: STEPS[4].title }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Finish" })).toBeEnabled();
   });
@@ -472,7 +496,7 @@ describe("skipping", () => {
   it("is not offered on the final screen", async () => {
     api();
     renderApp(<App />, "/onboarding");
-    await walk(4);
+    await walk();
     await userEvent.click(screen.getByRole("button", { name: "Finish" }));
     await screen.findByRole("heading", { name: /You're all set/ });
     expect(screen.queryByRole("button", { name: "Skip for now" })).toBeNull();
@@ -480,8 +504,8 @@ describe("skipping", () => {
 });
 
 describe("the questions and answers", () => {
-  it("are four steps, each with a title and a reason for asking", () => {
-    expect(STEPS).toHaveLength(4);
+  it("are seven steps, each with a title and a reason for asking", () => {
+    expect(STEPS).toHaveLength(7);
     for (const s of STEPS) {
       expect(s.title.endsWith("?") || s.title.length > 10).toBe(true);
       expect(s.why.length).toBeGreaterThan(10);
@@ -489,7 +513,15 @@ describe("the questions and answers", () => {
   });
 
   it("give every answer an emoji, a label and a hint, with no repeats", () => {
-    for (const table of [GOALS, LEVELS, TIMELINES, FOCUS]) {
+    for (const table of [
+      GOALS,
+      LEVELS,
+      TIMELINES,
+      FOCUS,
+      HELPS,
+      SEARCHES,
+      ARRANGEMENTS,
+    ]) {
       const rows = entries(table as never) as {
         value: string;
         emoji: string;
@@ -521,5 +553,122 @@ describe("the questions and answers", () => {
         .closest("label")!
         .querySelector("[aria-hidden=true]"),
     ).not.toBeNull();
+  });
+});
+
+describe("the job-search side", () => {
+  /** On the help question, having walked the four interview questions. */
+  async function toHelp() {
+    await walk(4);
+    await next();
+    await screen.findByRole("heading", { name: STEPS[4].title });
+  }
+
+  it("asks what else they want help with, and ends there for someone who only practises", async () => {
+    api();
+    renderApp(<App />, "/onboarding");
+    await toHelp();
+    expect(screen.getByText("Step 5 of 5")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Finish" })).toBeDisabled(); // one is needed
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: /Practise interviews/ }),
+    );
+    expect(screen.getByRole("button", { name: "Finish" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Continue" })).toBeNull();
+  });
+
+  it("adds two questions, how soon and how they want to work, when they want Auto-Apply", async () => {
+    const calls = api();
+    renderApp(<App />, "/onboarding");
+    await toHelp();
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: /Find and apply to jobs for me/ }),
+    );
+    expect(screen.getByText("Step 5 of 7")).toBeInTheDocument(); // the others are now counted
+    expect(screen.queryByRole("button", { name: "Finish" })).toBeNull();
+    await next();
+    await screen.findByRole("heading", { name: STEPS[5].title });
+    expect(screen.getByText("Step 6 of 7")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
+    await pick(/Right now/);
+    await next();
+    await screen.findByRole("heading", { name: STEPS[6].title });
+    expect(screen.getByRole("button", { name: "Finish" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("checkbox", { name: /Remote/ }));
+    await userEvent.click(screen.getByRole("checkbox", { name: /Hybrid/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Finish" }));
+    await screen.findByRole("heading", { name: /You're all set/ });
+    expect(
+      calls.find((c) => c.key === "PUT /api/onboarding")!.body,
+    ).toMatchObject({
+      help: ["auto_apply"],
+      search: "now",
+      arrangement: ["remote", "hybrid"],
+      skipped: false,
+    });
+    // the next steps follow what they asked for: Auto-Apply first, no mock-interview plan
+    const links = screen
+      .getAllByRole("link")
+      .map((l) => l.getAttribute("href"));
+    expect(links).toContain("/auto-apply/setup");
+    expect(links).not.toContain("/session/new");
+    expect(screen.queryByText(/We'll keep in view/)).toBeNull();
+  });
+
+  it("sends startup outreach and interviews together, and points to each", async () => {
+    const calls = api();
+    renderApp(<App />, "/onboarding");
+    await toHelp();
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: /Reach out to startups/ }),
+    );
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: /Practise interviews/ }),
+    );
+    await next();
+    await pick(/Later, just exploring/);
+    await next();
+    await userEvent.click(screen.getByRole("checkbox", { name: /On-site/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Finish" }));
+    await screen.findByRole("heading", { name: /You're all set/ });
+    expect(
+      calls.find((c) => c.key === "PUT /api/onboarding")!.body,
+    ).toMatchObject({
+      help: ["startups", "interviews"],
+      search: "later",
+      arrangement: ["onsite"],
+    });
+    const links = screen
+      .getAllByRole("link")
+      .map((l) => l.getAttribute("href"));
+    expect(links).toEqual(
+      expect.arrayContaining(["/startups", "/session/new", "/companies"]),
+    );
+  });
+
+  it("does not send a job-search answer to someone who did not ask for that help", async () => {
+    const calls = api();
+    renderApp(<App />, "/onboarding");
+    await toHelp();
+    // choose job help, answer, then change their mind
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: /Find and apply to jobs for me/ }),
+    );
+    await next();
+    await pick(/Right now/);
+    await userEvent.click(screen.getByRole("button", { name: "Back" }));
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: /Find and apply to jobs for me/ }),
+    );
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: /Practise interviews/ }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Finish" }));
+    await screen.findByRole("heading", { name: /You're all set/ });
+    const body = calls.find((c) => c.key === "PUT /api/onboarding")!
+      .body as Record<string, unknown>;
+    expect(body.help).toEqual(["interviews"]);
+    expect(body.search).toBeUndefined();
+    expect(body.arrangement).toEqual([]);
   });
 });

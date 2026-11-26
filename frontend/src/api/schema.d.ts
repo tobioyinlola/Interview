@@ -1131,6 +1131,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/autoapply/applications/{application_id}/applied": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Applied By You
+         * @description The candidate submitted a prepared application themselves, on the employer's own site. It is
+         *     kept apart from what Auto-Apply sent: the numbers say which was which.
+         */
+        post: operations["applied_by_you_api_autoapply_applications__application_id__applied_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/autoapply/applications/{application_id}/approve": {
         parameters: {
             query?: never;
@@ -1906,6 +1927,27 @@ export interface paths {
          * @description Ask to be let in. Asking again changes nothing.
          */
         post: operations["request_access_api_hunt_access_request_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hunt/delivery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Delivery
+         * @description Why approved notes are waiting, in words, so a note is never held back in silence. Uses the
+         *     same mailbox adapter and gates the sender does.
+         */
+        get: operations["delivery_api_hunt_delivery_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2979,6 +3021,18 @@ export interface components {
             /** Trial Available */
             trial_available: boolean;
         };
+        /** BlockerOut */
+        BlockerOut: {
+            /** Code */
+            code: string;
+            /** Text */
+            text: string;
+            /**
+             * Where
+             * @default
+             */
+            where: string;
+        };
         /** BriefContent */
         BriefContent: {
             /** Assumed Company */
@@ -3290,6 +3344,13 @@ export interface components {
             /** State */
             state: string;
             usage: components["schemas"]["UsageOut"] | null;
+        };
+        /** DeliveryOut */
+        DeliveryOut: {
+            /** Approved */
+            approved: number;
+            /** Blockers */
+            blockers: components["schemas"]["BlockerOut"][];
         };
         /** DesktopRelease */
         DesktopRelease: {
@@ -3958,31 +4019,44 @@ export interface components {
         };
         /** OnboardingAnswers */
         OnboardingAnswers: {
+            /** Arrangement */
+            arrangement?: ("remote" | "hybrid" | "onsite")[];
             /** Focus */
             focus?: ("structure" | "results" | "confidence" | "technical" | "company" | "curveballs")[];
             /** Goal */
             goal?: ("new_job" | "promotion" | "career_change" | "practice") | null;
+            /** Help */
+            help?: ("interviews" | "auto_apply" | "startups")[];
             /** Level */
             level?: ("entry" | "mid" | "senior" | "lead") | null;
+            /** Search */
+            search?: ("now" | "soon" | "later") | null;
             /** Timeline */
             timeline?: ("this_week" | "few_weeks" | "few_months" | "not_scheduled") | null;
         };
         /**
          * OnboardingIn
-         * @description Finish onboarding with all four answers, or skip it. `role` is the CV page's target role;
+         * @description Finish onboarding with the four interview answers (and, if they want job-search help, the
+         *     others), or skip it. `role` is the CV page's target role;
          *     `full_name` is only asked for when the account has none.
          */
         OnboardingIn: {
+            /** Arrangement */
+            arrangement?: ("remote" | "hybrid" | "onsite")[];
             /** Focus */
             focus?: ("structure" | "results" | "confidence" | "technical" | "company" | "curveballs")[];
             /** Full Name */
             full_name?: string | null;
             /** Goal */
             goal?: ("new_job" | "promotion" | "career_change" | "practice") | null;
+            /** Help */
+            help?: ("interviews" | "auto_apply" | "startups")[];
             /** Level */
             level?: ("entry" | "mid" | "senior" | "lead") | null;
             /** Role */
             role?: string | null;
+            /** Search */
+            search?: ("now" | "soon" | "later") | null;
             /**
              * Skipped
              * @default false
@@ -7054,6 +7128,37 @@ export interface operations {
             };
         };
     };
+    applied_by_you_api_autoapply_applications__application_id__applied_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     approve_rule_api_autoapply_applications__application_id__approve_post: {
         parameters: {
             query?: never;
@@ -8294,6 +8399,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AccessOut"];
+                };
+            };
+        };
+    };
+    delivery_api_hunt_delivery_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryOut"];
                 };
             };
         };

@@ -19,10 +19,8 @@ import {
   streamOutline,
 } from "../../audio/suggestStream";
 import { looksLikeQuestion } from "./looksLikeQuestion";
+import { settleDelay, timing } from "./timing";
 import { assembleTurn, useLiveStore } from "./store";
-
-/** How long the interviewer must be quiet before a question that does not end in "?" is answered. */
-const SETTLE_MS = 1200;
 
 type Store = typeof useLiveStore;
 
@@ -210,7 +208,7 @@ export class LiveSessionController {
         speaker: "partner",
         text: res.text,
       });
-      this.askAboutTurn();
+      this.scheduleAsk(res.text);
     } catch (e) {
       if (this.ended) return;
       if (e instanceof ApiError && e.code === "daily_cap") {
@@ -353,19 +351,46 @@ export class LiveSessionController {
     this.scheduleAsk(f.text);
   }
 
-  /** A question is answered once the interviewer has finished: at once when it ends in a question
-   *  mark, otherwise after a short pause with no more speech, so a question asked in pieces is
-   *  answered once, as a whole, and not locked in half-heard. */
+  /** The turn is answered once the interviewer has finished it, as a whole: after a pause that fits
+   *  what was said (longer when it stopped mid-sentence or more questions were announced), and never
+   *  while they can still be heard. More speech in the meantime starts the wait over. */
   private scheduleAsk(lastText: string): void {
     this.clearSettle();
-    if (/\?\s*$/.test(lastText)) {
+    const from = this.isLocked()
+      ? (this.state.lockedAt ?? 0)
+      : this.state.turnStart;
+    const turn = assembleTurn(this.state.lines.slice(from)).text;
+    const wait = settleDelay(turn, lastText);
+    if (wait <= 0 && this.heardRecently() === 0) {
       this.askAboutTurn();
       return;
     }
+    this.armSettle(Math.max(0, wait), 0);
+  }
+
+  /** Ask about the turn now, unless the interviewer can still be heard: then as soon as they stop. */
+  private askWhenQuiet(): void {
+    const more = this.heardRecently();
+    if (more === 0) this.askAboutTurn();
+    else this.armSettle(more + 50, more + 50);
+  }
+
+  /** How much longer the interviewer was last heard than the guard allows (0 = clear to answer). */
+  private heardRecently(): number {
+    const quiet = this.detector.quietForMs(this.now());
+    return quiet >= timing.quietGuardMs ? 0 : timing.quietGuardMs - quiet;
+  }
+
+  private armSettle(ms: number, extra: number): void {
     this.settleTimer = setTimeout(() => {
       this.settleTimer = null;
+      const more = this.heardRecently();
+      if (more > 0 && extra < timing.guardCapMs) {
+        this.armSettle(more + 50, extra + more + 50); // still talking: their words are on the way
+        return;
+      }
       this.askAboutTurn();
-    }, SETTLE_MS);
+    }, ms);
   }
 
   private clearSettle(): void {
@@ -399,7 +424,7 @@ export class LiveSessionController {
     const from = this.state.lockedAt ?? this.state.lines.length;
     this.state.setOutline(null);
     this.state.set({ lockedAt: null, turnStart: from });
-    if (assembleTurn(this.state.lines.slice(from)).text) this.askAboutTurn();
+    if (assembleTurn(this.state.lines.slice(from)).text) this.askWhenQuiet();
   }
 
   /** The user typed a question (to try the app alone, or when transcription is unavailable). */

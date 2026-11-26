@@ -9,6 +9,7 @@ import {
   useSaveProfile,
 } from "../../api/hooks";
 import { CvPanel } from "../notes/NotesPage";
+import { EmailTab } from "./EmailTab";
 import { COUNTRIES } from "../../data/countries";
 import { PasswordField } from "../../ui/PasswordField";
 import { CountrySelect, RoleInput } from "../../ui/Pickers";
@@ -102,6 +103,7 @@ const TABS = [
   { id: "profile", label: "Profile" },
   { id: "password", label: "Password" },
   { id: "cv", label: "CV" },
+  { id: "email", label: "Email" },
   { id: "privacy", label: "Privacy and data" },
 ] as const;
 
@@ -530,6 +532,7 @@ export function SettingsPage() {
             {tab === "profile" && <ProfileTab />}
             {tab === "password" && <PasswordTab />}
             {tab === "cv" && <CvPanel />}
+            {tab === "email" && <EmailTab />}
           </PrivateScreen>
         )}
         {tab === "privacy" && <PrivacyTab />}

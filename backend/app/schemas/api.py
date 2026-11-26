@@ -75,6 +75,10 @@ Goal = Literal["new_job", "promotion", "career_change", "practice"]
 Level = Literal["entry", "mid", "senior", "lead"]
 Timeline = Literal["this_week", "few_weeks", "few_months", "not_scheduled"]
 Focus = Literal["structure", "results", "confidence", "technical", "company", "curveballs"]
+# the job-search side: what else they want help with, how soon, and how they want to work
+Help = Literal["interviews", "auto_apply", "startups"]
+Search = Literal["now", "soon", "later"]
+Arrangement = Literal["remote", "hybrid", "onsite"]
 
 
 class OnboardingAnswers(BaseModel):
@@ -82,10 +86,14 @@ class OnboardingAnswers(BaseModel):
     level: Level | None = None
     timeline: Timeline | None = None
     focus: list[Focus] = Field(default_factory=list, max_length=3)
+    help: list[Help] = Field(default_factory=list, max_length=3)
+    search: Search | None = None
+    arrangement: list[Arrangement] = Field(default_factory=list, max_length=3)
 
 
 class OnboardingIn(OnboardingAnswers):
-    """Finish onboarding with all four answers, or skip it. `role` is the CV page's target role;
+    """Finish onboarding with the four interview answers (and, if they want job-search help, the
+    others), or skip it. `role` is the CV page's target role;
     `full_name` is only asked for when the account has none."""
 
     skipped: bool = False

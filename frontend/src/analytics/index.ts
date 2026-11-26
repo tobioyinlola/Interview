@@ -18,6 +18,7 @@ export type Feature =
   | "answer_rate"
   | "autoapply_enable"
   | "autoapply_pause"
+  | "autoapply_applied_by_you"
   | "outreach_request"
   | "referral_copy"
   | "app_update"

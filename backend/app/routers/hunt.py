@@ -283,6 +283,36 @@ async def _target_out(db: AsyncSession, t: HuntTarget) -> TargetOut:
     )
 
 
+class BlockerOut(BaseModel):
+    code: str
+    text: str
+    where: str = ""  # setup | email: the page that fixes it
+
+
+class DeliveryOut(BaseModel):
+    approved: int  # notes you approved that have not gone out yet
+    blockers: list[BlockerOut]  # why none is going out now; empty when the next pass sends
+
+
+@router.get("/delivery")
+async def delivery(
+    user: User = Depends(active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    settings: Settings = Depends(get_settings),  # noqa: B008
+    now: datetime = Depends(get_now),  # noqa: B008
+) -> DeliveryOut:
+    """Why approved notes are waiting, in words, so a note is never held back in silence. Uses the
+    same mailbox adapter and gates the sender does."""
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.autoapply import mailboxes
+
+    assert db.bind is not None
+    maker = async_sessionmaker(db.bind, expire_on_commit=False)
+    res = await engine.delivery_blockers(maker, user.id, mailboxes.build(settings), settings, now)
+    return DeliveryOut(**res)
+
+
 @router.get("/targets")
 async def targets(
     status: str | None = Query(None, max_length=10),

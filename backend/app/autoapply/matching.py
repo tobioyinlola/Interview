@@ -348,9 +348,12 @@ def evaluate(
     routes: set[str],
     channels: dict[str, bool],
     overrides: set[str] | None = None,
+    manual: bool = False,
 ) -> Match:
     """Judge every criterion. `routes` is how this posting can be applied to (form, email);
-    `overrides` are rules the candidate has looked at and approved by hand."""
+    `overrides` are rules the candidate has looked at and approved by hand. `manual` says the
+    listing has an application link we cannot fill in: the job is kept, and prepared for the
+    candidate to submit on the employer's own site."""
     overrides = overrides or set()
     rules: list[Rule] = []
 
@@ -404,6 +407,21 @@ def evaluate(
             "A way to apply",
             PASS,
             "can apply by " + " or ".join(how.get(r, r) for r in sorted(usable)),
+            True,
+        )
+    elif manual and posting.application_url:
+        host = urlsplit(posting.application_url).hostname or "the employer's site"
+        why = (
+            "the ways we could apply for you are switched off in your search"
+            if routes
+            else "it is on a site we cannot fill in yet"
+        )
+        add(
+            "channel",
+            "A way to apply",
+            PASS,
+            f"it has an application link ({host}) and {why}: your CV and note are prepared and "
+            "you submit it there",
             True,
         )
     elif routes:

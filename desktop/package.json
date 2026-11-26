@@ -10,7 +10,8 @@
     "test": "node --test test/*.test.js",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
-    "smoke": "node test/smoke.js"
+    "smoke": "node test/smoke.js",
+    "smoke:float": "node test/float.js"
   },
   "dependencies": {
     "electron-updater": "^6.3.9"

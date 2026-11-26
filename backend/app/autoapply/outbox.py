@@ -29,6 +29,7 @@ from app.autoapply.adapters import (
     MailAttachment,
     MailboxAdapter,
 )
+from app.autoapply.postings import apply_to
 from app.config import Settings
 from app.models import (
     Application,
@@ -69,8 +70,12 @@ def dispatch_allowed(settings: Settings, channel: str, real: bool, recipient: st
         return False
     if settings.environment == "production":
         return True
+    if channel == "hunt" and settings.startup_outreach_any_recipient:
+        return True  # the operator said this server may write to real startups
     allowed = {a.strip().lower() for a in settings.autoapply_allowed_recipients.split(",") if a}
-    return bool(recipient) and (recipient or "").lower() in allowed
+    # an application may go to several addresses at once ("a@x.io, b@y.io"): each must be listed
+    to = [r.strip().lower() for r in (recipient or "").split(",") if r.strip()]
+    return bool(to) and all(r in allowed for r in to)
 
 
 async def used_today(
@@ -156,7 +161,7 @@ async def _precheck(
         if not dispatch_allowed(settings, "form", adapters.form.real, None):
             return "wait", "form submission is switched off"
     elif channel == "email":
-        if dest.get("to") != posting.apply_email:
+        if dest.get("to") != apply_to(posting):
             return "recheck", "the application address changed"
         conn = await mailbox.get(db, app.user_id)
         if conn is None or conn.status != "connected" or not conn.token_encrypted:
@@ -297,8 +302,17 @@ async def execute(
             try:
                 schema = await adapters.form.read_form(posting.application_url or "")
             except AdapterError as exc:
+                if exc.code == "rejected" and not exc.transient:
+                    # no form, a sign-in wall or a human check: not a failure, and nothing was
+                    # sent. The application is already prepared, so it goes to the person.
+                    return await _hand_over(db, attempt, app, exc.message, now)
                 return await _transient(db, attempt, app, exc, now)
             problem = form_problem(schema, pkg)
+            if problem is not None and all(p["kind"] == "unsupported" for p in problem):
+                why = problem[0][
+                    "reason"
+                ]  # nothing the person can answer here: a step only they can do
+                return await _hand_over(db, attempt, app, why, now)
             if problem is not None:
                 metrics.autoapply_form_changed.inc()
                 await _release(
@@ -371,6 +385,19 @@ def form_problem(schema: Any, pkg: dict[str, Any]) -> list[dict[str, Any]] | Non
                 need["options"] = list(f.options)
             missing.append(need)
     return missing or None
+
+
+async def _hand_over(
+    db: AsyncSession, attempt: SubmissionAttempt, app: Application, why: str, now: datetime
+) -> str:
+    """The site's form cannot be completed by the app. Nothing was sent, so the attempt costs no
+    quota; the prepared CV and note wait for the person to submit on the employer's own site."""
+    attempt.state, attempt.finished_at = "cancelled", now
+    attempt.failure_class, attempt.failure_message = "handed_over", why[:300]
+    app.status, app.channel, app.needs_input = "apply_yourself", "manual", []
+    await pipeline.log(db, app, "handed_over", reason=why)
+    await db.commit()
+    return "cancelled"
 
 
 async def _transient(

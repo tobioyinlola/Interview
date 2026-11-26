@@ -147,7 +147,10 @@ export function HelpPage() {
             </li>
             <li>
               The panel can float over your Meet window: press{" "}
-              <strong>Float the answer panel</strong> in Chrome or Edge.
+              <strong>Float the answer panel</strong> in Chrome, Edge or the
+              Windows and Mac app. The answer waits until the interviewer has
+              finished asking, and is short on purpose: a line and a few points
+              to speak from.
             </li>
           </ul>
         </section>

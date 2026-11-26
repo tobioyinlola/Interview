@@ -140,3 +140,36 @@ def test_numbers_in_the_answer_must_come_from_the_cv_or_the_question():
 def test_a_number_from_the_question_is_allowed_in_the_answer():
     out = NEW.format(extra="Over the last 5 years I kept this up.")
     assert check_outline(out, [NOTES, "Tell me about the last 5 years"]) == []
+
+
+SHORT = (
+    "TYPE: behavioral\nANSWER:\n"
+    "1. I led a launch at Acme that cut onboarding time by 30%.\n"
+    "• Owned the plan and the weekly risk review\n"
+    "• Onboarding time fell by 30%\n"
+    "2. I handle pressure by cutting scope early.\n"
+    "• Agree the smallest useful release first{extra}\n"
+    "SOURCES:\n- Led the launch [note: Launch]\n- Onboarding result [note: Launch]\n"
+)
+
+
+def test_short_speaking_notes_with_points_and_numbered_lines_are_not_mistaken_for_claims():
+    from app.services.grounding import answer_text
+
+    out = SHORT.format(extra="")
+    assert answer_text(out).startswith("I led a launch at Acme")
+    assert "1." not in answer_text(out) and "•" not in answer_text(out)
+    # the list numbers "1." and "2." are layout; the answer's own numbers come from the CV
+    assert check_outline(out, [NOTES]) == []
+
+
+def test_a_number_invented_in_a_point_is_still_caught():
+    out = SHORT.format(extra="\n• Grew revenue by 450%")
+    flagged = check_outline(out, [NOTES])
+    assert flagged and "450%" in flagged[0]
+
+
+def test_only_the_sources_list_is_read_as_bullets_when_there_is_one():
+    from app.services.grounding import bullets
+
+    assert bullets(SHORT.format(extra="")) == ["Led the launch", "Onboarding result"]

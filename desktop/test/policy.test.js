@@ -102,3 +102,17 @@ test("private-screen protection is only for the app's own pages, and never in a 
   assert.equal(privacyDecision(true, false, false), false); // another page cannot ask
   assert.equal(privacyDecision(false, false, true), false);
 });
+
+test("the answer panel may open its own small window, and only that one", () => {
+  // an empty page named for the answer panel: the app's floating window
+  assert.equal(p.windowOpenDecision("", p.FLOAT_FRAME, APP), "float");
+  assert.equal(p.windowOpenDecision("about:blank", p.FLOAT_FRAME, APP), "float");
+  // an empty page with any other name, or the right name pointing somewhere else, is not allowed
+  assert.equal(p.windowOpenDecision("about:blank", "other", APP), "deny");
+  assert.equal(p.windowOpenDecision("", "", APP), "deny");
+  assert.equal(p.windowOpenDecision("https://evil.test/", p.FLOAT_FRAME, APP), "external");
+  assert.equal(p.windowOpenDecision("javascript:alert(1)", p.FLOAT_FRAME, APP), "deny");
+  // everything else is decided as before
+  assert.equal(p.windowOpenDecision("https://app.example.com/x", "", APP), "allow");
+  assert.equal(p.windowOpenDecision("https://news.example.org/", "", APP), "external");
+});

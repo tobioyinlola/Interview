@@ -138,12 +138,18 @@ class Settings(BaseSettings):
     autoapply_form_adapter: str = "fixture"
     # The application sites the browser filler may open, comma-separated. Empty: Greenhouse's job
     # boards. Add a site only after its form has been read and filled in a real browser.
+    # "*" means any public https application link (the form is still read first, and a human check,
+    # a sign-in wall or a question the app cannot answer hands the job back to the person).
     autoapply_form_hosts: str = ""
     autoapply_browser_path: str = ""  # a Chromium to use instead of the one Playwright installed
     autoapply_email_dispatch: bool = False  # kill switch: applications sent from a mailbox
     autoapply_outreach_dispatch: bool = False  # kill switch: hiring outreach from a mailbox
     startup_outreach_enabled: bool = False  # feature flag: startup outreach routes and jobs
     startup_outreach_dispatch: bool = False  # kill switch: startup notes from a real mailbox
+    # Outside production a real mailbox may only write to AUTOAPPLY_ALLOWED_RECIPIENTS, so a test
+    # server can never reach a real startup. Turn this on to say, deliberately, that THIS server may
+    # write to real startups (the operator's decision; production does not need it).
+    startup_outreach_any_recipient: bool = False
     autoapply_mailbox_provider: str = "fixture"  # fixture | gmail
     # Let people connect Gmail, Outlook or Yahoo with an app password. Off by default: it makes
     # sending real, so it also needs MAILBOX_ENCRYPTION_KEY and the dispatch switches, like any

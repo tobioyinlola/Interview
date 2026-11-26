@@ -25,6 +25,7 @@ export class SpeechEndDetector {
   private readonly hangoverMs: number;
   private speaking = false;
   private lastLoud = 0;
+  private heard = false;
   /** performance-clock time the last speech turn ended, or null if none finished since read. */
   lastEndedAt: number | null = null;
 
@@ -37,6 +38,7 @@ export class SpeechEndDetector {
   push(level: number, now: number): boolean {
     if (level >= this.threshold) {
       this.speaking = true;
+      this.heard = true;
       this.lastLoud = now;
       return false;
     }
@@ -46,6 +48,16 @@ export class SpeechEndDetector {
       return true;
     }
     return false;
+  }
+
+  /** How long it has been since the last loud moment: 0 while talking, Infinity if nothing has been
+   *  heard yet. Used to hold an answer back while the interviewer is audibly still speaking, even
+   *  before the words have been transcribed. */
+  quietForMs(now: number): number {
+    if (this.speaking) return 0;
+    return this.lastLoud === 0 && !this.heard
+      ? Infinity
+      : Math.max(0, now - this.lastLoud);
   }
 
   /** Time the partner stopped speaking for the latest turn, consumed once. */

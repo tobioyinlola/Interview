@@ -765,6 +765,19 @@ def test_a_job_with_no_email_and_a_link_we_cannot_fill_in_says_so():
     )
 
 
+def test_a_link_we_cannot_fill_in_is_kept_for_the_candidate_when_asked():
+    crit = {"roles": [{"value": "Senior Product Manager", "required": True}]}
+    m = decide(
+        crit, posting(application_url="https://jobs.example.com/apply/1"), routes=set(), manual=True
+    )
+    assert m.decision == "eligible"
+    how = next(r for r in m.rules if r.key == "channel")
+    assert "jobs.example.com" in how.evidence and "you submit it there" in how.evidence
+    # but with no link at all there is still nothing to go on
+    none = decide(crit, posting(application_url=None), routes=set(), manual=True)
+    assert none.decision == "skip"
+
+
 # ------------------------------------------------------------------ seniority, and places with two words
 
 
@@ -833,3 +846,67 @@ async def test_awkward_feed_data_is_stored_instead_of_failing_the_whole_board(ma
     other = RawPosting(**{**raw.__dict__, "source_url": "https://feed.example/jobs/2"})
     other.region = raw.region + ", Country 80"  # same long prefix, a different place
     assert pst.canonical_key(other)[0] != pst.canonical_key(raw)[0]
+
+
+# ------------------------------------------------------------------ an address in the listing's own words
+
+
+def test_an_address_is_taken_only_from_a_sentence_about_applying():
+    from app.autoapply.postings import extract_apply_email
+
+    said = extract_apply_email("We are growing fast. Please send your CV to Jobs@Acme.io today.")
+    assert said == ("jobs@acme.io", "Please send your CV to Jobs@Acme.io today.")
+    assert extract_apply_email("Interested candidates should apply: hiring@acme.io")[0] == (
+        "hiring@acme.io"
+    )
+    # an address for something else, in a sentence that is not about applying
+    assert (
+        extract_apply_email("Our office is at 1 High St. Questions about billing: a@b.io.") is None
+    )
+    # never a no-reply or support address, nor a placeholder
+    assert extract_apply_email("Apply by emailing noreply@acme.io") is None
+    assert extract_apply_email("Email your CV to support@acme.io") is None
+    assert extract_apply_email("Send your CV to you@example.com") is None
+
+
+def test_every_application_address_the_listing_gives_is_used():
+    from app.autoapply.postings import extract_apply_emails
+
+    text = "Send your CV to hr@acme.io. Or apply by email to jobs@other.io."
+    assert [a for a, _ in extract_apply_emails(text)] == ["hr@acme.io", "jobs@other.io"]
+    # the same address twice is one address
+    assert [a for a, _ in extract_apply_emails("Email hr@acme.io to apply. CV to hr@acme.io.")] == [
+        "hr@acme.io"
+    ]
+    # an address for something else is still left out, even beside application ones
+    mixed = "Send your CV to hr@acme.io. Press enquiries: press@acme.io. Billing: pay@acme.io."
+    assert [a for a, _ in extract_apply_emails(mixed)] == ["hr@acme.io"]
+    # at most three
+    many = "Apply by email: a@x.io, b@x.io, c@x.io, d@x.io"
+    assert [a for a, _ in extract_apply_emails(many)] == ["a@x.io", "b@x.io", "c@x.io"]
+
+
+async def test_a_stored_listing_gains_its_address_and_the_sentence_that_says_so(maker):
+    from sqlalchemy import select
+
+    from app.autoapply import postings as pst
+    from app.autoapply.adapters import RawPosting
+    from app.models import JobPosting
+
+    raw = RawPosting(
+        source="x", source_url="https://x.test/1", company="Acme", title="Engineer",
+        description="Build things. Interested? Email your CV to team@acme.io.",
+        application_url="https://careers.acme.io/1",
+    )  # fmt: skip
+    async with maker() as db:
+        first, created, _ = await pst.upsert(db, raw, NOW)
+        await db.commit()
+        assert created and first.apply_email == "team@acme.io"
+        assert "team@acme.io" in first.evidence["apply_email"]
+        # a listing stored before the sentence was read is filled in by the housekeeping pass
+        first.apply_email, first.evidence = None, {}
+        await db.commit()
+        assert await pst.backfill_apply_emails(db) == 1
+        row = (await db.execute(select(JobPosting))).scalar_one()
+        assert row.apply_email == "team@acme.io" and "apply_email" in row.evidence
+        assert await pst.backfill_apply_emails(db) == 0  # nothing left to do

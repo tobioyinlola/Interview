@@ -72,7 +72,7 @@ const linkClass =
       collapsed ? "lg:justify-center lg:px-0" : ""
     } ${
       isActive
-        ? "bg-ink font-medium text-surface shadow-card"
+        ? "bg-accent font-medium text-surface shadow-card"
         : "text-muted hover:bg-panel hover:text-ink"
     }`;
 

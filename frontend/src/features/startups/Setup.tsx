@@ -183,7 +183,10 @@ export function Setup({ s, onDone }: { s: HuntSettings; onDone: () => void }) {
             }
             right={
               !s.mailbox && (
-                <Link to="/auto-apply/setup" className="btn-secondary btn-sm">
+                <Link
+                  to="/settings/email?next=/startups"
+                  className="btn-secondary btn-sm"
+                >
                   Connect
                 </Link>
               )

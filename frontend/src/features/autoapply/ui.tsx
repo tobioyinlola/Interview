@@ -10,6 +10,8 @@ export const STATUS: Record<string, { label: string; tone: string }> = {
   sent_email: { label: "Sent by email", tone: "good" },
   confirmation_pending: { label: "Confirming", tone: "warn" },
   needs_input: { label: "Needs your input", tone: "warn" },
+  apply_yourself: { label: "Ready for you to apply", tone: "info" },
+  applied_by_you: { label: "Applied by you", tone: "good" },
   skipped: { label: "Skipped", tone: "muted" },
   failed: { label: "Failed", tone: "bad" },
 };

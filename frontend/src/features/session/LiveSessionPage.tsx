@@ -510,6 +510,11 @@ export function LiveSessionPage() {
                   Float the answer panel
                 </button>
               )}
+              {float.problem && (
+                <p role="alert" className="notice-warn text-sm">
+                  {float.problem}
+                </p>
+              )}
             </>
           )}
         </FeatureBoundary>

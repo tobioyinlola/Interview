@@ -1,8 +1,8 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 import { useMe } from "../../api/hooks";
-import { useMailbox, useMailboxActions } from "./api";
-import { AppPasswordForm } from "./AppPasswordForm";
+import { useMailbox } from "./api";
 
 const KEY = "im-gmail-prompt-dismissed";
 const dismissed = (): boolean => {
@@ -13,57 +13,33 @@ const dismissed = (): boolean => {
   }
 };
 
-/** One short card: send from your own Gmail, so everything shows in your Sent folder. Shown until
- *  they connect it or say not now. */
+/** One short card pointing at Settings: send from your own email, so everything shows in your Sent
+ *  folder. The connection itself lives in Settings. Shown until they connect or say not now. */
 export function ConnectGmail() {
   const { data: me } = useMe();
   const box = useMailbox();
-  const { connect } = useMailboxActions();
   const [hidden, setHidden] = useState(dismissed);
-  const [password, setPassword] = useState(false);
-  const canPassword = (box.data?.smtp_providers?.length ?? 0) > 0;
-  if (
-    hidden ||
-    !me?.autoapply ||
-    !box.data ||
-    box.data.connected ||
-    (box.data.can_connect === false && !canPassword)
-  )
+  const possible =
+    box.data?.can_connect !== false ||
+    (box.data?.smtp_providers?.length ?? 0) > 0;
+  if (hidden || !me?.autoapply || !box.data || box.data.connected || !possible)
     return null;
-  const google = box.data.can_connect !== false;
   return (
     <section
       aria-labelledby="gmail-h"
       className="rounded-2xl bg-accent-soft p-5"
     >
       <h2 id="gmail-h" className="text-lg font-semibold">
-        Send from your own Gmail
+        Send from your own email
       </h2>
       <p className="mt-1 text-sm text-muted">
         Applications and pitches go out from your address and show in your Sent
-        folder. We never read anything else.
+        folder. We never read anything else. Connect it in Settings.
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
-        {google && (
-          <button
-            type="button"
-            className="btn-primary"
-            disabled={connect.isPending}
-            onClick={() => connect.mutate()}
-          >
-            Connect Gmail
-          </button>
-        )}
-        {canPassword && (
-          <button
-            type="button"
-            className={google ? "btn-secondary" : "btn-primary"}
-            aria-expanded={password || !google}
-            onClick={() => setPassword(true)}
-          >
-            Use an app password
-          </button>
-        )}
+        <Link to="/settings/email" className="btn-primary">
+          Connect email
+        </Link>
         <button
           type="button"
           className="btn-secondary"
@@ -79,14 +55,6 @@ export function ConnectGmail() {
           Not now
         </button>
       </div>
-      {canPassword && (password || !google) && (
-        <AppPasswordForm onDone={() => setPassword(false)} />
-      )}
-      {connect.isError && (
-        <p role="alert" className="notice-error mt-2">
-          Gmail could not be connected right now. Try again in a moment.
-        </p>
-      )}
     </section>
   );
 }
