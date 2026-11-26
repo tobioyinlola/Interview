@@ -3186,6 +3186,22 @@
         "title": "JobOut",
         "type": "object"
       },
+      "JobSourceListOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/JobSourceRow"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "JobSourceListOut",
+        "type": "object"
+      },
       "JobSourceRow": {
         "properties": {
           "board": {
@@ -3202,6 +3218,11 @@
               }
             ],
             "title": "Company"
+          },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
           },
           "every_minutes": {
             "title": "Every Minutes",
@@ -3241,6 +3262,22 @@
               }
             ],
             "title": "Last Synced At"
+          },
+          "origin": {
+            "default": "settings",
+            "title": "Origin",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
           }
         },
         "required": [
@@ -8118,6 +8155,48 @@
           }
         },
         "summary": "Job Sources",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/job-sources/export.csv": {
+      "get": {
+        "description": "The same list as a spreadsheet. Exporting is itself logged.",
+        "operationId": "export_job_sources_api_admin_job_sources_export_csv_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Export Job Sources",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/job-sources/list": {
+      "get": {
+        "description": "Every board and feed, the busiest first.",
+        "operationId": "job_source_list_api_admin_job_sources_list_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobSourceListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Job Source List",
         "tags": [
           "admin"
         ]

@@ -72,4 +72,6 @@ export type AAPrepared = S["PrepareOut"];
 export type AdminAutoApply = S["AutoApplyAdminOut"];
 export type AdminWorker = S["WorkerOut"];
 export type AdminJobSources = S["JobSourcesOut"];
+export type AdminJobSource = S["JobSourceRow"];
+export type AdminJobSourceList = S["JobSourceListOut"];
 export type AdminSwitch = S["SwitchOut"];

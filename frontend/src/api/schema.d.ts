@@ -295,6 +295,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/job-sources/export.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Job Sources
+         * @description The same list as a spreadsheet. Exporting is itself logged.
+         */
+        get: operations["export_job_sources_api_admin_job_sources_export_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/job-sources/list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Job Source List
+         * @description Every board and feed, the busiest first.
+         */
+        get: operations["job_source_list_api_admin_job_sources_list_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/marketing": {
         parameters: {
             query?: never;
@@ -3452,12 +3492,22 @@ export interface components {
             /** Step Detail */
             step_detail: string;
         };
+        /** JobSourceListOut */
+        JobSourceListOut: {
+            /** Items */
+            items: components["schemas"]["JobSourceRow"][];
+        };
         /** JobSourceRow */
         JobSourceRow: {
             /** Board */
             board: string;
             /** Company */
             company: string | null;
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
             /** Every Minutes */
             every_minutes: number;
             /** Health */
@@ -3470,6 +3520,13 @@ export interface components {
             last_error: string | null;
             /** Last Synced At */
             last_synced_at: string | null;
+            /**
+             * Origin
+             * @default settings
+             */
+            origin: string;
+            /** Url */
+            url?: string | null;
         };
         /** JobSourcesOut */
         JobSourcesOut: {
@@ -5346,6 +5403,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobSourcesOut"];
+                };
+            };
+        };
+    };
+    export_job_sources_api_admin_job_sources_export_csv_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    job_source_list_api_admin_job_sources_list_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobSourceListOut"];
                 };
             };
         };

@@ -3,6 +3,7 @@ import io
 import uuid
 from collections.abc import AsyncIterator
 from datetime import UTC, date, datetime, timedelta
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
@@ -514,6 +515,9 @@ class JobSourceRow(BaseModel):
     kind: str
     board: str
     company: str | None
+    origin: str = "settings"
+    url: str | None = None
+    enabled: bool = True
     health: str
     jobs_listed: int
     every_minutes: int
@@ -566,17 +570,78 @@ async def job_sources(
         by_kind={k: int(v) for k, v in by_kind.items()},
         by_health={k: int(v) for k, v in by_health.items()},
         jobs_listed=int(listed),
-        failing=[
-            JobSourceRow(
-                kind=s.kind,
-                board=s.board,
-                company=s.company,
-                health=s.health,
-                jobs_listed=s.jobs_listed,
-                every_minutes=s.every_minutes,
-                last_synced_at=s.last_synced_at,
-                last_error=s.last_error,
-            )  # fmt: skip
-            for s in failing
-        ],
+        failing=[_source_row(s) for s in failing],
+    )
+
+
+def _source_row(s: Any) -> JobSourceRow:
+    from app.autoapply.registry import board_url
+
+    return JobSourceRow(
+        kind=s.kind,
+        board=s.board,
+        company=s.company,
+        origin=s.origin,
+        url=board_url(s.kind, s.board),
+        enabled=s.enabled,
+        health=s.health,
+        jobs_listed=s.jobs_listed,
+        every_minutes=s.every_minutes,
+        last_synced_at=s.last_synced_at,
+        last_error=s.last_error,
+    )
+
+
+async def _all_sources(db: AsyncSession) -> list[JobSourceRow]:
+    from app.models import JobSource
+
+    rows = (
+        (
+            await db.execute(
+                select(JobSource)
+                .order_by(JobSource.jobs_listed.desc(), JobSource.company, JobSource.board)
+                .limit(5000)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return [_source_row(s) for s in rows]
+
+
+class JobSourceListOut(BaseModel):
+    items: list[JobSourceRow]
+
+
+@router.get("/job-sources/list")
+async def job_source_list(
+    _: User = Depends(require_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_admin_db),  # noqa: B008
+) -> JobSourceListOut:
+    """Every board and feed, the busiest first."""
+    return JobSourceListOut(items=await _all_sources(db))
+
+
+@router.get("/job-sources/export.csv")
+async def export_job_sources(
+    admin: User = Depends(require_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_admin_db),  # noqa: B008
+) -> Response:
+    """The same list as a spreadsheet. Exporting is itself logged."""
+    rows = await _all_sources(db)
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["company", "kind", "board", "url", "found via", "health", "jobs listed",
+                "last read", "read every (minutes)", "last error"])  # fmt: skip
+    for r in rows:
+        cells = [r.company or "", r.kind, r.board, r.url or "",
+                 "startup research" if r.origin == "startup" else "settings", r.health,
+                 str(r.jobs_listed), r.last_synced_at.isoformat() if r.last_synced_at else "",
+                 str(r.every_minutes), r.last_error or ""]  # fmt: skip
+        w.writerow([("'" + c if c[:1] in ("=", "+", "-", "@") else c) for c in cells])
+    await record_from(db, "admin.export", actor_id=admin.id, rows=len(rows), what="job_sources")
+    return Response(
+        buf.getvalue(),
+        media_type="text/csv",
+        headers={"content-disposition": 'attachment; filename="job-boards.csv"'},
     )

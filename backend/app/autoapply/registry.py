@@ -142,6 +142,33 @@ async def seed(db: AsyncSession, settings: Settings, now: datetime) -> int:
     return added
 
 
+BOARD_URLS = {  # where a person can see a board's listings themselves
+    "greenhouse": "https://boards.greenhouse.io/{}",
+    "lever": "https://jobs.lever.co/{}",
+    "ashby": "https://jobs.ashbyhq.com/{}",
+    "smartrecruiters": "https://jobs.smartrecruiters.com/{}",
+    "recruitee": "https://{}.recruitee.com",
+    "workable": "https://apply.workable.com/{}",
+    "personio": "https://{}.jobs.personio.com",
+}
+FEED_URLS = {
+    "remotive": "https://remotive.com",
+    "arbeitnow": "https://www.arbeitnow.com",
+    "remoteok": "https://remoteok.com",
+    "jobicy": "https://jobicy.com",
+    "himalayas": "https://himalayas.app",
+    "themuse": "https://www.themuse.com",
+    "workingnomads": "https://www.workingnomads.com",
+    "weworkremotely": "https://weworkremotely.com",
+}
+
+
+def board_url(kind: str, board: str) -> str | None:
+    if board and kind in BOARD_URLS:
+        return BOARD_URLS[kind].format(board)
+    return FEED_URLS.get(kind)
+
+
 def listing_hash(raws: list[RawPosting]) -> str:
     """A fingerprint of what a board lists, so an unchanged board is not rewritten."""
     parts = sorted(
