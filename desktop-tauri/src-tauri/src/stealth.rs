@@ -153,3 +153,11 @@ pub fn re_enforce_stealth(window: &WebviewWindow<impl Runtime>) {
     // macOS: re-assert content protection (WindowServer can reset sharingType)
     let _ = window.set_content_protected(true);
 }
+
+// Linux is not a supported desktop target; these keep the crate compiling there (development
+// checks) without pretending to protect anything.
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+pub fn apply_native_stealth(_window: &WebviewWindow<impl Runtime>, _enable: bool) {}
+
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+pub fn re_enforce_stealth(_window: &WebviewWindow<impl Runtime>) {}

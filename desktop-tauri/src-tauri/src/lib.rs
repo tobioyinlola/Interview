@@ -11,12 +11,15 @@
 //! The frontend is the same React app from `frontend/` — only the native bridge changes.
 
 mod audio;
+mod policy;
 mod stealth;
 mod window;
 
 use serde::{Deserialize, Serialize};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use tauri::{command, AppHandle, Emitter, Manager, Runtime, WebviewWindow};
+use tauri_plugin_opener::OpenerExt;
 
 // ─── Stealth state (mirrors Electron's global variables) ───
 
@@ -29,6 +32,12 @@ pub struct StealthState {
 struct AppState {
     stealth: Mutex<StealthState>,
     normal_bounds: Mutex<Option<(i32, i32, u32, u32)>>, // x, y, width, height
+    /// Set once the first page has finished loading (deep links before that are kept for later).
+    page_ready: AtomicBool,
+    /// A sign-in link that arrived before the page was ready (the app was started by the link).
+    pending_link: Mutex<Option<String>>,
+    /// The last sign-in link handled: a one-time code is never used twice.
+    last_link: Mutex<Option<String>>,
 }
 
 impl Default for AppState {
@@ -39,6 +48,9 @@ impl Default for AppState {
                 click_through: false,
             }),
             normal_bounds: Mutex::new(None),
+            page_ready: AtomicBool::new(false),
+            pending_link: Mutex::new(None),
+            last_link: Mutex::new(None),
         }
     }
 }
@@ -214,6 +226,15 @@ async fn stealth_query<R: Runtime>(app: AppHandle<R>) -> Result<StealthState, St
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // Must be the first plugin. A second launch (Windows/Linux hand the interviewmeet:// sign-in
+        // link over this way) is forwarded to the running app, which comes to the front.
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.unminimize();
+                let _ = w.show();
+                let _ = w.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_deep_link::init())
@@ -221,6 +242,17 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .manage(AppState::default())
         .manage(audio::AudioState::default())
+        .on_page_load(|webview, payload| {
+            if let tauri::webview::PageLoadEvent::Finished = payload.event() {
+                let app = webview.app_handle();
+                let state = app.state::<AppState>();
+                state.page_ready.store(true, Ordering::SeqCst);
+                let pending = state.pending_link.lock().unwrap().take();
+                if let Some(link) = pending {
+                    handle_deep_link(app, &link);
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             // Stealth
             stealth_enter,
@@ -233,13 +265,37 @@ pub fn run() {
             window::window_maximize,
             window::window_close,
             window::set_click_through,
+            window::window_start_drag,
+            window::open_in_browser,
+            window::open_external,
             // Audio
             audio::list_audio_devices,
             audio::start_audio_capture,
             audio::stop_audio_capture,
         ])
         .setup(|app| {
-            let window = app.get_webview_window("main").expect("main window not found");
+            // The window is created here (not from tauri.conf.json alone) so the bridge can be
+            // injected before any page script runs, like Electron's preload, and so the navigation
+            // rules apply from the very first load.
+            let cfg = app
+                .config()
+                .app
+                .windows
+                .first()
+                .cloned()
+                .ok_or("no window configured in tauri.conf.json")?;
+            let opener_app = app.handle().clone();
+            let window = tauri::WebviewWindowBuilder::from_config(app.handle(), &cfg)?
+                .initialization_script(bridge_script(&app.package_info().version.to_string()))
+                .on_navigation(move |url| match policy::navigation_decision(url) {
+                    policy::Nav::Allow => true,
+                    policy::Nav::External => {
+                        let _ = opener_app.opener().open_url(url.as_str(), None::<&str>);
+                        false
+                    }
+                    policy::Nav::Deny => false,
+                })
+                .build()?;
 
             // Apply capture exclusion on startup (before the window is shown).
             // STRICT REQUIREMENT: App must be hidden from screen sharing at all times.
@@ -315,66 +371,73 @@ fn setup_global_shortcuts(app: &tauri::App) -> Result<(), Box<dyn std::error::Er
     Ok(())
 }
 
+/// The bridge script with this build's platform, architecture and version filled in.
+fn bridge_script(version: &str) -> String {
+    let platform = match std::env::consts::OS {
+        "windows" => "win32",
+        "macos" => "darwin",
+        other => other,
+    };
+    let arch = match std::env::consts::ARCH {
+        "x86_64" => "x64",
+        "aarch64" => "arm64",
+        other => other,
+    };
+    include_str!("../bridge.js")
+        .replace("__PLATFORM__", platform)
+        .replace("__ARCH__", arch)
+        .replace("__VERSION__", version)
+}
+
 fn setup_deep_links(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    // Deep link handler for interviewmeet:// protocol
-    // The frontend handles the OAuth callback in its router
-    let handle = app.handle().clone();
     use tauri_plugin_deep_link::DeepLinkExt;
+
+    // interviewmeet:// is how the browser hands the app back after Google sign-in.
+    let handle = app.handle().clone();
     app.deep_link().on_open_url(move |event| {
-        let urls = event.urls();
-        log::info!("[DeepLink] Received: {:?}", urls);
-        for url in urls {
-            let url_str = url.as_str();
-            // Parse the auth callback: interviewmeet://auth?code=...
-            if url_str.contains("auth") {
-                if let Some(window) = handle.get_webview_window("main") {
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                    // Navigate to the auth callback URL in the webview
-                    if let Some(query) = parse_auth_link(url_str) {
-                        let nav_url = format!("{}/auth/app?{}", get_app_origin(), query);
-                        let _ = window.eval(&format!("window.location.href = '{}'", nav_url));
-                    }
-                }
-            }
+        for url in event.urls() {
+            handle_deep_link(&handle, url.as_str());
         }
     });
 
+    // The app was started by the link itself (Windows/Linux pass it as an argument).
+    if let Ok(Some(urls)) = app.deep_link().get_current() {
+        for url in urls {
+            handle_deep_link(app.handle(), url.as_str());
+        }
+    }
     Ok(())
 }
 
-/// Parse an interviewmeet://auth?code=... link (mirrors policy.js parseAuthLink).
-fn parse_auth_link(url: &str) -> Option<String> {
-    let parsed = url::Url::parse(url).ok()?;
-    if parsed.scheme() != "interviewmeet" || parsed.host_str() != Some("auth") {
-        return None;
-    }
-    if let Some(code) = parsed.query_pairs().find(|(k, _)| k == "code") {
-        let val = code.1.as_ref();
-        // Validate: 20-200 chars, alphanumeric + _ -
-        if val.len() >= 20
-            && val.len() <= 200
-            && val
-                .chars()
-                .all(|c| c.is_alphanumeric() || c == '_' || c == '-')
-        {
-            return Some(format!("code={}", val));
-        }
-    }
-    if let Some(error) = parsed.query_pairs().find(|(k, _)| k == "error") {
-        let val = error.1.as_ref();
-        if val.len() >= 1
-            && val.len() <= 40
-            && val.chars().all(|c| c.is_ascii_lowercase() || c == '_')
-        {
-            return Some(format!("error={}", val));
-        }
-    }
-    None
-}
+/// The browser finished Google sign-in: carry on inside the app's own window, on the app's own
+/// address (never the website), exactly as the Electron app does.
+fn handle_deep_link<R: Runtime>(app: &AppHandle<R>, link: &str) {
+    let Some(query) = policy::parse_auth_link(link) else {
+        return;
+    };
+    let state = app.state::<AppState>();
 
-/// Get the app origin URL from environment or config.
-fn get_app_origin() -> String {
-    std::env::var("INTERVIEWMEET_URL")
-        .unwrap_or_else(|_| "https://frontend-dev-2d437f97.up.railway.app".to_string())
+    // a one-time code is used once
+    {
+        let mut last = state.last_link.lock().unwrap();
+        if last.as_deref() == Some(link) {
+            return;
+        }
+        *last = Some(link.to_string());
+    }
+
+    // the page is not up yet: keep the link and use it as soon as it is
+    if !state.page_ready.load(Ordering::SeqCst) {
+        *state.pending_link.lock().unwrap() = Some(link.to_string());
+        *state.last_link.lock().unwrap() = None;
+        return;
+    }
+
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+        let target = serde_json::to_string(&format!("/auth/app?{query}")).unwrap_or_default();
+        let _ = window.eval(&format!("window.location.assign({target})"));
+    }
 }

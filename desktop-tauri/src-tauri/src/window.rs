@@ -3,7 +3,9 @@
 //! These replace Electron's `ipcMain.handle("im:window-*")` handlers.
 //! The frontend calls them via `invoke("window_minimize")` etc.
 
-use tauri::{command, Runtime, WebviewWindow};
+use crate::policy::{self, Nav};
+use tauri::{command, AppHandle, Runtime, WebviewWindow};
+use tauri_plugin_opener::OpenerExt;
 
 #[cfg(target_os = "windows")]
 use crate::stealth::re_enforce_stealth;
@@ -44,4 +46,34 @@ pub async fn set_click_through<R: Runtime>(
     re_enforce_stealth(&window);
 
     Ok(())
+}
+
+/// Start dragging the window (the interface marks its title bar / HUD handle as a drag region).
+#[command]
+pub async fn window_start_drag<R: Runtime>(window: WebviewWindow<R>) -> Result<(), String> {
+    window.start_dragging().map_err(|e| e.to_string())
+}
+
+/// Open the app's own Google sign-in address in the person's real browser (Google refuses embedded
+/// windows). Mirrors Electron's `im:open-in-browser`: nothing else may be opened this way.
+#[command]
+pub async fn open_in_browser<R: Runtime>(app: AppHandle<R>, url: String) -> Result<(), String> {
+    if !policy::is_google_start_url(&url, &policy::site_origin()) {
+        return Err("address not allowed".into());
+    }
+    app.opener()
+        .open_url(url, None::<&str>)
+        .map_err(|e| e.to_string())
+}
+
+/// Open an ordinary link (https or mail) in the normal browser, like Electron's window-open handler.
+#[command]
+pub async fn open_external<R: Runtime>(app: AppHandle<R>, url: String) -> Result<(), String> {
+    let parsed = url::Url::parse(&url).map_err(|e| e.to_string())?;
+    if policy::navigation_decision(&parsed) != Nav::External {
+        return Err("address not allowed".into());
+    }
+    app.opener()
+        .open_url(parsed.as_str(), None::<&str>)
+        .map_err(|e| e.to_string())
 }

@@ -14,7 +14,11 @@ class Settings(BaseSettings):
     web_origin: str = "http://localhost:5173"
     # Where the installed apps' own interface runs from (they carry it inside the app, so it is not
     # the website). Comma-separated. They use a bearer token, never the browser cookie.
-    app_origins: str = "https://localhost,capacitor://localhost,app://interviewmeet"
+    # tauri.localhost / tauri://localhost are where the Tauri desktop app (Windows / Mac) runs from.
+    app_origins: str = (
+        "https://localhost,capacitor://localhost,app://interviewmeet,"
+        "https://tauri.localhost,http://tauri.localhost,tauri://localhost"
+    )
     cookie_secret: SecretStr = SecretStr("dev-only-change-me")
     github_repo: str = "tobioyinlola/Interview"  # where the downloadable apps are published
 

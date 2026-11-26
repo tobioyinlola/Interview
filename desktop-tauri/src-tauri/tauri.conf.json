@@ -10,7 +10,7 @@
     "beforeBuildCommand": ""
   },
   "app": {
-    "withGlobalTauri": false,
+    "withGlobalTauri": true,
     "windows": [
       {
         "title": "InterviewMeet",
@@ -21,11 +21,15 @@
         "decorations": false,
         "transparent": false,
         "visible": false,
-        "shadow": false
+        "shadow": false,
+        "label": "main",
+        "create": false,
+        "useHttpsScheme": true,
+        "backgroundColor": "#0f172a"
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' https://*.railway.app https://*.interviewmeet.com wss://*.interviewmeet.com; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:"
+      "csp": null
     }
   },
   "bundle": {
@@ -57,7 +61,9 @@
     },
     "deep-link": {
       "desktop": {
-        "schemes": ["interviewmeet"]
+        "schemes": [
+          "interviewmeet"
+        ]
       }
     }
   }

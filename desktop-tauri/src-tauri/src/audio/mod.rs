@@ -10,6 +10,7 @@ pub mod platform;
 
 use serde::{Deserialize, Serialize};
 use tauri::{command, AppHandle, Emitter, Manager, Runtime};
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
@@ -63,12 +64,24 @@ pub async fn start_audio_capture<R: Runtime>(
             device_id.as_deref(),
             capturing_clone,
             move |data: &[f32], sample_rate: u32, channels: u16| {
-                // Emit audio data to the frontend as a Tauri event
-                let _ = app_clone.emit("audio-data", serde_json::json!({
-                    "samples": data,
-                    "sampleRate": sample_rate,
-                    "channels": channels,
-                }));
+                // Down-mix to mono 16-bit and send as base64: ~8x smaller than a JSON float array,
+                // which matters at 48,000 samples a second. The bridge turns it back into an
+                // audio-only MediaStream for the web app.
+                let ch = (channels as usize).max(1);
+                let mut bytes = Vec::with_capacity(data.len() / ch * 2);
+                for frame in data.chunks(ch) {
+                    let mono = frame.iter().sum::<f32>() / frame.len() as f32;
+                    let sample = (mono.clamp(-1.0, 1.0) * 32767.0) as i16;
+                    bytes.extend_from_slice(&sample.to_le_bytes());
+                }
+                let _ = app_clone.emit(
+                    "audio-data",
+                    serde_json::json!({
+                        "pcm": STANDARD.encode(&bytes),
+                        "sampleRate": sample_rate,
+                        "channels": 1,
+                    }),
+                );
             },
         ) {
             log::error!("[Audio] Capture error: {}", e);

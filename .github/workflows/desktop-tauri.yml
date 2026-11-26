@@ -7,9 +7,9 @@ name: desktop-tauri
 on:
   push:
     branches: [Staging, diesel-tauri]
-    paths: ["desktop-tauri/**", "frontend/**", ".github/workflows/desktop-tauri.yml"]
+    paths: ["desktop-tauri/**", "frontend/**", "scripts/build-app-ui.js", ".github/workflows/desktop-tauri.yml"]
   pull_request:
-    paths: ["desktop-tauri/**", "frontend/**", ".github/workflows/desktop-tauri.yml"]
+    paths: ["desktop-tauri/**", "frontend/**", "scripts/build-app-ui.js", ".github/workflows/desktop-tauri.yml"]
   workflow_dispatch:
     inputs:
       release:
@@ -30,6 +30,28 @@ defaults:
     working-directory: desktop-tauri
 
 jobs:
+  # Fast checks that run alongside the Windows build: the rules ported from policy.js, and the bridge.
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Linux build libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libsoup-3.0-dev \
+            libayatana-appindicator3-dev librsvg2-dev libasound2-dev libxdo-dev libssl-dev pkg-config
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop-tauri/src-tauri
+      - name: Bridge script is valid JavaScript
+        run: node --check src-tauri/bridge.js
+      - name: Rust unit tests (navigation, sign-in link and URL rules)
+        run: cargo test --lib --manifest-path src-tauri/Cargo.toml
+
   windows:
     runs-on: windows-latest
     permissions:
@@ -55,16 +77,26 @@ jobs:
       - name: Install Tauri CLI
         run: npm install
 
-      - name: Build the frontend that goes inside the app
+      # Same step the Electron build uses: the interface in "app" mode (bearer-token login, API at
+      # INTERVIEWMEET_URL, no landing page), copied into desktop-tauri/dist for Tauri to embed.
+      - name: Build the interface that goes inside the app
         run: |
           npm ci --prefix ../frontend
-          cd ../frontend && npx vite build --outDir ../desktop-tauri/dist
+          node ../scripts/build-app-ui.js dist
         env:
           INTERVIEWMEET_URL: ${{ vars.INTERVIEWMEET_URL }}
+
+      # The website build has no Content-Security-Policy meta tag; the app-mode build always does.
+      - name: Check the interface is the app-mode build
+        shell: bash
+        run: |
+          grep -q 'Content-Security-Policy' dist/index.html || { echo "dist is NOT the app-mode build"; exit 1; }
+          echo "app-mode interface OK"
 
       - name: Build Tauri app
         run: npx tauri build
         env:
+          INTERVIEWMEET_URL: ${{ vars.INTERVIEWMEET_URL }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
@@ -129,16 +161,19 @@ jobs:
       - name: Install Tauri CLI
         run: npm install
 
-      - name: Build the frontend
+      # Same step the Electron build uses: the interface in "app" mode (bearer-token login, API at
+      # INTERVIEWMEET_URL, no landing page), copied into desktop-tauri/dist for Tauri to embed.
+      - name: Build the interface that goes inside the app
         run: |
           npm ci --prefix ../frontend
-          cd ../frontend && npx vite build --outDir ../desktop-tauri/dist
+          node ../scripts/build-app-ui.js dist
         env:
           INTERVIEWMEET_URL: ${{ vars.INTERVIEWMEET_URL }}
 
       - name: Build Tauri app
         run: npx tauri build
         env:
+          INTERVIEWMEET_URL: ${{ vars.INTERVIEWMEET_URL }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 

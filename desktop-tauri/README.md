@@ -17,7 +17,8 @@ desktop-tauri/
 │   │   ├── lib.rs             # App setup, stealth commands, IPC handlers
 │   │   ├── main.rs            # Entry point
 │   │   ├── stealth.rs         # SetWindowDisplayAffinity / content protection
-│   │   ├── window.rs          # Window control commands
+│   │   ├── window.rs          # Window control + open-in-browser commands
+│   │   ├── policy.rs          # Port of desktop/src/policy.js (navigation, auth link, sign-in URL rules)
 │   │   └── audio/
 │   │       ├── mod.rs          # Audio capture commands
 │   │       └── platform/
@@ -77,3 +78,17 @@ window.interviewDesktop.windowControls.minimize();
 
 - **Windows**: `.msi` installer (~5-10 MB vs Electron's ~92 MB)
 - **macOS**: `.dmg` bundle
+
+
+## How it maps to the Electron app
+
+| Electron (`desktop/`) | Tauri (`desktop-tauri/`) |
+| --- | --- |
+| `scripts/build-app-ui.js` builds the interface in **app mode** into `app-dist/` | same script, into `dist/` (the workflow runs it) |
+| `app://interviewmeet` protocol serves the packed interface | Tauri serves `dist/` at `https://tauri.localhost` (Windows) / `tauri://localhost` (Mac) |
+| `preload.js` exposes `interviewDesktop` | `src-tauri/bridge.js`, injected before any page script |
+| `policy.js` | `src-tauri/src/policy.rs` (same rules, unit-tested) |
+| `desktopCapturer` loopback audio, no picker | native WASAPI loopback, surfaced as a `getDisplayMedia` stream by the bridge (Windows) |
+| `interviewmeet://auth?code=` deep link, single instance | `tauri-plugin-deep-link` + `tauri-plugin-single-instance` |
+
+The backend must allow the Tauri origins (`app_origins` in `backend/app/config.py`).

@@ -154,6 +154,10 @@ async def test_only_the_websites_and_the_apps_own_addresses_may_call_the_api(app
         assert ok.status_code == 200 and ok.headers["access-control-allow-origin"] == ORIGIN
         assert (await preflight("capacitor://localhost")).status_code == 200
         assert (await preflight("app://interviewmeet")).status_code == 200
+        # the Tauri desktop app's own addresses
+        for tauri in ("https://tauri.localhost", "tauri://localhost"):
+            ok_t = await preflight(tauri)
+            assert ok_t.status_code == 200 and ok_t.headers["access-control-allow-origin"] == tauri
         bad = await preflight("https://evil.example")
         assert "access-control-allow-origin" not in bad.headers
         shown = await c.get("/api/me", headers={"origin": ORIGIN})
