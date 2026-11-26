@@ -770,6 +770,66 @@ describe("one application", () => {
     ).toBeInTheDocument();
   });
 
+  it("hands a job on a site we cannot fill in to the person, with everything prepared", async () => {
+    let applied = false;
+    const calls = base({
+      "GET /api/autoapply/applications/a1": () => ({
+        json: detail({
+          status: applied ? "applied_by_you" : "apply_yourself",
+          channel: "manual",
+          needs_input: [],
+          posting: {
+            ...app().posting,
+            application_url: "https://careers.example.com/apply/1",
+          },
+          package_frozen_at: "2026-11-10T09:00:00Z",
+          package: {
+            cv: {
+              submitted_text: "Ada Okoye\nSenior Product Manager",
+              tailoring: { mode: "deterministic", reverted: [] },
+            },
+            cover_text: "Dear hiring team",
+            answers: {},
+            destination: {
+              channel: "manual",
+              url: "https://careers.example.com/apply/1",
+            },
+          },
+        }),
+      }),
+      "POST /api/autoapply/applications/a1/applied": () => {
+        applied = true;
+        return { json: app({ status: "applied_by_you" }) };
+      },
+    });
+    renderApp(<App />, "/auto-apply/applications/a1");
+    expect(
+      await screen.findByText("Apply on the employer's site"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Ready for you to apply")).toBeInTheDocument();
+    expect(screen.getByText(/Nothing has been sent/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Open the application" }),
+    ).toHaveAttribute("href", "https://careers.example.com/apply/1");
+    expect(screen.getByText("What is ready for you")).toBeInTheDocument();
+    expect(
+      screen.getByText("For you to submit on the employer's site"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/By email to/)).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Copy my CV" }),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "I've applied" }));
+    await waitFor(() =>
+      expect(
+        calls.some(
+          (c) => c.key === "POST /api/autoapply/applications/a1/applied",
+        ),
+      ).toBe(true),
+    );
+    expect(await screen.findByText("Applied by you")).toBeInTheDocument();
+  });
+
   it("can write to a hiring contact once the application is sent", async () => {
     const calls = base({
       "GET /api/autoapply/applications/a1": () => ({
@@ -947,6 +1007,41 @@ describe("setting up: the guided flow", () => {
       screen.getByRole("progressbar", { name: "Setup progress" }),
     ).toHaveAttribute("aria-valuenow", "17");
     expect(screen.getByText("Step 2 of 7")).toBeInTheDocument();
+  });
+
+  it("starts a first search from what they said at sign-up: the role and how they want to work", async () => {
+    setup({
+      "GET /api/autoapply/profile": () => ({ json: empty() }),
+      "GET /api/me": () => ({
+        json: {
+          ...me,
+          onboarding: {
+            help: ["auto_apply"],
+            arrangement: ["remote", "hybrid"],
+          },
+        },
+      }),
+      "GET /api/notes": () => ({
+        json: { role: "Product Designer", content: "x", updated_at: null },
+      }),
+    });
+    renderApp(<App />, "/auto-apply/setup");
+    expect(
+      await screen.findByRole("heading", { name: "What you want" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Product Designer")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Remote/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: /Hybrid/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: /On-site/ })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
   });
 
   it("starts at the first step when the CV details are not confirmed yet", async () => {

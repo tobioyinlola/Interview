@@ -4358,6 +4358,19 @@
       },
       "OnboardingAnswers": {
         "properties": {
+          "arrangement": {
+            "items": {
+              "enum": [
+                "remote",
+                "hybrid",
+                "onsite"
+              ],
+              "type": "string"
+            },
+            "maxItems": 3,
+            "title": "Arrangement",
+            "type": "array"
+          },
           "focus": {
             "items": {
               "enum": [
@@ -4391,6 +4404,19 @@
             ],
             "title": "Goal"
           },
+          "help": {
+            "items": {
+              "enum": [
+                "interviews",
+                "auto_apply",
+                "startups"
+              ],
+              "type": "string"
+            },
+            "maxItems": 3,
+            "title": "Help",
+            "type": "array"
+          },
           "level": {
             "anyOf": [
               {
@@ -4407,6 +4433,22 @@
               }
             ],
             "title": "Level"
+          },
+          "search": {
+            "anyOf": [
+              {
+                "enum": [
+                  "now",
+                  "soon",
+                  "later"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search"
           },
           "timeline": {
             "anyOf": [
@@ -4430,8 +4472,21 @@
         "type": "object"
       },
       "OnboardingIn": {
-        "description": "Finish onboarding with all four answers, or skip it. `role` is the CV page's target role;\n`full_name` is only asked for when the account has none.",
+        "description": "Finish onboarding with the four interview answers (and, if they want job-search help, the\nothers), or skip it. `role` is the CV page's target role;\n`full_name` is only asked for when the account has none.",
         "properties": {
+          "arrangement": {
+            "items": {
+              "enum": [
+                "remote",
+                "hybrid",
+                "onsite"
+              ],
+              "type": "string"
+            },
+            "maxItems": 3,
+            "title": "Arrangement",
+            "type": "array"
+          },
           "focus": {
             "items": {
               "enum": [
@@ -4477,6 +4532,19 @@
             ],
             "title": "Goal"
           },
+          "help": {
+            "items": {
+              "enum": [
+                "interviews",
+                "auto_apply",
+                "startups"
+              ],
+              "type": "string"
+            },
+            "maxItems": 3,
+            "title": "Help",
+            "type": "array"
+          },
           "level": {
             "anyOf": [
               {
@@ -4505,6 +4573,22 @@
               }
             ],
             "title": "Role"
+          },
+          "search": {
+            "anyOf": [
+              {
+                "enum": [
+                  "now",
+                  "soon",
+                  "later"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search"
           },
           "skipped": {
             "default": false,
@@ -10894,6 +10978,49 @@
           }
         },
         "summary": "Answer Question",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/applications/{application_id}/applied": {
+      "post": {
+        "description": "The candidate submitted a prepared application themselves, on the employer's own site. It is\nkept apart from what Auto-Apply sent: the numbers say which was which.",
+        "operationId": "applied_by_you_api_autoapply_applications__application_id__applied_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "application_id",
+            "required": true,
+            "schema": {
+              "title": "Application Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Applied By You",
         "tags": [
           "autoapply"
         ]

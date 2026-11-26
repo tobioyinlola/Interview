@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { PrivateScreen } from "../../../app/usePrivateScreen";
 
-import { useNotes } from "../../../api/hooks";
+import { useMe, useNotes } from "../../../api/hooks";
 import { Loading } from "../../../ui/Loading";
 import {
   useAAProfile,
@@ -52,6 +52,7 @@ const INTRO: Record<StepId, string> = {
 function SetupWizardInner() {
   const profile = useAAProfile();
   const notes = useNotes();
+  const me = useMe();
   const facts = useFacts();
   const box = useMailbox();
   const dash = useDashboard();
@@ -69,13 +70,22 @@ function SetupWizardInner() {
   const top = useRef<HTMLDivElement>(null);
 
   // the draft starts from what is saved, once
+  // A first-time search starts from what they told us at sign-up: how they want to work, and the
+  // role from their CV page. It counts as a change, so it is saved with the first step.
   useEffect(() => {
-    if (profile.data && !d) {
+    if (profile.data && !d && !me.isPending && !notes.isPending) {
       const start = fromProfile(profile.data);
-      setD(start);
       lastSaved.current = JSON.stringify(toProfileIn(start));
+      if (profile.data.version === 0) {
+        const told = me.data?.onboarding?.arrangement ?? [];
+        if (start.arrangement.length === 0 && told.length > 0)
+          start.arrangement = [...told];
+        const role = notes.data?.role?.trim();
+        if (start.roles.length === 0 && role) start.roles = [role];
+      }
+      setD(start);
     }
-  }, [profile.data, d]);
+  }, [profile.data, d, me.isPending, me.data, notes.isPending, notes.data]);
 
   const ctx = useMemo(
     () => ({
