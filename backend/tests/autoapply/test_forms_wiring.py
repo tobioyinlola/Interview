@@ -60,3 +60,56 @@ def test_the_fixture_is_used_unless_the_browser_is_asked_for():
     assert f.name == "browser" and f.real is True and f.hosts == ("jobs.example.com", "x.io")
     default = forms.build(Settings(autoapply_form_adapter="browser"))
     assert default.supports("https://job-boards.greenhouse.io/acme/jobs/1")
+
+
+def test_any_public_application_link_can_be_tried_when_the_operator_allows_it():
+    from app.autoapply.browserform import BrowserForm
+
+    f = forms.build(Settings(autoapply_form_adapter="browser", autoapply_form_hosts="*"))
+    assert f.any_site is True
+    for ok in (
+        "https://jobs.lever.co/acme/1",
+        "https://careers.example.com/apply/7?gh_jid=1",
+        "https://acme.wd5.myworkdayjobs.com/en-US/External/job/X_R-1",
+    ):
+        assert f.supports(ok), ok
+    # never over plain http, and never anything that is not a public website
+    for bad in (
+        "http://jobs.example.com/apply",
+        "https://localhost/apply",
+        "https://127.0.0.1/apply",
+        "https://10.0.0.5/apply",
+        "https://169.254.169.254/latest/meta-data",
+        "https://service.railway.internal/apply",
+        "https://intranet/apply",
+        "https://user:pass@jobs.example.com/apply",
+        "https://jobs.example.com:8443/apply",
+        "https://www.linkedin.com/in/someone",
+        "ftp://jobs.example.com/apply",
+        "",
+    ):
+        assert not f.supports(bad), bad
+    # the default and a named list are as strict as before
+    assert not BrowserForm().supports("https://jobs.lever.co/acme/1")
+    assert not forms.build(
+        Settings(autoapply_form_adapter="browser", autoapply_form_hosts="x.io")
+    ).supports("https://jobs.lever.co/acme/1")
+
+
+async def test_a_name_that_points_at_a_private_address_is_refused_before_a_browser_opens(
+    monkeypatch,
+):
+    import pytest
+
+    from app.autoapply import browserform
+    from app.autoapply.adapters import AdapterError
+    from app.services.url_guard import UrlRejected
+
+    async def refuse(url):
+        raise UrlRejected("private")
+
+    monkeypatch.setattr(browserform, "validate_public_url", refuse)
+    f = browserform.BrowserForm(hosts=("*",))
+    with pytest.raises(AdapterError) as e:
+        await f._session("https://jobs.example.com/apply")
+    assert e.value.code == "rejected"

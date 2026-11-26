@@ -488,7 +488,8 @@ async def test_a_captcha_goes_to_the_candidate_and_nothing_is_sent(
     form.mode = "captcha"
     await tick()
     a = (await apps(ada))[0]
-    assert a["status"] == "needs_input" and a["needs_input"][0]["kind"] == "unsupported"
+    # nothing the person can answer in the app: it is handed to them, prepared, to submit themselves
+    assert a["status"] == "apply_yourself" and a["channel"] == "manual"
     assert form.calls == 0
 
 
@@ -789,3 +790,36 @@ def test_stored_secrets_need_the_right_key(settings):
     settings.environment = "production"
     with pytest.raises(crypto.CryptoError):
         crypto.encrypt(settings, "x")  # production refuses to guess a key
+
+
+async def test_a_form_that_cannot_be_filled_is_handed_to_the_person_not_failed(
+    ada, maker, form, mailbox, discovery_source, outbox_adapters, clock
+):
+    """No form on the page, a sign-in wall or a human check: nothing is sent and nothing failed. The
+    prepared CV and note go to the person to submit on the employer's own site."""
+    from app.autoapply import outbox
+    from app.autoapply.adapters import AdapterError
+    from tests.autoapply.conftest import apps, job, start
+
+    discovery_source.postings = [job(1)]
+    await start(ada)
+    await ada.post("/api/autoapply/discovery/run")
+    (a,) = await apps(ada)
+    assert a["status"] == "queued" and a["channel"] == "form"
+
+    async def no_form(url):
+        raise AdapterError("rejected", "The form asks for a human check (CAPTCHA).")
+
+    form.read_form = no_form  # type: ignore[method-assign]
+    uid = await user_id(maker)
+    claim = await outbox.claim_next(maker, uid, outbox_adapters, clock.now)
+    assert claim is not None
+    assert await outbox.execute(maker, claim, outbox_adapters, clock.now) == "cancelled"
+    (after,) = await apps(ada)
+    assert after["status"] == "apply_yourself" and after["channel"] == "manual"
+    detail = (await ada.get(f"/api/autoapply/applications/{a['id']}")).json()
+    assert [t["state"] for t in detail["attempts"]] == ["cancelled"]
+    assert detail["attempts"][0]["failure_message"].startswith("The form asks for a human check")
+    handed = [h for h in detail["history"] if h["kind"] == "handed_over"]
+    assert handed and "CAPTCHA" in handed[0]["detail"]["reason"]
+    assert detail["package"]["cv"]["submitted_text"]  # already prepared: ready for the person

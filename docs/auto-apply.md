@@ -115,10 +115,11 @@ A listing is applied for by one of three ways, in this order:
 1. **Its form, filled in for you**, when the link is on a site whose form the app has been checked
    against (Greenhouse and Ashby by default; more only through `AUTOAPPLY_FORM_HOSTS`, after they have
    been checked read-only on real forms). Needs the "employers' forms" channel on.
-2. **Email**, when the listing itself tells people to apply by email. The address is read from the
+2. **Email**, when the listing itself tells people to apply by email. The addresses are read from the
    listing's own words ("send your CV to ..."): only an address in a sentence about applying counts,
-   never a support, no-reply or placeholder address, and when the text gives two different
-   application addresses nothing is guessed. The sentence is kept as the evidence. Needs the "email"
+   never a support, no-reply or placeholder address. When the text gives several application
+   addresses (up to three) the application goes to **all of them** in one message. The sentence is
+   kept as the evidence. Needs the "email"
    channel on and a connected mailbox. Listings stored before this was read are filled in by the
    worker's hourly housekeeping, 500 at a time.
 3. **Hand-off: "Ready for you to apply".** A job that fits but whose link is on a site we cannot fill
@@ -132,3 +133,30 @@ A job with no link and no email still cannot be acted on and is skipped, with th
 Why not submit every site's form: most employer sites have their own bot checks (CAPTCHA and the
 like) and different forms; the app does not work round those, and it does not submit to a site it has
 not been checked against. Adding a site is a decision made after reading its real form.
+
+### Trying any application link (`AUTOAPPLY_FORM_HOSTS=*`)
+
+By default only checked sites (Greenhouse, Ashby, and any named in `AUTOAPPLY_FORM_HOSTS`) are filled
+in. Setting `AUTOAPPLY_FORM_HOSTS=*` makes the app try **any public https application link**. It is the
+operator's choice, because it submits to sites nobody has checked. What stays the same:
+
+- The form is read first and filled only as far as the app can honestly answer it. A question it has
+  no answer for is asked of the person (the usual "needs your input").
+- A human check (CAPTCHA), a sign-in wall, "access denied" pages or no form at all are **never worked
+  round**. Nothing is sent, and the prepared application goes to the person as "Ready for you to
+  apply" (a form that fails this way no longer ends as "failed").
+- Only public web addresses: never plain http, a private or local network address, a name that
+  resolves to one, an unusual port, a link with a login in it, or a social profile. The check is
+  repeated on every page the browser navigates to.
+- It still needs `AUTOAPPLY_FORM_ADAPTER=browser` (the worker with `WITH_BROWSER=1`),
+  `AUTOAPPLY_FORM_DISPATCH=true`, and each person's "employers' forms" channel on.
+
+## Why startup notes can wait (and how to see it)
+
+An approved startup note is only sent when every gate is open: outreach switched on, a name and
+postal address, a connected email, not paused, `STARTUP_OUTREACH_DISPATCH`, weekdays 08:00-18:00 in
+the candidate's time zone, today's limit, a gap between notes, and (outside production) the recipient
+being on `AUTOAPPLY_ALLOWED_RECIPIENTS`. `GET /api/hunt/delivery` lists what is in the way, and the
+Startups page shows it with where to fix it. A server that is not `ENVIRONMENT=production` writes only
+to its test list; setting `STARTUP_OUTREACH_ANY_RECIPIENT=true` says, on purpose, that it may write to
+real startups (startup notes only).

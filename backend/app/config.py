@@ -138,6 +138,8 @@ class Settings(BaseSettings):
     autoapply_form_adapter: str = "fixture"
     # The application sites the browser filler may open, comma-separated. Empty: Greenhouse's job
     # boards. Add a site only after its form has been read and filled in a real browser.
+    # "*" means any public https application link (the form is still read first, and a human check,
+    # a sign-in wall or a question the app cannot answer hands the job back to the person).
     autoapply_form_hosts: str = ""
     autoapply_browser_path: str = ""  # a Chromium to use instead of the one Playwright installed
     autoapply_email_dispatch: bool = False  # kill switch: applications sent from a mailbox
