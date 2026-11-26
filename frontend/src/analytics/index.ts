@@ -19,6 +19,7 @@ export type Feature =
   | "autoapply_enable"
   | "autoapply_pause"
   | "autoapply_applied_by_you"
+  | "autoapply_recheck_skipped"
   | "outreach_request"
   | "referral_copy"
   | "app_update"
