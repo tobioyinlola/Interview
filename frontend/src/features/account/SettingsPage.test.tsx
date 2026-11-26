@@ -27,14 +27,20 @@ const apiError = (status: number, code: string, message: string) => ({
 });
 
 describe("Settings: the tabs", () => {
-  it("opens on Profile and offers Profile, Password, CV and Privacy and data", async () => {
+  it("opens on Profile and offers Profile, Password, CV, Email and Privacy and data", async () => {
     mockApi({ "GET /api/me": () => ({ json: ME }) });
     renderApp(<App />, "/settings");
     expect(await screen.findByLabelText("Full name")).toBeInTheDocument();
     const tabs = within(
       screen.getByRole("navigation", { name: "Settings sections" }),
     );
-    for (const name of ["Profile", "Password", "CV", "Privacy and data"])
+    for (const name of [
+      "Profile",
+      "Password",
+      "CV",
+      "Email",
+      "Privacy and data",
+    ])
       expect(tabs.getByRole("link", { name })).toBeInTheDocument();
     expect(tabs.getByRole("link", { name: "Profile" })).toHaveAttribute(
       "aria-current",

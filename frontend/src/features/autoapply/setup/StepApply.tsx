@@ -1,6 +1,7 @@
-import { AppPasswordForm } from "../AppPasswordForm";
-import { useDashboard, useMailbox, useMailboxActions } from "../api";
-import { Fail, SourceChips } from "../ui";
+import { Link } from "react-router-dom";
+
+import { useDashboard, useMailbox } from "../api";
+import { SourceChips } from "../ui";
 import { OptionTile } from "./controls";
 import type { Draft } from "./draft";
 
@@ -14,7 +15,6 @@ export function StepApply({
 }) {
   const box = useMailbox();
   const dash = useDashboard();
-  const { connect, disconnect } = useMailboxActions();
   const connected = !!box.data?.connected;
   const flip = (k: keyof Draft["channels"]) =>
     set({ channels: { ...d.channels, [k]: !d.channels[k] } });
@@ -78,38 +78,20 @@ export function StepApply({
                   : "Needed only to email applications or pitches from your own Gmail (they show in your Sent folder) and to notice replies."}
             </p>
           </div>
-          {connected ? (
-            <button
-              type="button"
-              className="btn-secondary"
-              disabled={disconnect.isPending}
-              onClick={() => disconnect.mutate()}
-            >
-              Disconnect my email
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="btn-primary"
-              disabled={connect.isPending || box.data?.can_connect === false}
-              onClick={() => connect.mutate()}
-            >
-              Connect Gmail
-            </button>
-          )}
+          <Link
+            to="/settings/email?next=/auto-apply/setup"
+            className={connected ? "btn-secondary" : "btn-primary"}
+          >
+            {connected
+              ? "Manage email in Settings"
+              : "Connect email in Settings"}
+          </Link>
         </div>
-        {box.data?.can_connect === false && (
-          <p className="mt-2 text-xs text-muted">
-            Connecting email is not set up on this server yet.
-          </p>
-        )}
         {needsMail && box.data?.can_connect !== false && (
           <p className="mt-2 text-sm text-amber-900">
             You chose an email option, so connect your email to continue.
           </p>
         )}
-        {!connected && <AppPasswordForm />}
-        <Fail error={connect.error ?? disconnect.error} />
       </div>
     </div>
   );

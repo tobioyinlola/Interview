@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link, Navigate } from "react-router-dom";
 
 import { useMe } from "../../api/hooks";
 import { Loading } from "../../ui/Loading";
@@ -10,7 +11,7 @@ import {
   useRequestOutreachAccess,
 } from "./api";
 import { HistoryRow, StartupCard } from "./Cards";
-import { GmailConnect, MailboxConfirmed, StartupHero } from "./Connect";
+import { StartupHero } from "./Connect";
 import { Setup } from "./Setup";
 
 function Stat({ label, value }: { label: string; value: number }) {
@@ -50,7 +51,14 @@ function StartupsBoard() {
   return (
     <main className="page-narrow space-y-5">
       <StartupHero />
-      {s.mailbox && <MailboxConfirmed address={s.mailbox} />}
+      {s.mailbox && (
+        <p className="text-sm text-muted">
+          Pitches go from <span className="font-medium">{s.mailbox}</span>.{" "}
+          <Link to="/settings/email" className="text-accent-dark underline">
+            Change email
+          </Link>
+        </p>
+      )}
 
       {s.paused && (
         <p role="status" className="notice-info">
@@ -173,44 +181,16 @@ function RequestAccess({ requested }: { requested: boolean }) {
   );
 }
 
-/** Switched on for them, but nothing is sent from a stranger's address: connect Gmail first, then
- *  see it confirmed before going on. */
-function ConnectFirst({
-  confirmed,
-  onConnected,
-  onContinue,
-}: {
-  confirmed: string | null;
-  onConnected: () => void;
-  onContinue: () => void;
-}) {
-  return (
-    <main className="page-narrow space-y-5">
-      <StartupHero />
-      {confirmed ? (
-        <MailboxConfirmed address={confirmed} onContinue={onContinue} />
-      ) : (
-        <GmailConnect onConnected={onConnected} />
-      )}
-    </main>
-  );
-}
-
 export function StartupsPage() {
   const { data: me, isPending } = useMe();
   const box = useMailbox();
-  const [welcome, setWelcome] = useState(false); // just connected: show it confirmed first
   if (isPending) return <Loading label="Loading startups" />;
   if (me?.outreach_access !== "active")
     return <RequestAccess requested={me?.outreach_access === "requested"} />;
   if (box.isPending) return <Loading label="Loading startups" />;
-  if (box.data && (!box.data.connected || welcome))
-    return (
-      <ConnectFirst
-        confirmed={box.data.connected ? (box.data.address ?? null) : null}
-        onConnected={() => setWelcome(true)}
-        onContinue={() => setWelcome(false)}
-      />
-    );
+  // Nothing is sent from a stranger's address, and the email connection lives in Settings: send
+  // them there, and bring them back here once it is connected.
+  if (box.data && !box.data.connected)
+    return <Navigate to="/settings/email?next=/startups" replace />;
   return <StartupsBoard />;
 }

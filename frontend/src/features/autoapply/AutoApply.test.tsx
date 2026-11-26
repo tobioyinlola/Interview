@@ -1350,14 +1350,14 @@ describe("setting up: the guided flow", () => {
     );
     expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
     expect(screen.getAllByText(/Connect your email/).length).toBeGreaterThan(0);
-    await userEvent.click(
-      screen.getByRole("button", { name: "Connect Gmail" }),
-    );
-    await waitFor(() =>
-      expect(
-        calls.some((c) => c.key === "POST /api/autoapply/mailbox/connect"),
-      ).toBe(true),
-    );
+    // the connection itself is in Settings, and it comes back here when it is done
+    expect(
+      screen.getByRole("link", { name: "Connect email in Settings" }),
+    ).toHaveAttribute("href", "/settings/email?next=/auto-apply/setup");
+    expect(screen.queryByRole("button", { name: "Connect Gmail" })).toBeNull();
+    expect(
+      calls.some((c) => c.key === "POST /api/autoapply/mailbox/connect"),
+    ).toBe(false);
   });
 
   it("how to apply: needs at least one way, and saves the notes limit", async () => {
@@ -1579,8 +1579,8 @@ describe("starting an interview from Auto-Apply", () => {
   });
 });
 
-describe("the Gmail prompt on the home screens", () => {
-  it("offers to connect Gmail once, and can be put away", async () => {
+describe("the email prompt on the home screens", () => {
+  it("points to Settings once, and can be put away", async () => {
     base({
       "GET /api/autoapply/mailbox": () => ({
         json: {
@@ -1593,14 +1593,20 @@ describe("the Gmail prompt on the home screens", () => {
     });
     renderApp(<App />, "/dashboard");
     const card = await screen.findByRole("region", {
-      name: "Send from your own Gmail",
+      name: "Send from your own email",
     });
     expect(within(card).getByText(/show in your Sent folder/)).toBeVisible();
+    expect(
+      within(card).getByRole("link", { name: "Connect email" }),
+    ).toHaveAttribute("href", "/settings/email");
+    expect(
+      within(card).queryByRole("button", { name: /Connect Gmail/ }),
+    ).toBeNull();
     await userEvent.click(
       within(card).getByRole("button", { name: "Not now" }),
     );
     expect(
-      screen.queryByRole("region", { name: "Send from your own Gmail" }),
+      screen.queryByRole("region", { name: "Send from your own email" }),
     ).toBeNull();
     localStorage.removeItem("im-gmail-prompt-dismissed");
   });
@@ -1627,7 +1633,7 @@ describe("connecting with an app password", () => {
     smtp_providers: options,
   };
 
-  it("offers the form on the home card next to the Google button, and connects", async () => {
+  it("offers the form in Settings next to the Google button, and connects", async () => {
     const connect = vi.fn(() => ({
       json: {
         ...off,
@@ -1640,16 +1646,11 @@ describe("connecting with an app password", () => {
       "GET /api/autoapply/mailbox": () => ({ json: off }),
       "POST /api/autoapply/mailbox/connect-smtp": connect,
     });
-    renderApp(<App />, "/dashboard");
-    const card = await screen.findByRole("region", {
-      name: "Send from your own Gmail",
-    });
+    renderApp(<App />, "/settings/email");
+    const card = await screen.findByRole("region", { name: "Your email" });
     expect(
       within(card).getByRole("button", { name: "Connect Gmail" }),
     ).toBeVisible();
-    await userEvent.click(
-      within(card).getByRole("button", { name: "Use an app password" }),
-    );
     expect(
       within(card).getByText(/Google Account, Security, App passwords\./),
     ).toBeVisible();
@@ -1676,13 +1677,8 @@ describe("connecting with an app password", () => {
         },
       }),
     });
-    renderApp(<App />, "/dashboard");
-    const card = await screen.findByRole("region", {
-      name: "Send from your own Gmail",
-    });
-    await userEvent.click(
-      within(card).getByRole("button", { name: "Use an app password" }),
-    );
+    renderApp(<App />, "/settings/email");
+    const card = await screen.findByRole("region", { name: "Your email" });
     await userEvent.type(
       within(card).getByLabelText("App password"),
       "wrongwrong",
@@ -1701,12 +1697,8 @@ describe("connecting with an app password", () => {
         json: { ...off, smtp_providers: [] },
       }),
     });
-    renderApp(<App />, "/dashboard");
-    const card = await screen.findByRole("region", {
-      name: "Send from your own Gmail",
-    });
-    expect(
-      within(card).queryByRole("button", { name: "Use an app password" }),
-    ).toBeNull();
+    renderApp(<App />, "/settings/email");
+    const card = await screen.findByRole("region", { name: "Your email" });
+    expect(within(card).queryByLabelText("App password")).toBeNull();
   });
 });
