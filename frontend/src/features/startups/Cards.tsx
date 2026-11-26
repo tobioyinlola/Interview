@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { useAddJob } from "../autoapply/api";
-import { useTargetActions, type HuntTarget } from "./api";
+import { useHuntDelivery, useTargetActions, type HuntTarget } from "./api";
 
 export const STATUS: Record<string, string> = {
   drafted: "Waiting for you",
@@ -13,6 +13,29 @@ export const STATUS: Record<string, string> = {
   skipped: "Skipped",
   failed: "Did not send",
 };
+
+/** The status of a note. An approved note is "Sending soon" only while nothing is in the way; when
+ *  something is (see the notice at the top), it says "Held back" instead of promising it. */
+export function StatusPill({
+  t,
+  className = "",
+}: {
+  t: HuntTarget;
+  className?: string;
+}) {
+  const d = useHuntDelivery();
+  const held = t.status === "approved" && (d.data?.blockers.length ?? 0) > 0;
+  return (
+    <span
+      className={`${className} ${
+        held ? "bg-amber-100 text-amber-900" : "bg-accent-soft text-accent-dark"
+      }`}
+      title={held ? d.data?.blockers[0]?.text : undefined}
+    >
+      {held ? "Held back" : (STATUS[t.status] ?? t.status)}
+    </span>
+  );
+}
 
 const when = (iso: string | null) =>
   iso
@@ -195,9 +218,10 @@ export function StartupCard({ t }: { t: HuntTarget }) {
           </a>
           <p className="text-sm text-muted">{t.one_liner}</p>
         </div>
-        <span className="rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-medium text-accent-dark">
-          {STATUS[t.status] ?? t.status}
-        </span>
+        <StatusPill
+          t={t}
+          className="rounded-full px-2.5 py-0.5 text-xs font-medium"
+        />
       </div>
       {t.fit_reasons.length > 0 && (
         <details>
@@ -236,9 +260,10 @@ export function HistoryRow({ t }: { t: HuntTarget }) {
             {t.sent_at ? ` · ${when(t.sent_at)}` : ""}
           </span>
         </span>
-        <span className="shrink-0 rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-medium text-accent-dark">
-          {STATUS[t.status] ?? t.status}
-        </span>
+        <StatusPill
+          t={t}
+          className="shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium"
+        />
       </button>
       {open && (
         <div className="space-y-3 px-4 pb-4">

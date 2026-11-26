@@ -398,6 +398,45 @@ describe("Startups inside Auto-Apply", () => {
     expect(await screen.findByText(/Step 1 of 3/)).toBeVisible();
   });
 
+  it("does not promise 'Sending soon' for an approved note that something is holding back", async () => {
+    const approved = { ...target, status: "approved" };
+    const held = {
+      approved: 1,
+      blockers: [
+        {
+          code: "allowlist",
+          text: "Only the test list is written to.",
+          where: "",
+        },
+      ],
+    };
+    routes({
+      "GET /api/hunt/settings": () => ({
+        json: { ...settings, enabled: true, ready: [] },
+      }),
+      "GET /api/hunt/targets": () => ({ json: [approved] }),
+      "GET /api/hunt/delivery": () => ({ json: held }),
+    });
+    renderApp(<App />, "/startups");
+    await userEvent.click(await screen.findByRole("radio", { name: "Sent" }));
+    expect(await screen.findByText("Held back")).toBeVisible();
+    expect(screen.queryByText("Sending soon")).toBeNull();
+  });
+
+  it("says 'Sending soon' for an approved note when nothing is in the way", async () => {
+    routes({
+      "GET /api/hunt/settings": () => ({
+        json: { ...settings, enabled: true, ready: [] },
+      }),
+      "GET /api/hunt/targets": () => ({
+        json: [{ ...target, status: "approved" }],
+      }),
+    });
+    renderApp(<App />, "/startups");
+    await userEvent.click(await screen.findByRole("radio", { name: "Sent" }));
+    expect(await screen.findByText("Sending soon")).toBeVisible();
+  });
+
   it("says nothing when nothing is waiting or nothing is in the way", async () => {
     routes({
       "GET /api/hunt/settings": () => ({
