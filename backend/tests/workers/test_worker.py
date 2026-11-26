@@ -352,3 +352,31 @@ async def test_the_back_office_sees_the_queue_and_can_retry_a_task_that_gave_up(
     assert (await row(maker, tid)).status == "queued"
     async with new_client() as stranger:
         assert (await stranger.get("/api/admin/worker")).status_code in (401, 403)
+
+
+async def test_the_back_office_lists_every_job_board_and_downloads_them(maker, boss, new_client):  # type: ignore[no-untyped-def]
+    from app.autoapply import registry
+    from app.models import JobSource
+
+    now = datetime.now(UTC)
+    async with maker() as db:
+        await registry.register(db, "greenhouse", "acme", origin="startup", now=now, company="Acme")
+        await registry.register(db, "jobicy", "", origin="settings", now=now)
+        await db.commit()
+        src = (await db.execute(select(JobSource).where(JobSource.board == "acme"))).scalar_one()
+        src.jobs_listed = 12
+        await db.commit()
+    items = (await boss.get("/api/admin/job-sources/list")).json()["items"]
+    assert [(i["kind"], i["board"]) for i in items] == [("greenhouse", "acme"), ("jobicy", "")]
+    assert (
+        items[0]["url"] == "https://boards.greenhouse.io/acme" and items[0]["origin"] == "startup"
+    )
+    assert items[1]["url"] == "https://jobicy.com"
+    r = await boss.get("/api/admin/job-sources/export.csv")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/csv")
+    lines = r.text.strip().splitlines()
+    assert lines[0].startswith("company,kind,board,url") and len(lines) == 3
+    assert "Acme,greenhouse,acme,https://boards.greenhouse.io/acme,startup research" in lines[1]
+    async with new_client() as stranger:
+        assert (await stranger.get("/api/admin/job-sources/list")).status_code in (401, 403)
+        assert (await stranger.get("/api/admin/job-sources/export.csv")).status_code in (401, 403)

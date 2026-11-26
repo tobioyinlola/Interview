@@ -11,6 +11,7 @@ import type {
   AdminAutoApply,
   AdminWorker,
   AdminJobSources,
+  AdminJobSourceList,
   AdminSwitch,
   AdminEmails,
   AdminMarketing,
@@ -409,3 +410,14 @@ export const useJobSources = () =>
     queryKey: ["admin", "job-sources"],
     queryFn: () => apiFetch<AdminJobSources>("/api/admin/job-sources"),
   });
+
+/** Every board and feed, the busiest first; read only when the list is opened. */
+export const useJobSourceList = (enabled: boolean) =>
+  useQuery<AdminJobSourceList>({
+    queryKey: ["admin", "job-sources", "list"],
+    queryFn: () => apiFetch<AdminJobSourceList>("/api/admin/job-sources/list"),
+    enabled,
+  });
+
+export const jobSourcesCsvUrl = (base: string) =>
+  `${base}/api/admin/job-sources/export.csv`;
