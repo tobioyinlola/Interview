@@ -318,6 +318,97 @@ def cv_filename(name: str) -> str:
     return f"{clean} - CV.pdf" if clean else "CV.pdf"
 
 
+async def delivery_blockers(
+    maker: async_sessionmaker[AsyncSession],
+    user_id: uuid.UUID,
+    adapter: MailboxAdapter,
+    settings: Settings,
+    now: datetime,
+) -> dict[str, Any]:
+    """Why approved notes are not going out right now: read-only, in the order a person can fix
+    them. The same gates send_next applies, said in words, so nothing is held back in silence.
+    Returns {"approved": n, "blockers": [{"code", "text", "where"}]}; no blockers means a note
+    goes in the next pass."""
+    out: list[dict[str, str]] = []
+
+    def add(code: str, text: str, where: str = "") -> None:
+        out.append({"code": code, "text": text, "where": where})
+
+    async with maker() as db:
+        approved = (
+            await db.execute(
+                select(func.count())
+                .select_from(HuntTarget)
+                .where(HuntTarget.user_id == user_id, HuntTarget.status == "approved")
+            )
+        ).scalar_one()
+        if approved == 0:
+            return {"approved": 0, "blockers": []}
+        st = await get_settings(db, user_id)
+        conn = await mailbox.get(db, user_id)
+        off = await switches.active(db)
+        prof = (
+            await db.execute(select(SearchProfile).where(SearchProfile.user_id == user_id))
+        ).scalar_one_or_none()
+        tz = prof.timezone if prof else "UTC"
+        if st is None or not st.enabled:
+            add("off", "Startup outreach is switched off. Turn it on under Set up.", "setup")
+        if st is not None and not st.sender_name.strip():
+            add("name", "Add the name your notes are signed with, under Set up.", "setup")
+        if st is not None and not st.postal_address.strip():
+            add(
+                "address",
+                "Add a postal address under Set up. Commercial email must carry one.",
+                "setup",
+            )
+        if conn is None or not conn.token_encrypted:
+            add(
+                "mailbox",
+                "Connect your email in Settings: notes go from your own address.",
+                "email",
+            )
+        elif conn.status != "connected":
+            add("reauth", "Your email needs to be connected again, in Settings.", "email")
+        if (why := switches.blocked(off, "hunt", adapter.name)) is not None:
+            add("switch", f"Sending is paused by the operator ({why}).")
+        if bool(prof and prof.paused):
+            add("paused", "Auto-Apply is paused, which pauses startup notes too. Resume it.")
+        if not settings.startup_outreach_dispatch and adapter.real:
+            add(
+                "server",
+                "Real sending is switched off on this server (STARTUP_OUTREACH_DISPATCH).",
+            )
+        elif (
+            adapter.real
+            and settings.environment != "production"
+            and not settings.startup_outreach_any_recipient
+        ):
+            add(
+                "allowlist",
+                "This server is not in production, so it only sends to addresses on its test list "
+                "(AUTOAPPLY_ALLOWED_RECIPIENTS). To let it write to real startups, the operator "
+                "sets STARTUP_OUTREACH_ANY_RECIPIENT=true.",
+            )
+        if st is not None and st.enabled and not in_window(now, tz):
+            add(
+                "window",
+                f"Notes go out on weekdays between 08:00 and 18:00 ({tz}). It is outside that "
+                "now, so the next one goes in the next window.",
+            )
+        if st is not None and await sent_today(db, user_id, now, tz) >= min(
+            st.daily_cap, MAX_DAILY
+        ):
+            add("cap", "Today's limit is reached. The next note goes tomorrow.")
+        last = (
+            await db.execute(
+                select(func.max(HuntTarget.claimed_at)).where(HuntTarget.user_id == user_id)
+            )
+        ).scalar_one()
+        if last is not None and now - last < MIN_GAP:
+            add("gap", "A short gap is kept between notes. The next goes in a minute.")
+    return {"approved": int(approved), "blockers": out}
+
+
 async def send_next(
     maker: async_sessionmaker[AsyncSession],
     user_id: uuid.UUID,

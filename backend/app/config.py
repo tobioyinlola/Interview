@@ -144,6 +144,10 @@ class Settings(BaseSettings):
     autoapply_outreach_dispatch: bool = False  # kill switch: hiring outreach from a mailbox
     startup_outreach_enabled: bool = False  # feature flag: startup outreach routes and jobs
     startup_outreach_dispatch: bool = False  # kill switch: startup notes from a real mailbox
+    # Outside production a real mailbox may only write to AUTOAPPLY_ALLOWED_RECIPIENTS, so a test
+    # server can never reach a real startup. Turn this on to say, deliberately, that THIS server may
+    # write to real startups (the operator's decision; production does not need it).
+    startup_outreach_any_recipient: bool = False
     autoapply_mailbox_provider: str = "fixture"  # fixture | gmail
     # Let people connect Gmail, Outlook or Yahoo with an app password. Off by default: it makes
     # sending real, so it also needs MAILBOX_ENCRYPTION_KEY and the dispatch switches, like any

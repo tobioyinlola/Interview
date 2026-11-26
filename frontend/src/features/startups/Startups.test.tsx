@@ -77,6 +77,7 @@ const routes = (extra: Record<string, () => object> = {}) =>
     }),
     "GET /api/hunt/settings": () => ({ json: settings }),
     "GET /api/hunt/targets": () => ({ json: [target] }),
+    "GET /api/hunt/delivery": () => ({ json: { approved: 0, blockers: [] } }),
     ...extra,
   });
 
@@ -353,6 +354,61 @@ describe("Startups inside Auto-Apply", () => {
     renderApp(<App />, "/settings/email?next=https://evil.example/x");
     await screen.findByLabelText("Email connected");
     expect(screen.queryByRole("link", { name: /Continue to/ })).toBeNull();
+  });
+
+  it("says why approved notes are waiting, and where to fix it, instead of holding them in silence", async () => {
+    routes({
+      "GET /api/hunt/settings": () => ({
+        json: { ...settings, enabled: true, ready: [] },
+      }),
+      "GET /api/hunt/delivery": () => ({
+        json: {
+          approved: 2,
+          blockers: [
+            {
+              code: "address",
+              text: "Add a postal address under Set up. Commercial email must carry one.",
+              where: "setup",
+            },
+            {
+              code: "reauth",
+              text: "Your email needs to be connected again, in Settings.",
+              where: "email",
+            },
+          ],
+        },
+      }),
+    });
+    renderApp(<App />, "/startups");
+    const why = await screen.findByRole("status", {
+      name: "Why your notes are waiting",
+    });
+    expect(
+      within(why).getByText(/2 approved notes are not going out yet/),
+    ).toBeVisible();
+    expect(
+      within(why).getByText(/Add a postal address under Set up/),
+    ).toBeVisible();
+    expect(
+      within(why).getByRole("link", { name: "Open Settings" }),
+    ).toHaveAttribute("href", "/settings/email?next=/startups");
+    await userEvent.click(
+      within(why).getByRole("button", { name: "Open Set up" }),
+    );
+    expect(await screen.findByText(/Step 1 of 3/)).toBeVisible();
+  });
+
+  it("says nothing when nothing is waiting or nothing is in the way", async () => {
+    routes({
+      "GET /api/hunt/settings": () => ({
+        json: { ...settings, enabled: true, ready: [] },
+      }),
+    });
+    renderApp(<App />, "/startups");
+    await screen.findByText("ada@example.com");
+    expect(
+      screen.queryByRole("status", { name: "Why your notes are waiting" }),
+    ).toBeNull();
   });
 
   it("the old address still works", async () => {

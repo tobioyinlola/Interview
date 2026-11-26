@@ -59,6 +59,19 @@ export const useHuntSettings = () =>
     queryFn: () => apiFetch(`${P}/settings`),
   });
 
+export type HuntDelivery = {
+  approved: number;
+  blockers: { code: string; text: string; where: string }[];
+};
+
+/** Why approved notes are waiting, in words: so a note is never held back in silence. */
+export const useHuntDelivery = () =>
+  useQuery<HuntDelivery>({
+    queryKey: ["hunt", "delivery"],
+    queryFn: () => apiFetch(`${P}/delivery`),
+    refetchInterval: 60_000,
+  });
+
 export const useHuntTargets = () =>
   useQuery<HuntTarget[]>({
     queryKey: ["hunt", "targets"],

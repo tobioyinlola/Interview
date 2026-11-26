@@ -69,6 +69,8 @@ def dispatch_allowed(settings: Settings, channel: str, real: bool, recipient: st
         return False
     if settings.environment == "production":
         return True
+    if channel == "hunt" and settings.startup_outreach_any_recipient:
+        return True  # the operator said this server may write to real startups
     allowed = {a.strip().lower() for a in settings.autoapply_allowed_recipients.split(",") if a}
     return bool(recipient) and (recipient or "").lower() in allowed
 

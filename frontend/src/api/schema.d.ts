@@ -1933,6 +1933,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/hunt/delivery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Delivery
+         * @description Why approved notes are waiting, in words, so a note is never held back in silence. Uses the
+         *     same mailbox adapter and gates the sender does.
+         */
+        get: operations["delivery_api_hunt_delivery_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/hunt/reach": {
         parameters: {
             query?: never;
@@ -3000,6 +3021,18 @@ export interface components {
             /** Trial Available */
             trial_available: boolean;
         };
+        /** BlockerOut */
+        BlockerOut: {
+            /** Code */
+            code: string;
+            /** Text */
+            text: string;
+            /**
+             * Where
+             * @default
+             */
+            where: string;
+        };
         /** BriefContent */
         BriefContent: {
             /** Assumed Company */
@@ -3311,6 +3344,13 @@ export interface components {
             /** State */
             state: string;
             usage: components["schemas"]["UsageOut"] | null;
+        };
+        /** DeliveryOut */
+        DeliveryOut: {
+            /** Approved */
+            approved: number;
+            /** Blockers */
+            blockers: components["schemas"]["BlockerOut"][];
         };
         /** DesktopRelease */
         DesktopRelease: {
@@ -8359,6 +8399,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AccessOut"];
+                };
+            };
+        };
+    };
+    delivery_api_hunt_delivery_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryOut"];
                 };
             };
         };

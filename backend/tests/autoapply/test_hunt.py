@@ -12,7 +12,15 @@ from app.adapters.fakes import FakeLlmProvider
 from app.autoapply import switches
 from app.autoapply.adapters import InboundMessage
 from app.hunt import directory, draft, engine, fit, policy, research
-from app.models import HuntTarget, SearchProfile, Startup, StartupContact, Suppression, User
+from app.models import (
+    HuntSettings,
+    HuntTarget,
+    SearchProfile,
+    Startup,
+    StartupContact,
+    Suppression,
+    User,
+)
 from app.services.fetcher import FetchResult
 from tests.autoapply.conftest import FACTS
 
@@ -2184,3 +2192,81 @@ async def test_anyone_signed_in_can_see_how_many_companies_outreach_reaches(ada,
         await add_startup(db, "GulfCo", "gulfco.io", "uae")  # never written to: not counted
         await add_startup(db, "Dead", "dead.io", "us", status="dead")  # could not be read
     assert (await ada.get("/api/hunt/reach")).json() == {"companies": 2, "label": "2"}
+
+
+async def test_the_reason_nothing_is_going_out_is_said_in_words(
+    ada, maker, mailbox, settings, write_llm
+):
+    """A note held back used to wait in silence. The same gates the sender applies are listed, in the
+    order a person can fix them."""
+    uid = await setup(ada, maker, mailbox, auto_send=True)
+    await seed(maker, 1)
+    async with maker() as db:
+        await engine.plan(db, uid, NOW, write_llm)
+
+    def codes(r):
+        return [b["code"] for b in r["blockers"]]
+
+    clear = await engine.delivery_blockers(maker, uid, mailbox, settings, NOW)
+    assert clear["approved"] == 1 and clear["blockers"] == []  # the next pass sends it
+
+    sat = datetime(2026, 11, 7, 9, 0, tzinfo=UTC)
+    assert codes(await engine.delivery_blockers(maker, uid, mailbox, settings, sat)) == ["window"]
+
+    mailbox.real = True  # a real mailbox: the server's own switches now matter
+    assert codes(await engine.delivery_blockers(maker, uid, mailbox, settings, NOW)) == ["server"]
+    settings.startup_outreach_dispatch = True
+    got = await engine.delivery_blockers(maker, uid, mailbox, settings, NOW)
+    assert codes(got) == ["allowlist"]
+    assert "AUTOAPPLY_ALLOWED_RECIPIENTS" in got["blockers"][0]["text"]
+    assert "STARTUP_OUTREACH_ANY_RECIPIENT" in got["blockers"][0]["text"]
+    # the operator may say, on purpose, that this server writes to real startups
+    settings.startup_outreach_any_recipient = True
+    assert (await engine.delivery_blockers(maker, uid, mailbox, settings, NOW))["blockers"] == []
+    settings.startup_outreach_any_recipient = False
+    settings.environment = "production"
+    assert (await engine.delivery_blockers(maker, uid, mailbox, settings, NOW))["blockers"] == []
+
+    async with maker() as db:
+        await switches.set_switch(db, "channel:hunt", on=True, reason="test", by=None)
+    assert codes(await engine.delivery_blockers(maker, uid, mailbox, settings, NOW)) == ["switch"]
+
+
+async def test_missing_setup_and_email_are_named_with_where_to_fix_them(
+    ada, maker, mailbox, settings, write_llm
+):
+    uid = await setup(ada, maker, mailbox, auto_send=True)
+    await seed(maker, 1)
+    async with maker() as db:
+        await engine.plan(db, uid, NOW, write_llm)
+        await db.execute(
+            update(HuntSettings).where(HuntSettings.user_id == uid).values(postal_address="")
+        )
+        await db.commit()
+    await ada.post("/api/autoapply/mailbox/disconnect")
+    r = (await ada.get("/api/hunt/delivery")).json()
+    got = {b["code"]: b["where"] for b in r["blockers"]}
+    assert r["approved"] == 1
+    assert got["address"] == "setup" and got["mailbox"] == "email"
+
+
+async def test_nothing_is_said_when_nothing_is_waiting(ada, maker, mailbox):
+    await setup(ada, maker, mailbox)
+    r = (await ada.get("/api/hunt/delivery")).json()
+    assert r == {"approved": 0, "blockers": []}
+
+
+def test_a_test_server_writes_to_real_startups_only_when_the_operator_says_so(settings):
+    from app.autoapply.outbox import dispatch_allowed
+
+    settings.startup_outreach_dispatch = True
+    settings.environment = "staging"
+    assert dispatch_allowed(settings, "hunt", True, "jobs@acme.io") is False  # test list is empty
+    settings.autoapply_allowed_recipients = "jobs@acme.io"
+    assert dispatch_allowed(settings, "hunt", True, "jobs@acme.io") is True
+    assert dispatch_allowed(settings, "hunt", True, "jobs@other.io") is False
+    settings.startup_outreach_any_recipient = True
+    assert dispatch_allowed(settings, "hunt", True, "jobs@other.io") is True
+    # it is only for startup notes: applications and notes to hiring contacts stay on the test list
+    settings.autoapply_email_dispatch = True
+    assert dispatch_allowed(settings, "email", True, "jobs@other.io") is False

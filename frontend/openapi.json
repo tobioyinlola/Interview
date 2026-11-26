@@ -1495,6 +1495,29 @@
         "title": "BillingOut",
         "type": "object"
       },
+      "BlockerOut": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "where": {
+            "default": "",
+            "title": "Where",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "text"
+        ],
+        "title": "BlockerOut",
+        "type": "object"
+      },
       "BriefContent": {
         "properties": {
           "assumed_company": {
@@ -2405,6 +2428,27 @@
           "review_count"
         ],
         "title": "DashboardOut",
+        "type": "object"
+      },
+      "DeliveryOut": {
+        "properties": {
+          "approved": {
+            "title": "Approved",
+            "type": "integer"
+          },
+          "blockers": {
+            "items": {
+              "$ref": "#/components/schemas/BlockerOut"
+            },
+            "title": "Blockers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "approved",
+          "blockers"
+        ],
+        "title": "DeliveryOut",
         "type": "object"
       },
       "DesktopRelease": {
@@ -12703,6 +12747,28 @@
           }
         },
         "summary": "Request Access",
+        "tags": [
+          "hunt"
+        ]
+      }
+    },
+    "/api/hunt/delivery": {
+      "get": {
+        "description": "Why approved notes are waiting, in words, so a note is never held back in silence. Uses the\nsame mailbox adapter and gates the sender does.",
+        "operationId": "delivery_api_hunt_delivery_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliveryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Delivery",
         "tags": [
           "hunt"
         ]

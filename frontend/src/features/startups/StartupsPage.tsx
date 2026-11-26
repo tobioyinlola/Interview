@@ -6,6 +6,7 @@ import { Loading } from "../../ui/Loading";
 import { useMailbox } from "../autoapply/api";
 import { Segmented } from "../autoapply/setup/controls";
 import {
+  useHuntDelivery,
   useHuntSettings,
   useHuntTargets,
   useRequestOutreachAccess,
@@ -24,6 +25,51 @@ function Stat({ label, value }: { label: string; value: number }) {
 }
 
 type Tab = "review" | "sent" | "setup";
+
+/** Approved notes that are not going out, and why, with where to fix it. Never shown when nothing
+ *  is waiting or nothing is in the way. */
+function WhyWaiting({ onSetup }: { onSetup: () => void }) {
+  const d = useHuntDelivery();
+  if (!d.data || d.data.approved === 0 || d.data.blockers.length === 0)
+    return null;
+  const n = d.data.approved;
+  return (
+    <section
+      role="status"
+      aria-label="Why your notes are waiting"
+      className="space-y-2 rounded-2xl bg-amber-50 p-4 text-amber-950"
+    >
+      <p className="font-semibold">
+        {n === 1 ? "1 approved note is" : `${n} approved notes are`} not going
+        out yet
+      </p>
+      <ul className="space-y-2 text-sm">
+        {d.data.blockers.map((b) => (
+          <li key={b.code}>
+            {b.text}{" "}
+            {b.where === "email" && (
+              <Link
+                to="/settings/email?next=/startups"
+                className="font-medium underline"
+              >
+                Open Settings
+              </Link>
+            )}
+            {b.where === "setup" && (
+              <button
+                type="button"
+                className="font-medium underline"
+                onClick={onSetup}
+              >
+                Open Set up
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 function StartupsBoard() {
   const settings = useHuntSettings();
@@ -59,6 +105,8 @@ function StartupsBoard() {
           </Link>
         </p>
       )}
+
+      <WhyWaiting onSetup={() => setPicked("setup")} />
 
       {s.paused && (
         <p role="status" className="notice-info">
