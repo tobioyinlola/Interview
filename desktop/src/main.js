@@ -22,18 +22,10 @@ const {
   parseAuthLink,
   isGoogleStartUrl,
   linkFromArgv,
-  privacyDecision,
 } = require("./policy");
+const { applyNativeStealth, reEnforceStealth } = require("./stealth");
 
 const { siteOrigin, appUrl, appOrigin, packed } = load();
-
-// On Windows, transparent Electron windows combined with SetWindowDisplayAffinity and
-// desktopCapturer can crash the GPU process, which kills the renderer (white screen).
-// Disabling GPU compositing for transparent windows avoids the crash while keeping the
-// window visually transparent.  This is harmless on macOS (Core Animation handles it).
-if (process.platform === "win32") {
-  app.commandLine.appendSwitch("disable-gpu-compositing");
-}
 
 // Log GPU process crashes so we can diagnose white-screen issues.
 app.on("child-process-gone", (_event, details) => {
@@ -45,81 +37,6 @@ app.on("child-process-gone", (_event, details) => {
 // the interface is served from inside the app, so it opens with no internet
 if (packed) protocolRules.registerScheme(protocol);
 let win = null;
-
-// --- Native Win32 Screen Capture Protection & Click-Through ---
-// Mirrors the Tauri stealth client: SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)
-// is called ONCE after the window is fully created and stable. Re-calling it after toggling
-// WS_EX_LAYERED can cause the compositor to fall back to WDA_MONITOR behaviour (black
-// rectangle in captures instead of full exclusion).
-let win32Native = null;
-let win32AffinityApplied = false;
-if (process.platform === "win32") {
-  try {
-    const koffi = require("koffi");
-    const user32 = koffi.load("user32.dll");
-    const SetWindowDisplayAffinity = user32.func("bool __stdcall SetWindowDisplayAffinity(intptr_t hwnd, uint32_t dwAffinity)");
-    const GetWindowLongW = user32.func("int32_t __stdcall GetWindowLongW(intptr_t hwnd, int32_t nIndex)");
-    const SetWindowLongW = user32.func("int32_t __stdcall SetWindowLongW(intptr_t hwnd, int32_t nIndex, int32_t dwNewLong)");
-
-    const GWL_EXSTYLE = -20;
-    const WS_EX_LAYERED = 0x00080000;
-    const WS_EX_TRANSPARENT = 0x00000020;
-    // WDA_EXCLUDEFROMCAPTURE (0x00000011 / 17) completely excludes the window from Windows
-    // Graphics Capture, Desktop Duplication, BitBlt, Zoom, Teams, Meet, Discord, OBS, and
-    // proctoring software.  Unlike WDA_MONITOR (0x01) it does NOT render a black rectangle;
-    // the window is simply invisible to capture APIs.
-    const WDA_EXCLUDEFROMCAPTURE = 0x00000011;
-
-    /** Read the native HWND from an Electron BrowserWindow.  Returns null when the window
-     *  is gone or the handle cannot be read. */
-    function readHwnd(targetWin) {
-      if (!targetWin || targetWin.isDestroyed()) return null;
-      try {
-        const buf = targetWin.getNativeWindowHandle();
-        return process.arch === "x64" ? buf.readBigInt64LE() : buf.readInt32LE();
-      } catch {
-        return null;
-      }
-    }
-
-    win32Native = {
-      /** Apply WDA_EXCLUDEFROMCAPTURE exactly once.  Subsequent calls are no-ops so that
-       *  toggling WS_EX_LAYERED (click-through) cannot accidentally reset the affinity. */
-      setExcludeFromCapture: (targetWin) => {
-        if (win32AffinityApplied) return true;
-        const hwnd = readHwnd(targetWin);
-        if (hwnd === null) return false;
-        const ok = SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE);
-        if (ok) win32AffinityApplied = true;
-        return ok;
-      },
-      /** Toggle pointer-event passthrough.  IMPORTANT: when disabling click-through we
-       *  strip only WS_EX_TRANSPARENT and keep WS_EX_LAYERED, because removing
-       *  WS_EX_LAYERED can cause SetWindowDisplayAffinity to fall back to WDA_MONITOR
-       *  behaviour (the black-rectangle bug). The Tauri client follows the same pattern. */
-      setClickThrough: (targetWin, enable) => {
-        const hwnd = readHwnd(targetWin);
-        if (hwnd === null) return false;
-        const ex_style = GetWindowLongW(hwnd, GWL_EXSTYLE);
-        const new_style = enable
-          ? (ex_style | WS_EX_TRANSPARENT | WS_EX_LAYERED)
-          : (ex_style & ~WS_EX_TRANSPARENT); // keep WS_EX_LAYERED
-        SetWindowLongW(hwnd, GWL_EXSTYLE, new_style);
-        return true;
-      },
-    };
-  } catch (err) {
-    // Falls back gracefully if native binding cannot be loaded
-  }
-}
-
-/** Apply Win32 screen-capture exclusion.  This is intentionally a no-op after the first
- *  successful call — see the note above about WDA_EXCLUDEFROMCAPTURE + WS_EX_LAYERED. */
-function applyWin32ScreenProtection(targetWin) {
-  if (win32Native && targetWin) {
-    win32Native.setExcludeFromCapture(targetWin);
-  }
-}
 
 // --- Stealth Mode State ---
 let isStealthActive = false;
@@ -169,25 +86,6 @@ if (!app.requestSingleInstanceLock()) {
   });
 }
 
-// Private screens (settings, CV, Auto-Apply details, mailbox passwords, the back office) ask for the
-// window's native content protection while they are open. Never during a live interview session.
-let liveSession = false;
-function protectWindow(event, want) {
-  const w = BrowserWindow.fromWebContents(event.sender);
-  const from = event.senderFrame ? event.senderFrame.url : "";
-  const on = privacyDecision(want, liveSession, captureAllowed(from, appOrigin));
-  if (w && !w.isDestroyed()) w.setContentProtection(on);
-  return on;
-}
-ipcMain.handle("im:privacy", (event, want) => ({
-  active: protectWindow(event, want === true),
-  reason: liveSession ? "live-session" : undefined,
-}));
-ipcMain.handle("im:privacy-live", (event, on) => {
-  liveSession = on === true;
-  if (liveSession) protectWindow(event, false);
-});
-
 ipcMain.on("im:open-in-browser", (event, url) => {
   // only the app's own pages may ask, and only for its own Google sign-in address
   const from = event.senderFrame ? event.senderFrame.url : "";
@@ -232,9 +130,16 @@ function createWindow() {
     height: 860,
     minWidth: 420,
     minHeight: 500,
-    backgroundColor: "#00000000",
-    transparent: true,
+    // CRITICAL: transparent MUST be false on Windows.  transparent:true sets
+    // WS_EX_LAYERED, which causes DWM to silently reject SetWindowDisplayAffinity
+    // with error code 8 — the window then shows up in screen captures.
+    // The Tauri app works because it uses transparent:false.
+    // For semi-transparent HUD appearance, use CSS (rgba / opacity) in the renderer.
+    transparent: false,
+    backgroundColor: "#0f172a",
     frame: false,
+    hasShadow: false,
+    thickFrame: false,
     show: false,
     title: "InterviewMeet",
     autoHideMenuBar: true,
@@ -248,30 +153,28 @@ function createWindow() {
     },
   });
 
-  // STRICT REQUIREMENT: App must be hidden from screen sharing, proctoring or monitoring tools at all times.
-  //
-  // macOS: setContentProtection(true) calls [NSWindow setSharingType:NSWindowSharingNone].
-  //        This must be re-asserted after Dock hide/show (handled in enter/exitStealthMode).
-  //
-  // Windows: SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE) is applied ONCE here.
-  //          Like the Tauri client, we set it once and never re-apply, because re-applying
-  //          after WS_EX_LAYERED toggles can cause the compositor to fall back to WDA_MONITOR
-  //          (renders as a black rectangle instead of being excluded from capture).
-  if (process.platform === "darwin") {
-    win.setContentProtection(true);
-  }
+  // Apply capture exclusion immediately on window creation.
+  // stealth.js handles both platforms:
+  //   Windows: strips WS_EX_LAYERED, applies WDA_EXCLUDEFROMCAPTURE, logs verification
+  //   macOS:   sets content protection (setSharingType:NSWindowSharingNone)
+  applyNativeStealth(win, true);
 
   win.once("ready-to-show", () => {
-    // Apply Win32 capture exclusion once the HWND is stable and the window is fully
-    // composited.  This mirrors the Tauri client's setup() — single call, never repeated.
-    applyWin32ScreenProtection(win);
     win.show();
   });
-  // macOS only: re-assert content protection on show/restore because WindowServer can
-  // silently reset NSWindowSharingType.  On Windows the affinity set above persists.
+  // Re-assert capture protection on show/restore:
+  //   macOS: WindowServer silently resets NSWindowSharingType
+  //   Windows: SetWindowDisplayAffinity can be lost after hide/show (Electron #45868)
   if (process.platform === "darwin") {
     win.on("show", () => win.setContentProtection(true));
     win.on("restore", () => win.setContentProtection(true));
+  } else if (process.platform === "win32") {
+    win.on("show", () => {
+      if (isStealthActive) reEnforceStealth(win);
+    });
+    win.on("restore", () => {
+      if (isStealthActive) reEnforceStealth(win);
+    });
   }
   // The title bar always says the app's name, not whatever the current web page is called.
   win.on("page-title-updated", (event) => event.preventDefault());
@@ -321,7 +224,6 @@ function createWindow() {
 
   win.on("closed", () => {
     win = null;
-    win32AffinityApplied = false; // allow re-application on a new window
   });
   win.loadURL(appUrl);
   win.webContents.once("did-finish-load", () => {
@@ -368,19 +270,10 @@ function enterStealthMode() {
   // 1. Hide briefly to prevent OS resize / frame-removal flicker.
   win.hide();
 
-  // 2. Suppress taskbar / Dock presence so the HUD is invisible to task switchers.
-  if (process.platform === "darwin") {
-    app.dock.hide();
-  } else {
-    win.setSkipTaskbar(true);
-  }
-
-  // 3. Re-assert content protection AFTER the Dock hide.
-  //    macOS WindowServer can silently reset sharingType when the Dock policy changes.
-  if (process.platform === "darwin") {
-    win.setContentProtection(true);
-  }
-  // On Windows the affinity is set once in createWindow and stays — no re-assert needed.
+  // 2. Apply full native stealth: WDA_EXCLUDEFROMCAPTURE + WS_EX_TOOLWINDOW (Windows),
+  //    Dock hide + content protection (macOS).  stealth.js strips WS_EX_LAYERED and
+  //    logs verification so we can confirm Windows accepted the affinity.
+  applyNativeStealth(win, true);
 
   // 4. Morph window into compact floating HUD (450x680, matching terminal overlay ergonomics).
   const { screen } = require("electron");
@@ -400,6 +293,13 @@ function enterStealthMode() {
   // 5. Show without stealing focus from the interviewer's meeting window.
   win.showInactive();
 
+  // 6. CRITICAL: Re-apply capture exclusion AFTER the window is visible.
+  //    SetWindowDisplayAffinity called on a hidden window may not persist
+  //    after show (confirmed bug in Electron PRs #45868, #47020).
+  //    Also, Electron APIs like setAlwaysOnTop/setBounds/etc. above may have
+  //    sneaked WS_EX_LAYERED back.  reEnforceStealth checks and fixes it.
+  reEnforceStealth(win);
+
   // Notify renderer that stealth state changed.
   win.webContents.send("im:stealth-state", { active: true, clickThrough: false });
   stealthTransitioning = false;
@@ -415,25 +315,22 @@ function exitStealthMode() {
   if (isClickThrough) {
     isClickThrough = false;
     win.setIgnoreMouseEvents(false);
-    if (win32Native) win32Native.setClickThrough(win, false);
+    reEnforceStealth(win);
   }
 
   // 1. Hide while we restore the window so the morphing is invisible.
   win.hide();
 
-  // 2. Restore normal OS chrome.
+  // 2. Remove stealth native flags: restores WS_EX_APPWINDOW, removes WS_EX_TOOLWINDOW,
+  //    clears WDA_EXCLUDEFROMCAPTURE, restores Dock on macOS.
+  applyNativeStealth(win, false);
+
+  // 3. Restore normal OS chrome.
   win.setAlwaysOnTop(false);
   win.setVisibleOnAllWorkspaces(false);
   win.setResizable(true);
   win.setMinimumSize(420, 500);
   win.setHasShadow(true);
-
-  // 3. Restore taskbar / Dock.
-  if (process.platform === "darwin") {
-    app.dock.show();
-  } else {
-    win.setSkipTaskbar(false);
-  }
 
   // 4. Restore previous bounds, or fall back to defaults.
   if (normalBounds) {
@@ -444,13 +341,7 @@ function exitStealthMode() {
     win.center();
   }
 
-  // 5. Screen-capture protection stays on — it is always enforced.
-  //    macOS needs re-assertion after Dock show; Windows affinity persists from createWindow.
-  if (process.platform === "darwin") {
-    win.setContentProtection(true);
-  }
-
-  // 6. Bring the app to the front normally.
+  // 5. Bring the app to the front normally.
   win.show();
   win.focus();
 
@@ -476,7 +367,9 @@ ipcMain.handle("im:stealth-set-click-through", (_event, enable) => {
   // { forward: true } passes pointer events to whatever is beneath the HUD
   // while still letting CSS :hover states fire on the drag-handle area.
   win.setIgnoreMouseEvents(isClickThrough, { forward: true });
-  if (win32Native) win32Native.setClickThrough(win, isClickThrough);
+  // setIgnoreMouseEvents may sneak WS_EX_LAYERED back — re-strip it and
+  // re-apply WDA_EXCLUDEFROMCAPTURE so the HUD stays invisible to capture.
+  reEnforceStealth(win);
   win.webContents.send("im:stealth-state", { active: true, clickThrough: isClickThrough });
 });
 ipcMain.handle("im:stealth-query", () => ({
@@ -588,10 +481,12 @@ app.whenReady().then(() => {
     } else {
       win.showInactive();
       // Re-assert capture protection when re-showing after a manual hide.
-      // macOS needs this because WindowServer can reset sharingType; on Windows the
-      // affinity persists from the initial setup.
+      // macOS: WindowServer can reset sharingType
+      // Windows: SetWindowDisplayAffinity can be lost after hide/show
       if (process.platform === "darwin") {
         win.setContentProtection(true);
+      } else {
+        reEnforceStealth(win);
       }
     }
   });
@@ -600,7 +495,9 @@ app.whenReady().then(() => {
     if (!win || !isStealthActive) return;
     isClickThrough = !isClickThrough;
     win.setIgnoreMouseEvents(isClickThrough, { forward: true });
-    if (win32Native) win32Native.setClickThrough(win, isClickThrough);
+    // setIgnoreMouseEvents may sneak WS_EX_LAYERED back — re-strip it and
+    // re-apply WDA_EXCLUDEFROMCAPTURE so the HUD stays invisible to capture.
+    reEnforceStealth(win);
     win.webContents.send("im:stealth-state", { active: true, clickThrough: isClickThrough });
   });
 

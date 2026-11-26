@@ -154,6 +154,15 @@
   body {
     @apply bg-canvas font-sans text-ink antialiased;
   }
+  /* Stealth mode: make body transparent so only the HUD terminal is visible.
+     The BrowserWindow's native dark background (#0f172a) shows through the
+     HUD's rounded corners, giving a clean floating-terminal look. */
+  body.stealth-active {
+    background: transparent !important;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+  }
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-accent;
   }
