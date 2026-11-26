@@ -21,9 +21,13 @@
      - **Windows**: Chromium invokes `SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)` / `WDA_MONITOR`. The window is rendered on the local physical display only, but completely omitted (rendered as transparent/black or completely invisible) from video streams captured via Windows Graphics Capture, Desktop Duplication, BitBlt, Zoom, Microsoft Teams, Google Meet, Discord, OBS Studio, and proctoring software.
      - **macOS**: Chromium sets `[NSWindow setSharingType:NSWindowSharingNone]`. The window is omitted from ScreenCaptureKit, CGWindowListCreateImage, QuickTime, Zoom/Meet screen shares, and monitoring daemons.
 
-2. **Stealth Desktop Client (Tauri — Windows)**
-   - **Path**: `Desktop app/src-tauri/src/main.rs`
-   - **Mechanism**: Win32 API `SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)` is applied during setup on the window handle (`HWND`), along with optional click-through styles (`WS_EX_TRANSPARENT | WS_EX_LAYERED`).
+2. **Stealth Desktop Client (Tauri 2 — Windows & macOS)**
+   - **Path**: `desktop-tauri/src-tauri/src/stealth.rs`
+   - **Mechanism**:
+     - **Windows**: Native Rust `SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)` via the `windows` crate. Unlike Electron, Tauri/WebView2 does NOT use `WS_EX_LAYERED` for compositing, so capture exclusion works without hacks. Defensive `WS_EX_LAYERED` stripping is still applied. `WS_EX_TOOLWINDOW` hides from Alt-Tab.
+     - **macOS**: `set_content_protected(true)` sets `[NSWindow setSharingType:NSWindowSharingNone]`. Dock icon hidden via `ActivationPolicy::Accessory`.
+   - **Audio**: WASAPI loopback capture on Windows (`desktop-tauri/src-tauri/src/audio/platform/windows.rs`), ScreenCaptureKit on macOS.
+   - **Note**: Replaces the old Tauri v1 app that was at `Desktop app/` (removed from this branch).
 
 3. **Mobile App (Android — Capacitor / Native)**
    - **Path**: `mobile/android/app/src/main/java/com/interviewmeet/app/MainActivity.java`
