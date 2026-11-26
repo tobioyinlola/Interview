@@ -801,3 +801,35 @@ def test_places_of_two_words_are_read_as_one_place():
         ).decision
         == "eligible"
     )
+
+
+async def test_awkward_feed_data_is_stored_instead_of_failing_the_whole_board(maker):
+    """A feed's own pay-period word, a date with no timezone, a NUL character and a very long
+    title and place each used to make Postgres refuse the board's sync."""
+    from app.autoapply.adapters import RawPosting
+
+    raw = RawPosting(
+        source="jobicy",
+        source_url="https://feed.example/jobs/1",
+        company="Acme\x00 Labs",
+        title="Engineer " * 60,
+        description="Builds things.\x00",
+        region="Anywhere in " + ", ".join(f"Country {i}" for i in range(80)),
+        seniority="Mid-Senior level",
+        salary_min=5000.0,
+        salary_currency="EUR",
+        salary_period="Monthly",
+        posted_at=datetime(2026, 11, 25, 9, 41, 16),  # naive, as the feed gives it
+    )
+    async with maker() as db:
+        posting, created, _ = await pst.upsert(db, raw, NOW)
+        await db.commit()
+        assert created
+        assert posting.company == "Acme Labs" and "\x00" not in posting.description
+        assert posting.salary_period == "month"
+        assert posting.posted_at == datetime(2026, 11, 25, 9, 41, 16, tzinfo=UTC)
+        assert len(posting.canonical_key) <= pst.KEY_MAX
+        assert posting.seniority is None or len(posting.seniority) <= 12
+    other = RawPosting(**{**raw.__dict__, "source_url": "https://feed.example/jobs/2"})
+    other.region = raw.region + ", Country 80"  # same long prefix, a different place
+    assert pst.canonical_key(other)[0] != pst.canonical_key(raw)[0]
