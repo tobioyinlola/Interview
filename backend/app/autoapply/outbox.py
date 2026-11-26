@@ -212,10 +212,17 @@ async def claim_next(
                 .limit(10)
             )
         ).all()
+        moved = False
         for app, posting in rows:
             blocked = await _precheck(
                 db, adapters.settings, app, posting, camp, prof, adapters, now, off
             )
+            if blocked == ("skip", "the listing expired"):
+                # its end date passed while it waited: it is no longer "ready to send"
+                app.status, app.skip_reason = "expired", "The listing expired."
+                await pipeline.log(db, app, "expired", reason="the listing expired")
+                moved = True
+                continue
             if blocked is not None:
                 continue  # this one cannot go now; another might
             n = (
@@ -237,7 +244,10 @@ async def claim_next(
             await pipeline.log(db, app, "sending", channel=app.channel)
             await db.commit()
             return Claim(attempt.id, app.id, app.channel or "form")
-        await db.rollback()
+        if moved:
+            await db.commit()
+        else:
+            await db.rollback()
         return None
 
 
@@ -257,7 +267,8 @@ async def _release(
     attempt.failure_class = "transient" if transient else action
     attempt.failure_message = reason[:300]
     if action == "skip":
-        app.status, app.skip_reason = "skipped", reason[:1].upper() + reason[1:] + "."
+        app.status = "expired" if reason == "the listing expired" else "skipped"
+        app.skip_reason = reason[:1].upper() + reason[1:] + "."
     else:
         app.status = "queued"
         app.not_before = not_before
@@ -327,7 +338,6 @@ async def execute(
         await db.commit()
     # --- the outside call (no database transaction is open)
     cv_text = pkg["cv"]["submitted_text"]
-    cv_layout = pkg["cv"].get("layout")  # None for a package prepared before layouts were kept
     result: Any = None
     error: AdapterError | None = None
     try:
@@ -340,7 +350,6 @@ async def execute(
                 values=values,
                 cv_text=cv_text,
                 cv_filename="CV.pdf",
-                cv_layout=cv_layout,
             )
         else:
             result = await adapters.mailbox.send(
@@ -349,7 +358,7 @@ async def execute(
                 to=pkg["destination"]["to"],
                 subject=email_subject(posting),
                 body=pkg.get("cover_text", ""),
-                attachments=[MailAttachment("CV.pdf", cvfile.render_pdf(cv_text, cv_layout))],
+                attachments=[MailAttachment("CV.pdf", cvfile.render_pdf(cv_text))],
                 message_id=message_id(key),
             )
     except AdapterError as exc:

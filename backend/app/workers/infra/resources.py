@@ -3,6 +3,7 @@ for more heavy work right now."""
 
 import asyncio
 import os
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 
 from app.config import Settings
@@ -96,7 +97,7 @@ class AiGate:
         inner = self._inner
         sem = self._sem
 
-        async def gen():  # type: ignore[no-untyped-def]
+        async def gen() -> AsyncIterator[str]:
             async with sem:
                 async for d in inner.stream_text(system=system, user=user, model=model):  # type: ignore[attr-defined]
                     yield d

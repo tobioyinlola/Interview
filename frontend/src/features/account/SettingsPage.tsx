@@ -53,6 +53,17 @@ export function PrivacyNotice() {
           time.
         </li>
       </ul>
+      <p className="text-sm">
+        Read the full{" "}
+        <Link to="/privacy" className="text-accent-dark underline">
+          privacy notice
+        </Link>{" "}
+        and the{" "}
+        <Link to="/terms" className="text-accent-dark underline">
+          terms of use
+        </Link>
+        .
+      </p>
     </section>
   );
 }

@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import and_, func, or_, select, text, update
+from sqlalchemy import ColumnElement, and_, delete, func, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -266,7 +266,7 @@ async def cancel(
 ) -> int:
     """Cancel waiting tasks (and flag running ones, whose next heartbeat stops them). The caller
     commits."""
-    conds = [BgTask.status.in_(LIVE)]
+    conds: list[ColumnElement[bool]] = [BgTask.status.in_(LIVE)]
     if task_id is not None:
         conds.append(BgTask.id == task_id)
     if user_id is not None:
@@ -293,7 +293,7 @@ async def retry_dead(db: AsyncSession, task_id: uuid.UUID, now: datetime) -> boo
 async def purge_finished(db: AsyncSession, now: datetime, keep_days: int = 7) -> int:
     """Finished tasks are history; keep a week of it (dead ones for a month)."""
     res = await db.execute(
-        BgTask.__table__.delete().where(
+        delete(BgTask).where(
             or_(
                 and_(
                     BgTask.status.in_(("done", "cancelled")),
@@ -339,7 +339,7 @@ async def stats(db: AsyncSession, now: datetime) -> dict[str, Any]:
             {
                 "kind": k,
                 "tasks": int(n),
-                "run_seconds": float(sec),
+                "run_seconds": float(sec or 0),
                 "dead": int(d),
                 "queued": int(q),
             }

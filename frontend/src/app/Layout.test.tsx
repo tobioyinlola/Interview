@@ -226,9 +226,8 @@ describe("top bar on every page", () => {
       "href",
       "/settings",
     );
-    expect(
-      menu.getByRole("menuitem", { name: "Update my focus" }),
-    ).toHaveAttribute("href", "/onboarding");
+    for (const gone of ["Update my focus", "Help", "Privacy", "Terms"])
+      expect(menu.queryByRole("menuitem", { name: gone })).toBeNull();
     expect(
       menu.getByRole("menuitem", { name: "Sign out" }),
     ).toBeInTheDocument();
@@ -244,15 +243,7 @@ describe("top bar on every page", () => {
     await userEvent.click(
       await screen.findByRole("button", { name: /Account menu/ }),
     );
-    const names = [
-      "Settings",
-      "Update my focus",
-      "Help",
-      "Privacy",
-      "Terms",
-      "Take the tour",
-      "Sign out",
-    ];
+    const names = ["Settings", "Take the tour", "Sign out"];
     for (const n of names.slice(1)) {
       await userEvent.keyboard("{ArrowDown}");
       expect(screen.getByRole("menuitem", { name: n })).toHaveFocus();

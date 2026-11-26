@@ -36,7 +36,7 @@ def build_context(settings: Settings) -> WorkerContext:
         sources=discovery.build_sources(settings),
         form=forms.build(settings, manager=browser),
         mailbox=mailboxes.build(settings),
-        llm=AiGate(build_answer_llm(settings), settings.worker_max_ai_requests),  # type: ignore[arg-type]
+        llm=AiGate(build_answer_llm(settings), settings.worker_max_ai_requests),
     )
     ctx.extra["browser"] = browser
     return ctx

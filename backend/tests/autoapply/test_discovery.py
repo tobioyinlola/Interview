@@ -464,6 +464,24 @@ async def test_unsupported_steps_and_captchas_go_to_the_candidate(ada, discovery
     assert n["kind"] == "unsupported" and "captcha" in n["reason"]
 
 
+async def test_a_listing_past_its_end_date_is_expired_not_skipped(ada, discovery_source):
+    from datetime import UTC, datetime
+
+    discovery_source.postings = [
+        job(1, expires_at=datetime(2020, 1, 1, tzinfo=UTC)),  # its own end date has passed
+        job(2, title="Plumber"),  # simply not a fit
+        job(3),
+    ]
+    await start(ada)
+    await run(ada)
+    gone = await apps(ada, "expired")
+    assert [a["posting"]["title"] for a in gone] == ["Senior Product Manager"]
+    assert gone[0]["skip_reason"] == "The listing has expired."
+    skipped = await apps(ada, "skipped")
+    assert [a["posting"]["title"] for a in skipped] == ["Plumber"]
+    assert len(await apps(ada, "needs_input,queued,submitted")) >= 1
+
+
 async def test_the_candidate_can_approve_an_unknown_rule_or_skip(ada, discovery_source):
     discovery_source.postings = [job(1), job(2)]
     await start(ada, criteria=VISA_SEARCH)

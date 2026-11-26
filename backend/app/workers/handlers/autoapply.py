@@ -15,7 +15,7 @@ def adapters(ctx: WorkerContext) -> outbox.Adapters:
     if made is None:
         made = outbox.Adapters(form=ctx.form, mailbox=ctx.mailbox, settings=ctx.settings)  # type: ignore[arg-type]
         ctx.extra["adapters"] = made
-    return made  # type: ignore[no-any-return]
+    return made
 
 
 def _user(t: BgTask):  # type: ignore[no-untyped-def]

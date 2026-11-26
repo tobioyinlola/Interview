@@ -42,7 +42,10 @@ MAX_NEW_PER_DAY = 5  # new threads one person may open in a day
 MAX_MESSAGES = 200  # in one thread
 STATUSES = ("open", "answered", "resolved", "closed")
 _CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
-_NOW = lambda: datetime.now(UTC)  # noqa: E731
+
+
+def _NOW() -> datetime:  # noqa: N802
+    return datetime.now(UTC)
 
 
 def _clean(text: str) -> str:
@@ -221,7 +224,7 @@ async def _detail(db: AsyncSession, t: SupportTicket) -> TicketDetailOut:
         messages=[
             MessageOut(
                 id=m.id,
-                kind=m.kind,  # type: ignore[arg-type]
+                kind=m.kind,
                 author="You" if m.kind == "user" else "Support team",
                 body=m.body,
                 created_at=m.created_at,
@@ -393,7 +396,7 @@ async def _admin_detail(db: AsyncSession, t: SupportTicket, u: User) -> AdminTic
         thread=[
             AdminMessageOut(
                 id=m.id,
-                kind=m.kind,  # type: ignore[arg-type]
+                kind=m.kind,
                 author=u.full_name or u.email
                 if m.kind == "user"
                 else names.get(m.author_id, "Support team")

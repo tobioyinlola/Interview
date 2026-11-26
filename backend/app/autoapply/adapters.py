@@ -99,7 +99,6 @@ class FormAdapter(Protocol):
         values: dict[str, str],
         cv_text: str,
         cv_filename: str,
-        cv_layout: dict[str, Any] | None = None,
     ) -> FormReceipt:
         """Submit. Must be safe to call twice with the same idempotency key, or raise
         AdapterError(code='ambiguous') when the outcome is unknown."""

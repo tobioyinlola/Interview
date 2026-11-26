@@ -1,5 +1,4 @@
 import { screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 
 import { App } from "../../app/App";
 import {
@@ -83,23 +82,19 @@ describe("terms and privacy", () => {
     ).toBeInTheDocument();
   });
 
-  it("signed-in pages reach both from the account menu", async () => {
+  it("signed-in people reach both from Settings, Privacy and data", async () => {
     mockApi({
       "GET /api/me": () => ({ json: ME }),
       "GET /api/notes": () => ({
         json: { role: "", content: "", updated_at: null },
       }),
     });
-    renderApp(<App />, "/notes");
-    await screen.findByRole("heading", { name: "Your CV" });
-    await userEvent.click(screen.getByRole("button", { name: /Account menu/ }));
-    expect(screen.getByRole("menuitem", { name: "Terms" })).toHaveAttribute(
-      "href",
-      "/terms",
-    );
-    expect(screen.getByRole("menuitem", { name: "Privacy" })).toHaveAttribute(
-      "href",
-      "/privacy",
-    );
+    renderApp(<App />, "/settings/privacy");
+    expect(
+      await screen.findByRole("link", { name: "terms of use" }),
+    ).toHaveAttribute("href", "/terms");
+    expect(
+      screen.getByRole("link", { name: "privacy notice" }),
+    ).toHaveAttribute("href", "/privacy");
   });
 });

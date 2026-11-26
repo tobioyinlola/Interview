@@ -381,7 +381,6 @@ class BrowserForm:
         values: dict[str, str],
         cv_text: str,
         cv_filename: str,
-        cv_layout: dict[str, Any] | None = None,
     ) -> FormReceipt:
         if idempotency_key in self.receipts:
             return self.receipts[idempotency_key]  # the same intent again changes nothing
@@ -393,7 +392,7 @@ class BrowserForm:
                 controls = controls_from(scan)
                 cover = values.get("cover_letter", "")
                 for c in controls:
-                    await _fill(page, c, values, cv_text, cv_filename, cover, cv_layout)
+                    await _fill(page, c, values, cv_text, cv_filename, cover)
                 receipt = await self._press_and_wait(page, idempotency_key)
                 self.receipts[idempotency_key] = receipt
                 return receipt
@@ -474,14 +473,13 @@ async def _fill(
     cv_text: str,
     cv_filename: str,
     cover: str,
-    cv_layout: dict[str, Any] | None = None,
 ) -> None:
     """Put the answer for one control on the form. A control with no answer is left alone."""
     if c.kind == "file":
         if c.name == "resume" or c.name == "cv":
-            data, name = cvfile.render_pdf(cv_text, cv_layout), cv_filename
+            data, name = cvfile.render_pdf(cv_text), cv_filename
         elif c.name == "cover_letter" and cover:
-            data, name = cvfile.render_pdf(cover), "Cover letter.pdf"
+            data, name = cvfile.render_letter(cover), "Cover letter.pdf"
         else:
             return
         await page.locator(c.selector).first.set_input_files(

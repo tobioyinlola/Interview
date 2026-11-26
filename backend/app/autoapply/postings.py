@@ -207,7 +207,7 @@ def _clean(raw: RawPosting) -> RawPosting:
     """The same posting with every text field safe to store."""
     from dataclasses import fields, replace
 
-    changes = {
+    changes: dict[str, Any] = {
         f.name: _text(getattr(raw, f.name))
         for f in fields(raw)
         if isinstance(getattr(raw, f.name), str) and "\x00" in getattr(raw, f.name)

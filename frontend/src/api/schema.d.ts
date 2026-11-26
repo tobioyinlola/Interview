@@ -1290,7 +1290,7 @@ export interface paths {
         };
         /**
          * Tailored Cv Pdf
-         * @description The CV prepared for this role as a PDF, in the look of the CV that was uploaded.
+         * @description The CV prepared for this role as a PDF, in the house layout.
          */
         get: operations["tailored_cv_pdf_api_autoapply_applications__application_id__cv_pdf_get"];
         put?: never;
@@ -3629,11 +3629,6 @@ export interface components {
             content: string;
             /** Cv Filename */
             cv_filename?: string | null;
-            /**
-             * Cv Layout Kept
-             * @default false
-             */
-            cv_layout_kept: boolean;
             /** Cv Uploaded At */
             cv_uploaded_at?: string | null;
             /** Role */
@@ -4383,11 +4378,6 @@ export interface components {
             content: string;
             /** Cv Filename */
             cv_filename?: string | null;
-            /**
-             * Cv Layout Kept
-             * @default false
-             */
-            cv_layout_kept: boolean;
             /** Cv Uploaded At */
             cv_uploaded_at?: string | null;
             /** Role */

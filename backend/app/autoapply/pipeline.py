@@ -15,6 +15,7 @@ from app import metrics
 from app.adapters.interfaces import LlmProvider
 from app.autoapply import matching, package
 from app.autoapply.adapters import FormAdapter
+from app.autoapply.postings import is_expired
 from app.models import (
     Application,
     ApplicationEvent,
@@ -47,7 +48,6 @@ class Context:
     # Preparing costs model calls, so only about two days' worth waits ready to send; the rest of
     # the matches wait as 'eligible' and the best of them are prepared as room frees up.
     prepare_room: int | None = None
-    cv_layout: dict[str, Any] | None = None  # how the uploaded CV looked; tailored CVs match it
 
 
 async def load_context(
@@ -63,11 +63,9 @@ async def load_context(
     facts = (
         await db.execute(select(CandidateFacts).where(CandidateFacts.user_id == user_id))
     ).scalar_one_or_none()
-    cv_row = (
-        await db.execute(select(Note.content, Note.cv_layout).where(Note.user_id == user_id))
-    ).first()
-    cv = cv_row[0] if cv_row else None
-    cv_layout = cv_row[1] if cv_row else None
+    cv = (
+        await db.execute(select(Note.content).where(Note.user_id == user_id))
+    ).scalar_one_or_none()
     answers = (
         (await db.execute(select(CandidateAnswer).where(CandidateAnswer.user_id == user_id)))
         .scalars()
@@ -86,7 +84,7 @@ async def load_context(
         room = max(0, campaign.daily_application_cap * ahead - int(ready))
     return Context(
         user_id, campaign, profile, facts, cv or "", {a.field: a for a in answers}, llm, form, now,
-        room, cv_layout,
+        room,
     )  # fmt: skip
 
 
@@ -201,9 +199,16 @@ async def process(
         await log(db, app, "needs_input", reason="possible duplicate")
         return app, "needs_input"
     if result.decision == "skip":
-        app.status, app.skip_reason, app.needs_input = "skipped", result.reason[:300], []
-        await log(db, app, "skipped", reason=result.reason)
-        return app, "skipped"
+        # a listing whose own end date has passed is "expired", apart from the ones that were
+        # skipped because they do not fit
+        gone = is_expired(posting, ctx.now)
+        app.status, app.skip_reason, app.needs_input = (
+            "expired" if gone else "skipped",
+            result.reason[:300],
+            [],
+        )
+        await log(db, app, "expired" if gone else "skipped", reason=result.reason)
+        return app, "skipped"  # (the daily run counts both as skipped)
     if result.decision == "review":
         app.status = "needs_input"
         app.needs_input = [
@@ -261,7 +266,6 @@ async def process(
         posting=posting,
         facts_row=ctx.facts,
         cv_text=ctx.cv_text,
-        cv_layout=ctx.cv_layout,
         saved=ctx.saved,
         llm=ctx.llm,
         channel=channel,

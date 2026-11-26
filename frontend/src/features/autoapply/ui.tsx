@@ -13,6 +13,7 @@ export const STATUS: Record<string, { label: string; tone: string }> = {
   apply_yourself: { label: "Ready for you to apply", tone: "info" },
   applied_by_you: { label: "Applied by you", tone: "good" },
   skipped: { label: "Skipped", tone: "muted" },
+  expired: { label: "Expired", tone: "muted" },
   failed: { label: "Failed", tone: "bad" },
 };
 
