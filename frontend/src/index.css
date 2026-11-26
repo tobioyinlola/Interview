@@ -80,6 +80,40 @@
   }
 }
 
+/* The back office look: pill controls, an ink primary action, white panels on a grey backdrop. Scoped
+   to .adm so the customer app keeps its own buttons and fields. */
+@layer components {
+  .adm .btn {
+    @apply rounded-full;
+  }
+  .adm .btn-primary {
+    @apply bg-ink text-surface hover:bg-ink/90;
+  }
+  .adm .btn-secondary {
+    @apply bg-surface text-ink shadow-card hover:shadow-lift;
+  }
+  .adm .btn-danger-outline {
+    @apply bg-red-50 text-red-700 hover:bg-red-100;
+  }
+  .adm .input {
+    @apply rounded-xl bg-panel focus:bg-surface;
+  }
+  .adm select.input,
+  .adm input.input {
+    @apply min-h-[44px] text-sm;
+  }
+  .adm .card {
+    @apply rounded-3xl;
+  }
+  .adm .list-card {
+    @apply rounded-3xl;
+  }
+  .adm .notice-warn,
+  .adm .notice-error {
+    @apply rounded-2xl;
+  }
+}
+
 /* The back office tables: on a phone every row becomes a small card, labelled by its column. */
 @media (max-width: 639px) {
   .adm-table thead {
@@ -97,7 +131,7 @@
   }
   .adm-table tr + tr {
     @apply bg-surface;
-    box-shadow: 0 -1px 0 0 rgba(28, 27, 46, 0.06);
+    box-shadow: 0 -1px 0 0 rgba(28, 27, 46, 0.05);
   }
   .adm-table td {
     @apply flex items-baseline justify-between gap-4 !px-0 !py-1;

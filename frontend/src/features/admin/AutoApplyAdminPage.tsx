@@ -61,6 +61,7 @@ export function AutoApplyAdminPage() {
           hint={`${d.campaigns_ended} finished`}
         />
         <Stat
+          feature
           label="Applications sent"
           value={num(d.applications_sent)}
           hint={`${num(sent.needs_input ?? 0)} waiting on a person`}

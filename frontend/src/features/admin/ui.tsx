@@ -1,4 +1,4 @@
-import { type ReactNode, useLayoutEffect, useRef } from "react";
+import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { SearchIcon } from "../../app/icons";
@@ -25,17 +25,34 @@ export const when = (iso: string | null | undefined) =>
       })
     : "never";
 
-/** "+12%" or "−5%" against the window before, or nothing when there was nothing before. */
-export function Trend({ now, before }: { now: number; before: number }) {
+/** A change against the window before as a small chip: "↑ 12%" or "↓ 5%". Nothing when there was
+ *  nothing before. On the highlighted card it reads on the purple. */
+export function Trend({
+  now,
+  before,
+  onDark = false,
+}: {
+  now: number;
+  before: number;
+  onDark?: boolean;
+}) {
   if (before === 0) return null;
   const change = Math.round(((now - before) / before) * 100);
   const up = change >= 0;
+  const tone = onDark
+    ? "bg-surface/20 text-surface"
+    : up
+      ? "bg-emerald-50 text-emerald-700"
+      : "bg-red-50 text-red-700";
   return (
     <span
-      className={`ml-2 text-xs font-medium ${up ? "text-green-700" : "text-red-700"}`}
+      className={`ml-2 inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 align-middle text-[11px] font-semibold ${tone}`}
     >
-      {up ? "▲" : "▼"} {Math.abs(change)}%{" "}
-      <span className="sr-only">compared with the period before</span>
+      <span aria-hidden="true">{up ? "↑" : "↓"}</span>
+      {Math.abs(change)}%
+      <span className="sr-only">
+        {up ? " up" : " down"} compared with the period before
+      </span>
     </span>
   );
 }
@@ -55,25 +72,41 @@ export const regionName = (r: string) => REGION_NAMES[r] ?? r;
 type Tone = "default" | "good" | "warn" | "bad" | "accent";
 
 const TONE_CHIP: Record<Tone, string> = {
-  default: "bg-canvas text-muted",
+  default: "bg-panel text-muted",
   good: "bg-emerald-50 text-emerald-800",
   warn: "bg-amber-50 text-amber-900",
   bad: "bg-red-50 text-red-800",
   accent: "bg-accent-soft text-accent-dark",
 };
 
+const DOT: Record<Tone, string> = {
+  default: "bg-muted/60",
+  good: "bg-emerald-500",
+  warn: "bg-amber-500",
+  bad: "bg-red-500",
+  accent: "bg-accent",
+};
+
 /** A small status pill. */
 export function Badge({
   tone = "default",
+  dot = false,
   children,
 }: {
   tone?: Tone;
+  dot?: boolean; // a coloured dot before the words, for a status
   children: ReactNode;
 }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${TONE_CHIP[tone]}`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ${TONE_CHIP[tone]}`}
     >
+      {dot && (
+        <span
+          aria-hidden="true"
+          className={`h-1.5 w-1.5 rounded-full ${DOT[tone]}`}
+        />
+      )}
       {children}
     </span>
   );
@@ -107,6 +140,7 @@ export function Stat({
   to,
   tone = "default",
   icon,
+  feature = false,
 }: {
   label: string;
   value: ReactNode;
@@ -115,26 +149,38 @@ export function Stat({
   to?: string; // makes the number a link to the list it counts
   tone?: Tone;
   icon?: ReactNode;
+  feature?: boolean; // the one card to look at first: purple, lifted
 }) {
   const alarm = tone === "bad" || tone === "warn";
+  const bg = feature
+    ? "bg-gradient-to-br from-accent to-[#5B2FD0] text-surface shadow-lift"
+    : alarm
+      ? tone === "bad"
+        ? "bg-red-50 shadow-card"
+        : "bg-amber-50 shadow-card"
+      : "bg-surface shadow-card hover:shadow-lift";
   return (
-    <div
-      className={`rounded-2xl p-4 shadow-card transition-shadow hover:shadow-lift ${
-        alarm ? (tone === "bad" ? "bg-red-50" : "bg-amber-50") : "bg-surface"
-      }`}
-    >
+    <div className={`rounded-3xl p-5 transition-shadow ${bg}`}>
       <div className="flex items-start justify-between gap-2">
-        <dt className="text-xs font-medium text-muted">{label}</dt>
+        <dt
+          className={`text-[13px] font-medium ${feature ? "text-surface/80" : "text-muted"}`}
+        >
+          {label}
+        </dt>
         {icon && (
           <span
             aria-hidden="true"
-            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${TONE_CHIP[tone === "default" ? "accent" : tone]}`}
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+              feature
+                ? "bg-surface/20 text-surface"
+                : TONE_CHIP[tone === "default" ? "accent" : tone]
+            }`}
           >
             {icon}
           </span>
         )}
       </div>
-      <dd className="mt-2 text-[26px] font-semibold leading-none tracking-tight tabular-nums">
+      <dd className="mt-3 text-[32px] font-semibold leading-none tracking-tight tabular-nums">
         {to ? (
           <Link
             to={to}
@@ -148,11 +194,17 @@ export function Stat({
         )}
         {children}
       </dd>
-      {hint && <p className="mt-2 text-xs text-muted">{hint}</p>}
+      {hint && (
+        <p
+          className={`mt-3 text-xs ${feature ? "text-surface/75" : "text-muted"}`}
+        >
+          {hint}
+        </p>
+      )}
       {to && (
         <Link
           to={to}
-          className="mt-2 inline-block text-xs font-medium text-accent-dark hover:underline"
+          className={`mt-2 inline-block text-xs font-medium hover:underline ${feature ? "text-surface" : "text-accent-dark"}`}
         >
           See the list
         </Link>
@@ -169,7 +221,7 @@ export function DaysSelect({
   onChange: (n: number) => void;
 }) {
   return (
-    <label className="inline-flex items-center gap-2 rounded-xl bg-surface px-3 text-sm shadow-card">
+    <label className="inline-flex items-center gap-2 rounded-full bg-surface px-4 text-sm shadow-card">
       <span className="text-muted">Window</span>
       <select
         value={days}
@@ -196,9 +248,9 @@ export function PageHead({
   right?: ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+    <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3 pt-1">
       <div className="min-w-0">
-        <h1 className="text-[26px] font-semibold leading-tight tracking-tight sm:text-3xl">
+        <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[34px]">
           {title}
         </h1>
         {intro && (
@@ -231,18 +283,18 @@ export function Panel({
   return (
     <section
       aria-labelledby={id}
-      className="overflow-hidden rounded-2xl bg-surface shadow-card"
+      className="overflow-hidden rounded-3xl bg-surface shadow-card"
     >
-      <div className="flex flex-wrap items-start justify-between gap-3 px-5 pb-1 pt-5">
+      <div className="flex flex-wrap items-start justify-between gap-3 px-6 pb-1 pt-6">
         <div className="min-w-0">
-          <h2 id={id} className="text-base font-semibold tracking-tight">
+          <h2 id={id} className="text-lg font-semibold tracking-tight">
             {title}
           </h2>
           {note && <p className="mt-0.5 text-sm text-muted">{note}</p>}
         </div>
         {action}
       </div>
-      <div className={flush ? "pt-3" : "space-y-4 p-5 pt-3"}>{children}</div>
+      <div className={flush ? "pt-3" : "space-y-4 p-6 pt-3"}>{children}</div>
     </section>
   );
 }
@@ -275,7 +327,7 @@ export function SearchField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="input w-full !min-h-[44px] !rounded-xl !bg-surface !pl-10 shadow-card sm:w-80"
+        className="input w-full !min-h-[44px] !rounded-full !bg-surface !pl-10 shadow-card sm:w-80"
       />
     </div>
   );
@@ -283,7 +335,7 @@ export function SearchField({
 
 export function Empty({ children }: { children: ReactNode }) {
   return (
-    <div className="flex flex-col items-center gap-2 rounded-2xl bg-surface px-6 py-10 text-center shadow-card">
+    <div className="flex flex-col items-center gap-2 rounded-3xl bg-surface px-6 py-12 text-center shadow-card">
       <span
         aria-hidden="true"
         className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-soft text-accent-dark"
@@ -387,13 +439,13 @@ export function Table({
     });
   });
   return (
-    <div className="adm-table overflow-hidden rounded-2xl bg-surface shadow-card">
+    <div className="adm-table overflow-hidden rounded-3xl bg-surface shadow-card">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm" aria-label={label}>
-          <thead className="bg-canvas/80 text-[11px] uppercase tracking-wide text-muted">
+          <thead className="bg-panel/70 text-xs text-muted">
             <tr>
               {head.map((h) => (
-                <th key={h} scope="col" className="px-4 py-3 font-medium">
+                <th key={h} scope="col" className="px-5 py-3.5 font-medium">
                   {h}
                 </th>
               ))}
@@ -401,7 +453,7 @@ export function Table({
           </thead>
           <tbody
             ref={body}
-            className="[&>tr]:transition-colors [&>tr:hover]:bg-accent-soft/40"
+            className="[&>tr>td]:py-4 [&>tr>td:first-child]:px-5 [&>tr]:transition-colors [&>tr:hover]:bg-panel/60"
           >
             {children}
           </tbody>
@@ -420,7 +472,7 @@ export function Bar({ value, label }: { value: number; label: string }) {
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={Math.round(value)}
-      className="h-2 w-full overflow-hidden rounded-full bg-canvas"
+      className="h-2 w-full overflow-hidden rounded-full bg-panel"
     >
       <div
         className="h-full rounded-full bg-gradient-to-r from-accent to-accent-dark transition-[width] duration-500"
@@ -555,6 +607,216 @@ export function Trendline({
                   </th>
                   {series.map((s) => (
                     <td key={s.name}>{s.values[i]}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </figure>
+  );
+}
+
+/** Pill filters with a count: "All 34 · Public 15 · Private 9". One is always chosen. */
+export function Tabs<T extends string>({
+  label,
+  value,
+  onChange,
+  items,
+}: {
+  label: string;
+  value: T;
+  onChange: (v: T) => void;
+  items: { id: T; label: string; count?: number }[];
+}) {
+  return (
+    <div
+      role="group"
+      aria-label={label}
+      className="inline-flex max-w-full flex-wrap gap-1 rounded-full bg-panel p-1"
+    >
+      {items.map((i) => {
+        const on = i.id === value;
+        return (
+          <button
+            key={i.id}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onChange(i.id)}
+            className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-full px-3.5 text-sm transition-colors ${
+              on
+                ? "bg-surface font-medium text-ink shadow-card"
+                : "text-muted hover:text-ink"
+            }`}
+          >
+            {i.label}
+            {i.count !== undefined && (
+              <span
+                className={`text-xs tabular-nums ${on ? "text-accent-dark" : "text-muted/80"}`}
+              >
+                {num(i.count)}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+const niceMax = (v: number) => {
+  if (v <= 4) return 4;
+  const pow = 10 ** Math.floor(Math.log10(v));
+  return Math.ceil(v / pow / 2) * pow * 2 > v * 1.6
+    ? Math.ceil(v / (pow / 2)) * (pow / 2)
+    : Math.ceil(v / pow) * pow;
+};
+
+/** Daily bars for one measure at a time, chosen with pill tabs. Hover or touch a bar for the day and
+ *  how it compares with the period's average. The numbers behind it stay in a table for anyone who
+ *  cannot use the picture. */
+export function Dynamics({
+  label,
+  days,
+  series,
+}: {
+  label: string;
+  days: string[];
+  series: { name: string; values: number[]; color: string }[];
+}) {
+  const [pick, setPick] = useState(0);
+  const [at, setAt] = useState<number | null>(null);
+  const cur = series[pick] ?? series[0];
+  if (!cur) return null;
+  const top = niceMax(Math.max(1, ...cur.values));
+  const avg = cur.values.reduce((a, b) => a + b, 0) / Math.max(1, days.length);
+  const summary = series
+    .map((x) => `${x.name}: ${x.values.reduce((a, b) => a + b, 0)} in total`)
+    .join("; ");
+  const hit =
+    at === null ? null : { day: days[at] ?? "", v: cur.values[at] ?? 0 };
+  const vs = hit && avg > 0 ? Math.round(((hit.v - avg) / avg) * 100) : null;
+  const left = at === null ? 0 : ((at + 0.5) / Math.max(1, days.length)) * 100;
+  return (
+    <figure className="space-y-4">
+      <Tabs
+        label="Measure"
+        value={cur.name}
+        onChange={(n) =>
+          setPick(
+            Math.max(
+              0,
+              series.findIndex((x) => x.name === n),
+            ),
+          )
+        }
+        items={series.map((x) => ({ id: x.name, label: x.name }))}
+      />
+      <div
+        role="img"
+        aria-label={`${label}. ${summary}`}
+        className="relative h-56 pl-9 pt-2"
+        onMouseLeave={() => setAt(null)}
+      >
+        <div className="absolute inset-x-0 bottom-7 left-9 top-2">
+          {[top, top / 2, 0].map((g) => (
+            <div
+              key={g}
+              aria-hidden="true"
+              className="absolute inset-x-0"
+              style={{ bottom: `${(g / top) * 100}%` }}
+            >
+              <span className="absolute right-full top-0 mr-1.5 -translate-y-1/2 text-[10px] tabular-nums text-muted">
+                {num(Math.round(g))}
+              </span>
+              <span className="block h-px bg-ink/[0.06]" />
+            </div>
+          ))}
+          <div className="absolute inset-0 flex items-end gap-[3px]">
+            {cur.values.map((v, i) => (
+              <div
+                key={days[i] ?? i}
+                className="flex h-full flex-1 items-end"
+                onMouseEnter={() => setAt(i)}
+                onPointerDown={() => setAt(i)}
+              >
+                <div
+                  className={`w-full rounded-t-md transition-colors ${
+                    at === i
+                      ? "bg-accent"
+                      : i === cur.values.length - 1
+                        ? "bg-accent/60"
+                        : "bg-accent/20"
+                  }`}
+                  style={{ height: `${Math.max(1.5, (v / top) * 100)}%` }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="absolute bottom-0 left-9 right-0 flex justify-between text-[10px] text-muted">
+          <span>{days[0]}</span>
+          <span>{days[days.length - 1]}</span>
+        </div>
+        {hit && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute top-0 z-10 w-44 -translate-x-1/2 rounded-2xl bg-surface p-3 text-xs shadow-lift"
+            style={{
+              left: `calc(2.25rem + (100% - 2.25rem) * ${Math.min(0.85, Math.max(0.15, left / 100))})`,
+            }}
+          >
+            <p className="font-semibold">{hit.day}</p>
+            <p className="mt-1.5 flex items-center justify-between gap-3">
+              <span className="inline-flex items-center gap-1.5 text-muted">
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{ background: cur.color }}
+                />
+                {cur.name}
+              </span>
+              <span className="font-semibold tabular-nums">{num(hit.v)}</span>
+            </p>
+            {vs !== null && (
+              <p
+                className={`mt-2 inline-flex rounded-full px-2 py-0.5 font-medium ${
+                  vs >= 0
+                    ? "bg-emerald-50 text-emerald-700"
+                    : "bg-red-50 text-red-700"
+                }`}
+              >
+                {vs >= 0 ? "↑" : "↓"} {Math.abs(vs)}% vs the average
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+      <details className="text-xs text-muted">
+        <summary className="cursor-pointer">Show the numbers</summary>
+        <div className="mt-2 max-h-48 overflow-auto">
+          <table
+            aria-label={`${label}, as a table`}
+            className="w-full text-left"
+          >
+            <thead>
+              <tr>
+                <th scope="col">Day</th>
+                {series.map((x) => (
+                  <th key={x.name} scope="col">
+                    {x.name}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {days.map((d, i) => (
+                <tr key={d}>
+                  <th scope="row" className="font-normal">
+                    {d}
+                  </th>
+                  {series.map((x) => (
+                    <td key={x.name}>{x.values[i]}</td>
                   ))}
                 </tr>
               ))}

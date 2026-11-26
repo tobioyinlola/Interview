@@ -5,6 +5,7 @@ import { ClockIcon, MicIcon, PlusIcon, UsersIcon } from "../../app/icons";
 import { useOverview } from "./api";
 import {
   Bar,
+  Dynamics,
   DaysSelect,
   Failed,
   Loading,
@@ -12,7 +13,6 @@ import {
   Panel,
   Stat,
   Trend,
-  Trendline,
   duration,
   num,
   pct,
@@ -46,7 +46,7 @@ export function OverviewPage() {
       {worrying && (
         <div
           role="status"
-          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-amber-50 p-4 text-sm text-amber-900"
         >
           <span>
             <strong className="font-semibold">
@@ -76,11 +76,12 @@ export function OverviewPage() {
           icon={<UsersIcon className="h-4 w-4" />}
         />
         <Stat
+          feature
           label={`New in ${days} days`}
           value={num(d.new_users)}
           icon={<PlusIcon className="h-4 w-4" />}
         >
-          <Trend now={d.new_users} before={d.new_users_prev} />
+          <Trend now={d.new_users} before={d.new_users_prev} onDark />
         </Stat>
         <Stat
           label={`Interviews in ${days} days`}
@@ -120,7 +121,7 @@ export function OverviewPage() {
             title="Day by day"
             note="Sign-ups, interviews and active people."
           >
-            <Trendline
+            <Dynamics
               label="Sign-ups, interviews and active people per day"
               days={d.series.map((p) => p.day)}
               series={[
@@ -193,7 +194,7 @@ export function OverviewPage() {
 
       <section
         aria-labelledby="inv-h"
-        className="rounded-2xl bg-accent-soft p-5"
+        className="rounded-3xl bg-accent-soft p-5"
       >
         <h2 id="inv-h" className="text-base font-semibold tracking-tight">
           Invites
