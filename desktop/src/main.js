@@ -1,4 +1,5 @@
 "use strict";
+const fs = require("node:fs");
 const path = require("node:path");
 const {
   app,
@@ -98,6 +99,30 @@ ipcMain.on("im:open-in-browser", (event, url) => {
   if (captureAllowed(from, appOrigin) && isGoogleStartUrl(url, siteOrigin)) {
     shell.openExternal(url);
   }
+});
+
+// The CV picker. The ordinary file input opens wherever the system last left off, which for a
+// packaged Windows app is the app's own data folder; this one starts in Downloads.
+const CV_MAX_BYTES = 5 * 1024 * 1024;
+ipcMain.handle("im:pick-cv", async (event) => {
+  const from = event.senderFrame ? event.senderFrame.url : "";
+  if (!captureAllowed(from, appOrigin)) return null;
+  const win = BrowserWindow.fromWebContents(event.sender) || undefined;
+  const picked = await dialog.showOpenDialog(win, {
+    title: "Choose your CV",
+    defaultPath: app.getPath("downloads"),
+    properties: ["openFile"],
+    filters: [
+      { name: "CV (PDF, Word or text)", extensions: ["pdf", "docx", "txt"] },
+      { name: "All files", extensions: ["*"] },
+    ],
+  });
+  if (picked.canceled || !picked.filePaths[0]) return null;
+  const file = picked.filePaths[0];
+  const { size } = await fs.promises.stat(file);
+  const name = path.basename(file);
+  if (size > CV_MAX_BYTES) return { name, tooBig: true };
+  return { name, data: new Uint8Array(await fs.promises.readFile(file)) };
 });
 
 function openExternal(url) {

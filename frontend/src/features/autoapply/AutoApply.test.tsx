@@ -165,7 +165,7 @@ describe("the dashboard", () => {
     expect(screen.getByText("Submitted")).toBeInTheDocument();
   });
 
-  it("counts job applications and startup pitches together, in the circle and the tiles", async () => {
+  it("counts only job applications, in the circle and the tiles", async () => {
     onDash(
       dash({
         counts: { submitted: 4, sent_email: 1 },
@@ -175,25 +175,20 @@ describe("the dashboard", () => {
     );
     renderApp(<App />, "/auto-apply");
     expect(
-      await screen.findByRole("img", { name: "8 sent so far, 2 of 5 today" }),
+      await screen.findByRole("img", { name: "5 sent so far, 2 of 5 today" }),
     ).toBeInTheDocument();
     const glance = within(screen.getByLabelText("At a glance"));
-    expect(glance.getByText("Sent so far").nextSibling).toHaveTextContent("8");
-    expect(glance.getByText("5 jobs · 3 startups")).toBeInTheDocument();
-    expect(glance.getByText("Replies").nextSibling).toHaveTextContent("2"); // 1 startup + 1 to match
-    expect(glance.getByText("Waiting for you").nextSibling).toHaveTextContent(
-      "2",
-    );
-    expect(
-      glance.getByText("2 startup pitches to approve"),
-    ).toBeInTheDocument();
+    expect(glance.getByText("Sent so far").nextSibling).toHaveTextContent("5");
+    expect(glance.getByText("Replies").nextSibling).toHaveTextContent("1");
+    expect(glance.queryByText(/startup/i)).toBeNull();
   });
 
-  it("lists startup pitches next to job applications, newest first", async () => {
+  it("has nothing about startups, job sources or a setup button", async () => {
     onDash(
       dash({
         recent: [app()],
-        startups: { waiting: 0, sent: 1, replied: 0, openings: 0 },
+        sources: ["Remotive", "Jobicy"],
+        startups: { waiting: 2, sent: 3, replied: 1, openings: 4 },
         startup_recent: [
           {
             id: "t1",
@@ -207,20 +202,14 @@ describe("the dashboard", () => {
       }),
     );
     renderApp(<App />, "/auto-apply");
-    const pitch = await screen.findByRole("link", {
-      name: /Pitch to Lumen Labs/,
-    });
-    expect(pitch).toHaveAttribute("href", "/startups");
-    expect(pitch).toHaveTextContent("Startup · Sam Ade");
-    expect(pitch).toHaveTextContent("Sent");
-    const list = pitch.closest("ul") as HTMLElement;
-    const names = within(list)
-      .getAllByRole("link")
-      .map((l) => l.textContent ?? "");
-    expect(names[0]).toMatch(/Lumen Labs/); // newer than the job application below it
-    expect(names.some((n) => /Senior Product Manager at Acme/.test(n))).toBe(
-      true,
-    );
+    await screen.findByRole("img", { name: /sent so far/ });
+    expect(screen.queryByText(/startup/i)).toBeNull();
+    expect(screen.queryByText(/Lumen Labs/)).toBeNull();
+    expect(screen.queryByText("Where we look for jobs")).toBeNull();
+    expect(screen.queryByText("Remotive")).toBeNull();
+    expect(
+      screen.queryByRole("link", { name: "Search preferences" }),
+    ).toBeNull();
   });
 
   it("shows an empty circle, not a spinner-like dot, before anything is used", async () => {
