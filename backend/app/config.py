@@ -97,6 +97,8 @@ class Settings(BaseSettings):
     referrals_per_free_session: int = 3
     # How long the admin event log is kept. Older events are deleted when the server starts.
     event_retention_days: int = 180
+    # How long usage statistics from the app (screens, time spent, clicks) are kept.
+    analytics_retention_days: int = 90
     # OFF while the product is being tested: every session is free and invite rewards are not
     # tied to sessions. Set ENFORCE_SESSION_CREDITS=true to bring the free trial, invite and
     # paid credits back.
@@ -112,6 +114,7 @@ class Settings(BaseSettings):
     trust_proxy_headers: bool = False  # read the client IP from X-Forwarded-For (behind a proxy)
     rate_limit_per_minute: int = 600  # general /api limit per client
     rate_limit_auth_per_minute: int = 30  # sign-in endpoints, stricter
+    rate_limit_analytics_per_minute: int = 60  # usage statistics batches: their own bucket
     max_body_bytes: int = 1_000_000
     max_audio_body_bytes: int = 2 * 1024 * 1024 + 4096  # POST .../segment
     max_cv_body_bytes: int = 5 * 1024 * 1024 + 4096  # POST /api/notes/cv

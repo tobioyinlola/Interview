@@ -126,6 +126,7 @@ class MeOut(BaseModel):
     location: str | None = None
     headline: str | None = None
     linkedin_url: str | None = None
+    analytics_opt_out: bool = False  # usage statistics are switched off for this account
 
 
 class TourIn(BaseModel):

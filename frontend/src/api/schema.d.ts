@@ -275,6 +275,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/engagement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Engagement
+         * @description How people use the app on every device: who is active, for how long, where, what they use
+         *     and what breaks. From the app's own usage statistics; counts and times only.
+         */
+        get: operations["engagement_api_admin_engagement_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/job-sources": {
         parameters: {
             query?: never;
@@ -732,6 +753,49 @@ export interface paths {
          * @description Give a dead task a fresh set of attempts.
          */
         post: operations["worker_retry_api_admin_worker_tasks__task_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ingest
+         * @description A batch of usage events from the app on any device. Works before sign-in (anonymous) and
+         *     after (attached to the account). Never fails the app: unknown or malformed events are dropped
+         *     and counted.
+         */
+        post: operations["ingest_api_analytics_events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/preference": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Preference
+         * @description Turn usage statistics off or on for this account, on every device. Turning them off also
+         *     deletes what was collected about the person.
+         */
+        put: operations["set_preference_api_analytics_preference_put"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2845,6 +2909,34 @@ export interface components {
             /** Unresolved */
             unresolved: components["schemas"]["UnresolvedRow"][];
         };
+        /** BatchIn */
+        BatchIn: {
+            /**
+             * App Version
+             * @default
+             */
+            app_version: string;
+            /** Device Id */
+            device_id: string;
+            /** Events */
+            events: components["schemas"]["EventIn"][];
+            /** Form Factor */
+            form_factor: string;
+            /**
+             * Locale
+             * @default
+             */
+            locale: string;
+            /** Platform */
+            platform: string;
+            /** Session Id */
+            session_id: string;
+            /**
+             * Viewport
+             * @default
+             */
+            viewport: string;
+        };
         /**
          * BillingOut
          * @description How many sessions the person can start, and how far along their invite reward is.
@@ -3321,6 +3413,103 @@ export interface components {
             /** Policy Version */
             policy_version: string;
         };
+        /** EngagementOut */
+        EngagementOut: {
+            /** Data Since */
+            data_since: string | null;
+            /** Dau */
+            dau: number;
+            /** Days */
+            days: number;
+            /** Devices */
+            devices: number;
+            /** Engaged Minutes Per Person */
+            engaged_minutes_per_person: number | null;
+            /** Error Session Pct */
+            error_session_pct: number | null;
+            /** Errors */
+            errors: components["schemas"]["ErrorRow"][];
+            /** Features */
+            features: components["schemas"]["FeatureRow"][];
+            /** Form Factors */
+            form_factors: components["schemas"]["SplitRow"][];
+            /** Has Data */
+            has_data: boolean;
+            /** Load */
+            load: components["schemas"]["LoadRow"][];
+            /** Mau */
+            mau: number;
+            /** Median Session Seconds */
+            median_session_seconds: number | null;
+            /** Offline Session Pct */
+            offline_session_pct: number | null;
+            /** People */
+            people: number;
+            /** People Prev */
+            people_prev: number;
+            /** Platforms */
+            platforms: components["schemas"]["SplitRow"][];
+            /** Retention */
+            retention: components["schemas"]["RetentionRow"][];
+            /** Screens */
+            screens: components["schemas"]["ScreenRow"][];
+            /** Screens Per Session */
+            screens_per_session: number | null;
+            /** Series */
+            series: components["schemas"]["EngagementPoint"][];
+            /** Sessions */
+            sessions: number;
+            /** Sessions Prev */
+            sessions_prev: number;
+            /** Stickiness Pct */
+            stickiness_pct: number | null;
+            /** Versions */
+            versions: components["schemas"]["VersionRow"][];
+            /** Wau */
+            wau: number;
+        };
+        /** EngagementPoint */
+        EngagementPoint: {
+            /** Day */
+            day: string;
+            /** Devices */
+            devices: number;
+            /** Engaged Minutes */
+            engaged_minutes: number;
+            /** Sessions */
+            sessions: number;
+            /** Users */
+            users: number;
+        };
+        /** ErrorRow */
+        ErrorRow: {
+            /** Count */
+            count: number;
+            /** Devices */
+            devices: number;
+            /** Kind */
+            kind: string;
+            /**
+             * Last Seen
+             * Format: date-time
+             */
+            last_seen: string;
+            /** Route */
+            route: string | null;
+        };
+        /** EventIn */
+        EventIn: {
+            /** Name */
+            name: string;
+            /** Props */
+            props?: {
+                [key: string]: unknown;
+            };
+            /** Route */
+            route?: string | null;
+            /** Ts */
+            ts?: number | null;
+        };
         /** FactsIn */
         FactsIn: {
             /** Data */
@@ -3353,6 +3542,17 @@ export interface components {
             verified_at: string | null;
             /** Version */
             version: number;
+        };
+        /** FeatureRow */
+        FeatureRow: {
+            /** Key */
+            key: string;
+            /** Kind */
+            kind: string;
+            /** People */
+            people: number;
+            /** Uses */
+            uses: number;
         };
         /** FeedbackIn */
         FeedbackIn: {
@@ -3437,6 +3637,18 @@ export interface components {
             region_hint: string;
             /** Startups */
             startups: components["schemas"]["StartupIn"][];
+        };
+        /** IngestOut */
+        IngestOut: {
+            /** Accepted */
+            accepted: number;
+            /** Rejected */
+            rejected: number;
+            /**
+             * Stop
+             * @default false
+             */
+            stop: boolean;
         };
         /** InterviewOut */
         InterviewOut: {
@@ -3568,6 +3780,17 @@ export interface components {
             /** Application Id */
             application_id: string;
         };
+        /** LoadRow */
+        LoadRow: {
+            /** P50 Ms */
+            p50_ms: number;
+            /** P95 Ms */
+            p95_ms: number;
+            /** Platform */
+            platform: string;
+            /** Samples */
+            samples: number;
+        };
         /** LoginIn */
         LoginIn: {
             /**
@@ -3655,6 +3878,11 @@ export interface components {
         };
         /** MeOut */
         MeOut: {
+            /**
+             * Analytics Opt Out
+             * @default false
+             */
+            analytics_opt_out: boolean;
             /**
              * Autoapply
              * @default false
@@ -3870,6 +4098,16 @@ export interface components {
             /** Title */
             title: string;
         };
+        /** PreferenceIn */
+        PreferenceIn: {
+            /** Opt Out */
+            opt_out: boolean;
+        };
+        /** PreferenceOut */
+        PreferenceOut: {
+            /** Opt Out */
+            opt_out: boolean;
+        };
         /** PrepareOut */
         PrepareOut: {
             /** Company Id */
@@ -4079,6 +4317,17 @@ export interface components {
             /** Sent */
             sent: boolean;
         };
+        /** RetentionRow */
+        RetentionRow: {
+            /** Cohort */
+            cohort: number;
+            /** Day */
+            day: number;
+            /** Pct */
+            pct: number | null;
+            /** Returned */
+            returned: number;
+        };
         /** RunOut */
         RunOut: {
             /** Eligible */
@@ -4140,6 +4389,17 @@ export interface components {
         ScoreStartedOut: {
             /** Status */
             status: string;
+        };
+        /** ScreenRow */
+        ScreenRow: {
+            /** Avg Seconds */
+            avg_seconds: number | null;
+            /** People */
+            people: number;
+            /** Route */
+            route: string;
+            /** Views */
+            views: number;
         };
         /** SearchProfileIn */
         SearchProfileIn: {
@@ -4459,6 +4719,21 @@ export interface components {
             title: string;
             /** Url */
             url: string | null;
+        };
+        /** SplitRow */
+        SplitRow: {
+            /** Devices */
+            devices: number;
+            /** Engaged Minutes */
+            engaged_minutes: number;
+            /** Key */
+            key: string;
+            /** Sessions */
+            sessions: number;
+            /** Share Pct */
+            share_pct: number;
+            /** Users */
+            users: number;
         };
         /** StaffIn */
         StaffIn: {
@@ -4902,6 +5177,15 @@ export interface components {
         VerifyIn: {
             /** Token */
             token: string;
+        };
+        /** VersionRow */
+        VersionRow: {
+            /** App Version */
+            app_version: string;
+            /** Devices */
+            devices: number;
+            /** Platform */
+            platform: string;
         };
         /** WorkerDeadOut */
         WorkerDeadOut: {
@@ -5374,6 +5658,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TemplatePreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    engagement_api_admin_engagement_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EngagementOut"];
                 };
             };
             /** @description Validation Error */
@@ -6114,6 +6429,72 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ingest_api_analytics_events_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BatchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngestOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_preference_api_analytics_preference_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreferenceIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreferenceOut"];
                 };
             };
             /** @description Validation Error */

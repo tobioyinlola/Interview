@@ -213,6 +213,8 @@ class BodyLimitMiddleware:
     def limit_for(self, path: str) -> int:
         if path.endswith("/notes/cv"):
             return self.cv
+        if path == "/api/analytics/events":
+            return 64_000
         return self.audio if path.endswith("/segment") else self.default
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
@@ -305,6 +307,9 @@ class RateLimitMiddleware:
         key = self.client_key(scope)
         if path == "/api/notes/cv":
             wait = self.limiter.check(f"cv:{key}", self.s.rate_limit_upload_per_minute)
+        elif path == "/api/analytics/events":
+            # their own bucket: a busy tab must never use up the allowance for real requests
+            wait = self.limiter.check(f"analytics:{key}", self.s.rate_limit_analytics_per_minute)
         elif path.startswith("/api/auth/") and path != "/api/auth/providers":
             wait = self.limiter.check(f"auth:{key}", self.s.rate_limit_auth_per_minute)
         else:

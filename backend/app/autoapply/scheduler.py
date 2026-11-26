@@ -288,6 +288,7 @@ async def housekeeping(maker: async_sessionmaker[AsyncSession], settings: Settin
     from sqlalchemy import delete
 
     from app.models import AuthSession
+    from app.services.analytics import purge_old_client_events
     from app.services.events import purge_old_events
 
     try:
@@ -297,6 +298,7 @@ async def housekeeping(maker: async_sessionmaker[AsyncSession], settings: Settin
     except Exception:  # noqa: BLE001
         log.exception("expired sign-in clean-up failed")
     await purge_old_events(maker, settings.event_retention_days)
+    await purge_old_client_events(maker, settings.analytics_retention_days)
 
 
 async def loop(

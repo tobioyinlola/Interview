@@ -54,6 +54,19 @@ async def current_user(
     return user
 
 
+async def maybe_user(
+    request: Request,
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    settings: Settings = Depends(get_settings),  # noqa: B008
+) -> User | None:
+    """The signed-in person, or None. For the few endpoints that also serve people who are not
+    signed in (usage statistics before sign-in)."""
+    try:
+        return await current_user(request, db, settings)
+    except ApiError:
+        return None
+
+
 def get_google(
     settings: Settings = Depends(get_settings),  # noqa: B008
 ) -> GoogleOAuth:
@@ -110,6 +123,7 @@ def me_out(user: User, settings: Settings) -> MeOut:
         location=user.location,
         headline=user.headline,
         linkedin_url=user.linkedin_url,
+        analytics_opt_out=user.analytics_opt_out,
         onboarding=OnboardingAnswers(**user.onboarding) if user.onboarding else None,
     )
 

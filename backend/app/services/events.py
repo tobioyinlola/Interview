@@ -26,6 +26,8 @@ EVENT_KINDS: dict[str, tuple[str, str]] = {
     "user.profile_updated": ("account", "Updated their profile"),
     "user.password_changed": ("account", "Changed their password"),
     "user.deleted": ("account", "Deleted their account"),
+    "analytics.opted_out": ("account", "Turned off usage statistics"),
+    "analytics.opted_in": ("account", "Turned usage statistics back on"),
     "auth.login_failed": ("security", "Wrong password"),
     "staff.signed_in": ("security", "Signed in to the back office"),
     "staff.signed_out": ("security", "Signed out of the back office"),
