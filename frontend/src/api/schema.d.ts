@@ -637,6 +637,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/worker": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Worker Stats
+         * @description The background queue: what is waiting, how long the oldest has waited, what gave up, and
+         *     how much worker time each kind of task used in the last day (its share of the cost).
+         */
+        get: operations["worker_stats_api_admin_worker_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/worker/tasks/{task_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Worker Retry
+         * @description Give a dead task a fresh set of attempts.
+         */
+        post: operations["worker_retry_api_admin_worker_tasks__task_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/app/releases": {
         parameters: {
             query?: never;
@@ -4721,6 +4762,52 @@ export interface components {
             /** Token */
             token: string;
         };
+        /** WorkerDeadOut */
+        WorkerDeadOut: {
+            /** Attempts */
+            attempts: number;
+            /** Error Class */
+            error_class: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Last Error */
+            last_error: string | null;
+        };
+        /** WorkerKindOut */
+        WorkerKindOut: {
+            /** Dead */
+            dead: number;
+            /** Kind */
+            kind: string;
+            /** Queued */
+            queued: number;
+            /** Run Seconds */
+            run_seconds: number;
+            /** Tasks */
+            tasks: number;
+        };
+        /** WorkerOut */
+        WorkerOut: {
+            /** By Status */
+            by_status: {
+                [key: string]: number;
+            };
+            /** Dead */
+            dead: components["schemas"]["WorkerDeadOut"][];
+            /** Kinds */
+            kinds: components["schemas"]["WorkerKindOut"][];
+            /** Mode */
+            mode: string;
+            /** Oldest Due Seconds */
+            oldest_due_seconds: number;
+        };
         /** StatusOut */
         app__autoapply__schemas__StatusOut: {
             campaign: components["schemas"]["CampaignOut"];
@@ -5773,6 +5860,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    worker_stats_api_admin_worker_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkerOut"];
+                };
+            };
+        };
+    };
+    worker_retry_api_admin_worker_tasks__task_id__retry_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
                 };
             };
             /** @description Validation Error */

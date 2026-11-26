@@ -907,3 +907,64 @@ class Directory(Base):
     last_problem: Mapped[str | None] = mapped_column(String(300), nullable=True)
     cursor: Mapped[str | None] = mapped_column(String(500), nullable=True)  # next page to read
     created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+
+
+# ------------------------------------------------------------------------------ background work
+# One durable queue for everything the background worker does. A task is claimed in a short
+# transaction (FOR UPDATE SKIP LOCKED) and then run outside it; its lease is renewed while it runs,
+# and a lease that runs out means the worker died, so the task is given back.
+
+
+class BgTask(Base):
+    __tablename__ = "bg_tasks"
+    __table_args__ = (
+        # what the dispatcher asks for: queued work that is due, most urgent first
+        Index("ix_bg_tasks_claim", "status", "priority", "run_at"),
+        # at most one waiting or running task per key; a finished one does not block the next
+        Index(
+            "uq_bg_tasks_live_key",
+            "idempotency_key",
+            unique=True,
+            postgresql_where=text("status IN ('queued', 'running')"),
+        ),
+        Index("ix_bg_tasks_lease", "status", "lease_until"),
+    )
+    id: Mapped[uuid.UUID] = _pk()
+    kind: Mapped[str] = mapped_column(String(60))
+    priority: Mapped[int] = mapped_column(Integer, default=20)  # lower runs first
+    # queued | running | done | failed (will retry) | dead (gave up) | cancelled
+    status: Mapped[str] = mapped_column(String(10), default="queued")
+    resource: Mapped[str] = mapped_column(String(10), default="light")
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    campaign_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    application_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    idempotency_key: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    payload: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb")
+    )
+    run_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    max_attempts: Mapped[int] = mapped_column(Integer, default=3)
+    timeout_seconds: Mapped[int] = mapped_column(Integer, default=300)
+    lease_until: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    locked_by: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    heartbeat_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    error_class: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    last_error: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+    started_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    run_seconds: Mapped[float | None] = mapped_column(nullable=True)  # for cost by kind
+
+
+class BgSchedule(Base):
+    """When each recurring job next falls due. Kept in the database so a restart neither skips nor
+    repeats one, and so only one of several workers fires it (the row is locked while it does)."""
+
+    __tablename__ = "bg_schedules"
+    name: Mapped[str] = mapped_column(String(60), primary_key=True)
+    every_seconds: Mapped[int] = mapped_column(Integer)
+    next_run_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+    last_run_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)

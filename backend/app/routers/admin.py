@@ -6,6 +6,7 @@ from datetime import UTC, date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
+from pydantic import BaseModel
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -416,3 +417,91 @@ async def email_template_preview(
     except KeyError:
         raise ApiError(404, "not_found", "Not found.") from None
     return TemplatePreview(kind=m.kind, subject=m.subject, html=m.html, text=m.text)
+
+
+# ------------------------------------------------------------------ the background worker
+
+
+class WorkerKindOut(BaseModel):
+    kind: str
+    tasks: int
+    run_seconds: float
+    dead: int
+    queued: int
+
+
+class WorkerDeadOut(BaseModel):
+    id: uuid.UUID
+    kind: str
+    attempts: int
+    error_class: str | None
+    last_error: str | None
+    finished_at: datetime | None
+
+
+class WorkerOut(BaseModel):
+    mode: str  # where background work runs: "api" or "worker"
+    by_status: dict[str, int]
+    oldest_due_seconds: float
+    kinds: list[WorkerKindOut]
+    dead: list[WorkerDeadOut]
+
+
+@router.get("/worker")
+async def worker_stats(
+    _: User = Depends(require_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_admin_db),  # noqa: B008
+    settings: Settings = Depends(get_settings),  # noqa: B008
+) -> WorkerOut:
+    """The background queue: what is waiting, how long the oldest has waited, what gave up, and
+    how much worker time each kind of task used in the last day (its share of the cost)."""
+    from app.models import BgTask
+    from app.workers import queue as bgq
+
+    now = datetime.now(UTC)
+    st = await bgq.stats(db, now)
+    dead = (
+        (
+            await db.execute(
+                select(BgTask)
+                .where(BgTask.status == "dead")
+                .order_by(BgTask.finished_at.desc().nulls_last())
+                .limit(20)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return WorkerOut(
+        mode=settings.background_mode,
+        by_status=st["by_status"],
+        oldest_due_seconds=st["oldest_due_seconds"],
+        kinds=[WorkerKindOut(**k) for k in st["kinds"]],
+        dead=[
+            WorkerDeadOut(
+                id=t.id,
+                kind=t.kind,
+                attempts=t.attempts,
+                error_class=t.error_class,
+                last_error=t.last_error,
+                finished_at=t.finished_at,
+            )  # fmt: skip
+            for t in dead
+        ],
+    )
+
+
+@router.post("/worker/tasks/{task_id}/retry")
+async def worker_retry(
+    task_id: uuid.UUID,
+    admin: User = Depends(require_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_admin_db),  # noqa: B008
+) -> dict[str, str]:
+    """Give a dead task a fresh set of attempts."""
+    from app.workers import queue as bgq
+
+    if not await bgq.retry_dead(db, task_id, datetime.now(UTC)):
+        raise ApiError(404, "not_found", "No dead task with that id.")
+    await db.commit()
+    await record_from(db, "admin.worker_retry", actor_id=admin.id, task=str(task_id))
+    return {"status": "queued"}

@@ -18,6 +18,15 @@ log = logging.getLogger("app.hunt")
 RESEARCH_PER_PASS = 4
 
 
+async def read_directories(
+    maker: async_sessionmaker[AsyncSession], fetcher: Fetcher, llm: LlmProvider, now: datetime
+) -> None:
+    """Read the directories that are due, and look for new ones."""
+    async with maker() as db:
+        await directory.refresh_due(db, fetcher, llm, now)
+        await directory.scout(db, fetcher, llm, now)
+
+
 async def research_pending(
     maker: async_sessionmaker[AsyncSession],
     fetcher: Fetcher,
@@ -60,9 +69,7 @@ async def run(
 ) -> dict[str, int]:
     fetcher = fetcher or directory.page_reader()
     try:
-        async with maker() as db:
-            await directory.refresh_due(db, fetcher, llm, now)
-            await directory.scout(db, fetcher, llm, now)
+        await read_directories(maker, fetcher, llm, now)
     except Exception:  # noqa: BLE001 - a directory being down must not stop the rest
         log.exception("directory refresh failed")
     researched = await research_pending(maker, fetcher, llm, now)

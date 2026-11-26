@@ -106,7 +106,7 @@ async def _recheck_stale(db: AsyncSession, ctx: pipeline.Context) -> None:
         await pipeline.reevaluate_open(db, ctx)
 
 
-async def run_user(
+async def prepare_user(
     maker: async_sessionmaker[AsyncSession],
     user_id: uuid.UUID,
     now: datetime,
@@ -115,6 +115,7 @@ async def run_user(
     adapters: outbox.Adapters,
     llm: LlmProvider,
 ) -> None:
+    """Find and match jobs, and plan follow-up notes: reading, no sending."""
     async with maker() as db:
         await discovery.run_if_due(
             db, user_id, now=now, sources=sources, llm=llm, form=adapters.form
@@ -127,9 +128,33 @@ async def run_user(
             )
             await _recheck_stale(db, ctx)
         await plan_outreach(db, user_id, now)
+
+
+async def send_user(
+    maker: async_sessionmaker[AsyncSession],
+    user_id: uuid.UUID,
+    now: datetime,
+    *,
+    adapters: outbox.Adapters,
+) -> None:
+    """Send what is approved and due: applications (forms, email) and hiring notes. Every send is
+    claimed in the submission log first, so running this twice never sends twice."""
     await outbox.dispatch_user(maker, user_id, adapters, now)
     while await outreach.send_next(maker, user_id, adapters, now) == "confirmed":
         pass
+
+
+async def run_user(
+    maker: async_sessionmaker[AsyncSession],
+    user_id: uuid.UUID,
+    now: datetime,
+    *,
+    sources: list[DiscoveryAdapter],
+    adapters: outbox.Adapters,
+    llm: LlmProvider,
+) -> None:
+    await prepare_user(maker, user_id, now, sources=sources, adapters=adapters, llm=llm)
+    await send_user(maker, user_id, now, adapters=adapters)
 
 
 async def observe(maker: async_sessionmaker[AsyncSession], now: datetime) -> None:

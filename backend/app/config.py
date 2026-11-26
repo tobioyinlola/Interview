@@ -172,6 +172,25 @@ class Settings(BaseSettings):
     # Spread the work: with N shards each person is handled on every Nth pass (a pass is one tick),
     # so a tick stays short however many people there are. 1 = everyone on every pass.
     autoapply_shards: int = 1
+    # Where background work runs. "api": inside the API process, as before (the rollback path).
+    # "worker": the API only answers requests; `python -m app.workers.main` runs everything in the
+    # background through the durable queue, as one separate service.
+    background_mode: str = "api"
+    # The unified worker. Start small and raise only after measuring (see docs/worker.md).
+    worker_max_concurrent_tasks: int = 5
+    worker_max_browser_sessions: int = 1
+    worker_max_ai_requests: int = 2
+    worker_max_document_tasks: int = 1
+    worker_max_http_tasks: int = 5
+    worker_max_email_tasks: int = 3
+    worker_poll_seconds: float = 2.0  # how often an idle worker looks for work (backs off to 15 s)
+    worker_lease_seconds: int = 90  # a claim not renewed for this long was abandoned
+    worker_aging_seconds: int = 300  # every 5 minutes of waiting moves a task one priority up
+    # Heavy work (browser, documents, AI) waits while the worker is short of memory or CPU.
+    worker_memory_high_fraction: float = 0.8
+    worker_load_high_per_cpu: float = 1.5
+    # Priorities by task kind ("kind=number,..."); lower runs first. Empty: the built-in defaults.
+    worker_priorities: str = ""
     # A mailbox is read for replies this often, and at most this many per pass.
     mailbox_sync_minutes: int = 5
     mailbox_sync_batch: int = 500

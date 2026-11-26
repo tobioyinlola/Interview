@@ -208,3 +208,28 @@ autoapply_discovery = Counter(
     ["status"],
     registry=REGISTRY,
 )
+
+
+# ------------------------------------------------------------------ the unified background worker
+worker_tasks = Counter(
+    "worker_tasks_total", "Background tasks finished", ["kind", "outcome"], registry=REGISTRY
+)
+worker_task_seconds = Histogram(
+    "worker_task_seconds",
+    "How long a background task ran",
+    ["kind"],
+    buckets=(0.1, 0.5, 1, 5, 15, 60, 300, 900),
+    registry=REGISTRY,
+)
+worker_running = Gauge(
+    "worker_tasks_running", "Background tasks running now", ["resource"], registry=REGISTRY
+)
+worker_heavy_paused = Gauge(
+    "worker_heavy_paused", "1 while heavy work waits for memory or CPU", registry=REGISTRY
+)
+worker_queue_backlog = Gauge(
+    "worker_queue_backlog", "Background tasks due and waiting", registry=REGISTRY
+)
+worker_queue_oldest = Gauge(
+    "worker_queue_oldest_seconds", "How long the oldest due task has waited", registry=REGISTRY
+)

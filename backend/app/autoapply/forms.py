@@ -10,7 +10,7 @@ from app.config import Settings
 log = logging.getLogger("app.autoapply")
 
 
-def build(settings: Settings) -> FormAdapter:
+def build(settings: Settings, manager: object = None) -> FormAdapter:
     """The fixture (which touches nobody) unless AUTOAPPLY_FORM_ADAPTER=browser. Submissions to real
     employers also need AUTOAPPLY_FORM_DISPATCH, like every real channel."""
     if settings.autoapply_form_adapter == "browser":
@@ -24,6 +24,8 @@ def build(settings: Settings) -> FormAdapter:
             h.strip().lower() for h in settings.autoapply_form_hosts.split(",") if h.strip()
         )
         return BrowserForm(
-            hosts=hosts or DEFAULT_HOSTS, executable_path=settings.autoapply_browser_path or None
+            hosts=hosts or DEFAULT_HOSTS,
+            executable_path=settings.autoapply_browser_path or None,
+            manager=manager,  # the unified worker shares one browser across tasks
         )
     return FixtureForm()

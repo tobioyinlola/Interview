@@ -22,7 +22,7 @@ import contextlib
 import hashlib
 import json
 import re
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -225,11 +225,14 @@ class BrowserForm:
         executable_path: str | None = None,
         proxy: dict[str, str] | None = None,
         launcher: Callable[[], Any] | None = None,
+        manager: Any = None,
     ) -> None:
         self.hosts = tuple(h.lower() for h in hosts)
         self.executable_path = executable_path
         self.proxy = proxy
         self._launcher = launcher
+        # the unified worker passes its BrowserManager: one Chromium reused, a fresh context each
+        self.manager = manager
         self._busy = asyncio.Semaphore(1)  # one browser job at a time: it is heavy, and polite
         self.receipts: dict[str, FormReceipt] = {}
 
@@ -254,8 +257,8 @@ class BrowserForm:
             opts["proxy"] = self.proxy
         return await pw.chromium.launch(**opts)
 
-    async def _session(self, url: str) -> tuple[Any, Any, Any, Any]:
-        """(playwright, browser, page, scan) with the form on screen. Raises AdapterError."""
+    async def _session(self, url: str) -> tuple[Any, Any, Callable[[], Awaitable[None]]]:
+        """(page, scan, close) with the form on screen. Raises AdapterError, having closed it."""
         if not self.supports(url):
             raise AdapterError("rejected", "That form is not one we are approved to fill in.")
         try:
@@ -264,10 +267,27 @@ class BrowserForm:
             raise AdapterError(
                 "unavailable", "The browser for application forms is not installed.", transient=True
             ) from None
-        pw = await async_playwright().start()
+        if self.manager is not None:
+            ctx = await self.manager.context(accept_downloads=False)
+
+            async def close() -> None:
+                await self.manager.done(ctx)
+
+        else:
+            pw = await async_playwright().start()
+            try:
+                browser = await self._open(pw)
+                ctx = await browser.new_context(accept_downloads=False)
+            except Exception as exc:  # noqa: BLE001
+                await pw.stop()
+                raise _read_error(exc) from None
+
+            async def close() -> None:
+                with contextlib.suppress(Exception):
+                    await browser.close()
+                await pw.stop()
+
         try:
-            browser = await self._open(pw)
-            ctx = await browser.new_context(accept_downloads=False)
 
             async def guard(route: Any) -> None:  # the page may not wander off to any other site
                 req = route.request
@@ -289,31 +309,31 @@ class BrowserForm:
             await page.wait_for_timeout(1500)  # forms drawn by script finish filling in
             scan = await page.evaluate(SCAN)
         except AdapterError:
-            await pw.stop()
+            await close()
             raise
         except Exception as exc:  # noqa: BLE001 - the browser's own errors, in one place
-            await pw.stop()
+            await close()
             raise _read_error(exc) from None
         if BLOCK_TITLE.search(scan["title"] or ""):
-            await pw.stop()
+            await close()
             raise AdapterError(
                 "rejected", "The employer's site asked for a human check we cannot do."
             )
         if not scan["controls"]:
-            await pw.stop()
+            await close()
             if CLOSED_TEXT.search(scan["text"]):
                 raise AdapterError("rejected", "This job is no longer open.")
             raise AdapterError("rejected", "No application form was found on that page.")
         if LOGIN_TEXT.search(scan["text"]):
-            await pw.stop()
+            await close()
             raise AdapterError("rejected", "The employer asks you to sign in to apply.")
-        return pw, browser, page, scan
+        return page, scan, close
 
     # ------------------------------------------------------------------ read, submit, receipts
 
     async def read_form(self, application_url: str) -> FormSchema:
         async with self._busy:
-            pw, browser, page, scan = await self._session(application_url)
+            page, scan, close = await self._session(application_url)
             try:
                 controls = controls_from(scan)
                 for c in controls:  # a dropdown drawn by script shows its choices only when opened
@@ -321,8 +341,7 @@ class BrowserForm:
                         c.options = await _open_choices(page, c)
                 return schema_from(controls, bool(scan["captcha"]))
             finally:
-                await browser.close()
-                await pw.stop()
+                await close()
 
     async def submit(
         self,
@@ -336,7 +355,7 @@ class BrowserForm:
         if idempotency_key in self.receipts:
             return self.receipts[idempotency_key]  # the same intent again changes nothing
         async with self._busy:
-            pw, browser, page, scan = await self._session(application_url)
+            page, scan, close = await self._session(application_url)
             try:
                 if scan["captcha"]:
                     raise AdapterError("rejected", "The form asks for a human check (CAPTCHA).")
@@ -348,8 +367,7 @@ class BrowserForm:
                 self.receipts[idempotency_key] = receipt
                 return receipt
             finally:
-                await browser.close()
-                await pw.stop()
+                await close()
 
     async def find_receipt(
         self, application_url: str, *, idempotency_key: str

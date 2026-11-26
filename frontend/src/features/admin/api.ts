@@ -9,6 +9,7 @@ import { apiFetch } from "../../api/client";
 import type {
   AdminActivity,
   AdminAutoApply,
+  AdminWorker,
   AdminSwitch,
   AdminEmails,
   AdminMarketing,
@@ -380,3 +381,23 @@ export const useSetOutreachAccess = () =>
       body: JSON.stringify({ access: v.access }),
     }),
   );
+
+/** The background queue: backlog, the oldest waiting task, what gave up, time used by kind. */
+export const useWorker = () =>
+  useQuery<AdminWorker>({
+    queryKey: ["admin", "worker"],
+    queryFn: () => apiFetch<AdminWorker>("/api/admin/worker"),
+    refetchInterval: 30_000,
+  });
+
+export function useRetryTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<{ status: string }>(`/api/admin/worker/tasks/${id}/retry`, {
+        method: "POST",
+      }),
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: ["admin", "worker"] }),
+  });
+}
