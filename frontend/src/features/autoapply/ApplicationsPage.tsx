@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { LoadingRows } from "../../ui/Loading";
 import { useApplications, useRecheckSkipped } from "./api";
@@ -15,8 +15,17 @@ const TABS: [string, string][] = [
   ["failed", "Failed"],
 ];
 
+// the dashboard's numbers open the list already filtered: ?show=sent|ready|skipped|apply
+const SHOW: Record<string, string> = {
+  sent: "submitted,sent_email,confirmation_pending",
+  ready: "queued,sending",
+  skipped: "skipped",
+  apply: "apply_yourself,applied_by_you",
+};
+
 export function ApplicationsPage() {
-  const [tab, setTab] = useState("");
+  const [params] = useSearchParams();
+  const [tab, setTab] = useState(SHOW[params.get("show") ?? ""] ?? "");
   const q = useApplications(tab);
   const recheck = useRecheckSkipped();
   const [picked, setPicked] = useState<Set<string>>(new Set());
