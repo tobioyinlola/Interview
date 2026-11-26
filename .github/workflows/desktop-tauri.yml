@@ -1,0 +1,161 @@
+name: desktop-tauri
+
+# Builds the Tauri 2 desktop app on Windows (and optionally Mac).
+#  - Any change to desktop-tauri/ or frontend/: builds a Windows installer you can download
+#    from the run page under "Artifacts".
+#  - Manual trigger with release=true: builds and publishes a GitHub release.
+on:
+  push:
+    branches: [Staging, diesel-tauri]
+    paths: ["desktop-tauri/**", "frontend/**", ".github/workflows/desktop-tauri.yml"]
+  pull_request:
+    paths: ["desktop-tauri/**", "frontend/**", ".github/workflows/desktop-tauri.yml"]
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "Publish a GitHub release when the build passes"
+        type: boolean
+        default: false
+      version:
+        description: "Version number for the release, like 0.1.0"
+        type: string
+        default: "0.1.0"
+      mac:
+        description: "Also build the Mac app"
+        type: boolean
+        default: false
+
+defaults:
+  run:
+    working-directory: desktop-tauri
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    env:
+      RELEASE: ${{ (github.event_name == 'workflow_dispatch' && inputs.release) || false }}
+      VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || format('0.1.{0}', github.run_number) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop-tauri/src-tauri
+
+      - name: Install Tauri CLI
+        run: npm install
+
+      - name: Build the frontend that goes inside the app
+        run: |
+          npm ci --prefix ../frontend
+          cd ../frontend && npx vite build --outDir ../desktop-tauri/dist
+        env:
+          INTERVIEWMEET_URL: ${{ vars.INTERVIEWMEET_URL }}
+
+      - name: Build Tauri app
+        run: npx tauri build
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: List build output
+        shell: bash
+        run: |
+          echo "=== MSI ==="
+          find src-tauri/target/release/bundle/msi -type f 2>/dev/null || echo "no msi"
+          echo "=== NSIS ==="
+          find src-tauri/target/release/bundle/nsis -type f 2>/dev/null || echo "no nsis"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: InterviewMeet-Tauri-windows
+          path: |
+            desktop-tauri/src-tauri/target/release/bundle/msi/*.msi
+            desktop-tauri/src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: warn
+
+      - name: Publish release
+        if: env.RELEASE == 'true'
+        shell: bash
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          FILES=""
+          for f in desktop-tauri/src-tauri/target/release/bundle/msi/*.msi \
+                   desktop-tauri/src-tauri/target/release/bundle/nsis/*.exe; do
+            [ -f "$f" ] && FILES="$FILES $f"
+          done
+          if [ -z "$FILES" ]; then echo "No installer files found"; exit 1; fi
+          gh release create "tauri-v$VERSION" $FILES \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "InterviewMeet Tauri $VERSION (Windows)" \
+            --notes "Windows installer (Tauri 2). Much smaller than Electron (~10 MB vs ~90 MB). Not code-signed yet — Windows may show a SmartScreen warning."
+
+  mac:
+    if: ${{ always() && needs.windows.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.mac) || (github.event_name == 'push' && github.ref == 'refs/heads/Staging')) }}
+    needs: windows
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    env:
+      RELEASE: ${{ (github.event_name == 'workflow_dispatch' && inputs.release) || false }}
+      VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || format('0.1.{0}', github.run_number) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop-tauri/src-tauri
+
+      - name: Install Tauri CLI
+        run: npm install
+
+      - name: Build the frontend
+        run: |
+          npm ci --prefix ../frontend
+          cd ../frontend && npx vite build --outDir ../desktop-tauri/dist
+        env:
+          INTERVIEWMEET_URL: ${{ vars.INTERVIEWMEET_URL }}
+
+      - name: Build Tauri app
+        run: npx tauri build
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: InterviewMeet-Tauri-mac
+          path: |
+            desktop-tauri/src-tauri/target/release/bundle/dmg/*.dmg
+            desktop-tauri/src-tauri/target/release/bundle/macos/*.app.tar.gz
+          if-no-files-found: warn
+
+      - name: Attach to release
+        if: env.RELEASE == 'true'
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "tauri-v$VERSION" \
+            desktop-tauri/src-tauri/target/release/bundle/dmg/*.dmg \
+            --repo "$GITHUB_REPOSITORY" --clobber
