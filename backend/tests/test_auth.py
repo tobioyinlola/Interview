@@ -26,7 +26,9 @@ async def test_sign_in_sets_http_only_cookie_and_me_works(new_client, sign_in):
 
 
 async def test_cookie_is_secure_outside_local(new_client, app, sign_in, settings):
-    prod = Settings(environment="production", cookie_secret="test-secret")  # type: ignore[arg-type]
+    prod = Settings(  # type: ignore[arg-type]
+        environment="production", cookie_secret="test-secret", open_link_signup=True
+    )
     app.dependency_overrides[get_settings] = lambda: prod
     async with new_client() as c:
         # request-link works with any sender override; verify sets the cookie flags

@@ -23,6 +23,7 @@ def settings() -> Settings:
         database_url=TEST_DB,
         cookie_secret="test-secret",
         enforce_session_credits=True,
+        open_link_signup=True,  # accounts here are made by an emailed link; see test_registration
     )
 
 

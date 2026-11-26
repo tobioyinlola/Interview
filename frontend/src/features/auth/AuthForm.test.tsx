@@ -400,7 +400,9 @@ describe("continue with Google", () => {
       await screen.findByRole("button", { name: /continue with google/i }),
     );
     expect(assign).toHaveBeenCalledTimes(1);
-    expect(assign.mock.calls[0][0]).toMatch(/\/api\/auth\/google\/start$/);
+    expect(assign.mock.calls[0][0]).toMatch(
+      /\/api\/auth\/google\/start\?mode=signin$/,
+    );
   });
 
   it("sits above the form, and on the sign up page asks for the terms before going to Google", async () => {
@@ -617,7 +619,7 @@ describe("an invite link", () => {
       screen.getByRole("button", { name: /continue with google/i }),
     );
     expect(assign.mock.calls[0][0]).toMatch(
-      /\/api\/auth\/google\/start\?ref=abc23xyz$/,
+      /\/api\/auth\/google\/start\?mode=signup&ref=abc23xyz$/,
     );
   });
 
@@ -762,5 +764,48 @@ describe("inside an installed app", () => {
     expect(
       screen.queryByRole("navigation", { name: "Sign in or get started" }),
     ).toBeNull();
+  });
+});
+
+describe("people who are not registered", () => {
+  it("are told so, with a link to sign up, when they ask for an emailed link", async () => {
+    mockApi({
+      "GET /api/me": () => UNAUTH,
+      "GET /api/auth/providers": () => ({ json: { google: false } }),
+      "POST /api/auth/request-link": () => ({
+        status: 404,
+        json: {
+          error: {
+            code: "not_registered",
+            message:
+              "You're not registered on InterviewMeet yet. Please sign up first.",
+          },
+        },
+      }),
+    });
+    renderApp(<App />, "/login");
+    await userEvent.type(
+      await screen.findByLabelText("Email address"),
+      "new@example.com",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /email me a sign-in link/i }),
+    );
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/not registered/i);
+    expect(
+      within(alert).getByRole("link", { name: "Sign up" }),
+    ).toHaveAttribute("href", "/signup");
+  });
+
+  it("are told so, with a link to sign up, when Google sends them back unregistered", async () => {
+    mockApi({
+      "GET /api/me": () => UNAUTH,
+      "GET /api/auth/providers": () => ({ json: { google: true } }),
+    });
+    renderApp(<App />, "/login?error=not_registered");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/not registered/i);
+    expect(within(alert).getByRole("link", { name: "Sign up" })).toBeVisible();
   });
 });

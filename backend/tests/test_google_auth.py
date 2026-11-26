@@ -25,7 +25,7 @@ def google_settings(**over) -> Settings:  # type: ignore[no-untyped-def]
         google_client_id=CLIENT_ID,
         google_client_secret="shh",
         api_public_url="https://api.example.com",
-        **over,
+        **{"open_link_signup": True, **over},  # these tests make accounts; see test_registration
     )
 
 

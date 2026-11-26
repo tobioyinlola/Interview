@@ -101,6 +101,9 @@ class Settings(BaseSettings):
     # tied to sessions. Set ENFORCE_SESSION_CREDITS=true to bring the free trial, invite and
     # paid credits back.
     enforce_session_credits: bool = False
+    # Off: an emailed link or Google only signs in people who already have an account, and everyone
+    # else is told to sign up. On: they create one (the old behaviour; the test suite uses it).
+    open_link_signup: bool = False
     dev_log_email_links: bool = False
     resend_api_key: SecretStr = SecretStr("")  # sends the sign-in email
     email_from: str = ""  # e.g. "Meet Practice <login@yourdomain.com>", a Resend-verified domain

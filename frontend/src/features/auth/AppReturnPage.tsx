@@ -10,6 +10,8 @@ import { markVerified } from "./VerifiedToast";
 const MESSAGES: Record<string, string> = {
   google_cancelled: "Google sign-in was cancelled.",
   google_unavailable: "Google sign-in isn't available right now.",
+  not_registered:
+    "You're not registered on InterviewMeet yet. Please sign up first.",
 };
 
 /** Where an installed app lands after the browser finishes Google sign-in: swaps the one-time code
@@ -72,9 +74,15 @@ export function AppReturnPage() {
           <p role="alert" className="notice-error">
             {message}
           </p>
-          <Link to="/login" className="btn-primary inline-block">
-            Back to sign in
-          </Link>
+          {failure === "not_registered" ? (
+            <Link to="/signup" className="btn-primary inline-block">
+              Sign up
+            </Link>
+          ) : (
+            <Link to="/login" className="btn-primary inline-block">
+              Back to sign in
+            </Link>
+          )}
         </div>
       )}
     </AuthLayout>

@@ -781,8 +781,10 @@ export interface paths {
         put?: never;
         /**
          * Request Link
-         * @description Email a single-use sign-in link. The answer is the same for every address, so it cannot be
-         *     used to discover which emails have accounts.
+         * @description Email a single-use sign-in link to someone who has an account. An address with no account is
+         *     told so, plainly, and pointed to sign-up: no link is sent and nothing is created. (This does say
+         *     which addresses are registered; the per-address and per-client limits bound how fast it can be
+         *     asked.)
          */
         post: operations["request_link_api_auth_request_link_post"];
         delete?: never;
@@ -5879,6 +5881,7 @@ export interface operations {
                 utm_campaign?: string | null;
                 app?: string | null;
                 challenge?: string | null;
+                mode?: string | null;
             };
             header?: never;
             path?: never;
