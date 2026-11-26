@@ -12,6 +12,8 @@ import { COUNTRIES } from "../../data/countries";
 import { PasswordField } from "../../ui/PasswordField";
 import { CountrySelect, RoleInput } from "../../ui/Pickers";
 import { PasswordRules, passwordOk } from "../auth/password";
+import { capability, privacy, usePrivacy } from "../../app/privacy";
+import { PrivateScreen } from "../../app/usePrivateScreen";
 
 export function PrivacyNotice() {
   return (
@@ -21,8 +23,9 @@ export function PrivacyNotice() {
       </h2>
       <ul className="list-disc space-y-1 pl-5 text-sm">
         <li>
-          This app is for mock interviews with a partner who knows the assistant
-          is on.
+          Everyone on a call must know the assistant is on. In a real interview,
+          real-time answers are only for when the interviewer or organisation
+          has allowed them; otherwise use a Standard interview.
         </li>
         <li>
           Recording and transcribing calls is regulated differently in different
@@ -362,10 +365,63 @@ function PasswordTab() {
   );
 }
 
+/** What this device can do to keep private screens out of screen capture, said honestly, and the
+ *  two switches: protect private screens, and Presentation mode. */
+function ScreenPrivacy() {
+  const cap = capability();
+  const { enabled, presentation, problem } = usePrivacy();
+  return (
+    <section aria-labelledby="screen-privacy" className="card space-y-3">
+      <h2 id="screen-privacy" className="text-lg font-semibold">
+        Screen sharing and recording
+      </h2>
+      <p className="text-sm">{cap.summary}</p>
+      {cap.limits.length > 0 && (
+        <ul className="list-disc space-y-1 pl-5 text-sm text-muted">
+          {cap.limits.map((l) => (
+            <li key={l}>{l}</li>
+          ))}
+        </ul>
+      )}
+      <p className="text-sm text-muted">
+        Private screens are your profile, password, CV, Auto-Apply details,
+        email connection and the back office. Live interview screens are never
+        hidden, so anyone watching can see the assistant is on.
+      </p>
+      {cap.method !== "none" && (
+        <label className="flex min-h-[44px] items-center gap-3 text-sm">
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={(e) => privacy.setEnabled(e.target.checked)}
+            className="h-5 w-5 accent-accent"
+          />
+          Protect private screens
+        </label>
+      )}
+      <label className="flex min-h-[44px] items-center gap-3 text-sm">
+        <input
+          type="checkbox"
+          checked={presentation}
+          onChange={(e) => privacy.setPresentation(e.target.checked)}
+          className="h-5 w-5 accent-accent"
+        />
+        Presentation mode: hide private screens while I share my screen
+      </label>
+      {problem && (
+        <p role="alert" className="notice-error">
+          {problem}
+        </p>
+      )}
+    </section>
+  );
+}
+
 function PrivacyTab() {
   return (
     <>
       <PrivacyNotice />
+      <ScreenPrivacy />
       <section aria-labelledby="danger" className="card space-y-2 !bg-red-50">
         <h2 id="danger" className="text-lg font-semibold">
           Delete my data
@@ -410,9 +466,13 @@ export function SettingsPage() {
         </ul>
       </nav>
       <div className="min-w-0 max-w-4xl space-y-5 lg:col-start-2 lg:row-start-2">
-        {tab === "profile" && <ProfileTab />}
-        {tab === "password" && <PasswordTab />}
-        {tab === "cv" && <CvPanel />}
+        {tab !== "privacy" && (
+          <PrivateScreen>
+            {tab === "profile" && <ProfileTab />}
+            {tab === "password" && <PasswordTab />}
+            {tab === "cv" && <CvPanel />}
+          </PrivateScreen>
+        )}
         {tab === "privacy" && <PrivacyTab />}
       </div>
     </main>

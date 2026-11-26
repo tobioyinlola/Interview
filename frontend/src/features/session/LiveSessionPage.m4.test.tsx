@@ -151,7 +151,10 @@ describe("outline feedback (FR-31)", () => {
       .filter((c) => c.key === "POST /api/suggestions/sg1/feedback")
       .map((c) => c.body);
     expect(sent).toEqual([{ value: "up" }, { value: "down" }]);
-    expect(calls[0].headers.get("x-requested-with")).toBe("meet-practice");
+    const first = calls.find(
+      (c) => c.key === "POST /api/suggestions/sg1/feedback",
+    )!;
+    expect(first.headers.get("x-requested-with")).toBe("meet-practice");
   });
 
   it("undoes the choice and says so if it could not be saved", async () => {

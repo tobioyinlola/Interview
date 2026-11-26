@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { PrivateScreen } from "../../../app/usePrivateScreen";
 
 import { useNotes } from "../../../api/hooks";
 import { Loading } from "../../../ui/Loading";
@@ -47,7 +48,7 @@ const INTRO: Record<StepId, string> = {
 };
 
 /** The guided setup: one step at a time, saved as you go, with a clear sense of progress. */
-export function SetupWizard() {
+function SetupWizardInner() {
   const profile = useAAProfile();
   const notes = useNotes();
   const facts = useFacts();
@@ -351,5 +352,14 @@ export function SetupWizard() {
         </section>
       </div>
     </main>
+  );
+}
+
+/** A private screen: see app/privacy.ts. */
+export function SetupWizard(props: Record<string, never>) {
+  return (
+    <PrivateScreen>
+      <SetupWizardInner {...props} />
+    </PrivateScreen>
   );
 }

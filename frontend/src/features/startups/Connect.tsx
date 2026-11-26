@@ -1,4 +1,5 @@
 import { type FormEvent, useState } from "react";
+import { PrivateScreen } from "../../app/usePrivateScreen";
 
 import { useMe } from "../../api/hooks";
 import { useMailbox, useMailboxActions } from "../autoapply/api";
@@ -183,7 +184,7 @@ export function MailboxConfirmed({
 }
 
 /** Connect Gmail: just the address and an app password. */
-export function GmailConnect({ onConnected }: { onConnected: () => void }) {
+function GmailConnectInner({ onConnected }: { onConnected: () => void }) {
   const box = useMailbox();
   const { connect } = useMailboxActions();
   const viaPassword = (box.data?.smtp_providers ?? []).some(
@@ -218,5 +219,14 @@ export function GmailConnect({ onConnected }: { onConnected: () => void }) {
         </div>
       )}
     </section>
+  );
+}
+
+/** A private screen: see app/privacy.ts. */
+export function GmailConnect(props: { onConnected: () => void }) {
+  return (
+    <PrivateScreen>
+      <GmailConnectInner {...props} />
+    </PrivateScreen>
   );
 }

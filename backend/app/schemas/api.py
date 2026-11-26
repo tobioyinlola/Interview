@@ -160,12 +160,19 @@ class SessionCreateIn(BaseModel):
     # Start from an interview that came out of Auto-Apply: the assistant then knows the CV that was
     # actually submitted and the job as it was when the person applied.
     interview_id: uuid.UUID | None = None
+    # mock (default) | assisted | standard. See PracticeSession.mode.
+    mode: Literal["mock", "assisted", "standard"] = "mock"
+    # For "assisted": the person confirms the interviewer or organisation authorised real-time
+    # assistance, and says who did.
+    assist_authorized: bool = False
+    assist_authorized_by: str | None = Field(default=None, max_length=200)
 
 
 class SessionCreateOut(BaseModel):
     session_id: uuid.UUID
     status: str
     consent_confirmed_at: datetime
+    mode: str = "mock"
     # Single-use, 60 s. Sent as the first WebSocket message. Absent on an idempotent replay
     # (ask /audio-token for a fresh one).
     audio_token: str | None = None
@@ -235,6 +242,8 @@ class SessionDetailOut(BaseModel):
     started_at: datetime
     ended_at: datetime | None
     consent_confirmed_at: datetime
+    mode: str = "mock"
+    assist_authorized_by: str | None = None
     utterances: list[UtteranceOut]
     suggestions: list[SuggestionOut]
     scoring_status: str  # none | running | ready | failed

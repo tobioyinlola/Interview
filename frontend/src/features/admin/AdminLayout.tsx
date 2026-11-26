@@ -20,6 +20,7 @@ import {
 } from "../../app/icons";
 import { LogoMark } from "../landing/Logo";
 import { CommandPalette } from "./CommandPalette";
+import { PrivateScreen } from "../../app/usePrivateScreen";
 import { useStaff, useStaffLogout } from "./staff";
 import { Avatar, Loading } from "./ui";
 
@@ -298,7 +299,9 @@ export function AdminLayout() {
         </header>
         <main className="min-w-0 flex-1">
           <div className="mx-auto max-w-6xl space-y-6 p-4 pb-12 sm:p-6 lg:p-8">
-            <Outlet />
+            <PrivateScreen>
+              <Outlet />
+            </PrivateScreen>
           </div>
         </main>
       </div>

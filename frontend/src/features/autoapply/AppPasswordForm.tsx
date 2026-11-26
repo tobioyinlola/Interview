@@ -1,11 +1,12 @@
 import { type FormEvent, useState } from "react";
+import { PrivateScreen } from "../../app/usePrivateScreen";
 
 import { useMe } from "../../api/hooks";
 import { useMailbox, useMailboxActions } from "./api";
 
 /** Connect an email address with an app password instead of the Google button. Gmail, Outlook and
  *  Yahoo. The password is sent once to be checked and kept encrypted; it is never shown again. */
-export function AppPasswordForm({ onDone }: { onDone?: () => void }) {
+function AppPasswordFormInner({ onDone }: { onDone?: () => void }) {
   const { data: me } = useMe();
   const box = useMailbox();
   const { connectWithPassword } = useMailboxActions();
@@ -94,5 +95,14 @@ export function AppPasswordForm({ onDone }: { onDone?: () => void }) {
         </p>
       )}
     </form>
+  );
+}
+
+/** A private screen: see app/privacy.ts. */
+export function AppPasswordForm(props: { onDone?: () => void }) {
+  return (
+    <PrivateScreen>
+      <AppPasswordFormInner {...props} />
+    </PrivateScreen>
   );
 }

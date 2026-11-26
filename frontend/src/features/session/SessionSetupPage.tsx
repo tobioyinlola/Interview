@@ -9,6 +9,7 @@ import {
   useNotes,
 } from "../../api/hooks";
 import { isActive } from "../../api/polling";
+import { type InterviewMode, MODES } from "./modes";
 import { isMobileApp } from "../../app/native";
 import { daysSince } from "../companies/ResearchStatus";
 
@@ -146,6 +147,11 @@ export function SessionSetupPage() {
   // Coming from Auto-Apply: the interview carries its own company, CV and job.
   const interviewId = useSearchParams()[0].get("interview") ?? undefined;
   const [choice, setChoice] = useState(interviewId ? NONE : "");
+  const [mode, setMode] = useState<InterviewMode>("mock");
+  const [authorized, setAuthorized] = useState(false);
+  const [authorizedBy, setAuthorizedBy] = useState("");
+  const authOk =
+    mode !== "assisted" || (authorized && authorizedBy.trim() !== "");
   // One idempotency key per attempt, so a double click cannot start two sessions.
   const key = useRef(crypto.randomUUID());
 
@@ -157,7 +163,8 @@ export function SessionSetupPage() {
     billing.data.sessions_available < 1;
   const cvUploaded = (notes.data?.content ?? "").trim().length > 0;
   const chosen = choice !== "";
-  const ready = (interviewId ? true : cvUploaded && chosen) && !noCredit;
+  const ready =
+    (interviewId ? true : cvUploaded && chosen) && !noCredit && authOk;
   const company = companies.data?.find((c) => c.id === choice);
   const age = daysSince(company?.last_researched_at);
 
@@ -168,11 +175,17 @@ export function SessionSetupPage() {
         role: notes.data?.role || undefined,
         key: key.current,
         interviewId,
+        mode,
+        authorizedBy: authorizedBy.trim(),
       },
       {
         onSuccess: (res) =>
           navigate(`/session/${res.session_id}`, {
-            state: { sampleRate: res.sample_rate },
+            state: {
+              sampleRate: res.sample_rate,
+              mode,
+              authorizedBy: mode === "assisted" ? authorizedBy.trim() : null,
+            },
           }),
         onError: () => {
           key.current = crypto.randomUUID();
@@ -249,12 +262,76 @@ export function SessionSetupPage() {
         </section>
       )}
 
+      <section aria-labelledby="mode-h" className="card space-y-3">
+        <h2 id="mode-h" className="text-lg font-semibold">
+          What kind of interview?
+        </h2>
+        <div
+          role="radiogroup"
+          aria-labelledby="mode-h"
+          className="grid gap-2 sm:grid-cols-3"
+        >
+          {MODES.map((m) => (
+            <label
+              key={m.id}
+              className={`flex cursor-pointer flex-col gap-1 rounded-xl p-3 text-sm ${
+                mode === m.id
+                  ? "bg-accent-soft ring-2 ring-accent"
+                  : "bg-canvas"
+              }`}
+            >
+              <span className="flex items-center gap-2 font-medium">
+                <input
+                  type="radio"
+                  name="mode"
+                  value={m.id}
+                  checked={mode === m.id}
+                  onChange={() => setMode(m.id)}
+                  className="accent-accent"
+                />
+                {m.title}
+              </span>
+              <span className="text-muted">{m.line}</span>
+            </label>
+          ))}
+        </div>
+        {mode === "assisted" && (
+          <div className="space-y-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-950">
+            <label className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                checked={authorized}
+                onChange={(e) => setAuthorized(e.target.checked)}
+                className="mt-0.5 h-5 w-5 shrink-0 accent-accent"
+              />
+              <span>
+                The interviewer or the organisation has told me I may use
+                real-time assistance in this interview.
+              </span>
+            </label>
+            <label className="block">
+              <span className="font-medium">Who said so, and how?</span>
+              <input
+                value={authorizedBy}
+                maxLength={200}
+                onChange={(e) => setAuthorizedBy(e.target.value)}
+                placeholder="e.g. Jo Smith, recruiter at Acme, by email on 25 Nov"
+                className="input mt-1 w-full"
+              />
+            </label>
+            <p className="text-xs">
+              This is kept with the session. Without that permission, choose
+              Standard interview: you still get the transcript and feedback.
+            </p>
+          </div>
+        )}
+      </section>
+
       <p className="text-xs leading-relaxed text-muted">
-        Your interview partner must know this assistant is listening to the call
-        and transcribing it. This is for mock interviews only, so follow local
-        law on recording and transcribing calls. Audio is relayed for
-        transcription and discarded; only text is saved. Audio and text are
-        processed by OpenAI to transcribe and write answers.
+        Everyone on the call must know this assistant is listening and
+        transcribing it. Follow local law on recording and transcribing calls.
+        Audio is relayed for transcription and discarded; only text is saved.
+        Audio and text are processed by OpenAI to transcribe and write answers.
       </p>
 
       <section aria-labelledby="ready-h" className="card">

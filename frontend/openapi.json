@@ -5304,6 +5304,23 @@
       },
       "SessionCreateIn": {
         "properties": {
+          "assist_authorized": {
+            "default": false,
+            "title": "Assist Authorized",
+            "type": "boolean"
+          },
+          "assist_authorized_by": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assist Authorized By"
+          },
           "company_id": {
             "anyOf": [
               {
@@ -5339,6 +5356,16 @@
             ],
             "title": "Interview Id"
           },
+          "mode": {
+            "default": "mock",
+            "enum": [
+              "mock",
+              "assisted",
+              "standard"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
           "role": {
             "anyOf": [
               {
@@ -5373,6 +5400,11 @@
             "title": "Consent Confirmed At",
             "type": "string"
           },
+          "mode": {
+            "default": "mock",
+            "title": "Mode",
+            "type": "string"
+          },
           "sample_rate": {
             "default": 24000,
             "title": "Sample Rate",
@@ -5398,6 +5430,17 @@
       },
       "SessionDetailOut": {
         "properties": {
+          "assist_authorized_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assist Authorized By"
+          },
           "company_id": {
             "anyOf": [
               {
@@ -5437,6 +5480,11 @@
           "id": {
             "format": "uuid",
             "title": "Id",
+            "type": "string"
+          },
+          "mode": {
+            "default": "mock",
+            "title": "Mode",
             "type": "string"
           },
           "role": {
@@ -12655,7 +12703,7 @@
     },
     "/api/sessions/{session_id}/suggest": {
       "post": {
-        "description": "Stream an answer outline as server-sent events: delta, skip, done or error. If the client\ndisconnects, the stream (and the model call under it) is cancelled.",
+        "description": "Stream an answer outline as server-sent events: delta, skip, done or error. If the client\ndisconnects, the stream (and the model call under it) is cancelled. A Standard Interview has\nno real-time answers: transcript, notes and feedback only.",
         "operationId": "suggest_api_sessions__session_id__suggest_post",
         "parameters": [
           {

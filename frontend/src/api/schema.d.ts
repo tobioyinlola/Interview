@@ -2187,7 +2187,8 @@ export interface paths {
         /**
          * Suggest
          * @description Stream an answer outline as server-sent events: delta, skip, done or error. If the client
-         *     disconnects, the stream (and the model call under it) is cancelled.
+         *     disconnects, the stream (and the model call under it) is cancelled. A Standard Interview has
+         *     no real-time answers: transcript, notes and feedback only.
          */
         post: operations["suggest_api_sessions__session_id__suggest_post"];
         delete?: never;
@@ -4137,12 +4138,25 @@ export interface components {
         };
         /** SessionCreateIn */
         SessionCreateIn: {
+            /**
+             * Assist Authorized
+             * @default false
+             */
+            assist_authorized: boolean;
+            /** Assist Authorized By */
+            assist_authorized_by?: string | null;
             /** Company Id */
             company_id?: string | null;
             /** Consent */
             consent?: boolean | null;
             /** Interview Id */
             interview_id?: string | null;
+            /**
+             * Mode
+             * @default mock
+             * @enum {string}
+             */
+            mode: "mock" | "assisted" | "standard";
             /** Role */
             role?: string | null;
         };
@@ -4155,6 +4169,11 @@ export interface components {
              * Format: date-time
              */
             consent_confirmed_at: string;
+            /**
+             * Mode
+             * @default mock
+             */
+            mode: string;
             /**
              * Sample Rate
              * @default 24000
@@ -4170,6 +4189,8 @@ export interface components {
         };
         /** SessionDetailOut */
         SessionDetailOut: {
+            /** Assist Authorized By */
+            assist_authorized_by?: string | null;
             /** Company Id */
             company_id: string | null;
             /**
@@ -4186,6 +4207,11 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /**
+             * Mode
+             * @default mock
+             */
+            mode: string;
             /** Role */
             role: string;
             /** Scores */

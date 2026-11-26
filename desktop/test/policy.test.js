@@ -94,3 +94,11 @@ test("a link used to start the app is found among its arguments", () => {
   assert.equal(p.linkFromArgv(["app.exe", "--flag"]), null);
   assert.equal(p.linkFromArgv(undefined), null);
 });
+
+test("private-screen protection is only for the app's own pages, and never in a live session", () => {
+  const { privacyDecision } = require("../src/policy");
+  assert.equal(privacyDecision(true, false, true), true);
+  assert.equal(privacyDecision(true, true, true), false); // a live interview stays visible
+  assert.equal(privacyDecision(true, false, false), false); // another page cannot ask
+  assert.equal(privacyDecision(false, false, true), false);
+});
