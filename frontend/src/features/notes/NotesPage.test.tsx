@@ -71,6 +71,38 @@ describe("CV page: nothing uploaded yet", () => {
   });
 });
 
+describe("the desktop app's file picker", () => {
+  afterEach(() => {
+    delete (window as { interviewMeetDesktop?: unknown }).interviewMeetDesktop;
+  });
+
+  it("uses the native picker (which starts in Downloads) and uploads what it returns", async () => {
+    const pickCv = vi.fn().mockResolvedValue({
+      name: "Tobi CV.pdf",
+      data: new Uint8Array([1, 2, 3]),
+    });
+    (window as { interviewMeetDesktop?: unknown }).interviewMeetDesktop = {
+      isDesktop: true,
+      platform: "win32",
+      systemAudio: true,
+      pickCv,
+    };
+    let sent: unknown = null;
+    api(EMPTY, {
+      "POST /api/notes/cv": ((a: { body?: unknown }) => {
+        sent = a.body;
+        return { json: WITH_CV };
+      }) as never,
+    });
+    renderApp(<App />, "/notes");
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Choose a file" }),
+    );
+    expect(pickCv).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(sent).not.toBeNull());
+  });
+});
+
 describe("uploading", () => {
   it("sends the file as the request body with its name, then shows what was read", async () => {
     let saved: object = EMPTY;

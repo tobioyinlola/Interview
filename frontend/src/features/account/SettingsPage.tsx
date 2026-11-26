@@ -389,9 +389,9 @@ function ScreenPrivacy() {
         </ul>
       )}
       <p className="text-sm text-muted">
-        Private screens are your profile, password, CV, Auto-Apply details,
-        email connection and the back office. Live interview screens are never
-        hidden, so anyone watching can see the assistant is on.
+        Private screens are your profile, password, CV, email connection and the
+        back office. Live interview screens are never hidden, so anyone watching
+        can see the assistant is on.
       </p>
       {cap.method !== "none" && (
         <label className="flex min-h-[44px] items-center gap-3 text-sm">

@@ -15,6 +15,8 @@ contextBridge.exposeInMainWorld(
     openInBrowser: (url) => {
       if (typeof url === "string") ipcRenderer.send("im:open-in-browser", url);
     },
+    // Opens the system file picker in Downloads; resolves to the chosen CV's name and bytes.
+    pickCv: () => ipcRenderer.invoke("im:pick-cv"),
     // Native protection for private screens only; the main process refuses it during a live session.
     privacy: Object.freeze({
       set: (on) => ipcRenderer.invoke("im:privacy", on === true),

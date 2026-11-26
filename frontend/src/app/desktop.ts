@@ -6,6 +6,12 @@ interface DesktopBridge {
   systemAudio: boolean;
   /** Opens an address in the person's normal browser (used for Google sign-in). */
   openInBrowser?: (url: string) => void;
+  /** The system file picker, starting in Downloads. Null when cancelled. */
+  pickCv?: () => Promise<{
+    name: string;
+    data?: Uint8Array;
+    tooBig?: boolean;
+  } | null>;
   /** Native protection for private screens (see app/privacy.ts). */
   privacy?: {
     set: (on: boolean) => Promise<{ active: boolean; reason?: string }>;
