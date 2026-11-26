@@ -17,6 +17,8 @@ const {
   SCHEME,
   navigationDecision,
   permissionAllowed,
+  windowOpenDecision,
+  FLOAT_FRAME,
   captureAllowed,
   parseAuthLink,
   isGoogleStartUrl,
@@ -145,6 +147,9 @@ function createWindow() {
       nodeIntegration: false,
       webSecurity: true,
       spellcheck: true,
+      // A live interview keeps listening while the window is behind the call or minimised; the
+      // browser's habit of slowing hidden pages would make captions and answers late.
+      backgroundThrottling: false,
     },
   });
   win.once("ready-to-show", () => win.show());
@@ -153,10 +158,41 @@ function createWindow() {
   win.webContents.setUserAgent(
     `${win.webContents.getUserAgent()} InterviewMeetDesktop/${app.getVersion()}`,
   );
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    if (navigationDecision(url, appOrigin) === "allow") return { action: "allow" };
+  win.webContents.setWindowOpenHandler(({ url, frameName }) => {
+    const d = windowOpenDecision(url, frameName, appOrigin);
+    if (d === "allow") return { action: "allow" };
+    if (d === "float") {
+      // The answer panel's own window: small, on top of the call, easy to move and resize. Nothing
+      // here hides it from screen capture.
+      return {
+        action: "allow",
+        overrideBrowserWindowOptions: {
+          width: 420,
+          height: 560,
+          minWidth: 300,
+          minHeight: 220,
+          alwaysOnTop: true,
+          autoHideMenuBar: true,
+          minimizable: true,
+          title: "InterviewMeet: question and answer",
+          backgroundColor: "#ffffff",
+        },
+      };
+    }
     openExternal(url);
     return { action: "deny" };
+  });
+  win.webContents.on("did-create-window", (child, details) => {
+    if (details.frameName !== FLOAT_FRAME) return;
+    child.setAlwaysOnTop(true, "floating"); // above a full-screen call, not just above windows
+    child.setMenuBarVisibility(false);
+    child.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+    child.webContents.on("will-navigate", (event) => event.preventDefault());
+    const closeWithApp = () => {
+      if (!child.isDestroyed()) child.close();
+    };
+    win.once("closed", closeWithApp);
+    child.once("closed", () => win && win.removeListener("closed", closeWithApp));
   });
   win.webContents.on("will-navigate", (event, url) => {
     const d = navigationDecision(url, appOrigin);

@@ -25,9 +25,16 @@ _STOP = {
 }  # fmt: skip
 
 
+_SOURCES_HEADING = re.compile(r"^\s*SOURCES\s*:", re.IGNORECASE | re.MULTILINE)
+
+
 def _raw_bullets(outline: str) -> list[str]:
-    """Each bullet of the outline as written, labels included."""
+    """Each bullet of the outline as written, labels included. When there is a SOURCES list only
+    that is read: the answer's own points are speaking notes, checked as text like the rest."""
     out: list[str] = []
+    heading = _SOURCES_HEADING.search(outline)
+    if heading:
+        outline = outline[heading.end() :]
     for line in outline.splitlines():
         m = _BULLET.match(line)
         if m:
@@ -66,12 +73,17 @@ _ANSWER = re.compile(
     re.IGNORECASE | re.MULTILINE | re.DOTALL,
 )
 _SENTENCE = re.compile(r"(?<=[.!?])\s+")
+_LEADING_MARK = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s+")
 
 
 def answer_text(outline: str) -> str:
     """The spoken answer: what follows ANSWER: up to the SOURCES list. Empty for the old format."""
     m = _ANSWER.search(outline)
-    return " ".join(m.group(1).split()) if m else ""
+    if not m:
+        return ""
+    # the list markers ("•", "1.") are layout, not claims: "1." must not be read as the number 1
+    lines = [_LEADING_MARK.sub("", line) for line in m.group(1).splitlines()]
+    return " ".join(" ".join(lines).split())
 
 
 def check_outline(outline: str, allowed: list[str]) -> list[str]:
