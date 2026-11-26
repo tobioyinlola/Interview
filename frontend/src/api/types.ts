@@ -40,6 +40,7 @@ export type UsageSummary = S["UsageSummary"];
 export type UsageDay = S["UsageDay"];
 
 export type AdminOverview = S["OverviewOut"];
+export type AdminEngagement = S["EngagementOut"];
 export type AdminUserRow = S["UserRow"];
 export type AdminUserList = S["UserListOut"];
 export type AdminUserDetail = S["UserDetailOut"];

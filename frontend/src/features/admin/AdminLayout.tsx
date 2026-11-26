@@ -5,6 +5,7 @@ import {
   ActivityIcon,
   BuildingIcon,
   ChevronIcon,
+  CompassIcon,
   ChartIcon,
   CloseIcon,
   CoinIcon,
@@ -32,6 +33,7 @@ const GROUPS: { title: string; items: Item[] }[] = [
     items: [
       { to: "/admin", label: "Overview", icon: <ChartIcon />, end: true },
       { to: "/admin/users", label: "Users", icon: <UsersIcon /> },
+      { to: "/admin/engagement", label: "Engagement", icon: <CompassIcon /> },
       { to: "/admin/activity", label: "Activity log", icon: <ActivityIcon /> },
     ],
   },

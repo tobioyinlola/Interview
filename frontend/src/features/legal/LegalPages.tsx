@@ -115,6 +115,16 @@ export function PrivacyPage() {
           an invite came from the inviter&apos;s own device, and are deleted
           with your account.
         </li>
+        <li>
+          Usage statistics, on the website and in the Windows, Mac and phone
+          apps: which screens are opened, how long the app is in use, which
+          buttons are used, when something breaks and how long it takes to open.
+          They use a random id kept on your device, never anything about who you
+          are, and they never include what you type, say, upload or see. You can
+          turn them off in Settings, under Privacy: that stops them on every
+          device and deletes what was collected. A browser set to Do Not Track
+          or Global Privacy Control sends none. Kept for 90 days.
+        </li>
       </ul>
       <h2 className="text-lg font-semibold">What is not stored</h2>
       <p>

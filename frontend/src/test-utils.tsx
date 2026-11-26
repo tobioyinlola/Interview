@@ -15,6 +15,9 @@ export function mockApi(routes: Record<string, Handler>) {
     "fetch",
     vi.fn(async (url: string, init: RequestInit = {}) => {
       const path = new URL(url).pathname;
+      // usage statistics go out in the background; they are not part of what a screen test is about
+      if (path === "/api/analytics/events")
+        return new Response('{"accepted":0,"rejected":0}', { status: 202 });
       const key = `${(init.method ?? "GET").toUpperCase()} ${path}`;
       const headers = new Headers(init.headers);
       // JSON bodies are parsed for the handler; a file body (a CV upload) is passed through as is

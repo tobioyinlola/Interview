@@ -1,3 +1,4 @@
+import { trackStep } from "../../analytics";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -98,6 +99,10 @@ export function OnboardingPage() {
   const [focus, setFocus] = useState<Focus[]>(start?.focus ?? []);
 
   useEffect(() => heading.current?.focus(), [step]); // announce each new question
+  useEffect(
+    () => trackStep("onboarding", step === DONE ? "done" : `q${step + 1}`),
+    [step],
+  );
 
   const nameOk = !needsName || name.trim().length >= 2;
   const valid = [

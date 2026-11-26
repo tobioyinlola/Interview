@@ -5,6 +5,8 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 
+import { trackFeature } from "../analytics";
+import { setOptOut } from "../analytics/client";
 import { ApiError, apiFetch } from "./client";
 import { isNativeApp } from "../app/native";
 import { newAppChallenge } from "../features/auth/nativeGoogle";
@@ -77,6 +79,7 @@ export function useRequestLink() {
           ...(await appChallenge()),
         }),
       }),
+    onSuccess: () => trackFeature("signup_submit"),
   });
 }
 
@@ -104,7 +107,10 @@ export function useLogin() {
   return useMutation({
     mutationFn: (v: { email: string; password: string }) =>
       apiFetch<Me>("/api/auth/login", { method: "POST", body: json(v) }),
-    onSuccess: (me) => qc.setQueryData(["me"], me),
+    onSuccess: (me) => {
+      qc.setQueryData(["me"], me);
+      trackFeature("login_submit");
+    },
   });
 }
 
@@ -156,6 +162,24 @@ export function useRedeemReward() {
     mutationFn: () =>
       apiFetch<Billing>("/api/billing/redeem", { method: "POST" }),
     onSuccess: (b) => qc.setQueryData(["billing"], b),
+  });
+}
+
+/** Turn usage statistics off or on for the account, on every device. Off also deletes what was kept. */
+export function useAnalyticsPreference() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (optOut: boolean) =>
+      apiFetch<{ opt_out: boolean }>("/api/analytics/preference", {
+        method: "PUT",
+        body: json({ opt_out: optOut }),
+      }),
+    onSuccess: ({ opt_out }) => {
+      setOptOut(opt_out);
+      qc.setQueryData<Me | null>(["me"], (me) =>
+        me ? { ...me, analytics_opt_out: opt_out } : me,
+      );
+    },
   });
 }
 
@@ -256,7 +280,10 @@ export function useUploadCv() {
           "x-filename": encodeURIComponent(file.name),
         },
       }),
-    onSuccess: (notes) => qc.setQueryData(["notes"], notes),
+    onSuccess: (notes) => {
+      qc.setQueryData(["notes"], notes);
+      trackFeature("cv_upload");
+    },
   });
 }
 
@@ -264,7 +291,10 @@ export function useRemoveCv() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => apiFetch<Notes>("/api/notes/cv", { method: "DELETE" }),
-    onSuccess: (notes) => qc.setQueryData(["notes"], notes),
+    onSuccess: (notes) => {
+      qc.setQueryData(["notes"], notes);
+      trackFeature("cv_remove");
+    },
   });
 }
 
@@ -313,7 +343,10 @@ export function useCreateCompany() {
         body: json(input),
         headers: { "idempotency-key": key },
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["companies"] }),
+    onSuccess: () => {
+      trackFeature("company_add");
+      return qc.invalidateQueries({ queryKey: ["companies"] });
+    },
   });
 }
 
@@ -415,6 +448,8 @@ export function useCreateSession() {
         }),
         headers: { "idempotency-key": key },
       }),
+    onSuccess: (_created, v) =>
+      trackFeature("interview_start", { mode: v.mode ?? "mock" }),
   });
 }
 
@@ -430,7 +465,10 @@ export function endSessionApi(sessionId: string) {
   return apiFetch<{ status: string; utterances: number; suggestions: number }>(
     `/api/sessions/${sessionId}/end`,
     { method: "POST" },
-  );
+  ).then((r) => {
+    trackFeature("interview_end");
+    return r;
+  });
 }
 
 export interface SessionPinInfo {
@@ -490,7 +528,10 @@ export function sendFeedback(suggestionId: string, value: "up" | "down") {
       method: "POST",
       body: json({ value }),
     },
-  );
+  ).then((r) => {
+    trackFeature("answer_rate", { detail: value });
+    return r;
+  });
 }
 
 export function useSessions() {

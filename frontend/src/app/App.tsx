@@ -34,6 +34,7 @@ import { PhoneHome } from "../features/phone/PhoneHome";
 import { PhoneLayout } from "../features/phone/PhoneLayout";
 import { ProfilePage } from "../features/phone/ProfilePage";
 import { NativeLinks } from "./NativeLinks";
+import { Analytics } from "../analytics/Analytics";
 import { OfflineBanner } from "./OfflineBanner";
 import { confirmReady } from "./liveUpdate";
 import { isMobileApp, isNativeApp } from "./native";
@@ -72,6 +73,10 @@ const OpenRolesPage = lazyPage(
 const AutoApplyAdminPage = lazyPage(
   () => import("../features/admin/AutoApplyAdminPage"),
   "AutoApplyAdminPage",
+);
+const EngagementPage = lazyPage(
+  () => import("../features/admin/EngagementPage"),
+  "EngagementPage",
 );
 const ActivityPage = lazyPage(
   () => import("../features/admin/ActivityPage"),
@@ -170,6 +175,7 @@ export function App() {
   return (
     <>
       <NativeLinks />
+      <Analytics />
       <OfflineBanner />
       <VerifiedToast />
       <AppRoutes />
@@ -195,6 +201,7 @@ function AppRoutes() {
           <Route index element={<OverviewPage />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="users/:id" element={<UserPage />} />
+          <Route path="engagement" element={<EngagementPage />} />
           <Route path="activity" element={<ActivityPage />} />
           <Route path="referrals" element={<ReferralsAdminPage />} />
           <Route path="marketing" element={<MarketingPage />} />

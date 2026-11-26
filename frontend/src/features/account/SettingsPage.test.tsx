@@ -448,3 +448,47 @@ describe("Settings: privacy and data", () => {
     expect(calls.some((c) => c.key === "DELETE /api/account")).toBe(false);
   });
 });
+
+describe("Settings: usage statistics", () => {
+  it("is on by default, says what it never includes, and turning it off is saved to the account", async () => {
+    let off = false;
+    const calls = mockApi({
+      "GET /api/me": () => ({ json: { ...ME, analytics_opt_out: off } }),
+      "PUT /api/analytics/preference": () => {
+        off = true;
+        return { json: { opt_out: true } };
+      },
+    });
+    renderApp(<App />, "/settings/privacy");
+    const box = await screen.findByRole("checkbox", {
+      name: /share usage statistics/i,
+    });
+    expect(box).toBeChecked();
+    expect(
+      screen.getByText(/never includes what you type, say, upload or see/i),
+    ).toBeInTheDocument();
+    await userEvent.click(box);
+    expect(
+      calls.find((c) => c.key === "PUT /api/analytics/preference")!.body,
+    ).toEqual({ opt_out: true });
+    expect(
+      await screen.findByText(/nothing is collected on any of your devices/i),
+    ).toBeInTheDocument();
+    expect(box).not.toBeChecked();
+    expect(localStorage.getItem("im-analytics-off")).toBe("1");
+  });
+
+  it("says so when the browser already asks not to be tracked", async () => {
+    Object.defineProperty(navigator, "globalPrivacyControl", {
+      value: true,
+      configurable: true,
+    });
+    mockApi({ "GET /api/me": () => ({ json: ME }) });
+    renderApp(<App />, "/settings/privacy");
+    expect(
+      await screen.findByText(/browser asks not to be tracked/i),
+    ).toBeInTheDocument();
+    delete (navigator as unknown as Record<string, unknown>)
+      .globalPrivacyControl;
+  });
+});

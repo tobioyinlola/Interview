@@ -1,3 +1,4 @@
+import { trackStep } from "../../../analytics";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { PrivateScreen } from "../../../app/usePrivateScreen";
@@ -113,6 +114,9 @@ function SetupWizardInner() {
   useEffect(() => {
     top.current?.scrollIntoView?.({ block: "start" });
   }, [current]);
+  useEffect(() => {
+    if (ready) trackStep("autoapply_setup", current); // which step people reach, and where they stop
+  }, [current, ready]);
 
   if (profile.isPending || !d || !ready)
     return <Loading label="Loading your search" />;

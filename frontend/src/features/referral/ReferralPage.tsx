@@ -1,3 +1,4 @@
+import { trackFeature } from "../../analytics";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -28,6 +29,7 @@ export function ReferralPage() {
     try {
       await navigator.clipboard.writeText(b.referral_link);
       setCopied("yes");
+      trackFeature("referral_copy");
     } catch {
       setCopied("no"); // the link is in the box: they can copy it by hand
     }

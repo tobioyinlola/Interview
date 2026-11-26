@@ -1,5 +1,8 @@
 import { Component, type ReactNode } from "react";
 
+import { code } from "../analytics/capture";
+import { track } from "../analytics/client";
+
 interface Props {
   name: string;
   children: ReactNode;
@@ -16,6 +19,7 @@ export class FeatureBoundary extends Component<Props, { failed: boolean }> {
   componentDidCatch(error: Error) {
     // Name only: error messages can contain user content.
     console.error(`${this.props.name} crashed`, error.name);
+    track("ui_error", { kind: code(error.name, "error"), source: "render" });
   }
 
   render() {
