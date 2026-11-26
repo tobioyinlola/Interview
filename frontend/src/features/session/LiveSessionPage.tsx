@@ -8,6 +8,7 @@ import { endSessionApi, fetchAudioToken, sendFeedback } from "../../api/hooks";
 import { FeatureBoundary } from "../../ui/FeatureBoundary";
 import { answerOf } from "./answerText";
 import { LiveSessionController } from "./controller";
+import { privacy } from "../../app/privacy";
 import { AnswersOff, AssistantStatus, useSessionMode } from "./modes";
 import { DesktopSyncPanel } from "./DesktopSyncPanel";
 import { type Line, type Outline, useLiveStore } from "./store";
@@ -443,6 +444,11 @@ export function LiveSessionPage() {
     [id, sampleRate],
   );
 
+  useEffect(() => {
+    // a live session is never hidden from a screen share: protection stays off while it is open
+    privacy.setLive(true);
+    return () => privacy.setLive(false);
+  }, []);
   useEffect(() => {
     useLiveStore.getState().reset();
     return () => controller.dispose(); // leaving the page stops capture; the session is ended explicitly

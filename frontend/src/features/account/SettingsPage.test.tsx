@@ -374,12 +374,38 @@ describe("Settings: privacy and data", () => {
     mockApi({ "GET /api/me": () => ({ json: ME }) });
     renderApp(<App />, "/settings/privacy");
     expect(
-      await screen.findByText(/partner who knows the assistant is on/i),
+      await screen.findByText(
+        /Everyone on a call must know the assistant is on/i,
+      ),
     ).toBeInTheDocument();
     expect(screen.getByText(/processed by OpenAI/i)).toBeInTheDocument();
     expect(
       screen.getByText(/discarded. Only text is saved/i),
     ).toBeInTheDocument();
+  });
+
+  it("says honestly what this device can do about screen capture, with the two switches", async () => {
+    mockApi({ "GET /api/me": () => ({ json: ME }) });
+    renderApp(<App />, "/settings/privacy");
+    expect(
+      await screen.findByText(
+        /A browser cannot keep a page out of screen capture/,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Live interview screens are never hidden/),
+    ).toBeInTheDocument();
+    // a browser has no native protection: only Presentation mode is offered
+    expect(screen.queryByLabelText("Protect private screens")).toBeNull();
+    await userEvent.click(screen.getByLabelText(/Presentation mode/));
+    await userEvent.click(screen.getByRole("link", { name: "Profile" }));
+    expect(
+      await screen.findByText("Private details hidden"),
+    ).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("link", { name: "Privacy and data" }),
+    );
+    await userEvent.click(await screen.findByLabelText(/Presentation mode/));
   });
 
   it("asks for confirmation before deleting, then deletes and leaves the app", async () => {

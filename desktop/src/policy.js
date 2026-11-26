@@ -101,7 +101,15 @@ function linkFromArgv(argv) {
   return (argv || []).find((a) => typeof a === "string" && a.startsWith(`${SCHEME}://`)) || null;
 }
 
+/** Should the window's native content protection be on? Only for a private screen the app asked to
+ *  protect, from the app's own pages, and never while a live interview session is open: the live
+ *  screens stay visible to anyone watching a shared screen. */
+function privacyDecision(want, live, fromAppPage) {
+  return Boolean(want) && !live && Boolean(fromAppPage);
+}
+
 module.exports = {
+  privacyDecision,
   SCHEME,
   parseAuthLink,
   isGoogleStartUrl,

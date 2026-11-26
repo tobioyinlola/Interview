@@ -4,6 +4,7 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import { endSessionApi, fetchAudioToken } from "../../api/hooks";
 import { FeatureBoundary } from "../../ui/FeatureBoundary";
 import { LiveSessionController } from "./controller";
+import { privacy } from "../../app/privacy";
 import { AnswersOff, AssistantStatus, useSessionMode } from "./modes";
 import {
   AnswerControls,
@@ -49,6 +50,11 @@ export function PhoneSessionPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- answersOff reads the latest mode
     [id, sampleRate],
   );
+  useEffect(() => {
+    // a live session is never hidden from a screen share: protection stays off while it is open
+    privacy.setLive(true);
+    return () => privacy.setLive(false);
+  }, []);
   useEffect(() => {
     useLiveStore.getState().reset();
     return () => controller.dispose();

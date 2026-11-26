@@ -15,5 +15,10 @@ contextBridge.exposeInMainWorld(
     openInBrowser: (url) => {
       if (typeof url === "string") ipcRenderer.send("im:open-in-browser", url);
     },
+    // Native protection for private screens only; the main process refuses it during a live session.
+    privacy: Object.freeze({
+      set: (on) => ipcRenderer.invoke("im:privacy", on === true),
+      setLive: (on) => ipcRenderer.invoke("im:privacy-live", on === true),
+    }),
   }),
 );
