@@ -45,6 +45,8 @@ export interface ControllerDeps {
   ) => AudioSocket;
   stream?: typeof streamOutline;
   now?: () => number;
+  /** A Standard Interview: transcript and notes only, never a real-time answer. */
+  answersOff?: () => boolean;
 }
 
 /** Runs one live session: share the tab, relay audio, show captions, and stream an outline for
@@ -426,7 +428,7 @@ export class LiveSessionController {
     speechEndedAt: number | null,
     probe = false,
   ): Promise<void> {
-    if (!question.trim()) return;
+    if (!question.trim() || this.d.answersOff?.()) return;
     const ctl = new AbortController();
     if (probe) {
       // The answer on screen is not touched, not even cancelled, until this proves to be a question.

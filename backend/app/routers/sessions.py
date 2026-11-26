@@ -87,6 +87,14 @@ async def create_session(
             "consent_required",
             "Agree to the terms about your interview partner before starting a session.",
         )
+    authorized_by = (body.assist_authorized_by or "").strip() or None
+    if body.mode == "assisted" and not (body.assist_authorized and authorized_by):
+        raise ApiError(
+            422,
+            "authorization_required",
+            "Live assistance in a real interview needs the interviewer's or organisation's "
+            "permission. Confirm it and say who gave it, or choose Standard Interview.",
+        )
 
     idem = IdempotencyRepo(db, user.id)
     if idempotency_key:
@@ -147,10 +155,15 @@ async def create_session(
         notes_snapshot=handoff_notes
         if handoff_notes is not None
         else (note.content if note else ""),
+        mode=body.mode,
+        assist_authorized_by=authorized_by if body.mode == "assisted" else None,
+        assist_authorized_at=datetime.now(UTC) if body.mode == "assisted" else None,
     )
     if credit is not None:
         credit.session_id = row.id
-    out = SessionCreateOut(session_id=row.id, status=row.status, consent_confirmed_at=confirmed_at)
+    out = SessionCreateOut(
+        session_id=row.id, status=row.status, consent_confirmed_at=confirmed_at, mode=row.mode
+    )
     if idempotency_key:
         payload: dict[str, Any] = out.model_dump(mode="json")
         idem.add(idempotency_key, ROUTE, payload)
@@ -169,6 +182,7 @@ async def create_session(
         session_id=out.session_id,
         credit=credit.kind if credit is not None else "not_enforced",
         company=company_id is not None,
+        mode=body.mode,
     )
     out.audio_token = await _token(db, settings, user, out.session_id)
     out.sample_rate = settings.stt_sample_rate
@@ -340,6 +354,8 @@ async def get_session(
         started_at=row.started_at,
         ended_at=row.ended_at,
         consent_confirmed_at=row.consent_confirmed_at,
+        mode=row.mode,
+        assist_authorized_by=row.assist_authorized_by,
         utterances=[
             UtteranceOut.model_validate(u, from_attributes=True)
             for u in await live.utterances(session_id)
@@ -391,8 +407,16 @@ async def suggest(
     hub: LiveHub = Depends(get_hub),  # noqa: B008
 ) -> StreamingResponse:
     """Stream an answer outline as server-sent events: delta, skip, done or error. If the client
-    disconnects, the stream (and the model call under it) is cancelled."""
-    await _own_session(db, user, session_id)
+    disconnects, the stream (and the model call under it) is cancelled. A Standard Interview has
+    no real-time answers: transcript, notes and feedback only."""
+    row = await _own_session(db, user, session_id)
+    if row.mode == "standard":
+        raise ApiError(
+            409,
+            "assistance_off",
+            "Real-time answers are off in a Standard Interview. The transcript and feedback "
+            "afterwards still work.",
+        )
     user_id = user.id
     await db.close()  # release the connection: the stream uses its own short sessions
 

@@ -297,6 +297,13 @@ class PracticeSession(Base):
     ended_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
     # Required: the partner has agreed. The server refuses to create a session without it.
     consent_confirmed_at: Mapped[datetime] = mapped_column(_TS)
+    # mock: a practice interview with someone who knows the assistant is on (real-time answers).
+    # assisted: a real interview where the interviewer or organisation authorised real-time
+    #   assistance; who authorised it and when are recorded.
+    # standard: a real interview with no real-time answers: transcript, notes and feedback only.
+    mode: Mapped[str] = mapped_column(String(10), default="mock", server_default="mock")
+    assist_authorized_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    assist_authorized_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
     role: Mapped[str] = mapped_column(String(200), default="")
     notes_snapshot: Mapped[str] = mapped_column(Text, default="")
     status: Mapped[str] = mapped_column(String(10), default="active")  # active | ended | errored

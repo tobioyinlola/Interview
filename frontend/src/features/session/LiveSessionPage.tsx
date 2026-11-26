@@ -8,6 +8,7 @@ import { endSessionApi, fetchAudioToken, sendFeedback } from "../../api/hooks";
 import { FeatureBoundary } from "../../ui/FeatureBoundary";
 import { answerOf } from "./answerText";
 import { LiveSessionController } from "./controller";
+import { AnswersOff, AssistantStatus, useSessionMode } from "./modes";
 import { DesktopSyncPanel } from "./DesktopSyncPanel";
 import { type Line, type Outline, useLiveStore } from "./store";
 import { useFloatingPanel } from "./useFloatingPanel";
@@ -428,6 +429,7 @@ export function LiveSessionPage() {
   const status = useLiveStore((s) => s.status);
   const float = useFloatingPanel();
 
+  const session = useSessionMode(id);
   const controller = useMemo(
     () =>
       new LiveSessionController({
@@ -435,7 +437,9 @@ export function LiveSessionPage() {
         sampleRate,
         fetchToken: async () => (await fetchAudioToken(id)).audio_token,
         endSession: () => endSessionApi(id),
+        answersOff: session.answersOff,
       }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- answersOff reads the latest mode
     [id, sampleRate],
   );
 
@@ -444,10 +448,17 @@ export function LiveSessionPage() {
     return () => controller.dispose(); // leaving the page stops capture; the session is ended explicitly
   }, [controller]);
 
+  const off = session.mode === "standard";
   const answer = <AnswerPanel onDone={() => controller.markDone()} />;
 
   return (
     <main className="mx-auto grid max-w-5xl gap-4 p-6 md:grid-cols-2">
+      <div className="md:col-span-2">
+        <AssistantStatus
+          mode={session.mode}
+          authorizedBy={session.authorizedBy}
+        />
+      </div>
       <div className="space-y-4">
         <FeatureBoundary name="capture panel">
           <CapturePanel
@@ -460,7 +471,9 @@ export function LiveSessionPage() {
           <DesktopSyncPanel sessionId={id} ended={status === "ended"} />
         </FeatureBoundary>
         <FeatureBoundary name="answer panel">
-          {float.win ? (
+          {off ? (
+            <AnswersOff />
+          ) : float.win ? (
             <section className="card space-y-2">
               <p>The answer panel is in its own window, on top of Meet.</p>
               <button className="btn-secondary" onClick={float.close}>
@@ -485,10 +498,12 @@ export function LiveSessionPage() {
             </>
           )}
         </FeatureBoundary>
-        <FeatureBoundary name="answer options">
-          <AnswerControls onRegenerate={() => controller.regenerate()} />
-        </FeatureBoundary>
-        {status !== "ended" && (
+        {!off && (
+          <FeatureBoundary name="answer options">
+            <AnswerControls onRegenerate={() => controller.regenerate()} />
+          </FeatureBoundary>
+        )}
+        {status !== "ended" && !off && (
           <ManualQuestion onSubmit={(q) => controller.submitManual(q)} />
         )}
       </div>

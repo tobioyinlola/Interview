@@ -4,6 +4,7 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import { endSessionApi, fetchAudioToken } from "../../api/hooks";
 import { FeatureBoundary } from "../../ui/FeatureBoundary";
 import { LiveSessionController } from "./controller";
+import { AnswersOff, AssistantStatus, useSessionMode } from "./modes";
 import {
   AnswerControls,
   AnswerPanel,
@@ -34,6 +35,7 @@ export function PhoneSessionPage() {
     (location.state as { sampleRate?: number } | null)?.sampleRate ?? 24000;
   const { status, problem, notice, level } = useLiveStore();
 
+  const session = useSessionMode(id);
   const controller = useMemo(
     () =>
       new LiveSessionController({
@@ -42,7 +44,9 @@ export function PhoneSessionPage() {
         source: "mic",
         fetchToken: async () => (await fetchAudioToken(id)).audio_token,
         endSession: () => endSessionApi(id),
+        answersOff: session.answersOff,
       }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- answersOff reads the latest mode
     [id, sampleRate],
   );
   useEffect(() => {
@@ -58,6 +62,10 @@ export function PhoneSessionPage() {
   return (
     <main className="space-y-4 px-5 pb-32 pt-[max(1rem,env(safe-area-inset-top))]">
       <h1 className="sr-only">Live interview</h1>
+      <AssistantStatus
+        mode={session.mode}
+        authorizedBy={session.authorizedBy}
+      />
 
       <section
         aria-label="Listening"
@@ -135,14 +143,20 @@ export function PhoneSessionPage() {
         )}
       </section>
 
-      <FeatureBoundary name="answer panel">
-        <AnswerPanel onDone={() => controller.markDone()} />
-      </FeatureBoundary>
-      <FeatureBoundary name="answer options">
-        <AnswerControls onRegenerate={() => controller.regenerate()} />
-      </FeatureBoundary>
-      {status !== "ended" && (
-        <ManualQuestion onSubmit={(q) => controller.submitManual(q)} />
+      {session.mode === "standard" ? (
+        <AnswersOff />
+      ) : (
+        <>
+          <FeatureBoundary name="answer panel">
+            <AnswerPanel onDone={() => controller.markDone()} />
+          </FeatureBoundary>
+          <FeatureBoundary name="answer options">
+            <AnswerControls onRegenerate={() => controller.regenerate()} />
+          </FeatureBoundary>
+          {status !== "ended" && (
+            <ManualQuestion onSubmit={(q) => controller.submitManual(q)} />
+          )}
+        </>
       )}
 
       <details className="rounded-[1.75rem] bg-surface p-5 shadow-card">

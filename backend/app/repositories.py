@@ -653,6 +653,9 @@ class SessionsRepo:
         brief_id: uuid.UUID | None,
         role: str,
         notes_snapshot: str,
+        mode: str = "mock",
+        assist_authorized_by: str | None = None,
+        assist_authorized_at: datetime | None = None,
     ) -> PracticeSession:
         row = PracticeSession(
             user_id=self.user_id,
@@ -662,6 +665,9 @@ class SessionsRepo:
             role=role,
             notes_snapshot=notes_snapshot,
             status="active",
+            mode=mode,
+            assist_authorized_by=assist_authorized_by,
+            assist_authorized_at=assist_authorized_at,
         )
         self.db.add(row)
         await self.db.flush()
