@@ -169,6 +169,13 @@ class Settings(BaseSettings):
     # "central": the worker reads each board once for everyone (aa_job_sources) and each person is
     # matched against the stored jobs. Needs BACKGROUND_MODE=worker.
     autoapply_discovery_mode: str = "per_candidate"
+    # The weighted fit score (autoapply/fit.py), after every hard requirement has passed. Off until
+    # it is calibrated on real profiles: then jobs below REVIEW are skipped and those between REVIEW
+    # and AUTO wait for the person.
+    autoapply_fit_scoring: bool = False
+    autoapply_fit_weights: str = ""  # e.g. "skills=30,experience=25,role=20,..."
+    autoapply_fit_auto: float = 85.0
+    autoapply_fit_review: float = 70.0
     discovery_lookback_days: int = 30  # a first run looks back this far through stored jobs
     discovery_max_per_run: int = 3000  # most jobs one person's run looks at
     autoapply_tick_seconds: int = 60  # how often the scheduler looks for work (0 = never)

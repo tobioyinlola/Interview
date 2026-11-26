@@ -121,6 +121,13 @@ async def get_or_create(
     return app, created
 
 
+def fit_settings() -> Any:
+    """The fit-score switches (read from the environment; tests swap this out)."""
+    from app.config import get_settings
+
+    return get_settings()
+
+
 def overrides(app: Application) -> set[str]:
     return {k[len("approve:") :] for k in (app.answers or {}) if k.startswith("approve:")}
 
@@ -183,6 +190,34 @@ async def process(
         ]
         await log(db, app, "needs_input", rules=[n["field"] for n in app.needs_input])
         return app, "needs_input"
+    s = fit_settings()
+    if s.autoapply_fit_scoring and ctx.facts is not None and ctx.facts.verified_at is not None:
+        from app.autoapply import fit
+
+        result_fit = fit.score(
+            ctx.profile.criteria or {}, ctx.facts.data or {}, posting, result, ctx.now,
+            s.autoapply_fit_weights,
+        )  # fmt: skip
+        app.match = {**app.match, "fit": result_fit.as_dict()}
+        pct = round(result_fit.score)
+        if result_fit.score < s.autoapply_fit_review and "fit" not in approved:
+            app.status, app.needs_input = "skipped", []
+            app.skip_reason = f"A {pct}% fit, below the {s.autoapply_fit_review:.0f}% bar."
+            await log(db, app, "skipped", reason=app.skip_reason)
+            return app, "skipped"
+        if result_fit.score < s.autoapply_fit_auto and "fit" not in approved:
+            app.status = "needs_input"
+            weak = [f.why for f in result_fit.factors if f.known and f.value < 0.6][:2]
+            app.needs_input = [
+                {
+                    "kind": "fit",
+                    "field": "fit",
+                    "question": f"This job is a {pct}% fit. Apply anyway?",
+                    "reason": ("Weaker on: " + "; ".join(weak) + ".") if weak else "",
+                }
+            ]
+            await log(db, app, "needs_input", fit=pct)
+            return app, "needs_input"
     channel = next(
         c for c in ("form", "email") if c in routes and (ctx.profile.channels or {}).get(c)
     )

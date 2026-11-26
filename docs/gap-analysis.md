@@ -20,12 +20,12 @@ Status key: **Done** (implemented and tested) · **Optimise** (works, should imp
 | Expiry | `expires_at`; **here** listings gone from their board are closed | Done | — | — | — | — |
 | Matching stage 1 (eligibility) | deterministic rules: role, place, seniority, contract, salary, sponsorship, way to apply | Done | — | — | — | none |
 | Matching stage 2 (semantic) | none (no embeddings) | Missing | — | only if stage-1+3 quality is not enough; pgvector then | Low | avoided |
-| Matching stage 3 (AI fit) | one model check per shortlisted job | Partial | weighted 30/25/20/10/10/5 score and 85/70 thresholds not implemented | add weighted score with configurable weights | High | small model |
+| Matching stage 3 (fit) | **here**: weighted 30/25/20/10/10/5 fit score from confirmed CV facts (plain rules, a reason per factor), 85/70 thresholds, "apply anyway" kept | **Here: Done** (off: `AUTOAPPLY_FIT_SCORING`) | not calibrated on real profiles | calibrate, then switch on; a model check only for the 70-85 band if rules prove too coarse | High | none (no model call) |
 | CV tailoring | `tailor.py`: reorder, summary, no invented numbers | Done | no reuse of approved variants across similar jobs | cache variants by role family | Medium | saves model calls |
 | Cover letters | `cover_note` when asked | Done | — | — | — | — |
 | Method router | form (fixture/browser) or email per posting | Partial | no ATS submission API (none authorised); no lightweight HTTP form route | add only with written permission | — | — |
 | Browser filling | Playwright, approved hosts, captcha/login/closed detection; **here** one shared browser | Done | Ashby/Workable not live-verified | supervised first real application | High | one browser |
-| Screening answers | per-application answers from facts and the person | Partial | no answer bank reused across jobs | add an approved-answer bank by normalised question | High | fewer interruptions |
+| Screening answers | `aa_answers`: a reusable answer bank keyed by field (notice period, authorisation, sponsorship...), reused only when approved; per-application answers | Partial | differently worded questions are not recognised as the same | match new wording to stored answers | High | fewer interruptions |
 | Human intervention | needs_input, captcha/login stop, unknown outcomes ask the person | Done | — | — | — | — |
 | Lifecycle and dedupe | statuses, `aa_submission_attempts` claimed before sending, reconcile | Done | form receipts only known in-process | store confirmation evidence | Medium | — |
 | 30-day campaigns | enable, pause, resume, daily caps, time zones, backend-run | Done | no per-campaign budget | add a spend cap per campaign | Medium | bounds AI spend |
