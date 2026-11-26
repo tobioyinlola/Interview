@@ -63,6 +63,8 @@ from app.autoapply.schemas import (
     PrepareOut,
     PrimaryAction,
     ProfileOut,
+    RecheckIn,
+    RecheckOut,
     RecruitingOut,
     ResolveIn,
     RunOut,
@@ -825,6 +827,57 @@ async def skip_application(
     await pipeline.log(db, a, "skipped", reason="by you")
     await db.commit()
     return _app_out(a, p)
+
+
+@router.post("/applications/recheck")
+async def recheck_skipped(
+    body: RecheckIn,
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    now: datetime = Depends(get_now),  # noqa: B008
+    llm: LlmProvider = Depends(get_llm),  # noqa: B008
+    form: FormAdapter = Depends(get_form),  # noqa: B008
+) -> RecheckOut:
+    """Judge several skipped roles again against the search as it is now. Only skipped ones are
+    touched; anything already sent, or not yours, is left alone."""
+    c = await camp.current(db, user.id)
+    prof = await camp.get_profile(db, user.id)
+    if c is None or prof is None or c.status != "active" or c.ends_at <= now:
+        raise ApiError(409, "not_active", "Auto-Apply is not running.")
+    keys: list[uuid.UUID] = []
+    for raw in dict.fromkeys(body.ids):
+        try:
+            keys.append(uuid.UUID(raw))
+        except ValueError:
+            continue
+    rows = (
+        await db.execute(
+            select(Application, JobPosting)
+            .join(JobPosting, JobPosting.id == Application.posting_id)
+            .where(
+                Application.user_id == user.id,
+                Application.id.in_(keys),
+                Application.status == "skipped",
+            )
+        )
+    ).all()
+    ctx = await pipeline.load_context(db, user.id, c, prof, llm=llm, form=form, now=now)
+    ready = still = 0
+    for a, p in rows:
+        if a.skip_reason == pipeline.USER_SKIPPED:
+            a.skip_reason = None  # asking again is the person changing their mind
+        app, _ = await pipeline.process(db, ctx, p)
+        if app.status == "skipped":
+            still += 1
+        else:
+            ready += 1
+    await db.commit()
+    return RecheckOut(
+        checked=len(rows),
+        now_ready=ready,
+        still_skipped=still,
+        left_alone=len(body.ids) - len(rows),
+    )
 
 
 @router.post("/applications/{application_id}/applied")

@@ -134,6 +134,17 @@ class AnswerApplicationIn(BaseModel):
     save_for_reuse: bool = False  # saved as a reusable answer only when the person ticks this
 
 
+class RecheckIn(BaseModel):
+    ids: list[str] = Field(min_length=1, max_length=50)
+
+
+class RecheckOut(BaseModel):
+    checked: int  # judged again
+    now_ready: int  # no longer skipped: queued, waiting for an answer or handed to you
+    still_skipped: int
+    left_alone: int  # already sent, not skipped, or not yours
+
+
 class ApproveIn(BaseModel):
     rule: str = Field(min_length=1, max_length=60)
 

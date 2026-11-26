@@ -534,6 +534,57 @@ describe("the dashboard", () => {
   });
 });
 
+describe("skipped roles", () => {
+  it("can all be selected and checked again together", async () => {
+    const calls = base({
+      "GET /api/autoapply/applications": () => ({
+        json: {
+          items: [
+            app({
+              id: "s1",
+              status: "skipped",
+              skip_reason: "The listing has expired.",
+            }),
+            app({ id: "s2", status: "skipped", skip_reason: "Too far away." }),
+          ],
+          next_cursor: null,
+        },
+      }),
+      "POST /api/autoapply/applications/recheck": () => ({
+        json: { checked: 2, now_ready: 1, still_skipped: 1, left_alone: 0 },
+      }),
+    });
+    renderApp(<App />, "/auto-apply/applications");
+    await userEvent.click(await screen.findByRole("tab", { name: "Skipped" }));
+    const check = await screen.findByRole("button", { name: "Check again" });
+    expect(check).toBeDisabled();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Select all skipped" }),
+    );
+    const go = await screen.findByRole("button", { name: "Check again (2)" });
+    await userEvent.click(go);
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Checked 2. 1 are no longer skipped.",
+    );
+    const post = calls.find(
+      (c) => c.key === "POST /api/autoapply/applications/recheck",
+    );
+    expect(post?.body).toEqual({ ids: ["s1", "s2"] });
+  });
+
+  it("offers no selection on the other tabs", async () => {
+    base({
+      "GET /api/autoapply/applications": () => ({
+        json: { items: [app()], next_cursor: null },
+      }),
+    });
+    renderApp(<App />, "/auto-apply/applications");
+    await screen.findByText(/Senior Product Manager/);
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Check again/ })).toBeNull();
+  });
+});
+
 describe("one application", () => {
   const detail = (over: object = {}) => ({
     ...app({
