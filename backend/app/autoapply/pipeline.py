@@ -160,10 +160,18 @@ async def process(
     app, created = await get_or_create(db, ctx.user_id, posting, ctx.campaign.id, ctx.now)
     if created:
         await log(db, app, "discovered", source=posting.source)
-    if app.status in package.FROZEN or app.status in ("failed",) or app.skip_reason == USER_SKIPPED:
-        return app, "kept"  # already out the door, or the candidate decided
+    if (
+        app.status in package.FROZEN
+        or app.status in ("failed", "apply_yourself", "applied_by_you")
+        or app.skip_reason == USER_SKIPPED
+    ):
+        return app, "kept"  # out the door, handed to the candidate, or the candidate decided
     approved = overrides(app)
     routes = routes_for(posting, ctx.form)
+    # an application link on a site we cannot fill in is not a dead end: the job is kept and
+    # prepared, and the candidate submits it on the employer's own site
+    usable = {r for r in routes if (ctx.profile.channels or {}).get(r)}
+    manual = not usable and bool(posting.application_url)
     result = matching.evaluate(
         ctx.profile.criteria or {},
         posting,
@@ -171,6 +179,7 @@ async def process(
         routes=routes,
         channels=ctx.profile.channels or {},
         overrides=approved,
+        manual=manual,
     )
     app.match = result.as_dict()
     app.score = result.score
@@ -241,7 +250,8 @@ async def process(
             await log(db, app, "matched")
         return app, "eligible"
     channel = next(
-        c for c in ("form", "email") if c in routes and (ctx.profile.channels or {}).get(c)
+        (c for c in ("form", "email") if c in routes and (ctx.profile.channels or {}).get(c)),
+        "manual",
     )
     built, missing = await package.build(
         app=app,
@@ -263,8 +273,14 @@ async def process(
     package.freeze(app, built, ctx.now)
     if ctx.prepare_room is not None:
         ctx.prepare_room -= 1
-    app.status, app.needs_input, app.skip_reason = "queued", [], None
-    await log(db, app, "queued", channel=channel)
+    app.needs_input, app.skip_reason = [], None
+    if channel == "manual":
+        # nothing here sends it: it waits, ready, for the candidate to submit on the employer's site
+        app.status = "apply_yourself"
+        await log(db, app, "ready_for_you", url=posting.application_url)
+    else:
+        app.status = "queued"
+        await log(db, app, "queued", channel=channel)
     return app, "eligible"
 
 

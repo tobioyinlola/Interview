@@ -301,7 +301,9 @@ async def test_unrelated_jobs_from_a_big_feed_never_become_applications(ada, tic
         assert (await db.execute(select(func.count()).select_from(Application))).scalar_one() == 1
 
 
-async def test_a_job_that_fits_but_needs_the_employers_own_site_says_so(ada):
+async def test_a_job_that_fits_but_needs_the_employers_own_site_is_prepared_for_you(ada):
+    """It used to be skipped. A link we cannot fill in is not a dead end: the job is kept, the CV and
+    note are prepared, and you submit it on the employer's own site."""
     from app.routers.autoapply import get_sources
     from tests.autoapply.conftest import apps, job, start
 
@@ -310,9 +312,73 @@ async def test_a_job_that_fits_but_needs_the_employers_own_site_says_so(ada):
     await start(ada)
     await ada.post("/api/autoapply/discovery/run")
     (a,) = await apps(ada)
-    assert a["status"] == "skipped" and "careers.example.com" in a["skip_reason"]
-    assert "cannot fill in yet" in a["skip_reason"] and "apply yourself" in a["skip_reason"]
+    assert a["status"] == "apply_yourself" and a["channel"] == "manual"
+    assert a["skip_reason"] is None
     assert a["posting"]["application_url"] == "https://careers.example.com/apply/1"
+    d = (await ada.get(f"/api/autoapply/applications/{a['id']}")).json()
+    assert d["package"]["destination"] == {
+        "channel": "manual",
+        "url": "https://careers.example.com/apply/1",
+    }
+    assert d["package"]["cv"]["submitted_text"] and d["package"]["cover_text"]  # ready to use
+    how = next(r for r in d["match"]["rules"] if r["key"] == "channel")
+    assert "careers.example.com" in how["evidence"] and "you submit it there" in how["evidence"]
+    assert "ready_for_you" in [h["kind"] for h in d["history"]]
+    # nothing is ever sent for it by Auto-Apply
+    assert d["attempts"] == []
+
+    # it stays put when the search runs again, and the person can say they applied
+    await ada.post("/api/autoapply/discovery/run")
+    assert [x["status"] for x in await apps(ada)] == ["apply_yourself"]
+    done = await ada.post(f"/api/autoapply/applications/{a['id']}/applied")
+    assert done.status_code == 200 and done.json()["status"] == "applied_by_you"
+    again = await ada.post(f"/api/autoapply/applications/{a['id']}/applied")
+    assert again.status_code == 409 and again.json()["error"]["code"] == "not_waiting"
+    await ada.post("/api/autoapply/discovery/run")
+    assert [x["status"] for x in await apps(ada)] == ["applied_by_you"]  # never undone
+
+
+async def test_a_job_with_no_link_and_no_email_is_still_skipped(ada):
+    from app.routers.autoapply import get_sources
+    from tests.autoapply.conftest import apps, job, start
+
+    bare = job(1, application_url=None)
+    ada._transport.app.dependency_overrides[get_sources] = lambda: [Wide([bare])]
+    await start(ada)
+    await ada.post("/api/autoapply/discovery/run")
+    (a,) = await apps(ada)
+    assert (
+        a["status"] == "skipped"
+        and "neither an email address nor an application link" in (a["skip_reason"])
+    )
+
+
+async def test_a_job_that_says_to_email_your_cv_is_applied_for_by_email(ada, maker):
+    """The address is in the listing's own words: 'send your CV to ...'. It is kept with the sentence
+    that says so, and the job goes by email even though its link is on a site we cannot fill in."""
+    from sqlalchemy import select
+
+    from app.models import JobPosting
+    from app.routers.autoapply import get_sources
+    from tests.autoapply.conftest import apps, job, start
+
+    listing = job(
+        1,
+        application_url="https://careers.example.com/apply/1",
+        description="Lead payments product. Remote. To apply, email your CV to careers@acme.test.",
+    )
+    ada._transport.app.dependency_overrides[get_sources] = lambda: [Wide([listing])]
+    from tests.autoapply.conftest import connect_mailbox
+
+    await start(ada)
+    await connect_mailbox(ada)  # email on, with a mailbox to send from
+    await ada.post("/api/autoapply/discovery/run")
+    (a,) = await apps(ada)
+    assert a["channel"] == "email" and a["status"] == "queued"
+    async with maker() as db:
+        p = (await db.execute(select(JobPosting))).scalar_one()
+    assert p.apply_email == "careers@acme.test"
+    assert "email your CV to careers@acme.test" in p.evidence["apply_email"]
 
 
 async def test_the_same_job_from_two_feeds_is_one_application(ada, maker):
@@ -332,3 +398,23 @@ async def test_the_same_job_from_two_feeds_is_one_application(ada, maker):
     assert run["found"] == 2 and run["new"] == 1
     async with maker() as db:
         assert (await db.execute(select(func.count()).select_from(Application))).scalar_one() == 1
+
+
+async def test_a_job_that_only_accepts_what_you_switched_off_is_handed_to_you_not_dropped(ada):
+    """It says to email, you have email off, and it has a link: kept and prepared, not skipped."""
+    from app.routers.autoapply import get_sources
+    from tests.autoapply.conftest import apps, job, start
+
+    listing = job(
+        1,
+        application_url="https://careers.example.com/apply/1",
+        description="Lead payments product. Remote. To apply, email your CV to careers@acme.test.",
+    )
+    ada._transport.app.dependency_overrides[get_sources] = lambda: [Wide([listing])]
+    await start(ada)  # email is off in this search
+    await ada.post("/api/autoapply/discovery/run")
+    (a,) = await apps(ada)
+    assert a["status"] == "apply_yourself" and a["channel"] == "manual"
+    d = (await ada.get(f"/api/autoapply/applications/{a['id']}")).json()
+    how = next(r for r in d["match"]["rules"] if r["key"] == "channel")
+    assert "switched off in your search" in how["evidence"]

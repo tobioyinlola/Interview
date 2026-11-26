@@ -10,6 +10,7 @@ const TABS: [string, string][] = [
   ["submitted,sent_email,confirmation_pending", "Sent"],
   ["queued,sending", "Ready to send"],
   ["needs_input", "Needs your input"],
+  ["apply_yourself,applied_by_you", "Apply yourself"],
   ["skipped", "Skipped"],
   ["failed", "Failed"],
 ];

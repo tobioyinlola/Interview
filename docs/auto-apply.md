@@ -67,7 +67,7 @@ The API refuses to start in production with a half-configured Auto-Apply (see `h
 | Part | Choice | Status |
 | --- | --- | --- |
 | Mailbox | **Gmail** (OAuth, `gmail.send` + `gmail.readonly`) | Code complete and tested against recorded responses only. **Not run against live Google.** |
-| Job discovery | Several at once: **Remotive, Arbeitnow, Remote OK** (public feeds, no setup), **Greenhouse, Lever, Ashby** (employer boards you name), plus a fixture source | Parsing tested against sample responses in each feed's published format. **Not run against the live services from this repository** (no outbound network). Big feeds are thinned to titles that could be a role the candidate wants. The same job found by two sources is one application. These sources only find jobs; a job that needs the employer's own site is listed as "apply yourself" with the link |
+| Job discovery | Several at once: **Remotive, Arbeitnow, Remote OK** (public feeds, no setup), **Greenhouse, Lever, Ashby** (employer boards you name), plus a fixture source | Parsing tested against sample responses in each feed's published format. **Not run against the live services from this repository** (no outbound network). Big feeds are thinned to titles that could be a role the candidate wants. The same job found by two sources is one application. These sources only find jobs; a job that needs the employer's own site is kept as "Ready for you to apply" (see below) |
 | Employer forms | **Fixture adapter only** | No real employer form adapter exists yet. The interface (`FormAdapter`) is ready; `AUTOAPPLY_FORM_DISPATCH` has nothing real to enable until one is approved |
 | Everything else (limits, claims, reconciliation, matching, tailoring, replies, interviews, hand-off) | In-repo | Verified with the fixture adapters and the automated suite |
 
@@ -106,3 +106,29 @@ disconnecting deletes them and asks Google to revoke. Deleting the account delet
 ### Sources we do not use
 
 **LinkedIn** has no public job-search API (its job API is for partners who post jobs), and its terms prohibit scraping, so it is not a source. Indeed and Glassdoor are the same. Keyed aggregators such as Adzuna and Jooble are possible later if you obtain a key. Check each board's own terms before relying on it: Himalayas asks that its jobs not be resubmitted to third-party sites, Jobicy asks for credit and at most one poll an hour, and Remotive delays its feed by 24 hours.
+
+
+## Jobs with an application link or an email (how they are handled)
+
+A listing is applied for by one of three ways, in this order:
+
+1. **Its form, filled in for you**, when the link is on a site whose form the app has been checked
+   against (Greenhouse and Ashby by default; more only through `AUTOAPPLY_FORM_HOSTS`, after they have
+   been checked read-only on real forms). Needs the "employers' forms" channel on.
+2. **Email**, when the listing itself tells people to apply by email. The address is read from the
+   listing's own words ("send your CV to ..."): only an address in a sentence about applying counts,
+   never a support, no-reply or placeholder address, and when the text gives two different
+   application addresses nothing is guessed. The sentence is kept as the evidence. Needs the "email"
+   channel on and a connected mailbox. Listings stored before this was read are filled in by the
+   worker's hourly housekeeping, 500 at a time.
+3. **Hand-off: "Ready for you to apply".** A job that fits but whose link is on a site we cannot fill
+   in (or whose only route is a channel you switched off) is no longer skipped. The CV and the note
+   are prepared as for any application, and the job shows the link, copy buttons for both, and
+   "I've applied" and "Skip this role". Nothing is sent by the app, it never counts as sent by
+   Auto-Apply, and "Applied by you" is its own status, so the numbers say which was which.
+
+A job with no link and no email still cannot be acted on and is skipped, with the reason.
+
+Why not submit every site's form: most employer sites have their own bot checks (CAPTCHA and the
+like) and different forms; the app does not work round those, and it does not submit to a site it has
+not been checked against. Adding a site is a decision made after reading its real form.

@@ -112,6 +112,43 @@ def _aware(value: datetime | None) -> datetime | None:
     return value
 
 
+_EMAIL = re.compile(r"[a-z0-9._%+\-]{1,64}@[a-z0-9\-]+(?:\.[a-z0-9\-]+)*\.[a-z]{2,}", re.IGNORECASE)
+# the listing is telling people to apply by email: a word of that kind in the same sentence
+_APPLY_CUE = re.compile(
+    r"\b(?:apply|applications?|applying|send|sent|submit|forward|email|e-mail|mail|resume|resum[eé]|"
+    r"cv|cover letter|interested candidates|candidates|reach out)\b",
+    re.IGNORECASE,
+)
+# addresses that are never an application address, and sites that are not the employer's
+_NOT_APPLY_LOCAL = re.compile(
+    r"^(?:no-?reply|do-?not-?reply|donotreply|support|help|privacy|legal|abuse|security|press|media|"
+    r"billing|accounts?|sales|marketing|webmaster|postmaster|unsubscribe|bounce|mailer-daemon)$",
+    re.IGNORECASE,
+)
+_NOT_APPLY_DOMAIN = re.compile(
+    r"(?:^|\.)(?:example\.(?:com|org|net)|sentry\.io|wixpress\.com|googlegroups\.com)$",
+    re.IGNORECASE,
+)
+
+
+def extract_apply_email(description: str) -> tuple[str, str] | None:
+    """(address, the sentence that says so) when the listing's own text tells people to apply by
+    email, else None. Only an address in a sentence about applying counts, so a contact address for
+    something else is never taken for one, and the sentence is kept as the evidence. When the text
+    names two different application addresses it is ambiguous and nothing is guessed."""
+    found: dict[str, str] = {}
+    for sentence in re.split(r"(?<=[.!?])\s+|\n+", description or ""):
+        if "@" not in sentence or not _APPLY_CUE.search(sentence):
+            continue
+        for m in _EMAIL.finditer(sentence):
+            addr = m.group(0).lower().rstrip(".")
+            local, _, domain = addr.partition("@")
+            if _NOT_APPLY_LOCAL.match(local) or _NOT_APPLY_DOMAIN.search(domain):
+                continue
+            found.setdefault(addr, " ".join(sentence.split())[:240])
+    return next(iter(found.items())) if len(found) == 1 else None
+
+
 def infer_seniority(title: str) -> str | None:
     low = f"{title.lower()} "
     for level, words in SENIORITY_WORDS:
@@ -163,6 +200,12 @@ def normalise(raw: RawPosting) -> dict[str, Any]:
     sponsor = (raw.sponsorship or "").lower().replace(" ", "_") or None
     if sponsor not in (None, "offered", "not_offered"):
         sponsor = None
+    apply_email = (raw.apply_email or "").strip().lower()[:320] or None
+    evidence = dict(list(raw.evidence.items())[:30])
+    if apply_email is None:
+        said = extract_apply_email(raw.description)
+        if said is not None:
+            apply_email, evidence["apply_email"] = said[0][:320], said[1]
     low = raw.description.lower()
     if sponsor is None:
         if "visa sponsorship" in low or "will sponsor" in low or "we sponsor" in low:
@@ -190,11 +233,11 @@ def normalise(raw: RawPosting) -> dict[str, Any]:
         "posted_at": _aware(raw.posted_at),
         "expires_at": _aware(raw.expires_at),
         "application_url": clean_url(raw.application_url),
-        "apply_email": (raw.apply_email or "").strip().lower()[:320] or None,
+        "apply_email": apply_email,
         "apply_instructions": raw.apply_instructions.strip()[:2000],
         "hiring_contact": (raw.hiring_contact or "").strip().lower()[:320] or None,
         "questions": raw.questions[:40],
-        "evidence": dict(list(raw.evidence.items())[:30]),
+        "evidence": evidence,
     }
 
 
@@ -237,6 +280,15 @@ async def upsert(
         posting.last_seen_at = now
         # a later sighting can fill in what an earlier one lacked, never overwrite what it had
         for name, value in fields.items():
+            if name == "evidence":
+                kept = dict(posting.evidence or {})
+                new = {k: v for k, v in value.items() if k not in kept}
+                # the sentence that justifies an address is only kept with that same address
+                if "apply_email" in new and posting.apply_email != fields["apply_email"]:
+                    new.pop("apply_email")
+                if new:
+                    posting.evidence = {**kept, **new}
+                continue
             if value not in (None, "", [], {}) and getattr(posting, name) in (None, "", [], {}):
                 setattr(posting, name, value)
     seen = (
@@ -275,3 +327,35 @@ async def upsert(
 
 def is_expired(posting: JobPosting, now: datetime) -> bool:
     return posting.expires_at is not None and posting.expires_at <= now.astimezone(UTC)
+
+
+async def backfill_apply_emails(db: AsyncSession, limit: int = 500) -> int:
+    """Postings stored before the listing's own "apply by email" sentences were read: look again, a
+    batch at a time (called by the worker's housekeeping). Returns how many gained an address."""
+    rows = (
+        (
+            await db.execute(
+                select(JobPosting)
+                .where(
+                    JobPosting.apply_email.is_(None),
+                    JobPosting.description.contains("@"),
+                    JobPosting.expires_at.is_(None),
+                )
+                .order_by(JobPosting.last_seen_at.desc())
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    gained = 0
+    for posting in rows:
+        said = extract_apply_email(posting.description)
+        if said is None or "apply_email" in (posting.evidence or {}):
+            continue
+        posting.apply_email = said[0][:320]
+        posting.evidence = {**(posting.evidence or {}), "apply_email": said[1]}
+        gained += 1
+    if gained:
+        await db.commit()
+    return gained

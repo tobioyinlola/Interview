@@ -252,6 +252,13 @@ export function useApplicationActions(id: string) {
       mutationFn: () => post<AAApplication>(`/applications/${id}/retry`),
       ...opts,
     }),
+    applied: useMutation({
+      mutationFn: () => post<AAApplication>(`/applications/${id}/applied`),
+      onSuccess: () => {
+        trackFeature("autoapply_applied_by_you");
+        refresh();
+      },
+    }),
     resolve: useMutation({
       mutationFn: (sent: boolean) =>
         post<AAApplication>(`/applications/${id}/resolve`, { sent }),
