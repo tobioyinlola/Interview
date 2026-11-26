@@ -1,4 +1,5 @@
 import { screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import { App } from "../../app/App";
 import {
@@ -82,7 +83,7 @@ describe("terms and privacy", () => {
     ).toBeInTheDocument();
   });
 
-  it("every signed-in page has a footer with both links", async () => {
+  it("signed-in pages reach both from the account menu", async () => {
     mockApi({
       "GET /api/me": () => ({ json: ME }),
       "GET /api/notes": () => ({
@@ -91,11 +92,12 @@ describe("terms and privacy", () => {
     });
     renderApp(<App />, "/notes");
     await screen.findByRole("heading", { name: "Your CV" });
-    expect(screen.getByRole("link", { name: "Terms" })).toHaveAttribute(
+    await userEvent.click(screen.getByRole("button", { name: /Account menu/ }));
+    expect(screen.getByRole("menuitem", { name: "Terms" })).toHaveAttribute(
       "href",
       "/terms",
     );
-    expect(screen.getByRole("link", { name: "Privacy" })).toHaveAttribute(
+    expect(screen.getByRole("menuitem", { name: "Privacy" })).toHaveAttribute(
       "href",
       "/privacy",
     );

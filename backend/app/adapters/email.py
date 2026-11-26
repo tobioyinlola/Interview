@@ -19,7 +19,8 @@ log = logging.getLogger("app.email")
 @dataclass(frozen=True)
 class EmailMessage:
     # signup | login | reset | welcome | password_changed | account_deleted | brief_ready |
-    # review_ready | friend_joined | reward_earned | trial_used | credit_granted
+    # review_ready | friend_joined | reward_earned | trial_used | credit_granted |
+    # outreach_approved | support_reply | support_new
     kind: str
     to: str
     subject: str

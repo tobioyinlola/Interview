@@ -47,8 +47,7 @@ describe("app shell", () => {
       "Interview",
       "History",
       "Settings",
-      "Privacy",
-      "Terms",
+      "Contact support",
     ]) {
       expect(nav.getByRole("link", { name })).toBeInTheDocument();
     }
@@ -305,9 +304,44 @@ describe("top bar on every page", () => {
       await screen.findByRole("button", { name: /Account menu/ }),
     );
     await userEvent.click(screen.getByRole("menuitem", { name: "Sign out" }));
+    await userEvent.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", {
+        name: "Sign out",
+      }),
+    );
     expect(
       await screen.findByRole("heading", { name: "Sign in" }),
     ).toBeInTheDocument();
+  });
+
+  it("asks before signing out, and staying signed in changes nothing", async () => {
+    const calls = mockApi({
+      "GET /api/me": () => ({ json: withName }),
+      "POST /api/auth/logout": () => ({ json: { status: "ok" } }),
+      "GET /api/notes": () => ({
+        json: { role: "", content: "", updated_at: null },
+      }),
+      "GET /api/companies": () => ({ json: [] }),
+      "GET /api/sessions": () => ({ json: { items: [], next_cursor: null } }),
+    });
+    renderApp(<App />, "/dashboard");
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Sign out" }),
+    );
+    const dialog = within(await screen.findByRole("alertdialog"));
+    expect(dialog.getByText("Sign out?")).toBeInTheDocument();
+    expect(calls.some((c) => c.key === "POST /api/auth/logout")).toBe(false);
+    await userEvent.click(
+      dialog.getByRole("button", { name: "Stay signed in" }),
+    );
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(calls.some((c) => c.key === "POST /api/auth/logout")).toBe(false);
+    // Escape closes it too
+    await userEvent.click(screen.getByRole("button", { name: "Sign out" }));
+    await screen.findByRole("alertdialog");
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(calls.some((c) => c.key === "POST /api/auth/logout")).toBe(false);
   });
 });
 

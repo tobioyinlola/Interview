@@ -223,6 +223,11 @@ describe("the profile page", () => {
         screen.getByRole("link", { name: new RegExp(`^${name}`) }),
       ).toHaveAttribute("href", href);
     await userEvent.click(screen.getByRole("button", { name: /Sign out/ }));
+    await userEvent.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", {
+        name: "Sign out",
+      }),
+    );
     await screen
       .findByRole("heading", { name: "Sign in" })
       .catch(() => undefined);

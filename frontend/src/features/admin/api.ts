@@ -7,6 +7,8 @@ import {
 
 import { apiFetch } from "../../api/client";
 import type {
+  AdminSupportDetail,
+  AdminSupportList,
   AdminActivity,
   AdminAutoApply,
   AdminWorker,
@@ -429,3 +431,47 @@ export const useJobSourceList = (enabled: boolean) =>
 
 export const jobSourcesCsvUrl = (base: string) =>
   `${base}/api/admin/job-sources/export.csv`;
+
+// ------------------------------------------------------------------------------------ support
+
+export const useAdminSupport = (status: string, q: string, enabled = true) =>
+  useQuery<AdminSupportList>({
+    queryKey: ["admin", "support", "list", status, q],
+    enabled,
+    queryFn: () => apiFetch(`/api/admin/support${qs({ status, q })}`),
+    refetchInterval: 60_000,
+  });
+
+export const useAdminTicket = (id: string | undefined) =>
+  useQuery<AdminSupportDetail>({
+    queryKey: ["admin", "support", "ticket", id],
+    queryFn: () => apiFetch(`/api/admin/support/${id}`),
+    enabled: Boolean(id),
+  });
+
+export function useSupportActions(id: string) {
+  const qc = useQueryClient();
+  const done = (d: AdminSupportDetail) => {
+    qc.setQueryData(["admin", "support", "ticket", id], d);
+    void qc.invalidateQueries({ queryKey: ["admin", "support", "list"] });
+  };
+  const post = (path: string, body: unknown) =>
+    apiFetch<AdminSupportDetail>(`/api/admin/support/${id}/${path}`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  return {
+    reply: useMutation({
+      mutationFn: (text: string) => post("reply", { body: text }),
+      onSuccess: done,
+    }),
+    note: useMutation({
+      mutationFn: (text: string) => post("note", { body: text }),
+      onSuccess: done,
+    }),
+    status: useMutation({
+      mutationFn: (status: string) => post("status", { status }),
+      onSuccess: done,
+    }),
+  };
+}

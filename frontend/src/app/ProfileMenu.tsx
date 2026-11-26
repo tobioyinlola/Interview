@@ -1,7 +1,8 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
-import { useLogout, useMe } from "../api/hooks";
+import { useMe } from "../api/hooks";
+import { useSignOut } from "../ui/SignOut";
 import { firstName } from "../features/account/names";
 import { useTour } from "../features/tour/TourProvider";
 import {
@@ -49,8 +50,7 @@ const ITEMS = [
 /** The person's avatar in the top right corner, with a menu for their account. */
 export function ProfileMenu() {
   const { data: me } = useMe();
-  const logout = useLogout();
-  const navigate = useNavigate();
+  const signOut = useSignOut();
   const location = useLocation();
   const tour = useTour();
   const menuId = useId();
@@ -190,17 +190,17 @@ export function ProfileMenu() {
             role="menuitem"
             tabIndex={-1}
             className={`${row} text-red-700`}
-            onClick={() =>
-              logout.mutate(undefined, {
-                onSuccess: () => navigate("/login"),
-              })
-            }
+            onClick={() => {
+              setOpen(false);
+              signOut.ask();
+            }}
           >
             <LogoutIcon className="h-4 w-4" />
             Sign out
           </button>
         </div>
       )}
+      {signOut.dialog}
     </div>
   );
 }
