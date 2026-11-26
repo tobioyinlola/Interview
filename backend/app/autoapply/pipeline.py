@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -43,6 +43,10 @@ class Context:
     llm: LlmProvider
     form: FormAdapter
     now: datetime
+    # how many more applications may be prepared (CV tailored, note written) now; None: no limit.
+    # Preparing costs model calls, so only about two days' worth waits ready to send; the rest of
+    # the matches wait as 'eligible' and the best of them are prepared as room frees up.
+    prepare_room: int | None = None
 
 
 async def load_context(
@@ -66,9 +70,21 @@ async def load_context(
         .scalars()
         .all()
     )
+    ahead = fit_settings().autoapply_prepare_ahead
+    room = None
+    if ahead > 0:
+        ready = (
+            await db.execute(
+                select(func.count())
+                .select_from(Application)
+                .where(Application.user_id == user_id, Application.status == "queued")
+            )
+        ).scalar_one()
+        room = max(0, campaign.daily_application_cap * ahead - int(ready))
     return Context(
-        user_id, campaign, profile, facts, cv or "", {a.field: a for a in answers}, llm, form, now
-    )
+        user_id, campaign, profile, facts, cv or "", {a.field: a for a in answers}, llm, form, now,
+        room,
+    )  # fmt: skip
 
 
 async def log(db: AsyncSession, app: Application, kind: str, **detail: Any) -> None:
@@ -218,6 +234,12 @@ async def process(
             ]
             await log(db, app, "needs_input", fit=pct)
             return app, "needs_input"
+    if ctx.prepare_room is not None and ctx.prepare_room <= 0 and app.status != "queued":
+        # a match, but enough are already prepared: keep it, prepare it when there is room
+        if app.status != "eligible":
+            app.status, app.needs_input, app.skip_reason = "eligible", [], None
+            await log(db, app, "matched")
+        return app, "eligible"
     channel = next(
         c for c in ("form", "email") if c in routes and (ctx.profile.channels or {}).get(c)
     )
@@ -239,9 +261,32 @@ async def process(
         await log(db, app, "needs_input", missing=[m["field"] or m["kind"] for m in missing])
         return app, "needs_input"
     package.freeze(app, built, ctx.now)
+    if ctx.prepare_room is not None:
+        ctx.prepare_room -= 1
     app.status, app.needs_input, app.skip_reason = "queued", [], None
     await log(db, app, "queued", channel=channel)
     return app, "eligible"
+
+
+async def prepare_waiting(db: AsyncSession, ctx: Context) -> int:
+    """Prepare the best-scoring matches that were kept waiting, as far as there is room."""
+    if ctx.prepare_room is None or ctx.prepare_room <= 0:
+        return 0
+    rows = (
+        await db.execute(
+            select(Application, JobPosting)
+            .join(JobPosting, JobPosting.id == Application.posting_id)
+            .where(Application.user_id == ctx.user_id, Application.status == "eligible")
+            .order_by(Application.score.desc(), Application.created_at)
+            .limit(ctx.prepare_room)
+        )
+    ).all()
+    done = 0
+    for app, posting in rows:
+        _, outcome = await process(db, ctx, posting)
+        done += outcome == "eligible" and app.status == "queued"
+    await db.commit()
+    return done
 
 
 async def reevaluate_open(db: AsyncSession, ctx: Context) -> int:

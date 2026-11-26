@@ -105,3 +105,19 @@ async def test_off_by_default_nothing_changes(ada, discovery_source):
     await run(ada)
     (a,) = await apps(ada)
     assert a["status"] == "queued" and "fit" not in (a.get("match") or {})
+
+
+async def test_only_about_two_days_of_applications_are_prepared_ahead_and_the_rest_wait(
+    ada, discovery_source, maker, settings, tick, clock
+):
+    """Preparing costs model calls: with a cap of 5 a day, ten are prepared and the rest are kept
+    as matches; when some are sent, the best waiting ones are prepared next."""
+    await start(ada)  # daily cap 5
+    discovery_source.postings = [job(n) for n in range(1, 16)]
+    await run(ada)
+    statuses = sorted(a["status"] for a in await apps(ada))
+    assert statuses.count("queued") == 10 and statuses.count("eligible") == 5
+    await tick()  # sends up to today's cap
+    await tick()  # the next pass prepares the best waiting matches into the room that freed up
+    after = [a["status"] for a in await apps(ada)]
+    assert after.count("eligible") < 5

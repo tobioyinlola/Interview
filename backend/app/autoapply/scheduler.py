@@ -137,6 +137,7 @@ async def prepare_user(
                 db, user_id, camp, prof, llm=llm, form=adapters.form, now=now
             )
             await _recheck_stale(db, ctx)
+            await pipeline.prepare_waiting(db, ctx)  # the best waiting matches, as room frees
         await plan_outreach(db, user_id, now)
 
 

@@ -172,6 +172,9 @@ class Settings(BaseSettings):
     # The weighted fit score (autoapply/fit.py), after every hard requirement has passed. Off until
     # it is calibrated on real profiles: then jobs below REVIEW are skipped and those between REVIEW
     # and AUTO wait for the person.
+    # Prepare (tailor the CV, write the note: model calls) at most this many days' worth of
+    # applications ahead of sending; other matches wait as 'eligible'. 0 prepares every match.
+    autoapply_prepare_ahead: int = 2
     autoapply_fit_scoring: bool = False
     autoapply_fit_weights: str = ""  # e.g. "skills=30,experience=25,role=20,..."
     autoapply_fit_auto: float = 85.0
