@@ -11,6 +11,7 @@ from app.models import Note, User
 from app.repositories import NotesRepo
 from app.schemas.api import CvUploadOut, NotesIn, NotesOut
 from app.services.cv import CvError, extract_text, safe_filename
+from app.services.cvlayout import read_layout
 from app.services.events import record_from
 
 router = APIRouter(prefix="/api", tags=["notes"])
@@ -25,6 +26,7 @@ def _out(note: Note | None) -> NotesOut:
         updated_at=note.updated_at,
         cv_filename=note.cv_filename,
         cv_uploaded_at=note.cv_uploaded_at,
+        cv_layout_kept=bool(note.cv_layout),
     )
 
 
@@ -63,7 +65,13 @@ async def upload_cv(
             422, "cv_unreadable", "That file took too long to read. Try exporting it again."
         ) from None
     name = safe_filename(unquote(request.headers.get("x-filename", "")))
-    note = await NotesRepo(db, user.id).set_cv(text=result.text, filename=name)
+    try:  # the look of the file; never worth failing an upload over
+        layout = await asyncio.wait_for(
+            asyncio.to_thread(read_layout, data, result.kind), timeout=15
+        )
+    except TimeoutError:
+        layout = None
+    note = await NotesRepo(db, user.id).set_cv(text=result.text, filename=name, layout=layout)
     await record_from(
         db, "cv.uploaded", user_id=user.id, characters=len(result.text), truncated=result.truncated
     )

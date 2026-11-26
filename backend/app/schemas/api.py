@@ -155,6 +155,7 @@ class NotesOut(BaseModel):
     updated_at: datetime | None
     cv_filename: str | None = None
     cv_uploaded_at: datetime | None = None
+    cv_layout_kept: bool = False  # the look of the uploaded file was read, so tailored CVs match it
 
 
 class CvUploadOut(NotesOut):

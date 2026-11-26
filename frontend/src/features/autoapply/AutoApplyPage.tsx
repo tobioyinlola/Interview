@@ -278,16 +278,20 @@ function Tile({
   value,
   hint,
   bar,
+  to,
 }: {
   label: string;
   value: React.ReactNode;
   hint?: string;
   bar?: number;
+  to?: string;
 }) {
   const phone = isMobileApp();
-  return (
+  const card = (
     <div
-      className={`bg-surface shadow-card ${phone ? "rounded-[1.25rem] p-3" : "rounded-2xl p-4"}`}
+      className={`h-full bg-surface shadow-card ${phone ? "rounded-[1.25rem] p-3" : "rounded-2xl p-4"} ${
+        to ? "transition-shadow hover:shadow-lift" : ""
+      }`}
     >
       <dt className="text-xs text-muted">{label}</dt>
       <dd className="mt-1 text-2xl font-semibold tracking-tight">{value}</dd>
@@ -304,6 +308,13 @@ function Tile({
       )}
       {hint && !phone && <p className="mt-1 text-xs text-muted">{hint}</p>}
     </div>
+  );
+  return to ? (
+    <Link to={to} className="block min-w-0">
+      {card}
+    </Link>
+  ) : (
+    card
   );
 }
 
@@ -356,30 +367,32 @@ export function AutoApplyPage() {
       <Hero d={d} />
 
       <dl
-        className={`grid gap-3 ${phone ? "grid-cols-3 gap-2" : "grid-cols-2 lg:grid-cols-4"}`}
+        className={`grid gap-3 ${phone ? "grid-cols-2 gap-2" : "grid-cols-2 lg:grid-cols-4"}`}
         aria-label="At a glance"
       >
-        <Tile label="Sent so far" value={t.sent} hint="applications" />
-        {!phone && (
-          <Tile
-            label="Replies"
-            value={t.replies}
-            hint={
-              d.review_count > 0
-                ? `${d.review_count} to match`
-                : "from employers"
-            }
-          />
-        )}
         <Tile
-          label="Waiting for you"
-          value={t.waiting}
-          hint="questions to answer"
+          label="Sent so far"
+          value={t.sent}
+          hint="applications"
+          to="/auto-apply/applications?show=sent"
         />
         <Tile
-          label="Interviews"
-          value={t.interviews}
-          hint="invited or booked"
+          label="Ready to send"
+          value={(d.counts.queued ?? 0) + (d.counts.sending ?? 0)}
+          hint="going out next"
+          to="/auto-apply/applications?show=ready"
+        />
+        <Tile
+          label="Skipped"
+          value={d.counts.skipped ?? 0}
+          hint="not a fit, or closed"
+          to="/auto-apply/applications?show=skipped"
+        />
+        <Tile
+          label="Apply yourself"
+          value={d.counts.apply_yourself ?? 0}
+          hint="for you to submit"
+          to="/auto-apply/applications?show=apply"
         />
       </dl>
 

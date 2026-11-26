@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
+import { apiBlob } from "../../api/client";
 import { Loading } from "../../ui/Loading";
 import { useApplication, useApplicationActions } from "./api";
 import { Fail, Pill, STAGE, Section, when } from "./ui";
@@ -19,6 +20,43 @@ type RuleRow = {
   status: string;
   evidence: string;
 };
+
+/** The CV prepared for this role as a PDF, in the look of the CV that was uploaded. */
+function DownloadCv({ id }: { id: string }) {
+  const [state, setState] = useState<"idle" | "busy" | "failed">("idle");
+  return (
+    <button
+      type="button"
+      className="btn-secondary"
+      disabled={state === "busy"}
+      onClick={async () => {
+        setState("busy");
+        try {
+          const blob = await apiBlob(
+            `/api/autoapply/applications/${id}/cv.pdf`,
+          );
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "Tailored CV.pdf";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 5000);
+          setState("idle");
+        } catch {
+          setState("failed");
+        }
+      }}
+    >
+      {state === "busy"
+        ? "Preparing the PDF…"
+        : state === "failed"
+          ? "Could not download. Try again"
+          : "Download CV (PDF)"}
+    </button>
+  );
+}
 
 /** Copies a prepared text, and says so; if the browser refuses, the text is on the page to select. */
 function CopyButton({ label, text }: { label: string; text: string }) {
@@ -244,6 +282,7 @@ export function ApplicationPage() {
             >
               Open the application
             </a>
+            <DownloadCv id={a.id} />
             <CopyButton label="Copy my CV" text={pkg.cv.submitted_text} />
             <CopyButton label="Copy the note" text={pkg.cover_text} />
             <button
@@ -346,6 +385,9 @@ export function ApplicationPage() {
                 ? "For you to submit on the employer's site"
                 : `By email to ${pkg.destination.to}`}
           </p>
+          <div>
+            <DownloadCv id={a.id} />
+          </div>
           <details>
             <summary className="cursor-pointer text-sm font-medium">
               The CV that {sent ? "went" : "will go"} out

@@ -47,6 +47,7 @@ class Context:
     # Preparing costs model calls, so only about two days' worth waits ready to send; the rest of
     # the matches wait as 'eligible' and the best of them are prepared as room frees up.
     prepare_room: int | None = None
+    cv_layout: dict[str, Any] | None = None  # how the uploaded CV looked; tailored CVs match it
 
 
 async def load_context(
@@ -62,9 +63,11 @@ async def load_context(
     facts = (
         await db.execute(select(CandidateFacts).where(CandidateFacts.user_id == user_id))
     ).scalar_one_or_none()
-    cv = (
-        await db.execute(select(Note.content).where(Note.user_id == user_id))
-    ).scalar_one_or_none()
+    cv_row = (
+        await db.execute(select(Note.content, Note.cv_layout).where(Note.user_id == user_id))
+    ).first()
+    cv = cv_row[0] if cv_row else None
+    cv_layout = cv_row[1] if cv_row else None
     answers = (
         (await db.execute(select(CandidateAnswer).where(CandidateAnswer.user_id == user_id)))
         .scalars()
@@ -83,7 +86,7 @@ async def load_context(
         room = max(0, campaign.daily_application_cap * ahead - int(ready))
     return Context(
         user_id, campaign, profile, facts, cv or "", {a.field: a for a in answers}, llm, form, now,
-        room,
+        room, cv_layout,
     )  # fmt: skip
 
 
@@ -258,6 +261,7 @@ async def process(
         posting=posting,
         facts_row=ctx.facts,
         cv_text=ctx.cv_text,
+        cv_layout=ctx.cv_layout,
         saved=ctx.saved,
         llm=ctx.llm,
         channel=channel,

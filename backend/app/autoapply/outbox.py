@@ -327,6 +327,7 @@ async def execute(
         await db.commit()
     # --- the outside call (no database transaction is open)
     cv_text = pkg["cv"]["submitted_text"]
+    cv_layout = pkg["cv"].get("layout")  # None for a package prepared before layouts were kept
     result: Any = None
     error: AdapterError | None = None
     try:
@@ -339,6 +340,7 @@ async def execute(
                 values=values,
                 cv_text=cv_text,
                 cv_filename="CV.pdf",
+                cv_layout=cv_layout,
             )
         else:
             result = await adapters.mailbox.send(
@@ -347,7 +349,7 @@ async def execute(
                 to=pkg["destination"]["to"],
                 subject=email_subject(posting),
                 body=pkg.get("cover_text", ""),
-                attachments=[MailAttachment("CV.pdf", cvfile.render_pdf(cv_text))],
+                attachments=[MailAttachment("CV.pdf", cvfile.render_pdf(cv_text, cv_layout))],
                 message_id=message_id(key),
             )
     except AdapterError as exc:

@@ -168,9 +168,15 @@ describe("the dashboard", () => {
   it("counts only job applications, in the circle and the tiles", async () => {
     onDash(
       dash({
-        counts: { submitted: 4, sent_email: 1 },
+        counts: {
+          submitted: 4,
+          sent_email: 1,
+          queued: 2,
+          sending: 1,
+          skipped: 7,
+          apply_yourself: 3,
+        },
         startups: { waiting: 2, sent: 3, replied: 1, openings: 4 },
-        review_count: 1,
       }),
     );
     renderApp(<App />, "/auto-apply");
@@ -178,9 +184,40 @@ describe("the dashboard", () => {
       await screen.findByRole("img", { name: "5 sent so far, 2 of 5 today" }),
     ).toBeInTheDocument();
     const glance = within(screen.getByLabelText("At a glance"));
-    expect(glance.getByText("Sent so far").nextSibling).toHaveTextContent("5");
-    expect(glance.getByText("Replies").nextSibling).toHaveTextContent("1");
+    const num = (label: string) => glance.getByText(label).nextSibling;
+    expect(num("Sent so far")).toHaveTextContent("5");
+    expect(num("Ready to send")).toHaveTextContent("3");
+    expect(num("Skipped")).toHaveTextContent("7");
+    expect(num("Apply yourself")).toHaveTextContent("3");
     expect(glance.queryByText(/startup/i)).toBeNull();
+    expect(glance.queryByText("Replies")).toBeNull();
+  });
+
+  it("opens the list for a number when it is clicked", async () => {
+    const calls = base({
+      "GET /api/autoapply/dashboard": () => ({
+        json: dash({ counts: { skipped: 2 } }),
+      }),
+      "GET /api/autoapply/recruiting": () => ({ json: [] }),
+      "GET /api/autoapply/applications": () => ({
+        json: {
+          items: [
+            app({ id: "s1", status: "skipped", skip_reason: "Too far." }),
+          ],
+          next_cursor: null,
+        },
+      }),
+    });
+    renderApp(<App />, "/auto-apply");
+    await userEvent.click(await screen.findByRole("link", { name: /Skipped/ }));
+    expect(await screen.findByRole("tab", { name: "Skipped" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await screen.findByText("Too far.");
+    expect(calls.some((c) => c.key === "GET /api/autoapply/applications")).toBe(
+      true,
+    );
   });
 
   it("has nothing about startups, job sources or a setup button", async () => {
@@ -531,6 +568,57 @@ describe("the dashboard", () => {
       await screen.findByRole("link", { name: "Reconnect email" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Needs reconnecting")).toBeInTheDocument();
+  });
+});
+
+describe("skipped roles", () => {
+  it("can all be selected and checked again together", async () => {
+    const calls = base({
+      "GET /api/autoapply/applications": () => ({
+        json: {
+          items: [
+            app({
+              id: "s1",
+              status: "skipped",
+              skip_reason: "The listing has expired.",
+            }),
+            app({ id: "s2", status: "skipped", skip_reason: "Too far away." }),
+          ],
+          next_cursor: null,
+        },
+      }),
+      "POST /api/autoapply/applications/recheck": () => ({
+        json: { checked: 2, now_ready: 1, still_skipped: 1, left_alone: 0 },
+      }),
+    });
+    renderApp(<App />, "/auto-apply/applications");
+    await userEvent.click(await screen.findByRole("tab", { name: "Skipped" }));
+    const check = await screen.findByRole("button", { name: "Check again" });
+    expect(check).toBeDisabled();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Select all skipped" }),
+    );
+    const go = await screen.findByRole("button", { name: "Check again (2)" });
+    await userEvent.click(go);
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Checked 2. 1 are no longer skipped.",
+    );
+    const post = calls.find(
+      (c) => c.key === "POST /api/autoapply/applications/recheck",
+    );
+    expect(post?.body).toEqual({ ids: ["s1", "s2"] });
+  });
+
+  it("offers no selection on the other tabs", async () => {
+    base({
+      "GET /api/autoapply/applications": () => ({
+        json: { items: [app()], next_cursor: null },
+      }),
+    });
+    renderApp(<App />, "/auto-apply/applications");
+    await screen.findByText(/Senior Product Manager/);
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Check again/ })).toBeNull();
   });
 });
 

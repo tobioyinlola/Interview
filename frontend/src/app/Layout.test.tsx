@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { ME, mockApi, renderApp, stubSupportedBrowser } from "../test-utils";
@@ -18,6 +18,25 @@ const signedIn = (me: object = { ...ME, startup_outreach: true }) =>
   });
 
 describe("app shell", () => {
+  it("has a back button on every page except Overview, that returns to the page before", async () => {
+    signedIn();
+    renderApp(<App />, "/dashboard");
+    const nav = within(await screen.findByRole("navigation", { name: "Main" }));
+    expect(
+      screen.queryByRole("button", { name: "Back to the previous page" }),
+    ).toBeNull();
+    await userEvent.click(nav.getByRole("link", { name: "Settings" }));
+    const back = await screen.findByRole("button", {
+      name: "Back to the previous page",
+    });
+    await userEvent.click(back);
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: "Back to the previous page" }),
+      ).toBeNull(),
+    );
+  });
+
   it("groups navigation into Menu, Account and Support and marks the current page", async () => {
     signedIn();
     renderApp(<App />, "/dashboard");

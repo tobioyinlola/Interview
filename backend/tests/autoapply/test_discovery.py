@@ -1,6 +1,7 @@
 """Phase 2: discovery, normalising, de-duplicating, matching, exceptions and the frozen package."""
 
 import asyncio
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -485,6 +486,48 @@ async def test_the_candidate_can_approve_an_unknown_rule_or_skip(ada, discovery_
     assert (await apps(ada, "skipped"))[0]["id"] == b["id"]
     back = await ada.post(f"/api/autoapply/applications/{b['id']}/retry")
     assert back.json()["status"] == "needs_input"
+
+
+async def test_many_skipped_roles_can_be_checked_again_at_once(ada, discovery_source, maker):
+    discovery_source.postings = [job(1), job(2), job(3)]
+    await start(ada, criteria=VISA_SEARCH)
+    await run(ada)
+    a, b, c = await apps(ada, "needs_input")
+    for x in (a, b):
+        await ada.post(f"/api/autoapply/applications/{x['id']}/skip")
+    async with maker() as db:  # one has already gone out: it must be left alone
+        row = (
+            await db.execute(select(Application).where(Application.id == uuid.UUID(c["id"])))
+        ).scalar_one()
+        row.status = "submitted"
+        await db.commit()
+    r = await ada.post(
+        "/api/autoapply/applications/recheck",
+        json={"ids": [a["id"], b["id"], c["id"], "not-an-id", str(uuid.uuid4())]},
+    )
+    assert r.status_code == 200
+    out = r.json()
+    assert out["checked"] == 2 and out["left_alone"] == 3
+    assert out["now_ready"] + out["still_skipped"] == 2
+    assert (await apps(ada, "skipped")) == []  # the ones the candidate skipped are judged again
+    assert len(await apps(ada, "submitted")) == 1
+
+
+async def test_checking_again_never_touches_another_candidates_roles(
+    ada, discovery_source, new_client, sign_in
+):
+    discovery_source.postings = [job(1)]
+    await start(ada, criteria=VISA_SEARCH)
+    await run(ada)
+    mine = (await apps(ada, "needs_input"))[0]["id"]
+    await ada.post(f"/api/autoapply/applications/{mine}/skip")
+    async with new_client() as eve:
+        await sign_in(eve, "eve@example.com")
+        r = await eve.post("/api/autoapply/applications/recheck", json={"ids": [mine]})
+        assert r.status_code in (200, 409)
+        if r.status_code == 200:
+            assert r.json()["checked"] == 0
+    assert (await apps(ada, "skipped"))[0]["id"] == mine
 
 
 async def test_changing_the_search_rechecks_open_applications_but_not_ones_that_went_out(
