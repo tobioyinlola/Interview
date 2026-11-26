@@ -1,6 +1,7 @@
 """The run loop for startup outreach: plan notes, send them one at a time under every rule,
 follow up once, and read replies, opt-outs and bounces so nobody is written to again."""
 
+import logging
 import re
 import uuid
 from datetime import datetime, timedelta
@@ -27,6 +28,8 @@ from app.models import (
 )
 from app.repositories import NotesRepo
 from app.services.events import record_from
+
+log = logging.getLogger(__name__)
 
 MAX_DAILY = 25
 MAX_BACKLOG = 30
@@ -409,6 +412,19 @@ async def delivery_blockers(
     return {"approved": int(approved), "blockers": out}
 
 
+def _log_held(user_id: uuid.UUID, why: str) -> None:
+    log.info("startup note held back", extra={"user_id": str(user_id), "why": why})
+
+
+async def _has_approved(db: AsyncSession, user_id: uuid.UUID) -> bool:
+    row = await db.execute(
+        select(HuntTarget.id)
+        .where(HuntTarget.user_id == user_id, HuntTarget.status == "approved")
+        .limit(1)
+    )
+    return row.first() is not None
+
+
 async def send_next(
     maker: async_sessionmaker[AsyncSession],
     user_id: uuid.UUID,
@@ -425,19 +441,26 @@ async def send_next(
             await db.execute(select(SearchProfile).where(SearchProfile.user_id == user_id))
         ).scalar_one_or_none()
         tz = prof.timezone if prof else "UTC"
-        if (
-            st is None
-            or not st.enabled
-            or not st.sender_name.strip()
-            or not st.postal_address.strip()
-            or switches.blocked(off, "hunt", adapter.name) is not None
-            or conn is None
-            or conn.status != "connected"
-            or not conn.token_encrypted
-            or bool(prof and prof.paused)
-            or not in_window(now, tz)
-            or await sent_today(db, user_id, now, tz) >= min(st.daily_cap, MAX_DAILY)
-        ):
+        gate = None
+        if st is None or not st.enabled:
+            gate = "outreach_off"
+        elif not st.sender_name.strip():
+            gate = "no_sender_name"
+        elif not st.postal_address.strip():
+            gate = "no_postal_address"
+        elif switches.blocked(off, "hunt", adapter.name) is not None:
+            gate = "switched_off"
+        elif conn is None or conn.status != "connected" or not conn.token_encrypted:
+            gate = "mailbox_not_connected"
+        elif prof and prof.paused:
+            gate = "paused"
+        elif not in_window(now, tz):
+            gate = "outside_send_hours"
+        elif await sent_today(db, user_id, now, tz) >= min(st.daily_cap, MAX_DAILY):
+            gate = "daily_cap_reached"
+        if gate is not None:
+            if await _has_approved(db, user_id):
+                _log_held(user_id, gate)
             return None
         last = (
             await db.execute(
@@ -477,6 +500,7 @@ async def send_next(
                 t.status, t.reason = "skipped", why or "Outside the regions you chose."
                 continue
             if not outbox.dispatch_allowed(settings, "hunt", adapter.real, contact.email):
+                _log_held(user_id, "recipient_not_allowed_in_this_environment")
                 continue
             chosen, to = t, contact.email
             break
@@ -521,11 +545,19 @@ async def send_next(
             t.status, t.sent_at, t.thread_id = "sent", now, thread
             await db.commit()
             await record_from(db, "hunt.sent", user_id=user_id)
+            log.info("startup note sent", extra={"user_id": str(user_id), "target": str(tid)})
             return "sent"
         if error.code == "ambiguous":
             await db.commit()  # stays 'sending'; reconcile() settles it
+            log.warning(
+                "startup note send unclear", extra={"user_id": str(user_id), "target": str(tid)}
+            )
             return "ambiguous"
         t.status, t.reason = "failed", error.message[:300]
+        log.warning(
+            "startup note failed",
+            extra={"user_id": str(user_id), "target": str(tid), "code": error.code},
+        )
         if error.code == "reauth":
             c = await mailbox.get(db, user_id)
             if c is not None:
