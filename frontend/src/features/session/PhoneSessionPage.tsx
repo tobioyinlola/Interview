@@ -1,11 +1,9 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 
 import { endSessionApi, fetchAudioToken } from "../../api/hooks";
 import { FeatureBoundary } from "../../ui/FeatureBoundary";
 import { LiveSessionController } from "./controller";
-import { privacy } from "../../app/privacy";
-import { AnswersOff, AssistantStatus, useSessionMode } from "./modes";
 import {
   AnswerControls,
   AnswerPanel,
@@ -34,27 +32,23 @@ export function PhoneSessionPage() {
   const location = useLocation();
   const sampleRate =
     (location.state as { sampleRate?: number } | null)?.sampleRate ?? 24000;
-  const { status, problem, notice, level } = useLiveStore();
+  const initialMode =
+    (location.state as { audioMode?: "dual" | "device" | "mic" } | null)
+      ?.audioMode ?? "mic";
+  const [audioMode, setAudioMode] = useState<"dual" | "device" | "mic">(initialMode);
+  const { status, problem, notice, level, micLevel } = useLiveStore();
 
-  const session = useSessionMode(id);
   const controller = useMemo(
     () =>
       new LiveSessionController({
         sessionId: id,
         sampleRate,
-        source: "mic",
+        source: audioMode,
         fetchToken: async () => (await fetchAudioToken(id)).audio_token,
         endSession: () => endSessionApi(id),
-        answersOff: session.answersOff,
       }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- answersOff reads the latest mode
-    [id, sampleRate],
+    [id, sampleRate, audioMode],
   );
-  useEffect(() => {
-    // a live session is never hidden from a screen share: protection stays off while it is open
-    privacy.setLive(true);
-    return () => privacy.setLive(false);
-  }, []);
   useEffect(() => {
     useLiveStore.getState().reset();
     return () => controller.dispose();
@@ -68,10 +62,6 @@ export function PhoneSessionPage() {
   return (
     <main className="space-y-4 px-5 pb-32 pt-[max(1rem,env(safe-area-inset-top))]">
       <h1 className="sr-only">Live interview</h1>
-      <AssistantStatus
-        mode={session.mode}
-        authorizedBy={session.authorizedBy}
-      />
 
       <section
         aria-label="Listening"
@@ -90,20 +80,59 @@ export function PhoneSessionPage() {
           >
             {STATUS[status]}
           </span>
-          <div
-            role="meter"
-            aria-label="Sound level"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.min(100, Math.round(level * 400))}
-            className="h-2 w-28 overflow-hidden rounded-full bg-line"
-          >
+          {audioMode !== "dual" && (
             <div
-              className="h-full bg-green-600 transition-[width]"
-              style={{ width: `${Math.min(100, level * 400)}%` }}
-            />
-          </div>
+              role="meter"
+              aria-label="Sound level"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.min(100, Math.round(level * 400))}
+              className="h-2 w-28 overflow-hidden rounded-full bg-line"
+            >
+              <div
+                className="h-full bg-green-600 transition-[width]"
+                style={{ width: `${Math.min(100, level * 400)}%` }}
+              />
+            </div>
+          )}
         </div>
+
+        {audioMode === "dual" && (
+          <div className="space-y-1.5 pt-1">
+            <div className="flex items-center justify-between text-xs text-muted">
+              <span>Interviewer (Device audio)</span>
+              <div
+                role="meter"
+                aria-label="Interviewer sound level"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.min(100, Math.round(level * 400))}
+                className="h-2 w-28 overflow-hidden rounded-full bg-line"
+              >
+                <div
+                  className="h-full bg-green-600 transition-[width]"
+                  style={{ width: `${Math.min(100, level * 400)}%` }}
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between text-xs text-muted">
+              <span>You (Microphone)</span>
+              <div
+                role="meter"
+                aria-label="Microphone sound level"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.min(100, Math.round(micLevel * 400))}
+                className="h-2 w-28 overflow-hidden rounded-full bg-line"
+              >
+                <div
+                  className="h-full bg-blue-600 transition-[width]"
+                  style={{ width: `${Math.min(100, micLevel * 400)}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
         {problem && (
           <p role="alert" className="notice-error">
             {problem}
@@ -141,28 +170,64 @@ export function PhoneSessionPage() {
             </>
           ))}
         {status === "idle" && (
-          <p className="text-xs text-muted">
-            Put the phone near the speaker of your call. It listens through the
-            microphone and drafts an answer as each question is asked. Or type a
-            question below.
-          </p>
+          <div className="space-y-2 pt-2 border-t border-line">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted">Audio Mode:</span>
+              <div className="flex gap-1 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setAudioMode("dual")}
+                  className={`rounded-full px-2.5 py-1 ${
+                    audioMode === "dual"
+                      ? "bg-accent-dark text-white"
+                      : "bg-canvas text-muted hover:text-foreground"
+                  }`}
+                >
+                  Device + Mic
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAudioMode("device")}
+                  className={`rounded-full px-2.5 py-1 ${
+                    audioMode === "device"
+                      ? "bg-accent-dark text-white"
+                      : "bg-canvas text-muted hover:text-foreground"
+                  }`}
+                >
+                  Device only
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAudioMode("mic")}
+                  className={`rounded-full px-2.5 py-1 ${
+                    audioMode === "mic"
+                      ? "bg-accent-dark text-white"
+                      : "bg-canvas text-muted hover:text-foreground"
+                  }`}
+                >
+                  Mic only
+                </button>
+              </div>
+            </div>
+            <p className="text-xs text-muted">
+              {audioMode === "dual"
+                ? "Captures interviewer via device audio and your voice via microphone separately."
+                : audioMode === "device"
+                  ? "Captures only the interviewer voice directly from your meeting app."
+                  : "Put the phone near the speaker of your call. It listens through the microphone."}
+            </p>
+          </div>
         )}
       </section>
 
-      {session.mode === "standard" ? (
-        <AnswersOff />
-      ) : (
-        <>
-          <FeatureBoundary name="answer panel">
-            <AnswerPanel onDone={() => controller.markDone()} />
-          </FeatureBoundary>
-          <FeatureBoundary name="answer options">
-            <AnswerControls onRegenerate={() => controller.regenerate()} />
-          </FeatureBoundary>
-          {status !== "ended" && (
-            <ManualQuestion onSubmit={(q) => controller.submitManual(q)} />
-          )}
-        </>
+      <FeatureBoundary name="answer panel">
+        <AnswerPanel onDone={() => controller.markDone()} />
+      </FeatureBoundary>
+      <FeatureBoundary name="answer options">
+        <AnswerControls onRegenerate={() => controller.regenerate()} />
+      </FeatureBoundary>
+      {status !== "ended" && (
+        <ManualQuestion onSubmit={(q) => controller.submitManual(q)} />
       )}
 
       <details className="rounded-[1.75rem] bg-surface p-5 shadow-card">

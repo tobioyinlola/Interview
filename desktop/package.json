@@ -13,7 +13,8 @@
     "smoke": "node test/smoke.js"
   },
   "dependencies": {
-    "electron-updater": "^6.3.9"
+    "electron-updater": "^6.3.9",
+    "koffi": "^3.3.8"
   },
   "devDependencies": {
     "electron": "^39.0.0",

@@ -95,10 +95,84 @@ test("a link used to start the app is found among its arguments", () => {
   assert.equal(p.linkFromArgv(undefined), null);
 });
 
-test("private-screen protection is only for the app's own pages, and never in a live session", () => {
-  const { privacyDecision } = require("../src/policy");
-  assert.equal(privacyDecision(true, false, true), true);
-  assert.equal(privacyDecision(true, true, true), false); // a live interview stays visible
-  assert.equal(privacyDecision(true, false, false), false); // another page cannot ask
-  assert.equal(privacyDecision(false, false, true), false);
+test("main window strictly enforces content protection against screen capture and proctoring", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const mainJs = fs.readFileSync(path.join(__dirname, "..", "src", "main.js"), "utf8");
+  // Content protection is always on (createWindow + re-asserted on stealth transitions).
+  assert.match(mainJs, /win\.setContentProtection\(true\)/);
+  // Win32 native protection uses SetWindowDisplayAffinity with WDA_EXCLUDEFROMCAPTURE (matching Tauri app)
+  assert.match(mainJs, /SetWindowDisplayAffinity/);
+  assert.match(mainJs, /WDA_EXCLUDEFROMCAPTURE/);
+});
+
+test("stealth IPC handlers are present and cover all required operations", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const mainJs = fs.readFileSync(path.join(__dirname, "..", "src", "main.js"), "utf8");
+  // Required IPC channels for the renderer stealth bridge.
+  assert.match(mainJs, /im:stealth-enter/);
+  assert.match(mainJs, /im:stealth-exit/);
+  assert.match(mainJs, /im:stealth-set-click-through/);
+  assert.match(mainJs, /im:stealth-query/);
+});
+
+test("stealth enter re-asserts content protection after dock policy change", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const mainJs = fs.readFileSync(path.join(__dirname, "..", "src", "main.js"), "utf8");
+  // The comment referencing the WindowServer reset bug must be present so future
+  // developers understand why re-assertion is required.
+  assert.match(mainJs, /WindowServer/);
+  // setContentProtection(true) must appear inside the enterStealthMode function body.
+  const enterIdx = mainJs.indexOf("function enterStealthMode");
+  const exitIdx = mainJs.indexOf("function exitStealthMode");
+  const enterBody = mainJs.slice(enterIdx, exitIdx);
+  assert.match(enterBody, /setContentProtection\(true\)/);
+});
+
+test("stealth mode uses Hide-Morph-Show to prevent flicker", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const mainJs = fs.readFileSync(path.join(__dirname, "..", "src", "main.js"), "utf8");
+  const enterIdx = mainJs.indexOf("function enterStealthMode");
+  const exitIdx = mainJs.indexOf("function exitStealthMode");
+  const enterBody = mainJs.slice(enterIdx, exitIdx);
+  // hide() must precede showInactive() within enterStealthMode.
+  assert.ok(enterBody.indexOf("win.hide()") < enterBody.indexOf("win.showInactive()"),
+    "hide() must come before showInactive() to prevent resize flicker");
+});
+
+test("preload exposes stealth bridge to the renderer", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const preload = fs.readFileSync(path.join(__dirname, "..", "src", "preload.js"), "utf8");
+  assert.match(preload, /interviewDesktop/);
+  assert.match(preload, /setStealthMode/);
+  assert.match(preload, /windowControl/);
+  assert.match(preload, /stealth/);
+  assert.match(preload, /im:stealth-enter/);
+  assert.match(preload, /im:stealth-exit/);
+  assert.match(preload, /im:stealth-set-click-through/);
+  assert.match(preload, /onStateChanged/);
+});
+
+test("global hotkeys are registered for HUD show/hide and click-through", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const mainJs = fs.readFileSync(path.join(__dirname, "..", "src", "main.js"), "utf8");
+  assert.match(mainJs, /globalShortcut\.register/);
+  assert.match(mainJs, /CommandOrControl\+Shift\+H/);
+  assert.match(mainJs, /CommandOrControl\+Shift\+M/);
+  // Hotkeys must be unregistered on quit to avoid OS-level leaks.
+  assert.match(mainJs, /globalShortcut\.unregisterAll/);
+});
+
+test("window controls IPC handlers are registered for frameless desktop mode", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const mainJs = fs.readFileSync(path.join(__dirname, "..", "src", "main.js"), "utf8");
+  assert.match(mainJs, /im:window-minimize/);
+  assert.match(mainJs, /im:window-maximize/);
+  assert.match(mainJs, /im:window-close/);
 });

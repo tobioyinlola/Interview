@@ -9,7 +9,11 @@ files:
   - app-dist/**
   - app-config.json
   - package.json
+  - node_modules/koffi/**
+  - node_modules/@koromix/**
 asar: true
+asarUnpack:
+  - "**/*.node"
 # the address the browser uses to hand Google sign-in back to the app
 protocols:
   - name: InterviewMeet
@@ -38,6 +42,7 @@ mac:
     NSMicrophoneUsageDescription: InterviewMeet uses your microphone during live interviews.
     NSCameraUsageDescription: InterviewMeet does not use your camera.
 win:
+  signAndEditExecutable: false
   target:
     - target: nsis
       arch: [x64]

@@ -1,15 +1,13 @@
-import { type FormEvent, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import {
   useBilling,
   useCompanies,
-  useCreateCompany,
   useCreateSession,
   useNotes,
 } from "../../api/hooks";
 import { isActive } from "../../api/polling";
-import { type InterviewMode, MODES } from "./modes";
 import { isMobileApp } from "../../app/native";
 import { daysSince } from "../companies/ResearchStatus";
 
@@ -27,118 +25,6 @@ function Tick({ ok, children }: { ok: boolean; children: React.ReactNode }) {
   );
 }
 
-/** No company to pick? Add the one interviewing you right here: it is researched, and chosen. */
-function AddCompany({
-  role,
-  onAdded,
-}: {
-  role: string;
-  onAdded: (id: string) => void;
-}) {
-  const create = useCreateCompany();
-  const key = useRef(crypto.randomUUID());
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [site, setSite] = useState("");
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    create.mutate(
-      {
-        key: key.current,
-        input: {
-          name: name.trim(),
-          website_url: site.trim() || null,
-          job_posting_url: null,
-          extra_links: [],
-          role,
-          known_text: "",
-        },
-      },
-      {
-        onSuccess: (r) => {
-          key.current = crypto.randomUUID();
-          setOpen(false);
-          setName("");
-          setSite("");
-          onAdded(r.company.id);
-        },
-        onError: () => {
-          key.current = crypto.randomUUID();
-        },
-      },
-    );
-  };
-  if (!open)
-    return (
-      <button
-        type="button"
-        className="btn-secondary w-fit"
-        onClick={() => setOpen(true)}
-      >
-        Add a company
-      </button>
-    );
-  return (
-    <form
-      onSubmit={submit}
-      aria-label="Add a company"
-      className="space-y-3 rounded-2xl bg-canvas p-4"
-    >
-      <p className="text-sm text-muted">
-        The company interviewing you, not an employer you have worked for. We
-        research what they do so every answer fits them.
-      </p>
-      <div>
-        <label htmlFor="new-co" className="block text-sm font-medium">
-          Company name
-        </label>
-        <input
-          id="new-co"
-          required
-          maxLength={120}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="input mt-1 w-full"
-        />
-      </div>
-      <div>
-        <label htmlFor="new-co-site" className="block text-sm font-medium">
-          Website <span className="font-normal text-muted">(recommended)</span>
-        </label>
-        <input
-          id="new-co-site"
-          type="url"
-          placeholder="https://"
-          value={site}
-          onChange={(e) => setSite(e.target.value)}
-          className="input mt-1 w-full"
-        />
-      </div>
-      {create.isError && (
-        <p role="alert" className="notice-error">
-          {create.error.message}
-        </p>
-      )}
-      <div className="flex gap-2">
-        <button
-          type="submit"
-          className="btn-primary"
-          disabled={!name.trim() || create.isPending}
-        >
-          {create.isPending ? "Adding…" : "Add and research"}
-        </button>
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={() => setOpen(false)}
-        >
-          Cancel
-        </button>
-      </div>
-    </form>
-  );
-}
-
 export function SessionSetupPage() {
   const notes = useNotes();
   const companies = useCompanies();
@@ -147,11 +33,7 @@ export function SessionSetupPage() {
   // Coming from Auto-Apply: the interview carries its own company, CV and job.
   const interviewId = useSearchParams()[0].get("interview") ?? undefined;
   const [choice, setChoice] = useState(interviewId ? NONE : "");
-  const [mode, setMode] = useState<InterviewMode>("mock");
-  const [authorized, setAuthorized] = useState(false);
-  const [authorizedBy, setAuthorizedBy] = useState("");
-  const authOk =
-    mode !== "assisted" || (authorized && authorizedBy.trim() !== "");
+  const [audioMode, setAudioMode] = useState<"dual" | "device" | "mic">("dual");
   // One idempotency key per attempt, so a double click cannot start two sessions.
   const key = useRef(crypto.randomUUID());
 
@@ -163,8 +45,7 @@ export function SessionSetupPage() {
     billing.data.sessions_available < 1;
   const cvUploaded = (notes.data?.content ?? "").trim().length > 0;
   const chosen = choice !== "";
-  const ready =
-    (interviewId ? true : cvUploaded && chosen) && !noCredit && authOk;
+  const ready = (interviewId ? true : cvUploaded && chosen) && !noCredit;
   const company = companies.data?.find((c) => c.id === choice);
   const age = daysSince(company?.last_researched_at);
 
@@ -175,17 +56,11 @@ export function SessionSetupPage() {
         role: notes.data?.role || undefined,
         key: key.current,
         interviewId,
-        mode,
-        authorizedBy: authorizedBy.trim(),
       },
       {
         onSuccess: (res) =>
           navigate(`/session/${res.session_id}`, {
-            state: {
-              sampleRate: res.sample_rate,
-              mode,
-              authorizedBy: mode === "assisted" ? authorizedBy.trim() : null,
-            },
+            state: { sampleRate: res.sample_rate, audioMode },
           }),
         onError: () => {
           key.current = crypto.randomUUID();
@@ -201,9 +76,72 @@ export function SessionSetupPage() {
       </h1>
       <p className="text-sm text-muted">
         {isMobileApp()
-          ? "Run a mock interview with a friend, mentor or peer who knows the assistant is on. On the next screen the phone listens through its microphone, so put it near the speaker of your call. You can also type a question."
+          ? "Run a mock interview with a friend, mentor or peer who knows the assistant is on. On the next screen the assistant listens through its microphone or internal device audio. You can also type a question."
           : "Run a mock interview with a friend, mentor or peer who knows the assistant is on. Join them on Google Meet, then share the Meet tab with its audio on the next screen."}
       </p>
+
+      {isMobileApp() && (
+        <section aria-labelledby="audio-mode-h" className="card space-y-3">
+          <h2 id="audio-mode-h" className="text-lg font-semibold">
+            Audio recording
+          </h2>
+          <p className="text-sm text-muted">
+            Choose what to record during your interview:
+          </p>
+          <div className="space-y-3">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="radio"
+                name="audioMode"
+                value="dual"
+                checked={audioMode === "dual"}
+                onChange={() => setAudioMode("dual")}
+                className="mt-1"
+              />
+              <div>
+                <span className="text-sm font-medium">Device audio and microphone</span>
+                <p className="text-xs text-muted">
+                  Captures internal meeting audio (interviewer) and your microphone (you) as separate streams.
+                </p>
+              </div>
+            </label>
+
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="radio"
+                name="audioMode"
+                value="device"
+                checked={audioMode === "device"}
+                onChange={() => setAudioMode("device")}
+                className="mt-1"
+              />
+              <div>
+                <span className="text-sm font-medium">Device audio</span>
+                <p className="text-xs text-muted">
+                  Captures only the interviewer voice directly from your meeting app (Zoom, Google Meet, Teams).
+                </p>
+              </div>
+            </label>
+
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="radio"
+                name="audioMode"
+                value="mic"
+                checked={audioMode === "mic"}
+                onChange={() => setAudioMode("mic")}
+                className="mt-1"
+              />
+              <div>
+                <span className="text-sm font-medium">Microphone only (Speakerphone)</span>
+                <p className="text-xs text-muted">
+                  Single microphone fallback for cellular phone calls or when meeting apps restrict audio capture.
+                </p>
+              </div>
+            </label>
+          </div>
+        </section>
+      )}
 
       {interviewId ? (
         <section aria-labelledby="co-h" className="card space-y-2">
@@ -238,7 +176,6 @@ export function SessionSetupPage() {
               </option>
             ))}
           </select>
-          <AddCompany role={notes.data?.role ?? ""} onAdded={setChoice} />
           {company && isActive(company.job_status) && (
             <p role="status" className="text-sm text-amber-800">
               This company is still being researched. Outlines will use your CV
@@ -262,76 +199,12 @@ export function SessionSetupPage() {
         </section>
       )}
 
-      <section aria-labelledby="mode-h" className="card space-y-3">
-        <h2 id="mode-h" className="text-lg font-semibold">
-          What kind of interview?
-        </h2>
-        <div
-          role="radiogroup"
-          aria-labelledby="mode-h"
-          className="grid gap-2 sm:grid-cols-3"
-        >
-          {MODES.map((m) => (
-            <label
-              key={m.id}
-              className={`flex cursor-pointer flex-col gap-1 rounded-xl p-3 text-sm ${
-                mode === m.id
-                  ? "bg-accent-soft ring-2 ring-accent"
-                  : "bg-canvas"
-              }`}
-            >
-              <span className="flex items-center gap-2 font-medium">
-                <input
-                  type="radio"
-                  name="mode"
-                  value={m.id}
-                  checked={mode === m.id}
-                  onChange={() => setMode(m.id)}
-                  className="accent-accent"
-                />
-                {m.title}
-              </span>
-              <span className="text-muted">{m.line}</span>
-            </label>
-          ))}
-        </div>
-        {mode === "assisted" && (
-          <div className="space-y-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-950">
-            <label className="flex items-start gap-2">
-              <input
-                type="checkbox"
-                checked={authorized}
-                onChange={(e) => setAuthorized(e.target.checked)}
-                className="mt-0.5 h-5 w-5 shrink-0 accent-accent"
-              />
-              <span>
-                The interviewer or the organisation has told me I may use
-                real-time assistance in this interview.
-              </span>
-            </label>
-            <label className="block">
-              <span className="font-medium">Who said so, and how?</span>
-              <input
-                value={authorizedBy}
-                maxLength={200}
-                onChange={(e) => setAuthorizedBy(e.target.value)}
-                placeholder="e.g. Jo Smith, recruiter at Acme, by email on 25 Nov"
-                className="input mt-1 w-full"
-              />
-            </label>
-            <p className="text-xs">
-              This is kept with the session. Without that permission, choose
-              Standard interview: you still get the transcript and feedback.
-            </p>
-          </div>
-        )}
-      </section>
-
       <p className="text-xs leading-relaxed text-muted">
-        Everyone on the call must know this assistant is listening and
-        transcribing it. Follow local law on recording and transcribing calls.
-        Audio is relayed for transcription and discarded; only text is saved.
-        Audio and text are processed by OpenAI to transcribe and write answers.
+        Your interview partner must know this assistant is listening to the call
+        and transcribing it. This is for mock interviews only, so follow local
+        law on recording and transcribing calls. Audio is relayed for
+        transcription and discarded; only text is saved. Audio and text are
+        processed by OpenAI to transcribe and write answers.
       </p>
 
       <section aria-labelledby="ready-h" className="card">
