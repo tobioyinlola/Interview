@@ -275,6 +275,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/job-sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Job Sources
+         * @description The boards jobs are read from, once for everyone: how many, how healthy, which fail.
+         */
+        get: operations["job_sources_api_admin_job_sources_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/marketing": {
         parameters: {
             query?: never;
@@ -637,6 +657,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/worker": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Worker Stats
+         * @description The background queue: what is waiting, how long the oldest has waited, what gave up, and
+         *     how much worker time each kind of task used in the last day (its share of the cost).
+         */
+        get: operations["worker_stats_api_admin_worker_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/worker/tasks/{task_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Worker Retry
+         * @description Give a dead task a fresh set of attempts.
+         */
+        post: operations["worker_retry_api_admin_worker_tasks__task_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/app/releases": {
         parameters: {
             query?: never;
@@ -781,8 +842,10 @@ export interface paths {
         put?: never;
         /**
          * Request Link
-         * @description Email a single-use sign-in link. The answer is the same for every address, so it cannot be
-         *     used to discover which emails have accounts.
+         * @description Email a single-use sign-in link to someone who has an account. An address with no account is
+         *     told so, plainly, and pointed to sign-up: no link is sent and nothing is created. (This does say
+         *     which addresses are registered; the per-address and per-client limits bound how fast it can be
+         *     asked.)
          */
         post: operations["request_link_api_auth_request_link_post"];
         delete?: never;
@@ -2124,7 +2187,8 @@ export interface paths {
         /**
          * Suggest
          * @description Stream an answer outline as server-sent events: delta, skip, done or error. If the client
-         *     disconnects, the stream (and the model call under it) is cancelled.
+         *     disconnects, the stream (and the model call under it) is cancelled. A Standard Interview has
+         *     no real-time answers: transcript, notes and feedback only.
          */
         post: operations["suggest_api_sessions__session_id__suggest_post"];
         delete?: never;
@@ -3388,6 +3452,44 @@ export interface components {
             /** Step Detail */
             step_detail: string;
         };
+        /** JobSourceRow */
+        JobSourceRow: {
+            /** Board */
+            board: string;
+            /** Company */
+            company: string | null;
+            /** Every Minutes */
+            every_minutes: number;
+            /** Health */
+            health: string;
+            /** Jobs Listed */
+            jobs_listed: number;
+            /** Kind */
+            kind: string;
+            /** Last Error */
+            last_error: string | null;
+            /** Last Synced At */
+            last_synced_at: string | null;
+        };
+        /** JobSourcesOut */
+        JobSourcesOut: {
+            /** By Health */
+            by_health: {
+                [key: string]: number;
+            };
+            /** By Kind */
+            by_kind: {
+                [key: string]: number;
+            };
+            /** Failing */
+            failing: components["schemas"]["JobSourceRow"][];
+            /** Jobs Listed */
+            jobs_listed: number;
+            /** Mode */
+            mode: string;
+            /** Total */
+            total: number;
+        };
         /** JobUrlIn */
         JobUrlIn: {
             /** Url */
@@ -4036,12 +4138,25 @@ export interface components {
         };
         /** SessionCreateIn */
         SessionCreateIn: {
+            /**
+             * Assist Authorized
+             * @default false
+             */
+            assist_authorized: boolean;
+            /** Assist Authorized By */
+            assist_authorized_by?: string | null;
             /** Company Id */
             company_id?: string | null;
             /** Consent */
             consent?: boolean | null;
             /** Interview Id */
             interview_id?: string | null;
+            /**
+             * Mode
+             * @default mock
+             * @enum {string}
+             */
+            mode: "mock" | "assisted" | "standard";
             /** Role */
             role?: string | null;
         };
@@ -4054,6 +4169,11 @@ export interface components {
              * Format: date-time
              */
             consent_confirmed_at: string;
+            /**
+             * Mode
+             * @default mock
+             */
+            mode: string;
             /**
              * Sample Rate
              * @default 24000
@@ -4069,6 +4189,8 @@ export interface components {
         };
         /** SessionDetailOut */
         SessionDetailOut: {
+            /** Assist Authorized By */
+            assist_authorized_by?: string | null;
             /** Company Id */
             company_id: string | null;
             /**
@@ -4085,6 +4207,11 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /**
+             * Mode
+             * @default mock
+             */
+            mode: string;
             /** Role */
             role: string;
             /** Scores */
@@ -4719,6 +4846,52 @@ export interface components {
             /** Token */
             token: string;
         };
+        /** WorkerDeadOut */
+        WorkerDeadOut: {
+            /** Attempts */
+            attempts: number;
+            /** Error Class */
+            error_class: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Last Error */
+            last_error: string | null;
+        };
+        /** WorkerKindOut */
+        WorkerKindOut: {
+            /** Dead */
+            dead: number;
+            /** Kind */
+            kind: string;
+            /** Queued */
+            queued: number;
+            /** Run Seconds */
+            run_seconds: number;
+            /** Tasks */
+            tasks: number;
+        };
+        /** WorkerOut */
+        WorkerOut: {
+            /** By Status */
+            by_status: {
+                [key: string]: number;
+            };
+            /** Dead */
+            dead: components["schemas"]["WorkerDeadOut"][];
+            /** Kinds */
+            kinds: components["schemas"]["WorkerKindOut"][];
+            /** Mode */
+            mode: string;
+            /** Oldest Due Seconds */
+            oldest_due_seconds: number;
+        };
         /** StatusOut */
         app__autoapply__schemas__StatusOut: {
             campaign: components["schemas"]["CampaignOut"];
@@ -5153,6 +5326,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    job_sources_api_admin_job_sources_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobSourcesOut"];
                 };
             };
         };
@@ -5784,6 +5977,59 @@ export interface operations {
             };
         };
     };
+    worker_stats_api_admin_worker_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkerOut"];
+                };
+            };
+        };
+    };
+    worker_retry_api_admin_worker_tasks__task_id__retry_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     app_releases_api_app_releases_get: {
         parameters: {
             query?: never;
@@ -5879,6 +6125,7 @@ export interface operations {
                 utm_campaign?: string | null;
                 app?: string | null;
                 challenge?: string | null;
+                mode?: string | null;
             };
             header?: never;
             path?: never;

@@ -131,7 +131,9 @@ describe("SessionSetupPage", () => {
     expect(
       await screen.findByText(/must know this assistant is listening/),
     ).toBeInTheDocument();
-    expect(screen.getByText(/mock interviews only/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/must know this assistant is listening/i),
+    ).toBeInTheDocument();
     expect(screen.getByText(/follow local law/i)).toBeInTheDocument();
     expect(screen.getByText(/processed by OpenAI/)).toBeInTheDocument();
   });
@@ -163,6 +165,7 @@ describe("SessionSetupPage", () => {
     expect(post.body).toEqual({
       company_id: "c1",
       role: "Product Manager",
+      mode: "mock",
     });
     expect(post.headers.get("idempotency-key")).toMatch(/^[0-9a-f-]{36}$/);
     expect(post.headers.get("x-requested-with")).toBe("meet-practice");
@@ -376,6 +379,52 @@ describe("SessionSetupPage: session credits", () => {
     await userEvent.click(start());
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "You have used your free session.",
+    );
+  });
+});
+
+describe("SessionSetupPage: interview modes", () => {
+  it("asks for the authorisation before live assistance can start, and sends who gave it", async () => {
+    const calls = mockApi(
+      base({
+        "POST /api/sessions": () => ({
+          status: 201,
+          json: {
+            session_id: "s1",
+            status: "active",
+            consent_confirmed_at: "2026-11-26T00:00:00Z",
+            mode: "assisted",
+            audio_token: "t",
+            sample_rate: 24000,
+          },
+        }),
+      }),
+    );
+    renderApp(<App />, "/session/new");
+    await screen.findByRole("option", { name: "Acme" });
+    await userEvent.selectOptions(screen.getByLabelText(/Which company/), "c1");
+    await userEvent.click(
+      screen.getByRole("radio", { name: /Authorised live assistance/ }),
+    );
+    expect(start()).toBeDisabled();
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: /may use real-time assistance/ }),
+    );
+    expect(start()).toBeDisabled();
+    await userEvent.type(
+      screen.getByLabelText(/Who said so/),
+      "Jo, recruiter at Acme, by email",
+    );
+    expect(start()).toBeEnabled();
+    await userEvent.click(start());
+    await waitFor(() =>
+      expect(calls.find((c) => c.key === "POST /api/sessions")?.body).toEqual({
+        company_id: "c1",
+        role: "Product Manager",
+        mode: "assisted",
+        assist_authorized: true,
+        assist_authorized_by: "Jo, recruiter at Acme, by email",
+      }),
     );
   });
 });

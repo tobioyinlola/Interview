@@ -106,6 +106,55 @@ async def _recheck_stale(db: AsyncSession, ctx: pipeline.Context) -> None:
         await pipeline.reevaluate_open(db, ctx)
 
 
+async def prepare_user(
+    maker: async_sessionmaker[AsyncSession],
+    user_id: uuid.UUID,
+    now: datetime,
+    *,
+    sources: list[DiscoveryAdapter],
+    adapters: outbox.Adapters,
+    llm: LlmProvider,
+) -> None:
+    """Find and match jobs, and plan follow-up notes: reading, no sending."""
+    s = adapters.settings
+    central = s.autoapply_discovery_mode == "central"
+    async with maker() as db:
+        await discovery.run_if_due(
+            db,
+            user_id,
+            now=now,
+            # central: the worker has already read the boards for everyone; only the fixture
+            # (local and staging) is still read per person
+            sources=[x for x in sources if x.name == "fixture"] if central else sources,
+            llm=llm,
+            form=adapters.form,
+            stored=(s.discovery_lookback_days, s.discovery_max_per_run) if central else None,
+        )
+        camp = await campaign.current(db, user_id)
+        prof = await campaign.get_profile(db, user_id)
+        if camp is not None and prof is not None and camp.status == "active":
+            ctx = await pipeline.load_context(
+                db, user_id, camp, prof, llm=llm, form=adapters.form, now=now
+            )
+            await _recheck_stale(db, ctx)
+            await pipeline.prepare_waiting(db, ctx)  # the best waiting matches, as room frees
+        await plan_outreach(db, user_id, now)
+
+
+async def send_user(
+    maker: async_sessionmaker[AsyncSession],
+    user_id: uuid.UUID,
+    now: datetime,
+    *,
+    adapters: outbox.Adapters,
+) -> None:
+    """Send what is approved and due: applications (forms, email) and hiring notes. Every send is
+    claimed in the submission log first, so running this twice never sends twice."""
+    await outbox.dispatch_user(maker, user_id, adapters, now)
+    while await outreach.send_next(maker, user_id, adapters, now) == "confirmed":
+        pass
+
+
 async def run_user(
     maker: async_sessionmaker[AsyncSession],
     user_id: uuid.UUID,
@@ -115,21 +164,8 @@ async def run_user(
     adapters: outbox.Adapters,
     llm: LlmProvider,
 ) -> None:
-    async with maker() as db:
-        await discovery.run_if_due(
-            db, user_id, now=now, sources=sources, llm=llm, form=adapters.form
-        )
-        camp = await campaign.current(db, user_id)
-        prof = await campaign.get_profile(db, user_id)
-        if camp is not None and prof is not None and camp.status == "active":
-            ctx = await pipeline.load_context(
-                db, user_id, camp, prof, llm=llm, form=adapters.form, now=now
-            )
-            await _recheck_stale(db, ctx)
-        await plan_outreach(db, user_id, now)
-    await outbox.dispatch_user(maker, user_id, adapters, now)
-    while await outreach.send_next(maker, user_id, adapters, now) == "confirmed":
-        pass
+    await prepare_user(maker, user_id, now, sources=sources, adapters=adapters, llm=llm)
+    await send_user(maker, user_id, now, adapters=adapters)
 
 
 async def observe(maker: async_sessionmaker[AsyncSession], now: datetime) -> None:

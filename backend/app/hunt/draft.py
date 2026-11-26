@@ -48,6 +48,15 @@ _BAD = (
     "dear hiring",
     "to whom it may",
 )
+# A first note never needs a link, an email address or a phone number, and a web page the model read
+# could talk it into adding one (to a look-alike site, say) that would then go out from the person's
+# own address. So a note holding one is rejected and written again.
+_LINKISH = re.compile(
+    r"https?://|\bwww\.|[\w.+-]+@[\w-]+\.[a-z]{2,}|"
+    r"\b[\w-]+\.(?:com|io|co|ai|app|dev|net|org|xyz|me|ly|so|to|sh|gg|cc|biz|info|link|click|top)\b|"
+    r"\+?\d[\d\s().-]{8,}\d",
+    re.IGNORECASE,
+)
 _PLACEHOLDER = re.compile(r"[\[\]{}<>]|your name|company name", re.IGNORECASE)
 
 
@@ -77,7 +86,11 @@ def _facts_text(facts: dict[str, Any] | None, pitch: str, startup: Startup) -> s
 def grounded(body: str, allowed_text: str) -> bool:
     """Every number in the note must exist in the facts it was given."""
     pool = set(_NUMBER.findall(allowed_text))
-    return all(n in pool for n in _NUMBER.findall(body)) and len(body.split()) <= MAX_WORDS
+    return (
+        all(n in pool for n in _NUMBER.findall(body))
+        and len(body.split()) <= MAX_WORDS
+        and not _LINKISH.search(body)
+    )
 
 
 def problem(body: str, allowed_text: str) -> str | None:
@@ -90,6 +103,8 @@ def problem(body: str, allowed_text: str) -> str | None:
         return f"It is too long ({n} words). Keep it under 100 words."
     if _PLACEHOLDER.search(body):
         return "It contains a placeholder or brackets. Write real sentences only."
+    if _LINKISH.search(body):
+        return "It contains a link, an email address or a phone number. Remove it."
     if any(b in low for b in _BAD):
         return "It uses a stock phrase. Start straight with who the person is."
     if re.match(r"\s*(hi|hello|dear|hey)\b", low):

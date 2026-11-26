@@ -51,6 +51,7 @@ log = logging.getLogger("app.auth")
 router = APIRouter(prefix="/api", tags=["auth"])
 REF_COOKIE = "invite_code"
 UTM_COOKIE = "utm_tags"
+MODE_COOKIE = "oauth_mode"  # signin: only existing accounts; signup: may create one
 APP_COOKIE = "oauth_app"  # an installed app started this sign-in; holds the app's challenge
 APP_SCHEME = "interviewmeet"  # the address the system browser hands the result to
 CHALLENGE = re.compile(r"^[A-Za-z0-9_-]{43}$")  # base64url of a SHA-256 hash
@@ -155,14 +156,23 @@ async def request_link(
     settings: Settings = Depends(get_settings),  # noqa: B008
     sender: EmailSender = Depends(get_email_sender),  # noqa: B008
 ) -> StatusOut:
-    """Email a single-use sign-in link. The answer is the same for every address, so it cannot be
-    used to discover which emails have accounts."""
+    """Email a single-use sign-in link to someone who has an account. An address with no account is
+    told so, plainly, and pointed to sign-up: no link is sent and nothing is created. (This does say
+    which addresses are registered; the per-address and per-client limits bound how fast it can be
+    asked.)"""
     email = body.email.lower().strip()
     repo = AuthRepo(db, settings.cookie_secret.get_secret_value())
     if await repo.recent_login_requests(email, within=timedelta(hours=1)) >= (
         settings.login_requests_per_hour
     ):
         raise ApiError(429, "rate_limited", "Too many sign-in requests. Try again later.")
+    known = await repo.find_user(email)
+    if known is None and not settings.open_link_signup:
+        raise ApiError(
+            404,
+            "not_registered",
+            "You're not registered on InterviewMeet yet. Please sign up first.",
+        )
     ttl = settings.login_link_ttl_minutes
     token = await repo.create_login_token(
         email,
@@ -172,7 +182,6 @@ async def request_link(
         attribution=_attribution("email_link", body.utm),
         app_challenge=body.app_challenge,
     )
-    known = await repo.find_user(email)
     link = f"{settings.web_origin}/login/verify?token={token}"
     message = emails.sign_in_link(
         email_brand(settings), email, known.full_name if known else None, link, ttl
@@ -475,6 +484,7 @@ async def google_start(
     utm_campaign: str | None = None,
     app: str | None = None,
     challenge: str | None = None,
+    mode: str | None = None,
     settings: Settings = Depends(get_settings),  # noqa: B008
     google: GoogleOAuth = Depends(get_google),  # noqa: B008
 ) -> RedirectResponse:
@@ -492,6 +502,16 @@ async def google_start(
         httponly=True,
         secure=settings.environment != "local",
         samesite="lax",  # sent on the top-level redirect back from Google
+        path=STATE_COOKIE_PATH,
+    )
+    # Only the sign-up page may create an account through Google; anything else only signs in
+    response.set_cookie(
+        MODE_COOKIE,
+        "signup" if mode == "signup" else "signin",
+        max_age=600,
+        httponly=True,
+        secure=settings.environment != "local",
+        samesite="lax",
         path=STATE_COOKIE_PATH,
     )
     if app == "1" and challenge:  # an installed app is waiting: remember to hand back to it
@@ -548,7 +568,7 @@ async def google_callback(
         app_challenge = None
 
     def clear(r: Response) -> None:
-        for name in (STATE_COOKIE, REF_COOKIE, UTM_COOKIE, APP_COOKIE):
+        for name in (STATE_COOKIE, REF_COOKIE, UTM_COOKIE, APP_COOKIE, MODE_COOKIE):
             r.delete_cookie(name, path=STATE_COOKIE_PATH)
 
     def back(path: str) -> Response:
@@ -574,6 +594,13 @@ async def google_callback(
         return back("/login?error=google_failed")
     repo = AuthRepo(db, settings.cookie_secret.get_secret_value())
     existed = await repo.find_user(identity.email) is not None
+    if (
+        not existed
+        and request.cookies.get(MODE_COOKIE) != "signup"
+        and not settings.open_link_signup
+    ):
+        # signing in is for people who have an account: send them to sign up, create nothing
+        return back("/login?error=not_registered")
     here = observe_device(request, None, settings)  # the cookie was given at the start
     parts = (request.cookies.get(UTM_COOKIE) or "").split("|")[:3]
     parts += [""] * (3 - len(parts))

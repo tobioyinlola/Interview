@@ -395,7 +395,8 @@ async def send_next(
         chosen.status, chosen.claimed_at = "sending", now
         chosen.message_id = outbox.message_id(f"hunt:{chosen.id}:{chosen.step}")
         token = mailbox.token(settings, conn)
-        sender, subject, body, mid = conn.address, chosen.subject, chosen.body, chosen.message_id
+        sender, body, mid = conn.address, chosen.body, chosen.message_id
+        subject = " ".join(chosen.subject.split())  # never a line break in a header
         tid = chosen.id
         cv_text = ((await NotesRepo(db, user_id).get()) or Note()).content or ""
         sign = st.sender_name

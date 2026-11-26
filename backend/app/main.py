@@ -79,9 +79,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     scorer.notifier = notifier
     await purge_old_events(get_sessionmaker(), settings.event_retention_days)
     autoapply_task: asyncio.Task[None] | None = None
+    # BACKGROUND_MODE=worker: the unified worker service (app/workers/main.py) does this instead
     if (
-        settings.autoapply_enabled or settings.startup_outreach_enabled
-    ) and settings.autoapply_tick_seconds > 0:
+        (settings.autoapply_enabled or settings.startup_outreach_enabled)
+        and settings.autoapply_tick_seconds > 0
+        and settings.background_mode != "worker"
+    ):
         autoapply_task = asyncio.create_task(start_autoapply(settings))
 
     await scorer.fail_interrupted()

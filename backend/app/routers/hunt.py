@@ -328,7 +328,8 @@ async def edit_target(
     t = await _mine(db, user.id, tid)
     if t.status != "drafted":
         raise ApiError(409, "locked", "Only a note that has not been approved can be edited.")
-    t.subject, t.body = body.subject.strip(), body.body.strip()
+    # a subject is one line: a line break in a header is how mail gets forged
+    t.subject, t.body = " ".join(body.subject.split()), body.body.strip()
     await db.commit()
     return await _target_out(db, t)
 

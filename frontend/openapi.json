@@ -3186,6 +3186,123 @@
         "title": "JobOut",
         "type": "object"
       },
+      "JobSourceRow": {
+        "properties": {
+          "board": {
+            "title": "Board",
+            "type": "string"
+          },
+          "company": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company"
+          },
+          "every_minutes": {
+            "title": "Every Minutes",
+            "type": "integer"
+          },
+          "health": {
+            "title": "Health",
+            "type": "string"
+          },
+          "jobs_listed": {
+            "title": "Jobs Listed",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "last_synced_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Synced At"
+          }
+        },
+        "required": [
+          "kind",
+          "board",
+          "company",
+          "health",
+          "jobs_listed",
+          "every_minutes",
+          "last_synced_at",
+          "last_error"
+        ],
+        "title": "JobSourceRow",
+        "type": "object"
+      },
+      "JobSourcesOut": {
+        "properties": {
+          "by_health": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Health",
+            "type": "object"
+          },
+          "by_kind": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Kind",
+            "type": "object"
+          },
+          "failing": {
+            "items": {
+              "$ref": "#/components/schemas/JobSourceRow"
+            },
+            "title": "Failing",
+            "type": "array"
+          },
+          "jobs_listed": {
+            "title": "Jobs Listed",
+            "type": "integer"
+          },
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "mode",
+          "total",
+          "by_kind",
+          "by_health",
+          "jobs_listed",
+          "failing"
+        ],
+        "title": "JobSourcesOut",
+        "type": "object"
+      },
       "JobUrlIn": {
         "properties": {
           "url": {
@@ -5187,6 +5304,23 @@
       },
       "SessionCreateIn": {
         "properties": {
+          "assist_authorized": {
+            "default": false,
+            "title": "Assist Authorized",
+            "type": "boolean"
+          },
+          "assist_authorized_by": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assist Authorized By"
+          },
           "company_id": {
             "anyOf": [
               {
@@ -5222,6 +5356,16 @@
             ],
             "title": "Interview Id"
           },
+          "mode": {
+            "default": "mock",
+            "enum": [
+              "mock",
+              "assisted",
+              "standard"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
           "role": {
             "anyOf": [
               {
@@ -5256,6 +5400,11 @@
             "title": "Consent Confirmed At",
             "type": "string"
           },
+          "mode": {
+            "default": "mock",
+            "title": "Mode",
+            "type": "string"
+          },
           "sample_rate": {
             "default": 24000,
             "title": "Sample Rate",
@@ -5281,6 +5430,17 @@
       },
       "SessionDetailOut": {
         "properties": {
+          "assist_authorized_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assist Authorized By"
+          },
           "company_id": {
             "anyOf": [
               {
@@ -5320,6 +5480,11 @@
           "id": {
             "format": "uuid",
             "title": "Id",
+            "type": "string"
+          },
+          "mode": {
+            "default": "mock",
+            "title": "Mode",
             "type": "string"
           },
           "role": {
@@ -7032,6 +7197,142 @@
         "title": "VerifyIn",
         "type": "object"
       },
+      "WorkerDeadOut": {
+        "properties": {
+          "attempts": {
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "error_class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Class"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "attempts",
+          "error_class",
+          "last_error",
+          "finished_at"
+        ],
+        "title": "WorkerDeadOut",
+        "type": "object"
+      },
+      "WorkerKindOut": {
+        "properties": {
+          "dead": {
+            "title": "Dead",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "queued": {
+            "title": "Queued",
+            "type": "integer"
+          },
+          "run_seconds": {
+            "title": "Run Seconds",
+            "type": "number"
+          },
+          "tasks": {
+            "title": "Tasks",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "tasks",
+          "run_seconds",
+          "dead",
+          "queued"
+        ],
+        "title": "WorkerKindOut",
+        "type": "object"
+      },
+      "WorkerOut": {
+        "properties": {
+          "by_status": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Status",
+            "type": "object"
+          },
+          "dead": {
+            "items": {
+              "$ref": "#/components/schemas/WorkerDeadOut"
+            },
+            "title": "Dead",
+            "type": "array"
+          },
+          "kinds": {
+            "items": {
+              "$ref": "#/components/schemas/WorkerKindOut"
+            },
+            "title": "Kinds",
+            "type": "array"
+          },
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "oldest_due_seconds": {
+            "title": "Oldest Due Seconds",
+            "type": "number"
+          }
+        },
+        "required": [
+          "mode",
+          "by_status",
+          "oldest_due_seconds",
+          "kinds",
+          "dead"
+        ],
+        "title": "WorkerOut",
+        "type": "object"
+      },
       "app__autoapply__schemas__StatusOut": {
         "properties": {
           "campaign": {
@@ -7795,6 +8096,28 @@
           }
         },
         "summary": "Email Template Preview",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/job-sources": {
+      "get": {
+        "description": "The boards jobs are read from, once for everyone: how many, how healthy, which fail.",
+        "operationId": "job_sources_api_admin_job_sources_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobSourcesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Job Sources",
         "tags": [
           "admin"
         ]
@@ -8790,6 +9113,76 @@
         ]
       }
     },
+    "/api/admin/worker": {
+      "get": {
+        "description": "The background queue: what is waiting, how long the oldest has waited, what gave up, and\nhow much worker time each kind of task used in the last day (its share of the cost).",
+        "operationId": "worker_stats_api_admin_worker_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Worker Stats",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/worker/tasks/{task_id}/retry": {
+      "post": {
+        "description": "Give a dead task a fresh set of attempts.",
+        "operationId": "worker_retry_api_admin_worker_tasks__task_id__retry_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Worker Retry Api Admin Worker Tasks  Task Id  Retry Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Worker Retry",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/app/releases": {
       "get": {
         "description": "The newest downloadable version of each app. Public: the same list as the releases page.",
@@ -9033,6 +9426,22 @@
               ],
               "title": "Challenge"
             }
+          },
+          {
+            "in": "query",
+            "name": "mode",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Mode"
+            }
           }
         ],
         "responses": {
@@ -9147,7 +9556,7 @@
     },
     "/api/auth/request-link": {
       "post": {
-        "description": "Email a single-use sign-in link. The answer is the same for every address, so it cannot be\nused to discover which emails have accounts.",
+        "description": "Email a single-use sign-in link to someone who has an account. An address with no account is\ntold so, plainly, and pointed to sign-up: no link is sent and nothing is created. (This does say\nwhich addresses are registered; the per-address and per-client limits bound how fast it can be\nasked.)",
         "operationId": "request_link_api_auth_request_link_post",
         "requestBody": {
           "content": {
@@ -12294,7 +12703,7 @@
     },
     "/api/sessions/{session_id}/suggest": {
       "post": {
-        "description": "Stream an answer outline as server-sent events: delta, skip, done or error. If the client\ndisconnects, the stream (and the model call under it) is cancelled.",
+        "description": "Stream an answer outline as server-sent events: delta, skip, done or error. If the client\ndisconnects, the stream (and the model call under it) is cancelled. A Standard Interview has\nno real-time answers: transcript, notes and feedback only.",
         "operationId": "suggest_api_sessions__session_id__suggest_post",
         "parameters": [
           {

@@ -1478,6 +1478,7 @@ describe("starting an interview from Auto-Apply", () => {
     await waitFor(() =>
       expect(calls.find((c) => c.key === "POST /api/sessions")?.body).toEqual({
         interview_id: "i1",
+        mode: "mock",
       }),
     );
   });

@@ -101,6 +101,9 @@ class Settings(BaseSettings):
     # tied to sessions. Set ENFORCE_SESSION_CREDITS=true to bring the free trial, invite and
     # paid credits back.
     enforce_session_credits: bool = False
+    # Off: an emailed link or Google only signs in people who already have an account, and everyone
+    # else is told to sign up. On: they create one (the old behaviour; the test suite uses it).
+    open_link_signup: bool = False
     dev_log_email_links: bool = False
     resend_api_key: SecretStr = SecretStr("")  # sends the sign-in email
     email_from: str = ""  # e.g. "Meet Practice <login@yourdomain.com>", a Resend-verified domain
@@ -162,6 +165,22 @@ class Settings(BaseSettings):
         ""  # JSON list of listings for the fixture source (not production)
     )
     autoapply_allowed_recipients: str = ""  # comma-separated; set outside production to test sends
+    # "per_candidate": each person's daily run reads every source itself (the original way).
+    # "central": the worker reads each board once for everyone (aa_job_sources) and each person is
+    # matched against the stored jobs. Needs BACKGROUND_MODE=worker.
+    autoapply_discovery_mode: str = "per_candidate"
+    # The weighted fit score (autoapply/fit.py), after every hard requirement has passed. Off until
+    # it is calibrated on real profiles: then jobs below REVIEW are skipped and those between REVIEW
+    # and AUTO wait for the person.
+    # Prepare (tailor the CV, write the note: model calls) at most this many days' worth of
+    # applications ahead of sending; other matches wait as 'eligible'. 0 prepares every match.
+    autoapply_prepare_ahead: int = 2
+    autoapply_fit_scoring: bool = False
+    autoapply_fit_weights: str = ""  # e.g. "skills=30,experience=25,role=20,..."
+    autoapply_fit_auto: float = 85.0
+    autoapply_fit_review: float = 70.0
+    discovery_lookback_days: int = 30  # a first run looks back this far through stored jobs
+    discovery_max_per_run: int = 3000  # most jobs one person's run looks at
     autoapply_tick_seconds: int = 60  # how often the scheduler looks for work (0 = never)
     # How many people the scheduler works on at once. Each needs a database connection for a moment,
     # so keep this well under DB_POOL_SIZE.
@@ -169,6 +188,25 @@ class Settings(BaseSettings):
     # Spread the work: with N shards each person is handled on every Nth pass (a pass is one tick),
     # so a tick stays short however many people there are. 1 = everyone on every pass.
     autoapply_shards: int = 1
+    # Where background work runs. "api": inside the API process, as before (the rollback path).
+    # "worker": the API only answers requests; `python -m app.workers.main` runs everything in the
+    # background through the durable queue, as one separate service.
+    background_mode: str = "api"
+    # The unified worker. Start small and raise only after measuring (see docs/worker.md).
+    worker_max_concurrent_tasks: int = 5
+    worker_max_browser_sessions: int = 1
+    worker_max_ai_requests: int = 2
+    worker_max_document_tasks: int = 1
+    worker_max_http_tasks: int = 5
+    worker_max_email_tasks: int = 3
+    worker_poll_seconds: float = 2.0  # how often an idle worker looks for work (backs off to 15 s)
+    worker_lease_seconds: int = 90  # a claim not renewed for this long was abandoned
+    worker_aging_seconds: int = 300  # every 5 minutes of waiting moves a task one priority up
+    # Heavy work (browser, documents, AI) waits while the worker is short of memory or CPU.
+    worker_memory_high_fraction: float = 0.8
+    worker_load_high_per_cpu: float = 1.5
+    # Priorities by task kind ("kind=number,..."); lower runs first. Empty: the built-in defaults.
+    worker_priorities: str = ""
     # A mailbox is read for replies this often, and at most this many per pass.
     mailbox_sync_minutes: int = 5
     mailbox_sync_batch: int = 500

@@ -11,6 +11,8 @@ import {
   Table,
   num,
 } from "./ui";
+import { JobSourcesPanel } from "./JobSourcesPanel";
+import { WorkerPanel } from "./WorkerPanel";
 
 const SWITCHES: [string, string][] = [
   ["global", "Stop all new sends"],
@@ -185,6 +187,8 @@ export function AutoApplyAdminPage() {
           .
         </p>
       </section>
+      <JobSourcesPanel />
+      <WorkerPanel />
     </div>
   );
 }

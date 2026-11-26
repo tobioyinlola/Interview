@@ -47,3 +47,68 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
 }
+
+// MARK: - Private screens
+
+/// Registers the app's own plugins with Capacitor (the storyboard uses this controller).
+class MainViewController: CAPBridgeViewController {
+    override open func capacitorDidLoad() {
+        bridge?.registerPluginInstance(PrivacyPlugin())
+    }
+}
+
+/// iOS cannot block screenshots or keep part of a screen out of a recording, and this does not try.
+/// It uses only what iOS documents: it tells the page when the screen starts or stops being recorded
+/// or mirrored (UIScreen.capturedDidChangeNotification), so private screens can hide their content,
+/// and while a private screen is open it covers the app-switcher preview with a blur.
+@objc(PrivacyPlugin)
+public class PrivacyPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "PrivacyPlugin"
+    public let jsName = "Privacy"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "setProtected", returnType: CAPPluginReturnPromise)
+    ]
+    private var isProtected = false
+    private var cover: UIView?
+
+    override public func load() {
+        let center = NotificationCenter.default
+        center.addObserver(self, selector: #selector(captureChanged),
+                           name: UIScreen.capturedDidChangeNotification, object: nil)
+        center.addObserver(self, selector: #selector(willResignActive),
+                           name: UIApplication.willResignActiveNotification, object: nil)
+        center.addObserver(self, selector: #selector(didBecomeActive),
+                           name: UIApplication.didBecomeActiveNotification, object: nil)
+    }
+
+    @objc func setProtected(_ call: CAPPluginCall) {
+        isProtected = call.getBool("on") ?? false
+        DispatchQueue.main.async {
+            self.sendCaptureState()
+            call.resolve(["active": self.isProtected])
+        }
+    }
+
+    @objc private func captureChanged() {
+        DispatchQueue.main.async { self.sendCaptureState() }
+    }
+
+    private func sendCaptureState() {
+        let screen = bridge?.viewController?.view.window?.windowScene?.screen ?? UIScreen.main
+        notifyListeners("captureChanged", data: ["captured": screen.isCaptured])
+    }
+
+    @objc private func willResignActive() {
+        guard isProtected, cover == nil, let window = bridge?.viewController?.view.window else { return }
+        let blur = UIVisualEffectView(effect: UIBlurEffect(style: .systemMaterial))
+        blur.frame = window.bounds
+        blur.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        window.addSubview(blur)
+        cover = blur
+    }
+
+    @objc private func didBecomeActive() {
+        cover?.removeFromSuperview()
+        cover = nil
+    }
+}

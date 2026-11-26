@@ -25,6 +25,7 @@ import { BrowserNotice } from "./BrowserNotice";
 import { currentEnv, isSupported } from "./browserSupport";
 import { Layout } from "./Layout";
 import { AccessToast } from "../features/startups/AccessToast";
+import { watchCapture } from "./privacy";
 import { AppReturnPage } from "../features/auth/AppReturnPage";
 import { VerifiedToast } from "../features/auth/VerifiedToast";
 import { Splash } from "../features/splash/Splash";
@@ -161,6 +162,7 @@ function SupportedBrowser() {
 export function App() {
   // a new copy of the interface that gets this far is a good one; without this the phone app goes
   // back to the last good copy (see liveUpdate.ts)
+  useEffect(() => watchCapture(), []); // iPhone: hide private screens while recorded or mirrored
   useEffect(() => {
     const t = setTimeout(() => void confirmReady(), 1500);
     return () => clearTimeout(t);

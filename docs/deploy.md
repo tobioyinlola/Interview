@@ -146,6 +146,8 @@ Scrape `https://<api>/metrics` with `Authorization: Bearer <METRICS_TOKEN>` and 
 
 What the code already does, and the settings that matter.
 
+- **Background work belongs in the unified worker** (`docs/worker.md`): one extra service,
+  `python -m app.workers.main`, with `BACKGROUND_MODE=worker` on it and on the API.
 - **One scheduler, any number of replicas.** Every API replica starts the Auto-Apply and startup
   outreach loop, but a Postgres advisory lock (`LEADER_LOCK` in `autoapply/scheduler.py`) lets only one
   work at a time. If it dies its connection closes and another replica takes over. Scale the API by

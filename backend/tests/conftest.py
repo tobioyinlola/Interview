@@ -74,6 +74,7 @@ def settings() -> Settings:
         database_url=TEST_DB,
         cookie_secret="test-secret",
         enforce_session_credits=False,  # billing tests turn it on
+        open_link_signup=True,  # most tests make accounts with an emailed link; see test_registration
         mailbox_sync_minutes=0,  # tests tick repeatedly; every tick may read a mailbox
     )
 
@@ -173,7 +174,16 @@ def new_client(app) -> Callable[[], httpx.AsyncClient]:
 def sign_in(sender):
     async def _sign_in(client: httpx.AsyncClient, email: str) -> httpx.Response:
         r = await client.post("/api/auth/request-link", json={"email": email})
-        assert r.status_code == 202
+        if r.status_code == 404:  # no account yet: sign-in links are for existing accounts only
+            r = await client.post(
+                "/api/auth/signup",
+                json={
+                    "email": email,
+                    "password": "Correct-horse-9battery",
+                    "full_name": "Test Person",
+                },
+            )
+        assert r.status_code == 202, r.text
         v = await client.post("/api/auth/verify", json={"token": sender.token_for(email)})
         assert v.status_code == 200, v.text
         return v

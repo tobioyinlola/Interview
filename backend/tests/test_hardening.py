@@ -3,7 +3,7 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 
-from app.config import Settings
+from app.config import Settings, get_settings
 from app.hardening import RateLimiter, assert_safe, validate_settings
 from app.main import create_app
 from tests.conftest import TEST_DB
@@ -95,10 +95,13 @@ async def fresh_global_engine(monkeypatch, engine):  # `engine` gives a clean sc
 
 
 def make_client(monkeypatch, **over) -> httpx.AsyncClient:
-    settings = Settings(**{"environment": "local", "database_url": TEST_DB, **over})  # type: ignore[arg-type]
+    settings = Settings(  # type: ignore[arg-type]
+        **{"environment": "local", "database_url": TEST_DB, "open_link_signup": True, **over}
+    )
     monkeypatch.setattr("app.main.get_settings", lambda: settings)
     monkeypatch.setattr("app.db.get_settings", lambda: settings)  # the engine reads it here
     app = create_app()
+    app.dependency_overrides[get_settings] = lambda: settings  # the routes see the same settings
     return httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app),
         base_url="http://test",

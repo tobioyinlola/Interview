@@ -391,20 +391,28 @@ export function useCreateSession() {
       role,
       key,
       interviewId,
+      mode = "mock",
+      authorizedBy,
     }: {
       companyId: string | null;
       role?: string;
       key: string;
       interviewId?: string;
+      mode?: "mock" | "assisted" | "standard";
+      authorizedBy?: string;
     }) =>
       apiFetch<SessionCreated>("/api/sessions", {
         method: "POST",
         // Consent was agreed once, at sign-up; the server checks that it is on record.
-        body: json(
-          interviewId
+        body: json({
+          ...(interviewId
             ? { interview_id: interviewId }
-            : { company_id: companyId, role },
-        ),
+            : { company_id: companyId, role }),
+          mode,
+          ...(mode === "assisted"
+            ? { assist_authorized: true, assist_authorized_by: authorizedBy }
+            : {}),
+        }),
         headers: { "idempotency-key": key },
       }),
   });

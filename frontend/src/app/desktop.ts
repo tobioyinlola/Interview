@@ -6,6 +6,11 @@ interface DesktopBridge {
   systemAudio: boolean;
   /** Opens an address in the person's normal browser (used for Google sign-in). */
   openInBrowser?: (url: string) => void;
+  /** Native protection for private screens (see app/privacy.ts). */
+  privacy?: {
+    set: (on: boolean) => Promise<{ active: boolean; reason?: string }>;
+    setLive: (on: boolean) => Promise<void>;
+  };
 }
 
 declare global {

@@ -21,6 +21,7 @@ const {
   parseAuthLink,
   isGoogleStartUrl,
   linkFromArgv,
+  privacyDecision,
 } = require("./policy");
 
 const { siteOrigin, appUrl, appOrigin, packed } = load();
@@ -69,6 +70,25 @@ if (!app.requestSingleInstanceLock()) {
     handleDeepLink(url);
   });
 }
+
+// Private screens (settings, CV, Auto-Apply details, mailbox passwords, the back office) ask for the
+// window's native content protection while they are open. Never during a live interview session.
+let liveSession = false;
+function protectWindow(event, want) {
+  const w = BrowserWindow.fromWebContents(event.sender);
+  const from = event.senderFrame ? event.senderFrame.url : "";
+  const on = privacyDecision(want, liveSession, captureAllowed(from, appOrigin));
+  if (w && !w.isDestroyed()) w.setContentProtection(on);
+  return on;
+}
+ipcMain.handle("im:privacy", (event, want) => ({
+  active: protectWindow(event, want === true),
+  reason: liveSession ? "live-session" : undefined,
+}));
+ipcMain.handle("im:privacy-live", (event, on) => {
+  liveSession = on === true;
+  if (liveSession) protectWindow(event, false);
+});
 
 ipcMain.on("im:open-in-browser", (event, url) => {
   // only the app's own pages may ask, and only for its own Google sign-in address

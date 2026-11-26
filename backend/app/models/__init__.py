@@ -4,6 +4,8 @@ from app.models.tables import (
     AppLoginCode,
     AudioToken,
     AuthSession,
+    BgSchedule,
+    BgTask,
     Campaign,
     CandidateAnswer,
     CandidateFacts,
@@ -19,6 +21,7 @@ from app.models.tables import (
     InterviewLink,
     JobAlias,
     JobPosting,
+    JobSource,
     KillSwitch,
     LoginFailure,
     LoginToken,
@@ -44,6 +47,9 @@ from app.models.tables import (
 )
 
 __all__ = [
+    "JobSource",
+    "BgSchedule",
+    "BgTask",
     "Directory",
     "HuntSettings",
     "HuntTarget",

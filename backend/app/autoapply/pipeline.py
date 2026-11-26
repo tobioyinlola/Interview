@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -43,6 +43,10 @@ class Context:
     llm: LlmProvider
     form: FormAdapter
     now: datetime
+    # how many more applications may be prepared (CV tailored, note written) now; None: no limit.
+    # Preparing costs model calls, so only about two days' worth waits ready to send; the rest of
+    # the matches wait as 'eligible' and the best of them are prepared as room frees up.
+    prepare_room: int | None = None
 
 
 async def load_context(
@@ -66,9 +70,21 @@ async def load_context(
         .scalars()
         .all()
     )
+    ahead = fit_settings().autoapply_prepare_ahead
+    room = None
+    if ahead > 0:
+        ready = (
+            await db.execute(
+                select(func.count())
+                .select_from(Application)
+                .where(Application.user_id == user_id, Application.status == "queued")
+            )
+        ).scalar_one()
+        room = max(0, campaign.daily_application_cap * ahead - int(ready))
     return Context(
-        user_id, campaign, profile, facts, cv or "", {a.field: a for a in answers}, llm, form, now
-    )
+        user_id, campaign, profile, facts, cv or "", {a.field: a for a in answers}, llm, form, now,
+        room,
+    )  # fmt: skip
 
 
 async def log(db: AsyncSession, app: Application, kind: str, **detail: Any) -> None:
@@ -119,6 +135,13 @@ async def get_or_create(
         )
     ).scalar_one()
     return app, created
+
+
+def fit_settings() -> Any:
+    """The fit-score switches (read from the environment; tests swap this out)."""
+    from app.config import get_settings
+
+    return get_settings()
 
 
 def overrides(app: Application) -> set[str]:
@@ -183,6 +206,40 @@ async def process(
         ]
         await log(db, app, "needs_input", rules=[n["field"] for n in app.needs_input])
         return app, "needs_input"
+    s = fit_settings()
+    if s.autoapply_fit_scoring and ctx.facts is not None and ctx.facts.verified_at is not None:
+        from app.autoapply import fit
+
+        result_fit = fit.score(
+            ctx.profile.criteria or {}, ctx.facts.data or {}, posting, result, ctx.now,
+            s.autoapply_fit_weights,
+        )  # fmt: skip
+        app.match = {**app.match, "fit": result_fit.as_dict()}
+        pct = round(result_fit.score)
+        if result_fit.score < s.autoapply_fit_review and "fit" not in approved:
+            app.status, app.needs_input = "skipped", []
+            app.skip_reason = f"A {pct}% fit, below the {s.autoapply_fit_review:.0f}% bar."
+            await log(db, app, "skipped", reason=app.skip_reason)
+            return app, "skipped"
+        if result_fit.score < s.autoapply_fit_auto and "fit" not in approved:
+            app.status = "needs_input"
+            weak = [f.why for f in result_fit.factors if f.known and f.value < 0.6][:2]
+            app.needs_input = [
+                {
+                    "kind": "fit",
+                    "field": "fit",
+                    "question": f"This job is a {pct}% fit. Apply anyway?",
+                    "reason": ("Weaker on: " + "; ".join(weak) + ".") if weak else "",
+                }
+            ]
+            await log(db, app, "needs_input", fit=pct)
+            return app, "needs_input"
+    if ctx.prepare_room is not None and ctx.prepare_room <= 0 and app.status != "queued":
+        # a match, but enough are already prepared: keep it, prepare it when there is room
+        if app.status != "eligible":
+            app.status, app.needs_input, app.skip_reason = "eligible", [], None
+            await log(db, app, "matched")
+        return app, "eligible"
     channel = next(
         c for c in ("form", "email") if c in routes and (ctx.profile.channels or {}).get(c)
     )
@@ -204,9 +261,32 @@ async def process(
         await log(db, app, "needs_input", missing=[m["field"] or m["kind"] for m in missing])
         return app, "needs_input"
     package.freeze(app, built, ctx.now)
+    if ctx.prepare_room is not None:
+        ctx.prepare_room -= 1
     app.status, app.needs_input, app.skip_reason = "queued", [], None
     await log(db, app, "queued", channel=channel)
     return app, "eligible"
+
+
+async def prepare_waiting(db: AsyncSession, ctx: Context) -> int:
+    """Prepare the best-scoring matches that were kept waiting, as far as there is room."""
+    if ctx.prepare_room is None or ctx.prepare_room <= 0:
+        return 0
+    rows = (
+        await db.execute(
+            select(Application, JobPosting)
+            .join(JobPosting, JobPosting.id == Application.posting_id)
+            .where(Application.user_id == ctx.user_id, Application.status == "eligible")
+            .order_by(Application.score.desc(), Application.created_at)
+            .limit(ctx.prepare_room)
+        )
+    ).all()
+    done = 0
+    for app, posting in rows:
+        _, outcome = await process(db, ctx, posting)
+        done += outcome == "eligible" and app.status == "queued"
+    await db.commit()
+    return done
 
 
 async def reevaluate_open(db: AsyncSession, ctx: Context) -> int:

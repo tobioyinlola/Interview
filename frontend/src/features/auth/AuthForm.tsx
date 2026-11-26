@@ -3,7 +3,7 @@ import { startNativeGoogle } from "./nativeGoogle";
 import { type FormEvent, useId, useRef, useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
 
-import { API_BASE_URL } from "../../api/client";
+import { API_BASE_URL, ApiError } from "../../api/client";
 import {
   useLogin,
   useMe,
@@ -21,7 +21,21 @@ const GOOGLE_ERRORS: Record<string, string> = {
     "Google sign-in didn't work. Please try again, or use your email instead.",
   google_cancelled: "Google sign-in was cancelled.",
   google_unavailable: "Google sign-in isn't available right now.",
+  not_registered:
+    "You're not registered on InterviewMeet yet. Please sign up first.",
 };
+
+/** Shown when an address or Google account has no account: say so, and take them to sign-up. */
+function NotRegistered({ text }: { text: string }) {
+  return (
+    <p role="alert" className="notice-error mt-4">
+      {text}{" "}
+      <Link to="/signup" className="font-medium underline">
+        Sign up
+      </Link>
+    </p>
+  );
+}
 
 function GoogleMark() {
   return (
@@ -84,6 +98,12 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const canCreate = nameOk && longEnough && confirm === password && agreed;
   const sent = create.isSuccess || link.isSuccess;
   const failure = (signup ? create.error : login.error) ?? link.error;
+  const unregistered =
+    link.error instanceof ApiError && link.error.code === "not_registered"
+      ? link.error.message
+      : params.get("error") === "not_registered"
+        ? GOOGLE_ERRORS.not_registered
+        : null;
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -110,6 +130,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       return;
     }
     const query = new URLSearchParams();
+    // only the sign-up page may make a new account with Google
+    query.set("mode", signup ? "signup" : "signin");
     if (savedInvite()) query.set("ref", savedInvite()!);
     const utm = savedUtm();
     if (utm?.source) query.set("utm_source", utm.source);
@@ -143,10 +165,14 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
             : "Welcome back. InterviewMeet is for mock interviews with a partner who knows the assistant is on."}
         </p>
 
-        {urlError && (
-          <p role="alert" className="notice-error mt-4">
-            {urlError}
-          </p>
+        {unregistered ? (
+          <NotRegistered text={unregistered} />
+        ) : (
+          urlError && (
+            <p role="alert" className="notice-error mt-4">
+              {urlError}
+            </p>
+          )
         )}
         {!signup && params.get("idle") === "1" && (
           <p role="status" className="notice-info mt-4">
@@ -308,7 +334,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
                     ? "Signing in…"
                     : "Sign in"}
               </button>
-              {failure && (
+              {failure && !unregistered && (
                 <p role="alert" className="text-sm text-red-700">
                   {failure.message}
                 </p>
