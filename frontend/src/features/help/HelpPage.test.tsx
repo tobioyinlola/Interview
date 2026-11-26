@@ -76,7 +76,7 @@ describe("HelpPage", () => {
     expect(screen.getByText(/three friends who sign up/)).toBeInTheDocument();
   });
 
-  it("is reachable from the search and the account menu, not the sidebar", async () => {
+  it("is reachable from the search and Support, not the sidebar or the account menu", async () => {
     open();
     const nav = within(await screen.findByRole("navigation", { name: "Main" }));
     expect(nav.queryByRole("link", { name: "Help" })).toBeNull();
