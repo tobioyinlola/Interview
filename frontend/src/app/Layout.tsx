@@ -248,7 +248,25 @@ export function Layout() {
           <UpdateBanner />
           {/* The top bar on every page: search on the left, the person's account on the right. */}
           <header className="sticky top-0 z-30 flex items-center justify-between gap-3 bg-canvas/85 px-4 py-3 backdrop-blur sm:px-5 lg:rounded-tl-[2rem] lg:px-5">
-            <GlobalSearch />
+            <div className="flex min-w-0 items-center gap-3">
+              {location.pathname !== "/dashboard" && (
+                <button
+                  type="button"
+                  aria-label="Back to the previous page"
+                  title="Back"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface text-ink shadow-card transition-colors hover:bg-accent-soft"
+                  // "default" means this page was opened directly, so there is no earlier page of ours
+                  onClick={() =>
+                    location.key !== "default"
+                      ? navigate(-1)
+                      : navigate("/dashboard")
+                  }
+                >
+                  <ChevronIcon className="h-5 w-5" direction="left" />
+                </button>
+              )}
+              <GlobalSearch />
+            </div>
             {/* the dashboard carries the account circle in its own greeting row */}
             {location.pathname !== "/dashboard" && <ProfileMenu />}
           </header>
