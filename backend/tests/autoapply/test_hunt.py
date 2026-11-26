@@ -801,7 +801,7 @@ def test_the_directory_lists_are_sound():
         assert url.startswith("https://") and hint in ("", "us", "eu", "uk", "ksa", "mena")
 
 
-async def test_the_daily_scout_tries_a_couple_of_new_places_and_keeps_only_those_that_work(maker):
+async def test_the_daily_scout_tries_a_batch_of_new_places_and_keeps_only_those_that_work(maker):
     from app.models import Directory
 
     good = listing(
@@ -809,21 +809,23 @@ async def test_the_daily_scout_tries_a_couple_of_new_places_and_keeps_only_those
         ("A2", "https://a2.io", "France"),
         ("A3", "https://a3.io", "Spain"),
     )
+    n = directory.CANDIDATES_PER_DAY
+    names = [c[0] for c in directory.CANDIDATES]
     async with maker() as db:
         out = await directory.scout(db, OnePage(), good, NOW)
-        assert [o["name"] for o in out] == [c[0] for c in directory.CANDIDATES[:2]]
+        assert [o["name"] for o in out] == names[:n]
         assert all(o["enabled"] and o["found"] == 3 for o in out)
         assert await directory.scout(db, OnePage(), good, NOW + timedelta(hours=3)) == []  # today
         thin = listing(("B1", "https://b1.io", "Germany"))
         out = await directory.scout(db, OnePage(), thin, NOW + timedelta(days=1))
-        assert [o["name"] for o in out] == [c[0] for c in directory.CANDIDATES[2:4]]
+        assert [o["name"] for o in out] == names[n : 2 * n]
         assert not any(o["enabled"] for o in out)  # one startup is not enough to switch it on
         off = (
             await db.execute(select(Directory).where(Directory.name == out[0]["name"]))
         ).scalar_one()
         assert off.enabled is False and off.builtin is False and "stays off" in off.last_problem
         again = await directory.scout(db, OnePage(), good, NOW + timedelta(days=2))
-        assert [o["name"] for o in again] == [c[0] for c in directory.CANDIDATES[4:6]]  # no retries
+        assert [o["name"] for o in again] == names[2 * n : 3 * n]  # no retries
 
 
 async def test_an_unreadable_candidate_stays_off_with_the_reason(maker):
@@ -835,7 +837,7 @@ async def test_an_unreadable_candidate_stays_off_with_the_reason(maker):
             return FetchResult(url, "blocked", reason="The site asks robots not to read it.")
 
     async with maker() as db:
-        [one, _two] = await directory.scout(db, Down(), listing(), NOW)
+        [one, *_rest] = await directory.scout(db, Down(), listing(), NOW)
         assert not one["enabled"]
         d = (await db.execute(select(Directory).where(Directory.name == one["name"]))).scalar_one()
         assert d.enabled is False and "robots" in d.last_problem
