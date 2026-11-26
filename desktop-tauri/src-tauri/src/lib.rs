@@ -245,7 +245,10 @@ pub fn run() {
             // STRICT REQUIREMENT: App must be hidden from screen sharing at all times.
             stealth::apply_native_stealth(&window, true);
 
-            // Show window once WebView is ready
+            // The window starts hidden (tauri.conf.json); show it now that stealth is applied.
+            let _ = window.show();
+            stealth::re_enforce_stealth(&window);
+
             let win = window.clone();
             window.on_window_event(move |event| {
                 if let tauri::WindowEvent::Focused(_) = event {
@@ -316,9 +319,11 @@ fn setup_deep_links(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> 
     // Deep link handler for interviewmeet:// protocol
     // The frontend handles the OAuth callback in its router
     let handle = app.handle().clone();
-    tauri_plugin_deep_link::deep_link_handler(app, move |request| {
-        log::info!("[DeepLink] Received: {:?}", request.urls());
-        for url in request.urls() {
+    use tauri_plugin_deep_link::DeepLinkExt;
+    app.deep_link().on_open_url(move |event| {
+        let urls = event.urls();
+        log::info!("[DeepLink] Received: {:?}", urls);
+        for url in urls {
             let url_str = url.as_str();
             // Parse the auth callback: interviewmeet://auth?code=...
             if url_str.contains("auth") {

@@ -11,6 +11,7 @@
 //!   - The permission is remembered per-app after the first grant
 
 use super::super::AudioDevice;
+use cpal::traits::{DeviceTrait, HostTrait};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 

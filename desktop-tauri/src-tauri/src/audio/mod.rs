@@ -24,13 +24,13 @@ pub struct AudioDevice {
 
 /// Shared state for audio capture
 pub struct AudioState {
-    pub capturing: AtomicBool,
+    pub capturing: Arc<AtomicBool>,
 }
 
 impl Default for AudioState {
     fn default() -> Self {
         Self {
-            capturing: AtomicBool::new(false),
+            capturing: Arc::new(AtomicBool::new(false)),
         }
     }
 }
@@ -53,8 +53,9 @@ pub async fn start_audio_capture<R: Runtime>(
         return Err("Audio capture already running".to_string());
     }
 
-    let capturing = Arc::new(AtomicBool::new(true));
-    let capturing_clone = capturing.clone();
+    // Same flag the stop command flips, so stopping really ends the capture thread.
+    let capturing_clone = state.capturing.clone();
+    let capturing_done = state.capturing.clone();
     let app_clone = app.clone();
 
     std::thread::spawn(move || {
@@ -72,6 +73,8 @@ pub async fn start_audio_capture<R: Runtime>(
         ) {
             log::error!("[Audio] Capture error: {}", e);
         }
+        // Thread finished (stopped or failed): allow a new capture to start.
+        capturing_done.store(false, Ordering::SeqCst);
     });
 
     Ok(())

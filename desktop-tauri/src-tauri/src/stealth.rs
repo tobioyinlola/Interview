@@ -11,13 +11,14 @@
 //!   - `setSharingType(NSWindowSharingNone)` via `set_content_protected(true)`.
 //!   - Hides the Dock icon in stealth mode so it doesn't appear in Alt-Tab / Cmd-Tab.
 
-use tauri::{AppHandle, Manager, Runtime, WebviewWindow};
+#[cfg(target_os = "macos")]
+use tauri::Manager;
+use tauri::{Runtime, WebviewWindow};
 
 #[cfg(target_os = "windows")]
 use windows::Win32::UI::WindowsAndMessaging::{
     GetWindowLongPtrW, SetWindowLongPtrW, SetWindowPos,
     GWL_EXSTYLE, HWND_TOP, SWP_FRAMECHANGED, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
-    SET_WINDOW_POS_FLAGS,
     WS_EX_APPWINDOW, WS_EX_LAYERED, WS_EX_TOOLWINDOW,
 };
 
@@ -31,6 +32,7 @@ const WDA_NONE: u32 = 0x00000000;
 const WDA_EXCLUDEFROMCAPTURE: u32 = 0x00000011;
 
 #[cfg(target_os = "windows")]
+#[link(name = "user32")]
 extern "system" {
     fn SetWindowDisplayAffinity(hwnd: HWND, dw_affinity: u32) -> i32;
     fn GetWindowDisplayAffinity(hwnd: HWND, pdw_affinity: *mut u32) -> i32;
@@ -39,7 +41,6 @@ extern "system" {
 /// Get the HWND from a Tauri window (Windows only)
 #[cfg(target_os = "windows")]
 fn get_hwnd(window: &WebviewWindow<impl Runtime>) -> Option<HWND> {
-    use tauri::Emitter;
     window.hwnd().ok().map(|h| HWND(h.0))
 }
 
@@ -137,12 +138,11 @@ pub fn apply_native_stealth(window: &WebviewWindow<impl Runtime>, enable: bool) 
     let _ = window.set_content_protected(enable);
 
     // Hide/show Dock icon to remove from Cmd-Tab
-    if let Some(app) = window.try_app_handle() {
-        if enable {
-            let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
-        } else {
-            let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
-        }
+    let app = window.app_handle();
+    if enable {
+        let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+    } else {
+        let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
     }
 
     log::info!("[Stealth] macOS: enable={} content_protected={}", enable, enable);
