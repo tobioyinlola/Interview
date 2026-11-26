@@ -105,9 +105,47 @@ CANDIDATES: list[tuple[str, str, str]] = [
     ("Dawn Capital", "https://dawncapital.com/portfolio/", "eu"),
     ("Techstars: London", "https://www.techstars.com/accelerators/london", "uk"),
     ("StartupBlink", "https://www.startupblink.com/startups", ""),
+    # European accelerators, investors and national startup maps (2026-11-26). The addresses are
+    # each organisation's own portfolio page as published; they could not be fetched from the build
+    # environment, so each one earns its place with a trial read like every candidate.
+    ("Lakestar", "https://www.lakestar.com/portfolio", "eu"),
+    ("Project A", "https://www.project-a.vc/portfolio", "eu"),
+    ("Earlybird", "https://earlybird.com/portfolio/", "eu"),
+    ("Partech", "https://partechpartners.com/companies/", "eu"),
+    ("Startup Wise Guys", "https://startupwiseguys.com/portfolio/", "eu"),
+    ("Rockstart", "https://rockstart.com/portfolio/", "eu"),
+    ("Startup Estonia", "https://startupestonia.ee/startup-database/", "eu"),
+    ("Startup Lithuania", "https://www.startuplithuania.com/startups/", "eu"),
+    ("EIT Digital", "https://www.eitdigital.eu/our-portfolio/", "eu"),
+    ("Kima Ventures", "https://www.kimaventures.com/portfolio", "eu"),
+    ("eCAPITAL", "https://www.ecapital.vc/en/portfolio/", "eu"),
+    ("Frontline Ventures", "https://www.frontline.vc/portfolio", "eu"),
+    ("Fly Ventures", "https://www.fly.vc/portfolio", "eu"),
+    ("Inventure", "https://inventure.fi/portfolio/", "eu"),
+    ("Plural", "https://plural.vc/portfolio", "eu"),
+    ("Picus Capital", "https://www.picuscap.com/portfolio", "eu"),
+    ("La Famiglia", "https://www.lafamiglia.vc/portfolio", "eu"),
+    ("Global Founders Capital", "https://www.globalfounders.vc/portfolio", "eu"),
+    ("468 Capital", "https://www.468cap.com/portfolio", "eu"),
+    ("btov Partners", "https://www.btov.vc/portfolio", "eu"),
+    ("Target Global", "https://www.targetglobal.vc/portfolio", "eu"),
+    ("byFounders", "https://byfounders.vc/portfolio", "eu"),
+    ("Maki.vc", "https://maki.vc/portfolio", "eu"),
+    ("Kfund", "https://www.kfund.vc/portfolio", "eu"),
+    ("Seaya", "https://seaya.vc/portfolio", "eu"),
+    ("Breega", "https://www.breega.com/portfolio", "eu"),
+    ("Elaia", "https://www.elaia.com/portfolio", "eu"),
+    ("Alven", "https://www.alven.co/portfolio", "eu"),
+    ("Hoxton Ventures", "https://hoxton.vc/portfolio/", "uk"),
+    ("Kindred Capital", "https://kindredcapital.vc/portfolio/", "uk"),
+    ("Eka Ventures", "https://www.ekavc.com/portfolio", "uk"),
+    ("Mosaic Ventures", "https://www.mosaicventures.com/portfolio", "uk"),
+    ("Octopus Ventures", "https://octopusventures.com/portfolio/", "uk"),
+    ("Ada Ventures", "https://www.adaventures.com/portfolio", "uk"),
+    ("firstminute capital", "https://www.firstminute.capital/portfolio", "uk"),
 ]
 CANDIDATE_MIN = 3  # startups a trial read must find before a candidate is switched on
-CANDIDATES_PER_DAY = 2
+CANDIDATES_PER_DAY = 10  # tries the whole list within days, not weeks
 REFRESH_AFTER = timedelta(days=7)
 RETRY_AFTER = timedelta(hours=6)  # a read that failed is tried again sooner than a good one
 
