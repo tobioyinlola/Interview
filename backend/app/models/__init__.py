@@ -21,6 +21,7 @@ from app.models.tables import (
     InterviewLink,
     JobAlias,
     JobPosting,
+    JobSource,
     KillSwitch,
     LoginFailure,
     LoginToken,
@@ -46,6 +47,7 @@ from app.models.tables import (
 )
 
 __all__ = [
+    "JobSource",
     "BgSchedule",
     "BgTask",
     "Directory",

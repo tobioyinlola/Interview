@@ -505,3 +505,78 @@ async def worker_retry(
     await db.commit()
     await record_from(db, "admin.worker_retry", actor_id=admin.id, task=str(task_id))
     return {"status": "queued"}
+
+
+# ------------------------------------------------------------------ the job board registry
+
+
+class JobSourceRow(BaseModel):
+    kind: str
+    board: str
+    company: str | None
+    health: str
+    jobs_listed: int
+    every_minutes: int
+    last_synced_at: datetime | None
+    last_error: str | None
+
+
+class JobSourcesOut(BaseModel):
+    mode: str  # per_candidate | central
+    total: int
+    by_kind: dict[str, int]
+    by_health: dict[str, int]
+    jobs_listed: int
+    failing: list[JobSourceRow]
+
+
+@router.get("/job-sources")
+async def job_sources(
+    _: User = Depends(require_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_admin_db),  # noqa: B008
+    settings: Settings = Depends(get_settings),  # noqa: B008
+) -> JobSourcesOut:
+    """The boards jobs are read from, once for everyone: how many, how healthy, which fail."""
+    from app.models import JobSource
+
+    by_kind = dict(
+        (await db.execute(select(JobSource.kind, func.count()).group_by(JobSource.kind))).all()
+    )
+    by_health = dict(
+        (await db.execute(select(JobSource.health, func.count()).group_by(JobSource.health))).all()
+    )
+    listed = (
+        await db.execute(select(func.coalesce(func.sum(JobSource.jobs_listed), 0)))
+    ).scalar_one()
+    failing = (
+        (
+            await db.execute(
+                select(JobSource)
+                .where(JobSource.health == "failing")
+                .order_by(JobSource.failures.desc())
+                .limit(20)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return JobSourcesOut(
+        mode=settings.autoapply_discovery_mode,
+        total=sum(by_kind.values()),
+        by_kind={k: int(v) for k, v in by_kind.items()},
+        by_health={k: int(v) for k, v in by_health.items()},
+        jobs_listed=int(listed),
+        failing=[
+            JobSourceRow(
+                kind=s.kind,
+                board=s.board,
+                company=s.company,
+                health=s.health,
+                jobs_listed=s.jobs_listed,
+                every_minutes=s.every_minutes,
+                last_synced_at=s.last_synced_at,
+                last_error=s.last_error,
+            )  # fmt: skip
+            for s in failing
+        ],
+    )

@@ -3186,6 +3186,123 @@
         "title": "JobOut",
         "type": "object"
       },
+      "JobSourceRow": {
+        "properties": {
+          "board": {
+            "title": "Board",
+            "type": "string"
+          },
+          "company": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company"
+          },
+          "every_minutes": {
+            "title": "Every Minutes",
+            "type": "integer"
+          },
+          "health": {
+            "title": "Health",
+            "type": "string"
+          },
+          "jobs_listed": {
+            "title": "Jobs Listed",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "last_synced_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Synced At"
+          }
+        },
+        "required": [
+          "kind",
+          "board",
+          "company",
+          "health",
+          "jobs_listed",
+          "every_minutes",
+          "last_synced_at",
+          "last_error"
+        ],
+        "title": "JobSourceRow",
+        "type": "object"
+      },
+      "JobSourcesOut": {
+        "properties": {
+          "by_health": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Health",
+            "type": "object"
+          },
+          "by_kind": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Kind",
+            "type": "object"
+          },
+          "failing": {
+            "items": {
+              "$ref": "#/components/schemas/JobSourceRow"
+            },
+            "title": "Failing",
+            "type": "array"
+          },
+          "jobs_listed": {
+            "title": "Jobs Listed",
+            "type": "integer"
+          },
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "mode",
+          "total",
+          "by_kind",
+          "by_health",
+          "jobs_listed",
+          "failing"
+        ],
+        "title": "JobSourcesOut",
+        "type": "object"
+      },
       "JobUrlIn": {
         "properties": {
           "url": {
@@ -7931,6 +8048,28 @@
           }
         },
         "summary": "Email Template Preview",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/job-sources": {
+      "get": {
+        "description": "The boards jobs are read from, once for everyone: how many, how healthy, which fail.",
+        "operationId": "job_sources_api_admin_job_sources_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobSourcesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Job Sources",
         "tags": [
           "admin"
         ]

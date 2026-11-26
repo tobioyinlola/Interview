@@ -10,6 +10,7 @@ import type {
   AdminActivity,
   AdminAutoApply,
   AdminWorker,
+  AdminJobSources,
   AdminSwitch,
   AdminEmails,
   AdminMarketing,
@@ -401,3 +402,10 @@ export function useRetryTask() {
       void qc.invalidateQueries({ queryKey: ["admin", "worker"] }),
   });
 }
+
+/** The job boards read once for everyone: how many, how healthy, which are failing. */
+export const useJobSources = () =>
+  useQuery<AdminJobSources>({
+    queryKey: ["admin", "job-sources"],
+    queryFn: () => apiFetch<AdminJobSources>("/api/admin/job-sources"),
+  });

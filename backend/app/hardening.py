@@ -114,6 +114,11 @@ def _autoapply_problems(s: Settings) -> list[str]:
                 "Real Auto-Apply sending outside production needs AUTOAPPLY_ALLOWED_RECIPIENTS, "
                 "so a test can never reach a real employer."
             )
+    if s.autoapply_discovery_mode == "central" and s.background_mode != "worker":
+        out.append(
+            "AUTOAPPLY_DISCOVERY_MODE=central needs BACKGROUND_MODE=worker: the worker reads the "
+            "boards for everyone."
+        )
     if s.environment == "production" and "fixture" in s.autoapply_discovery_sources.split(","):
         out.append("AUTOAPPLY_DISCOVERY_SOURCES must not include the fixture in production.")
     if s.environment == "production" and s.autoapply_sample_jobs:

@@ -67,6 +67,7 @@ EVENT_KINDS: dict[str, tuple[str, str]] = {
     "email.sent": ("email", "Email sent"),
     "email.failed": ("email", "Email failed to send"),
     "admin.credit_granted": ("admin", "Admin gave free interviews"),
+    "admin.worker_retry": ("admin", "Admin retried a background task"),
     "admin.referral_approved": ("admin", "Admin approved a held sign-up"),
     "admin.switch": ("admin", "Admin changed an Auto-Apply switch"),
     "admin.export": ("admin", "Admin exported data"),

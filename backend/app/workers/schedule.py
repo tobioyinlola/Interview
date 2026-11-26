@@ -24,6 +24,9 @@ def schedules(ctx: WorkerContext) -> dict[str, int]:
         out["autoapply"] = tick
     if s.startup_outreach_enabled:
         out["hunt"] = tick
+    if s.autoapply_enabled and s.autoapply_discovery_mode == "central":
+        out["discovery"] = 300  # boards that are due
+        out["discovery.registry"] = 3600  # new boards from the settings and startups
     return out
 
 
@@ -131,6 +134,15 @@ async def fire(ctx: WorkerContext, name: str, now: datetime) -> int:
             )
             for uid in readers:
                 added += await _add(db, _new(ctx, "mailbox.sync", key=f"mail:{uid}", user=uid), now)
+        elif name == "discovery.registry":
+            added += await _add(db, _new(ctx, "discovery.registry", key="discovery.registry"), now)
+        elif name == "discovery":
+            from app.autoapply import registry as boards
+
+            for sid in await boards.due(db, now):
+                task = _new(ctx, "discovery.sync_source", key=f"src:{sid}")
+                task.payload = {"source": str(sid)}
+                added += await _add(db, task, now)
         elif name == "hunt":
             for kind in ("hunt.reconcile", "hunt.directories", "hunt.research"):
                 added += await _add(db, _new(ctx, kind, key=kind), now)

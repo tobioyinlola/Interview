@@ -556,6 +556,42 @@ class JobAlias(Base):
     source: Mapped[str] = mapped_column(String(40))
     source_url: Mapped[str] = mapped_column(Text, unique=True)
     seen_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+    # the registry board it was read from, so a listing that disappears can be closed
+    job_source_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("aa_job_sources.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+
+class JobSource(Base):
+    """One place jobs are read from, once for everyone: a company's board on an applicant tracking
+    system (Greenhouse, Lever, Ashby, ...) or a public feed. Read on its own schedule, which slows
+    down for boards that rarely change and speeds up for busy ones."""
+
+    __tablename__ = "aa_job_sources"
+    __table_args__ = (
+        UniqueConstraint("kind", "board"),
+        Index("ix_aa_job_sources_due", "enabled", "next_sync_at"),
+    )
+    id: Mapped[uuid.UUID] = _pk()
+    kind: Mapped[str] = mapped_column(String(30))  # greenhouse | lever | ashby | remotive | ...
+    board: Mapped[str] = mapped_column(String(120), default="")  # "" for a whole feed
+    company: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    domain: Mapped[str | None] = mapped_column(String(253), nullable=True)
+    origin: Mapped[str] = mapped_column(String(12), default="settings")  # settings | startup
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    every_minutes: Mapped[int] = mapped_column(Integer, default=360)
+    next_sync_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+    last_synced_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    last_changed_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    jobs_listed: Mapped[int] = mapped_column(Integer, default=0)
+    failures: Mapped[int] = mapped_column(Integer, default=0)
+    health: Mapped[str] = mapped_column(String(10), default="new")  # new | ok | failing
+    last_error: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
 
 
 class DiscoveryRun(Base):

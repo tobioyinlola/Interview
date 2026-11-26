@@ -275,6 +275,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/job-sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Job Sources
+         * @description The boards jobs are read from, once for everyone: how many, how healthy, which fail.
+         */
+        get: operations["job_sources_api_admin_job_sources_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/marketing": {
         parameters: {
             query?: never;
@@ -3431,6 +3451,44 @@ export interface components {
             /** Step Detail */
             step_detail: string;
         };
+        /** JobSourceRow */
+        JobSourceRow: {
+            /** Board */
+            board: string;
+            /** Company */
+            company: string | null;
+            /** Every Minutes */
+            every_minutes: number;
+            /** Health */
+            health: string;
+            /** Jobs Listed */
+            jobs_listed: number;
+            /** Kind */
+            kind: string;
+            /** Last Error */
+            last_error: string | null;
+            /** Last Synced At */
+            last_synced_at: string | null;
+        };
+        /** JobSourcesOut */
+        JobSourcesOut: {
+            /** By Health */
+            by_health: {
+                [key: string]: number;
+            };
+            /** By Kind */
+            by_kind: {
+                [key: string]: number;
+            };
+            /** Failing */
+            failing: components["schemas"]["JobSourceRow"][];
+            /** Jobs Listed */
+            jobs_listed: number;
+            /** Mode */
+            mode: string;
+            /** Total */
+            total: number;
+        };
         /** JobUrlIn */
         JobUrlIn: {
             /** Url */
@@ -5242,6 +5300,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    job_sources_api_admin_job_sources_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobSourcesOut"];
                 };
             };
         };

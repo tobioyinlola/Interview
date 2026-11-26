@@ -69,6 +69,20 @@ API (FastAPI)                    unified worker (python -m app.workers.main)
 | `hunt.user_pass` (per person) | email | normal | `hunt.engine.tick_user` |
 | `maintenance.housekeeping` | light | low | expired sign-ins, old events, finished tasks, idle browser |
 
+## Central job discovery (`AUTOAPPLY_DISCOVERY_MODE=central`)
+
+Before, each candidate's daily run read every configured board itself: candidates × boards
+requests a day. In central mode the worker keeps a registry of boards (`aa_job_sources`: the
+boards in the settings, plus every Greenhouse, Lever, Ashby, ... board a researched startup's
+careers page points to) and reads each one once for everyone, through the existing readers
+(`discovery.sync_source`, http, low priority). A board whose listing is unchanged (hashed) is not
+rewritten and is read less often, up to daily; a busy one more often, down to hourly; one that
+keeps failing is marked and backed off. A listing that leaves its board is closed. Each person's
+run then matches the jobs stored since their last run, with no external request.
+
+Needs `BACKGROUND_MODE=worker`; the server refuses to start with central discovery and no worker.
+The back office shows the boards and the failing ones under Auto-Apply → Job boards.
+
 ## Turning it on (needs your approval: it adds one Railway service)
 
 1. Railway: new service from this repo, root directory `backend`, same image. Start command:

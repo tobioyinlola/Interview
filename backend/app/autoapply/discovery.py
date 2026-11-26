@@ -4,13 +4,13 @@ import json
 import logging
 import re
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from html import unescape
 from pathlib import Path
 from typing import Any
 
 import httpx
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,7 +19,7 @@ from app.autoapply import campaign, clock, matching, pipeline, postings
 from app.autoapply.adapters import AdapterError, DiscoveryAdapter, RawPosting
 from app.autoapply.fixtures import FixtureDiscovery
 from app.config import Settings
-from app.models import Application, DiscoveryRun
+from app.models import Application, DiscoveryRun, JobPosting
 from app.services.events import record_from
 
 log = logging.getLogger("app.autoapply.discovery")
@@ -253,9 +253,14 @@ async def run_if_due(
     sources: list[DiscoveryAdapter],
     llm: Any,
     form: Any,
+    stored: tuple[int, int] | None = None,
 ) -> DiscoveryRun | None:
     """Run today's discovery for one candidate unless it already ran, the search is paused, or the
-    campaign is over. At most one run per candidate per local day, however many schedulers ask."""
+    campaign is over. At most one run per candidate per local day, however many schedulers ask.
+
+    With `stored` (lookback days, most jobs to look at) the candidate is matched against the jobs
+    the worker has already read for everyone (see registry.py): only those added since their last
+    run, or within the lookback on a first run. No board is asked again on their behalf."""
     camp = await campaign.current(db, user_id)
     prof = await campaign.get_profile(db, user_id)
     if not campaign.outbound_open(camp, prof, now):
@@ -289,10 +294,15 @@ async def run_if_due(
         metrics.autoapply_discovery.labels("failed").inc()
         await record_from(db, "autoapply.discovery_failed", user_id=user_id, errors=len(errors))
         return run
-    seen: set[uuid.UUID] = set()
+    items: list[tuple[JobPosting, uuid.UUID | None]] = []
     for raw in raws:
+        posting, _, dup = await postings.upsert(db, raw, now)
+        items.append((posting, dup))
+    if stored is not None:
+        items.extend((p, None) for p in await _stored_since(db, user_id, prof, now, *stored))
+    seen: set[uuid.UUID] = set()
+    for posting, dup in items:
         run.found += 1
-        posting, created, dup = await postings.upsert(db, raw, now)
         if posting.id in seen:
             continue  # the same job from two sources in one run counts once
         seen.add(posting.id)
@@ -322,6 +332,37 @@ async def run_if_due(
         eligible=run.eligible,
     )
     return run
+
+
+async def _stored_since(
+    db: AsyncSession, user_id: uuid.UUID, prof: Any, now: datetime, lookback_days: int, most: int
+) -> list[JobPosting]:
+    """Open stored jobs added since this candidate's last finished run whose title could be a role
+    they want."""
+    last = (
+        await db.execute(
+            select(func.max(DiscoveryRun.started_at)).where(
+                DiscoveryRun.user_id == user_id, DiscoveryRun.status == "done"
+            )
+        )
+    ).scalar_one()
+    since = max(last or now - timedelta(days=lookback_days), now - timedelta(days=lookback_days))
+    rows = (
+        (
+            await db.execute(
+                select(JobPosting)
+                .where(
+                    JobPosting.created_at >= since,
+                    (JobPosting.expires_at.is_(None)) | (JobPosting.expires_at > now),
+                )
+                .order_by(JobPosting.created_at.desc())
+                .limit(most)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return [p for p in rows if matching.role_could_fit(prof.criteria or {}, p.title)]
 
 
 async def intake_url(
