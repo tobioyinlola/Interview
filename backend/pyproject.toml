@@ -73,6 +73,10 @@ module = ["playwright", "playwright.*"]  # optional dependency (the browser extr
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
+module = ["reportlab", "reportlab.*"]  # draws the tailored CV; ships no type stubs
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 module = ["tests.*"]
 disallow_untyped_defs = false
 

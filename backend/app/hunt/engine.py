@@ -462,6 +462,7 @@ async def send_next(
             if await _has_approved(db, user_id):
                 _log_held(user_id, gate)
             return None
+        assert st is not None and conn is not None  # the gates above stop when either is missing
         last = (
             await db.execute(
                 select(func.max(HuntTarget.claimed_at)).where(HuntTarget.user_id == user_id)

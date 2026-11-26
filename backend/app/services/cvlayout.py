@@ -260,12 +260,12 @@ def read_docx(data: bytes) -> list[Page]:
     page = Page()
     sect = doc.find(f".//{_W}sectPr")
     if sect is not None:
-        size = sect.find(f"{_W}pgSz")
+        pg_size = sect.find(f"{_W}pgSz")
         mar = sect.find(f"{_W}pgMar")
         try:
-            if size is not None:
-                page.w = int(size.get(f"{_W}w", "11906")) / 20
-                page.h = int(size.get(f"{_W}h", "16838")) / 20
+            if pg_size is not None:
+                page.w = int(pg_size.get(f"{_W}w", "11906")) / 20
+                page.h = int(pg_size.get(f"{_W}h", "16838")) / 20
             if mar is not None:
                 page.left = int(mar.get(f"{_W}left", "1000")) / 20
                 page.right = int(mar.get(f"{_W}right", "1000")) / 20
@@ -423,7 +423,11 @@ def clean_profile(raw: Any) -> dict[str, Any] | None:
     """A stored profile with every value forced into a range the renderer can draw."""
     if not isinstance(raw, dict) or raw.get("v") != 1:
         return None
-    g = lambda k: raw.get(k) if isinstance(raw.get(k), dict) else {}  # noqa: E731
+
+    def g(k: str) -> dict[str, Any]:
+        v = raw.get(k)
+        return v if isinstance(v, dict) else {}
+
     page, name, contact, head, body = g("page"), g("name"), g("contact"), g("heading"), g("body")
     return {
         "page": {
