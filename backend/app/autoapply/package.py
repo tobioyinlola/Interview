@@ -6,6 +6,7 @@ from typing import Any
 
 from app.adapters.interfaces import LlmProvider
 from app.autoapply import tailor
+from app.autoapply.postings import apply_to
 from app.models import Application, CandidateAnswer, CandidateFacts, JobPosting
 
 # Application states after which the package may never change again.
@@ -173,7 +174,7 @@ async def build(
     else:
         destination = {
             "channel": "email",
-            "to": posting.apply_email,
+            "to": apply_to(posting),
             "instructions": posting.apply_instructions,
         }
     return {

@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.autoapply import interviews, mailbox, pipeline, recruiting
 from app.autoapply.adapters import AdapterError, InboundMessage, MailboxAdapter
+from app.autoapply.postings import apply_addresses
 from app.config import Settings
 from app.models import (
     Application,
@@ -74,7 +75,7 @@ class Known:
 
 def _domains(p: JobPosting) -> set[str]:
     found: set[str] = set()
-    for addr in (p.apply_email, p.hiring_contact):
+    for addr in (*apply_addresses(p), p.hiring_contact):
         if addr and "@" in addr:
             found.add(registrable(addr.split("@", 1)[1]))
     if p.application_url:

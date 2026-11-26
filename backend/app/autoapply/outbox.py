@@ -29,6 +29,7 @@ from app.autoapply.adapters import (
     MailAttachment,
     MailboxAdapter,
 )
+from app.autoapply.postings import apply_to
 from app.config import Settings
 from app.models import (
     Application,
@@ -72,7 +73,9 @@ def dispatch_allowed(settings: Settings, channel: str, real: bool, recipient: st
     if channel == "hunt" and settings.startup_outreach_any_recipient:
         return True  # the operator said this server may write to real startups
     allowed = {a.strip().lower() for a in settings.autoapply_allowed_recipients.split(",") if a}
-    return bool(recipient) and (recipient or "").lower() in allowed
+    # an application may go to several addresses at once ("a@x.io, b@y.io"): each must be listed
+    to = [r.strip().lower() for r in (recipient or "").split(",") if r.strip()]
+    return bool(to) and all(r in allowed for r in to)
 
 
 async def used_today(
@@ -158,7 +161,7 @@ async def _precheck(
         if not dispatch_allowed(settings, "form", adapters.form.real, None):
             return "wait", "form submission is switched off"
     elif channel == "email":
-        if dest.get("to") != posting.apply_email:
+        if dest.get("to") != apply_to(posting):
             return "recheck", "the application address changed"
         conn = await mailbox.get(db, app.user_id)
         if conn is None or conn.status != "connected" or not conn.token_encrypted:

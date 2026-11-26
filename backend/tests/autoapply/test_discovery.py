@@ -869,15 +869,21 @@ def test_an_address_is_taken_only_from_a_sentence_about_applying():
     assert extract_apply_email("Send your CV to you@example.com") is None
 
 
-def test_two_different_application_addresses_are_ambiguous_so_none_is_guessed():
-    from app.autoapply.postings import extract_apply_email
+def test_every_application_address_the_listing_gives_is_used():
+    from app.autoapply.postings import extract_apply_emails
 
     text = "Send your CV to hr@acme.io. Or apply by email to jobs@other.io."
-    assert extract_apply_email(text) is None
-    # the same address twice is not ambiguous
-    assert extract_apply_email("Email hr@acme.io to apply. Send your CV to hr@acme.io.")[0] == (
+    assert [a for a, _ in extract_apply_emails(text)] == ["hr@acme.io", "jobs@other.io"]
+    # the same address twice is one address
+    assert [a for a, _ in extract_apply_emails("Email hr@acme.io to apply. CV to hr@acme.io.")] == [
         "hr@acme.io"
-    )
+    ]
+    # an address for something else is still left out, even beside application ones
+    mixed = "Send your CV to hr@acme.io. Press enquiries: press@acme.io. Billing: pay@acme.io."
+    assert [a for a, _ in extract_apply_emails(mixed)] == ["hr@acme.io"]
+    # at most three
+    many = "Apply by email: a@x.io, b@x.io, c@x.io, d@x.io"
+    assert [a for a, _ in extract_apply_emails(many)] == ["a@x.io", "b@x.io", "c@x.io"]
 
 
 async def test_a_stored_listing_gains_its_address_and_the_sentence_that_says_so(maker):

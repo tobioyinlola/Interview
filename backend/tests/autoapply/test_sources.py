@@ -418,3 +418,34 @@ async def test_a_job_that_only_accepts_what_you_switched_off_is_handed_to_you_no
     d = (await ada.get(f"/api/autoapply/applications/{a['id']}")).json()
     how = next(r for r in d["match"]["rules"] if r["key"] == "channel")
     assert "switched off in your search" in how["evidence"]
+
+
+async def test_a_listing_with_two_application_emails_goes_to_both(ada, maker, mailbox):
+    """It used to pick neither. Both are in the listing's own words, so the application goes to both,
+    in one message, and each is kept with the sentence that says so."""
+    from sqlalchemy import select
+
+    from app.autoapply.postings import apply_addresses
+    from app.models import JobPosting
+    from app.routers.autoapply import get_sources
+    from tests.autoapply.conftest import apps, connect_mailbox, job, start
+
+    listing = job(
+        1,
+        application_url="https://careers.example.com/apply/1",
+        description=(
+            "Lead payments product. Remote. Send your CV to hr@acme.test. "
+            "You can also apply by email to jobs@acme.test."
+        ),
+    )
+    ada._transport.app.dependency_overrides[get_sources] = lambda: [Wide([listing])]
+    await start(ada)
+    await connect_mailbox(ada)
+    await ada.post("/api/autoapply/discovery/run")
+    (a,) = await apps(ada)
+    assert a["channel"] == "email" and a["status"] == "queued"
+    async with maker() as db:
+        p = (await db.execute(select(JobPosting))).scalar_one()
+    assert apply_addresses(p) == ["hr@acme.test", "jobs@acme.test"]
+    d = (await ada.get(f"/api/autoapply/applications/{a['id']}")).json()
+    assert d["package"]["destination"]["to"] == "hr@acme.test, jobs@acme.test"
