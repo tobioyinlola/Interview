@@ -1078,7 +1078,7 @@ class SupportTicket(Base):
         Boolean, default=True, server_default=text("true")
     )
     assigned_to: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
     created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
     updated_at: Mapped[datetime] = mapped_column(_TS, default=_now)
@@ -1093,7 +1093,7 @@ class SupportMessage(Base):
     # user: the person | staff: a reply they see | note: staff only, never shown to the person
     kind: Mapped[str] = mapped_column(String(6))
     author_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
     body: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(_TS, default=_now)

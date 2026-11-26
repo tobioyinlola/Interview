@@ -44,6 +44,7 @@ def upgrade() -> None:
     )
     op.create_index("ix_support_tickets_user", "support_tickets", ["user_id", "updated_at"])
     op.create_index("ix_support_tickets_status", "support_tickets", ["status", "updated_at"])
+    op.create_index("ix_support_tickets_assigned_to", "support_tickets", ["assigned_to"])
     op.create_table(
         "support_messages",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
@@ -64,6 +65,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
     )
     op.create_index("ix_support_messages_ticket", "support_messages", ["ticket_id", "created_at"])
+    op.create_index("ix_support_messages_author_id", "support_messages", ["author_id"])
 
 
 def downgrade() -> None:
