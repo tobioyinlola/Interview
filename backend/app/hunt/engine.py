@@ -514,16 +514,12 @@ async def send_next(
         sender, body, mid = conn.address, chosen.body, chosen.message_id
         subject = " ".join(chosen.subject.split())  # never a line break in a header
         tid = chosen.id
-        cv_note = (await NotesRepo(db, user_id).get()) or Note()
-        cv_text = cv_note.content or ""
-        cv_layout = cv_note.cv_layout
+        cv_text = ((await NotesRepo(db, user_id).get()) or Note()).content or ""
         sign = st.sender_name
         await db.commit()
     # the candidate's CV goes with every note, as a PDF made from the CV text they confirmed
     attachments = (
-        [MailAttachment(cv_filename(sign), cvfile.render_pdf(cv_text, cv_layout))]
-        if cv_text.strip()
-        else []
+        [MailAttachment(cv_filename(sign), cvfile.render_pdf(cv_text))] if cv_text.strip() else []
     )
     error: AdapterError | None = None
     thread = None

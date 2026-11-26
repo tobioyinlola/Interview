@@ -79,7 +79,6 @@ class FixtureForm:
         values: dict[str, str],
         cv_text: str,
         cv_filename: str,
-        cv_layout: dict[str, Any] | None = None,
     ) -> FormReceipt:
         self.calls += 1
         if self.mode == "fail":

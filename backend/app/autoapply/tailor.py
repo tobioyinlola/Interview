@@ -114,6 +114,17 @@ def order_history(history: list[dict[str, str]], posting: JobPosting) -> list[in
     return sorted(range(len(history)), key=lambda i: (-relevance(history[i], posting), i))
 
 
+def _points(text: str) -> list[str]:
+    """A role's text as separate points: lines as written, or one point per sentence."""
+    out: list[str] = []
+    for raw in text.splitlines():
+        line = raw.strip().lstrip("-*\u2022 ").strip()
+        if not line:
+            continue
+        out += [p for p in re.split(r"(?<=[.!?])\s+(?=[A-Z0-9$])", line) if p.strip()]
+    return out or [text.strip()]
+
+
 def render(facts: dict[str, Any], summary: str, entries: dict[int, str], order: list[int]) -> str:
     c = facts["contact"]
     lines = [
@@ -132,7 +143,7 @@ def render(facts: dict[str, Any], summary: str, entries: dict[int, str], order: 
             span = " - ".join(x for x in (job.get("start"), job.get("end")) if x)
             lines.append(f"{job['title']}, {job['company']} ({span})".replace(" ()", ""))
             if entries.get(i):
-                lines.append(entries[i])
+                lines += [f"- {b}" for b in _points(entries[i])]
     if facts.get("education"):
         lines += ["", "EDUCATION", *facts["education"]]
     return "\n".join(line for line in lines if line is not None).strip()

@@ -2514,11 +2514,6 @@
             ],
             "title": "Cv Filename"
           },
-          "cv_layout_kept": {
-            "default": false,
-            "title": "Cv Layout Kept",
-            "type": "boolean"
-          },
           "cv_uploaded_at": {
             "anyOf": [
               {
@@ -4691,11 +4686,6 @@
               }
             ],
             "title": "Cv Filename"
-          },
-          "cv_layout_kept": {
-            "default": false,
-            "title": "Cv Layout Kept",
-            "type": "boolean"
           },
           "cv_uploaded_at": {
             "anyOf": [
@@ -12027,7 +12017,7 @@
     },
     "/api/autoapply/applications/{application_id}/cv.pdf": {
       "get": {
-        "description": "The CV prepared for this role as a PDF, in the look of the CV that was uploaded.",
+        "description": "The CV prepared for this role as a PDF, in the house layout.",
         "operationId": "tailored_cv_pdf_api_autoapply_applications__application_id__cv_pdf_get",
         "parameters": [
           {

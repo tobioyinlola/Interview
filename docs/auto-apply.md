@@ -94,24 +94,20 @@ Fixture mode (default) → allowlisted test recipients → opt-in production. To
 `global` switch (or flip `AUTOAPPLY_ENABLED` off to hide the feature): new sends stop at once,
 history stays, and in-flight attempts keep being settled.
 
-## The tailored CV: a PDF in the look of the uploaded CV
+## The tailored CV: one house layout
 
-Every CV that leaves (email attachment, form upload, startup note) is a PDF. When someone uploads
-their CV, its look is read and kept as a small profile on their notes row (`notes.cv_layout`): the
-typeface family (Helvetica, Times or Courier, the nearest of the three standard PDF faces), the size,
-bold and colour of the name, the contact line, the section headings and the body, whether headings
-are underlined, centred or left, and the page margins. The file itself is never stored, and neither
-are its words. The tailored text is then drawn in that look (`autoapply/cvfile.py`); the profile is
-copied into the prepared package, so what is sent is what was prepared.
+Every CV that leaves (email attachment, form upload, startup note, the download button on the
+application page) is a PDF in one layout, set from a reference CV (`backend/app/autoapply/cvfile.py`):
+US Letter, Times, the name in capitals and centred over one contact line (place, phone, email, links),
+section headings in bold capitals with a rule under them (Professional Summary, Core Competencies,
+Professional Experience, Education and any other section), each job as a bold title with its dates in
+italics on the right and the company in italics under it, round bullets with a hanging indent, and
+the skills as one line of "•"-separated items. A paragraph under a job becomes one point per sentence.
 
-- Works for text-based PDFs and Word (.docx) files. A scan, a text file or an unreadable file keeps
-  the plain look. A two-column CV keeps its fonts, sizes and colours but is set in one column.
-- CVs uploaded before this was added have no profile; uploading the CV again reads it. Settings, CV
-  says which case applies.
-- `GET /api/autoapply/applications/{id}/cv.pdf` downloads the prepared CV (the application page has
-  a "Download CV (PDF)" button).
-- Every stored number and colour is clamped when read back, so a strange file cannot make an
-  unusable page.
+The text decides what goes in and the layout decides how it looks, so the words in the PDF are the
+words the candidate approved. The cover note is a plain letter, not this layout. There is no per
+person layout: uploading a CV only supplies its text (migration 0038 dropped the old layout column).
+`GET /api/autoapply/applications/{id}/cv.pdf` downloads the prepared CV.
 
 ## Data and deletion
 
