@@ -38,6 +38,7 @@ function DownloadBanner() {
       <span className="flex items-center gap-3">
         <a
           href={update.url}
+          data-ev="update.accept"
           rel="noopener"
           className="btn-primary !min-h-[36px]"
         >
@@ -45,6 +46,7 @@ function DownloadBanner() {
         </a>
         <button
           type="button"
+          data-ev="update.later"
           onClick={update.dismiss}
           className="min-h-[44px] px-2 font-medium hover:underline"
         >

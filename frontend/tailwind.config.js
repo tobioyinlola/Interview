@@ -11,6 +11,9 @@ export default {
         accent: { DEFAULT: "#7B47F3", dark: "#6A38DD", soft: "#EFE8FF" },
         // Secondary text and hairlines, derived from the ink so the palette stays one family.
         muted: "#5E5C75",
+        // The back office: a cool grey backdrop with white panels floating on it.
+        shell: "#EDECF3",
+        panel: "#F4F3F9",
         line: "#E6E1F5",
         "line-strong": "#D3CAEB",
       },

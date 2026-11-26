@@ -30,7 +30,8 @@ from app.schemas.admin import (
     UserListOut,
 )
 from app.schemas.api import UsageDay, UsageSummary, UsageUser
-from app.services import admin_stats
+from app.schemas.engagement import EngagementOut
+from app.services import admin_engagement, admin_stats
 from app.services import email_templates as emails
 from app.services.events import record_from
 from app.services.notify import Notifier
@@ -370,6 +371,17 @@ async def marketing(
 ) -> MarketingOut:
     """Where sign-ups come from and how far each channel gets, plus the signals for pricing."""
     return await admin_stats.marketing(db, days)
+
+
+@router.get("/engagement")
+async def engagement(
+    days: int = Query(default=30, ge=1, le=90),
+    _: User = Depends(require_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_admin_db),  # noqa: B008
+) -> EngagementOut:
+    """How people use the app on every device: who is active, for how long, where, what they use
+    and what breaks. From the app's own usage statistics; counts and times only."""
+    return await admin_engagement.engagement(db, days)
 
 
 @router.get("/quality")

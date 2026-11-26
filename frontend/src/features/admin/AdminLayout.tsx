@@ -5,6 +5,7 @@ import {
   ActivityIcon,
   BuildingIcon,
   ChevronIcon,
+  CompassIcon,
   ChartIcon,
   CloseIcon,
   CoinIcon,
@@ -32,6 +33,7 @@ const GROUPS: { title: string; items: Item[] }[] = [
     items: [
       { to: "/admin", label: "Overview", icon: <ChartIcon />, end: true },
       { to: "/admin/users", label: "Users", icon: <UsersIcon /> },
+      { to: "/admin/engagement", label: "Engagement", icon: <CompassIcon /> },
       { to: "/admin/activity", label: "Activity log", icon: <ActivityIcon /> },
     ],
   },
@@ -66,13 +68,29 @@ const readCollapsed = (): boolean => {
 const linkClass =
   (collapsed: boolean) =>
   ({ isActive }: { isActive: boolean }) =>
-    `group relative flex min-h-[44px] items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors ${
+    `group relative flex min-h-[44px] items-center gap-3 rounded-2xl px-3 py-2 text-sm transition-colors ${
       collapsed ? "lg:justify-center lg:px-0" : ""
     } ${
       isActive
-        ? "bg-surface/10 font-medium text-surface"
-        : "text-surface/70 hover:bg-surface/5 hover:text-surface"
+        ? "bg-ink font-medium text-surface shadow-card"
+        : "text-muted hover:bg-panel hover:text-ink"
     }`;
+
+/** The staff member's local time, to the minute. */
+function useClock(): string {
+  const read = () =>
+    new Date().toLocaleTimeString(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+  const [t, setT] = useState(read);
+  useEffect(() => {
+    const id = window.setInterval(() => setT(read()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+  return t;
+}
 
 /** The back office: a sidebar like the customer app's, but its own place with its own sign-in. Anyone
  *  without a staff session is sent to the staff sign-in page. The server refuses them too; this is
@@ -111,13 +129,7 @@ export function AdminLayout() {
       ),
     [],
   );
-  const here = useMemo(() => {
-    const path = location.pathname.replace(/\/$/, "");
-    const hit = [...places]
-      .sort((a, b) => b.to.length - a.to.length)
-      .find((p) => path === p.to || path.startsWith(`${p.to}/`));
-    return hit ?? places[0];
-  }, [location.pathname, places]);
+  const clock = useClock();
 
   if (isPending)
     return (
@@ -133,31 +145,31 @@ export function AdminLayout() {
     });
 
   return (
-    <div className="flex min-h-screen bg-ink">
+    <div className="adm flex min-h-screen gap-3 bg-shell p-2 lg:p-3">
       {open && (
         <div
           aria-hidden="true"
           onClick={() => setOpen(false)}
-          className="fixed inset-0 z-40 bg-ink/60 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 bg-ink/40 backdrop-blur-sm lg:hidden"
         />
       )}
       <aside
         id="admin-sidebar"
         className={`${
-          open ? "fixed inset-y-0 left-0 z-50 flex w-72 shadow-lift" : "hidden"
-        } flex-col bg-ink px-4 py-5 text-surface transition-[width] duration-200 lg:sticky lg:top-0 lg:flex lg:h-screen lg:shrink-0 lg:shadow-none ${
-          collapsed ? "lg:w-[84px] lg:px-3" : "lg:w-64"
+          open ? "fixed inset-y-2 left-2 z-50 flex w-72 shadow-lift" : "hidden"
+        } flex-col rounded-3xl bg-surface p-3 transition-[width] duration-200 lg:sticky lg:top-3 lg:flex lg:h-[calc(100vh-1.5rem)] lg:shrink-0 lg:shadow-card ${
+          collapsed ? "lg:w-[84px]" : "lg:w-64"
         }`}
       >
         <div
-          className={`flex items-center ${
+          className={`flex items-center px-1 pt-1 ${
             collapsed ? "lg:justify-center" : "justify-between"
           }`}
         >
           <Link
             to="/admin"
             title={collapsed ? "InterviewMeet back office" : undefined}
-            className="flex items-center gap-2.5 px-1 text-lg font-semibold"
+            className="flex items-center gap-2.5 text-lg font-semibold tracking-tight"
           >
             <LogoMark className="h-8 w-8" />
             <span className={collapsed ? "lg:sr-only" : ""}>InterviewMeet</span>
@@ -169,7 +181,7 @@ export function AdminLayout() {
               aria-expanded={true}
               aria-controls="admin-nav"
               onClick={toggleCollapsed}
-              className="hidden h-9 w-9 items-center justify-center rounded-lg text-surface/70 hover:bg-surface/10 hover:text-surface lg:flex"
+              className="hidden h-9 w-9 items-center justify-center rounded-full text-muted hover:bg-panel hover:text-ink lg:flex"
             >
               <ChevronIcon className="h-5 w-5" direction="left" />
             </button>
@@ -182,13 +194,13 @@ export function AdminLayout() {
             aria-expanded={false}
             aria-controls="admin-nav"
             onClick={toggleCollapsed}
-            className="mx-auto mt-3 hidden h-9 w-9 items-center justify-center rounded-lg text-surface/70 hover:bg-surface/10 hover:text-surface lg:flex"
+            className="mx-auto mt-3 hidden h-9 w-9 items-center justify-center rounded-full text-muted hover:bg-panel hover:text-ink lg:flex"
           >
             <ChevronIcon className="h-5 w-5" direction="right" />
           </button>
         )}
         <p
-          className={`mt-4 px-3 text-[11px] font-medium uppercase tracking-[0.14em] text-accent-soft/70 ${
+          className={`mt-1 px-1 text-xs text-muted ${
             collapsed ? "lg:sr-only" : ""
           }`}
         >
@@ -197,18 +209,18 @@ export function AdminLayout() {
         <nav
           id="admin-nav"
           aria-label="Admin sections"
-          className="mt-1 flex-1 overflow-y-auto"
+          className="mt-3 flex-1 overflow-y-auto"
         >
-          {GROUPS.map((g) => (
-            <div key={g.title} className="mt-5">
+          {GROUPS.map((g, gi) => (
+            <div key={g.title} className={gi === 0 ? "" : "mt-4"}>
               <p
-                className={`px-3 pb-1.5 text-[11px] font-medium uppercase tracking-[0.12em] text-surface/40 ${
+                className={`px-3 pb-1.5 text-xs font-medium text-muted/70 ${
                   collapsed ? "lg:sr-only" : ""
                 }`}
               >
                 {g.title}
               </p>
-              <ul className="space-y-0.5">
+              <ul className="space-y-1">
                 {g.items.map((i) => (
                   <li key={i.to}>
                     <NavLink
@@ -217,20 +229,10 @@ export function AdminLayout() {
                       className={linkClass(collapsed)}
                       title={collapsed ? i.label : undefined}
                     >
-                      {({ isActive }) => (
-                        <>
-                          {isActive && (
-                            <span
-                              aria-hidden="true"
-                              className="absolute left-0 top-2.5 h-6 w-1 rounded-r-full bg-accent"
-                            />
-                          )}
-                          {i.icon}
-                          <span className={collapsed ? "lg:sr-only" : ""}>
-                            {i.label}
-                          </span>
-                        </>
-                      )}
+                      {i.icon}
+                      <span className={collapsed ? "lg:sr-only" : ""}>
+                        {i.label}
+                      </span>
                     </NavLink>
                   </li>
                 ))}
@@ -238,67 +240,67 @@ export function AdminLayout() {
             </div>
           ))}
         </nav>
-        <div className="mt-4 rounded-2xl bg-surface/5 p-2">
-          <div
-            className={`flex items-center gap-3 px-2 py-1.5 ${
-              collapsed ? "lg:justify-center lg:px-0" : ""
-            }`}
-          >
-            <Avatar name={staff.full_name || staff.email} size={32} />
-            <p
-              className={`min-w-0 truncate text-xs text-surface/80 ${
-                collapsed ? "lg:sr-only" : ""
-              }`}
-              title="Signed in as"
-            >
-              {staff.full_name || staff.email}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={signOut}
-            title={collapsed ? "Sign out" : undefined}
-            className={`mt-1 flex min-h-[40px] w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-surface/70 hover:bg-surface/10 hover:text-surface ${
-              collapsed ? "lg:justify-center lg:px-0" : ""
-            }`}
-          >
-            <LogoutIcon />
-            <span className={collapsed ? "lg:sr-only" : ""}>Sign out</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={signOut}
+          title={collapsed ? "Sign out" : undefined}
+          className={`mt-3 flex min-h-[44px] w-full items-center gap-3 rounded-2xl bg-panel px-3 py-2 text-sm text-muted transition-colors hover:text-ink ${
+            collapsed ? "lg:justify-center lg:px-0" : ""
+          }`}
+        >
+          <LogoutIcon />
+          <span className={collapsed ? "lg:sr-only" : ""}>Sign out</span>
+        </button>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col bg-canvas lg:rounded-l-3xl">
-        <header className="sticky top-0 z-30 flex items-center gap-3 bg-canvas/90 px-4 py-2.5 backdrop-blur sm:px-6 lg:rounded-tl-3xl lg:px-8">
+      <div className="flex min-w-0 flex-1 flex-col gap-3">
+        <header className="sticky top-2 z-30 flex items-center gap-2 rounded-3xl bg-surface/95 px-2.5 py-2 shadow-card backdrop-blur sm:gap-3 sm:px-3 lg:top-3">
           <button
             type="button"
             aria-label={open ? "Close menu" : "Open menu"}
             aria-expanded={open}
             aria-controls="admin-sidebar"
             onClick={() => setOpen((v) => !v)}
-            className="-ml-2 flex h-11 w-11 items-center justify-center rounded-xl hover:bg-accent-soft lg:hidden"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-panel hover:bg-accent-soft lg:hidden"
           >
             {open ? <CloseIcon /> : <MenuIcon />}
           </button>
-          <p className="min-w-0 flex-1 truncate text-sm text-muted">
-            <span className="hidden sm:inline">Back office · </span>
-            <span className="font-medium text-ink">{here.label}</span>
-          </p>
           <button
             type="button"
             aria-label="Jump to"
             onClick={() => setJump(true)}
-            className="flex min-h-[44px] items-center gap-2 rounded-xl bg-surface px-3 text-sm text-muted shadow-card hover:text-ink sm:min-w-[220px]"
+            className="flex min-h-[44px] min-w-0 flex-1 items-center gap-2.5 rounded-full bg-panel px-4 text-sm text-muted transition-colors hover:text-ink sm:max-w-md sm:flex-none sm:basis-[26rem]"
           >
-            <SearchIcon className="h-4 w-4" />
-            <span className="hidden flex-1 text-left sm:block">Jump to…</span>
-            <kbd className="hidden rounded-md bg-canvas px-1.5 py-0.5 text-[11px] sm:block">
+            <SearchIcon className="h-4 w-4 shrink-0" />
+            <span className="min-w-0 flex-1 truncate text-left">
+              Search pages, people…
+            </span>
+            <kbd className="hidden rounded-md bg-surface px-1.5 py-0.5 text-[11px] shadow-card sm:block">
               Ctrl K
             </kbd>
           </button>
+          <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-4">
+            <p className="hidden text-right leading-tight sm:block">
+              <span className="block text-[11px] text-muted">Local time</span>
+              <span className="text-sm font-semibold tabular-nums">
+                {clock}
+              </span>
+            </p>
+            <span className="flex items-center gap-2.5 rounded-full bg-panel py-1 pl-1 pr-3">
+              <Avatar name={staff.full_name || staff.email} size={36} />
+              <span className="hidden min-w-0 leading-tight md:block">
+                <span className="block max-w-[11rem] truncate text-sm font-semibold">
+                  {staff.full_name || staff.email}
+                </span>
+                <span className="block text-[11px] text-muted">
+                  Back-office staff
+                </span>
+              </span>
+            </span>
+          </div>
         </header>
         <main className="min-w-0 flex-1">
-          <div className="mx-auto max-w-6xl space-y-6 p-4 pb-12 sm:p-6 lg:p-8">
+          <div className="mx-auto max-w-[1400px] space-y-6 px-1 pb-10 pt-3 sm:px-3 lg:px-4">
             <PrivateScreen>
               <Outlet />
             </PrivateScreen>

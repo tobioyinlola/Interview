@@ -33,7 +33,7 @@ export function QualityPage() {
         className="grid grid-cols-2 gap-3 md:grid-cols-4"
         aria-label="Answer quality"
       >
-        <Stat label="Answers written" value={num(d.answers)} />
+        <Stat feature label="Answers written" value={num(d.answers)} />
         <Stat label="Rated" value={num(d.rated)} hint="thumbs up or down" />
         <Stat
           label="Found helpful"

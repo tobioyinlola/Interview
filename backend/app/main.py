@@ -40,6 +40,10 @@ from app.routers import (
     sessions,
     staff_auth,
 )
+from app.routers import (
+    analytics as analytics_router,
+)
+from app.services.analytics import purge_old_client_events
 from app.services.events import purge_old_events
 from app.services.google_oauth import GoogleOAuth
 from app.services.live import LiveHub
@@ -78,6 +82,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     runner.notifier = notifier
     scorer.notifier = notifier
     await purge_old_events(get_sessionmaker(), settings.event_retention_days)
+    await purge_old_client_events(get_sessionmaker(), settings.analytics_retention_days)
     autoapply_task: asyncio.Task[None] | None = None
     # BACKGROUND_MODE=worker: the unified worker service (app/workers/main.py) does this instead
     if (
@@ -144,6 +149,7 @@ def create_app() -> FastAPI:
     for r in (
         auth.router,
         account.router,
+        analytics_router.router,
         notes.router,
         profile.router,
         billing.router,

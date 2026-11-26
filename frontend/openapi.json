@@ -1352,6 +1352,65 @@
         "title": "AutoApplyAdminOut",
         "type": "object"
       },
+      "BatchIn": {
+        "properties": {
+          "app_version": {
+            "default": "",
+            "maxLength": 20,
+            "title": "App Version",
+            "type": "string"
+          },
+          "device_id": {
+            "maxLength": 36,
+            "title": "Device Id",
+            "type": "string"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/EventIn"
+            },
+            "maxItems": 50,
+            "title": "Events",
+            "type": "array"
+          },
+          "form_factor": {
+            "maxLength": 8,
+            "title": "Form Factor",
+            "type": "string"
+          },
+          "locale": {
+            "default": "",
+            "maxLength": 12,
+            "title": "Locale",
+            "type": "string"
+          },
+          "platform": {
+            "maxLength": 16,
+            "title": "Platform",
+            "type": "string"
+          },
+          "session_id": {
+            "maxLength": 36,
+            "title": "Session Id",
+            "type": "string"
+          },
+          "viewport": {
+            "default": "",
+            "maxLength": 3,
+            "title": "Viewport",
+            "type": "string"
+          }
+        },
+        "required": [
+          "device_id",
+          "session_id",
+          "platform",
+          "form_factor",
+          "events"
+        ],
+        "title": "BatchIn",
+        "type": "object"
+      },
       "BillingOut": {
         "description": "How many sessions the person can start, and how far along their invite reward is.",
         "properties": {
@@ -2711,6 +2770,337 @@
         "title": "EnableIn",
         "type": "object"
       },
+      "EngagementOut": {
+        "properties": {
+          "data_since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Since"
+          },
+          "dau": {
+            "title": "Dau",
+            "type": "integer"
+          },
+          "days": {
+            "title": "Days",
+            "type": "integer"
+          },
+          "devices": {
+            "title": "Devices",
+            "type": "integer"
+          },
+          "engaged_minutes_per_person": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engaged Minutes Per Person"
+          },
+          "error_session_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Session Pct"
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorRow"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "features": {
+            "items": {
+              "$ref": "#/components/schemas/FeatureRow"
+            },
+            "title": "Features",
+            "type": "array"
+          },
+          "form_factors": {
+            "items": {
+              "$ref": "#/components/schemas/SplitRow"
+            },
+            "title": "Form Factors",
+            "type": "array"
+          },
+          "has_data": {
+            "title": "Has Data",
+            "type": "boolean"
+          },
+          "load": {
+            "items": {
+              "$ref": "#/components/schemas/LoadRow"
+            },
+            "title": "Load",
+            "type": "array"
+          },
+          "mau": {
+            "title": "Mau",
+            "type": "integer"
+          },
+          "median_session_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Session Seconds"
+          },
+          "offline_session_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offline Session Pct"
+          },
+          "people": {
+            "title": "People",
+            "type": "integer"
+          },
+          "people_prev": {
+            "title": "People Prev",
+            "type": "integer"
+          },
+          "platforms": {
+            "items": {
+              "$ref": "#/components/schemas/SplitRow"
+            },
+            "title": "Platforms",
+            "type": "array"
+          },
+          "retention": {
+            "items": {
+              "$ref": "#/components/schemas/RetentionRow"
+            },
+            "title": "Retention",
+            "type": "array"
+          },
+          "screens": {
+            "items": {
+              "$ref": "#/components/schemas/ScreenRow"
+            },
+            "title": "Screens",
+            "type": "array"
+          },
+          "screens_per_session": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Screens Per Session"
+          },
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/EngagementPoint"
+            },
+            "title": "Series",
+            "type": "array"
+          },
+          "sessions": {
+            "title": "Sessions",
+            "type": "integer"
+          },
+          "sessions_prev": {
+            "title": "Sessions Prev",
+            "type": "integer"
+          },
+          "stickiness_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stickiness Pct"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/VersionRow"
+            },
+            "title": "Versions",
+            "type": "array"
+          },
+          "wau": {
+            "title": "Wau",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "days",
+          "has_data",
+          "data_since",
+          "people",
+          "people_prev",
+          "devices",
+          "sessions",
+          "sessions_prev",
+          "dau",
+          "wau",
+          "mau",
+          "stickiness_pct",
+          "median_session_seconds",
+          "screens_per_session",
+          "engaged_minutes_per_person",
+          "error_session_pct",
+          "offline_session_pct",
+          "series",
+          "platforms",
+          "form_factors",
+          "versions",
+          "screens",
+          "features",
+          "errors",
+          "load",
+          "retention"
+        ],
+        "title": "EngagementOut",
+        "type": "object"
+      },
+      "EngagementPoint": {
+        "properties": {
+          "day": {
+            "title": "Day",
+            "type": "string"
+          },
+          "devices": {
+            "title": "Devices",
+            "type": "integer"
+          },
+          "engaged_minutes": {
+            "title": "Engaged Minutes",
+            "type": "integer"
+          },
+          "sessions": {
+            "title": "Sessions",
+            "type": "integer"
+          },
+          "users": {
+            "title": "Users",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day",
+          "users",
+          "devices",
+          "sessions",
+          "engaged_minutes"
+        ],
+        "title": "EngagementPoint",
+        "type": "object"
+      },
+      "ErrorRow": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "devices": {
+            "title": "Devices",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "last_seen": {
+            "format": "date-time",
+            "title": "Last Seen",
+            "type": "string"
+          },
+          "route": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Route"
+          }
+        },
+        "required": [
+          "kind",
+          "route",
+          "count",
+          "devices",
+          "last_seen"
+        ],
+        "title": "ErrorRow",
+        "type": "object"
+      },
+      "EventIn": {
+        "properties": {
+          "name": {
+            "maxLength": 32,
+            "title": "Name",
+            "type": "string"
+          },
+          "props": {
+            "additionalProperties": true,
+            "title": "Props",
+            "type": "object"
+          },
+          "route": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Route"
+          },
+          "ts": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ts"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "EventIn",
+        "type": "object"
+      },
       "FactsIn": {
         "properties": {
           "data": {
@@ -2770,6 +3160,34 @@
           "verified_at"
         ],
         "title": "FactsOut",
+        "type": "object"
+      },
+      "FeatureRow": {
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "people": {
+            "title": "People",
+            "type": "integer"
+          },
+          "uses": {
+            "title": "Uses",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "kind",
+          "uses",
+          "people"
+        ],
+        "title": "FeatureRow",
         "type": "object"
       },
       "FeedbackIn": {
@@ -3004,6 +3422,29 @@
           "startups"
         ],
         "title": "ImportIn",
+        "type": "object"
+      },
+      "IngestOut": {
+        "properties": {
+          "accepted": {
+            "title": "Accepted",
+            "type": "integer"
+          },
+          "rejected": {
+            "title": "Rejected",
+            "type": "integer"
+          },
+          "stop": {
+            "default": false,
+            "title": "Stop",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "accepted",
+          "rejected"
+        ],
+        "title": "IngestOut",
         "type": "object"
       },
       "InterviewOut": {
@@ -3424,6 +3865,34 @@
         "title": "LinkEventIn",
         "type": "object"
       },
+      "LoadRow": {
+        "properties": {
+          "p50_ms": {
+            "title": "P50 Ms",
+            "type": "integer"
+          },
+          "p95_ms": {
+            "title": "P95 Ms",
+            "type": "integer"
+          },
+          "platform": {
+            "title": "Platform",
+            "type": "string"
+          },
+          "samples": {
+            "title": "Samples",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "platform",
+          "p50_ms",
+          "p95_ms",
+          "samples"
+        ],
+        "title": "LoadRow",
+        "type": "object"
+      },
       "LoginIn": {
         "properties": {
           "email": {
@@ -3685,6 +4154,11 @@
       },
       "MeOut": {
         "properties": {
+          "analytics_opt_out": {
+            "default": false,
+            "title": "Analytics Opt Out",
+            "type": "boolean"
+          },
           "autoapply": {
             "default": false,
             "title": "Autoapply",
@@ -4400,6 +4874,32 @@
         "title": "PostingOut",
         "type": "object"
       },
+      "PreferenceIn": {
+        "properties": {
+          "opt_out": {
+            "title": "Opt Out",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "opt_out"
+        ],
+        "title": "PreferenceIn",
+        "type": "object"
+      },
+      "PreferenceOut": {
+        "properties": {
+          "opt_out": {
+            "title": "Opt Out",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "opt_out"
+        ],
+        "title": "PreferenceOut",
+        "type": "object"
+      },
       "PrepareOut": {
         "properties": {
           "company_id": {
@@ -5025,6 +5525,41 @@
         "title": "ResolveIn",
         "type": "object"
       },
+      "RetentionRow": {
+        "properties": {
+          "cohort": {
+            "title": "Cohort",
+            "type": "integer"
+          },
+          "day": {
+            "title": "Day",
+            "type": "integer"
+          },
+          "pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct"
+          },
+          "returned": {
+            "title": "Returned",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day",
+          "cohort",
+          "returned",
+          "pct"
+        ],
+        "title": "RetentionRow",
+        "type": "object"
+      },
       "RunOut": {
         "properties": {
           "eligible": {
@@ -5178,6 +5713,41 @@
           "status"
         ],
         "title": "ScoreStartedOut",
+        "type": "object"
+      },
+      "ScreenRow": {
+        "properties": {
+          "avg_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Seconds"
+          },
+          "people": {
+            "title": "People",
+            "type": "integer"
+          },
+          "route": {
+            "title": "Route",
+            "type": "string"
+          },
+          "views": {
+            "title": "Views",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "route",
+          "views",
+          "people",
+          "avg_seconds"
+        ],
+        "title": "ScreenRow",
         "type": "object"
       },
       "SearchProfileIn": {
@@ -6025,6 +6595,44 @@
           "fetched_at"
         ],
         "title": "SourceOut",
+        "type": "object"
+      },
+      "SplitRow": {
+        "properties": {
+          "devices": {
+            "title": "Devices",
+            "type": "integer"
+          },
+          "engaged_minutes": {
+            "title": "Engaged Minutes",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "sessions": {
+            "title": "Sessions",
+            "type": "integer"
+          },
+          "share_pct": {
+            "title": "Share Pct",
+            "type": "number"
+          },
+          "users": {
+            "title": "Users",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "devices",
+          "users",
+          "sessions",
+          "engaged_minutes",
+          "share_pct"
+        ],
+        "title": "SplitRow",
         "type": "object"
       },
       "StaffIn": {
@@ -7234,6 +7842,29 @@
         "title": "VerifyIn",
         "type": "object"
       },
+      "VersionRow": {
+        "properties": {
+          "app_version": {
+            "title": "App Version",
+            "type": "string"
+          },
+          "devices": {
+            "title": "Devices",
+            "type": "integer"
+          },
+          "platform": {
+            "title": "Platform",
+            "type": "string"
+          }
+        },
+        "required": [
+          "platform",
+          "app_version",
+          "devices"
+        ],
+        "title": "VersionRow",
+        "type": "object"
+      },
       "WorkerDeadOut": {
         "properties": {
           "attempts": {
@@ -8133,6 +8764,52 @@
           }
         },
         "summary": "Email Template Preview",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/engagement": {
+      "get": {
+        "description": "How people use the app on every device: who is active, for how long, where, what they use\nand what breaks. From the app's own usage statistics; counts and times only.",
+        "operationId": "engagement_api_admin_engagement_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 90,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngagementOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Engagement",
         "tags": [
           "admin"
         ]
@@ -9259,6 +9936,90 @@
         "summary": "Worker Retry",
         "tags": [
           "admin"
+        ]
+      }
+    },
+    "/api/analytics/events": {
+      "post": {
+        "description": "A batch of usage events from the app on any device. Works before sign-in (anonymous) and\nafter (attached to the account). Never fails the app: unknown or malformed events are dropped\nand counted.",
+        "operationId": "ingest_api_analytics_events_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ingest",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
+    "/api/analytics/preference": {
+      "put": {
+        "description": "Turn usage statistics off or on for this account, on every device. Turning them off also\ndeletes what was collected about the person.",
+        "operationId": "set_preference_api_analytics_preference_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreferenceIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreferenceOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Preference",
+        "tags": [
+          "analytics"
         ]
       }
     },

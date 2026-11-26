@@ -2,6 +2,7 @@ import { type FormEvent, useState } from "react";
 import { NavLink, Navigate, useNavigate, useParams } from "react-router-dom";
 
 import {
+  useAnalyticsPreference,
   useChangePassword,
   useDeleteAccount,
   useMe,
@@ -12,6 +13,8 @@ import { COUNTRIES } from "../../data/countries";
 import { PasswordField } from "../../ui/PasswordField";
 import { CountrySelect, RoleInput } from "../../ui/Pickers";
 import { PasswordRules, passwordOk } from "../auth/password";
+import { browserSaysNo } from "../../analytics/client";
+import { trackFeature } from "../../analytics";
 import { capability, privacy, usePrivacy } from "../../app/privacy";
 import { PrivateScreen } from "../../app/usePrivateScreen";
 
@@ -417,10 +420,66 @@ function ScreenPrivacy() {
   );
 }
 
+/** The switch for usage statistics: on until turned off, on every device, and off deletes. */
+function UsageStatistics() {
+  const me = useMe();
+  const save = useAnalyticsPreference();
+  const off = me.data?.analytics_opt_out === true;
+  const browser = browserSaysNo();
+  return (
+    <section aria-labelledby="usage-stats" className="card space-y-3">
+      <h2 id="usage-stats" className="text-lg font-semibold">
+        Usage statistics
+      </h2>
+      <p className="text-sm">
+        To make InterviewMeet better we count which screens are opened, how long
+        the app is in use, which buttons are used, when something breaks and how
+        long it takes to open, on the website and in the apps.
+      </p>
+      <p className="text-sm text-muted">
+        It never includes what you type, say, upload or see: no CV, answers,
+        transcripts, notes or company names. Kept for 90 days.
+      </p>
+      <label className="flex min-h-[44px] items-center gap-3 text-sm">
+        <input
+          type="checkbox"
+          checked={!off}
+          disabled={save.isPending || !me.data}
+          onChange={(e) => {
+            if (e.target.checked)
+              trackFeature("privacy_toggle", { detail: "stats_on" });
+            save.mutate(!e.target.checked);
+          }}
+          className="h-5 w-5 accent-accent"
+        />
+        Share usage statistics, on all my devices
+      </label>
+      {off && (
+        <p role="status" className="text-sm text-muted">
+          Off. Nothing is collected on any of your devices, and what was
+          collected about you has been deleted.
+        </p>
+      )}
+      {browser && (
+        <p className="text-sm text-muted">
+          Your browser asks not to be tracked, so nothing is sent from it
+          whatever this says.
+        </p>
+      )}
+      {save.isError && (
+        <p role="alert" className="notice-error">
+          {save.error.message}
+        </p>
+      )}
+    </section>
+  );
+}
+
 function PrivacyTab() {
   return (
     <>
       <PrivacyNotice />
+      <UsageStatistics />
       <ScreenPrivacy />
       <section aria-labelledby="danger" className="card space-y-2 !bg-red-50">
         <h2 id="danger" className="text-lg font-semibold">

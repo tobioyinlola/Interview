@@ -15,6 +15,7 @@ import type {
   AdminSwitch,
   AdminEmails,
   AdminMarketing,
+  AdminEngagement,
   AdminOverview,
   AdminQuality,
   AdminReferrals,
@@ -36,6 +37,13 @@ export const useOverview = (days: number) =>
   useQuery<AdminOverview>({
     queryKey: ["admin", "overview", days],
     queryFn: () => apiFetch(`/api/admin/overview${qs({ days })}`),
+  });
+
+/** How people use the app on every device, from its own usage statistics. */
+export const useEngagement = (days: number) =>
+  useQuery<AdminEngagement>({
+    queryKey: ["admin", "engagement", days],
+    queryFn: () => apiFetch(`/api/admin/engagement${qs({ days })}`),
   });
 
 export interface UserParams {

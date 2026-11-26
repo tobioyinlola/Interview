@@ -36,7 +36,7 @@ export function ReferralsAdminPage() {
         className="grid grid-cols-2 gap-3 md:grid-cols-5"
         aria-label="Invite numbers"
       >
-        <Stat label="Invited sign-ups" value={num(d.total)} />
+        <Stat feature label="Invited sign-ups" value={num(d.total)} />
         <Stat label="Counted" value={num(d.counted)} />
         <Stat
           label="Held"

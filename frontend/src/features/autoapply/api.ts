@@ -1,3 +1,4 @@
+import { trackFeature } from "../../analytics";
 import { openGoogleStep } from "../auth/nativeGoogle";
 import {
   useInfiniteQuery,
@@ -133,11 +134,17 @@ export function useCampaignActions() {
     enable: useMutation({
       mutationFn: (policy_version: string) =>
         post<AACampaign>("/campaign/enable", { policy_version, accept: true }),
-      ...opts,
+      onSuccess: () => {
+        trackFeature("autoapply_enable");
+        refresh();
+      },
     }),
     pause: useMutation({
       mutationFn: () => post<AACampaign>("/campaign/pause"),
-      ...opts,
+      onSuccess: () => {
+        trackFeature("autoapply_pause");
+        refresh();
+      },
     }),
     resume: useMutation({
       mutationFn: () => post<AACampaign>("/campaign/resume"),

@@ -134,12 +134,16 @@ function CapturePanel({
       )}
       <div className="flex gap-2">
         {status !== "ended" && !active && (
-          <button className="btn-primary" onClick={onShare}>
+          <button
+            className="btn-primary"
+            data-ev="live.share_tab"
+            onClick={onShare}
+          >
             Share Meet tab
           </button>
         )}
         {status !== "ended" && (
-          <button className="btn-secondary" onClick={onEnd}>
+          <button className="btn-secondary" data-ev="live.end" onClick={onEnd}>
             End session
           </button>
         )}
@@ -243,6 +247,7 @@ function QuestionAnswer({ outline }: { outline: Outline }) {
       {hidden && (
         <button
           className="btn-secondary btn-sm"
+          data-ev="live.reveal_answer"
           onClick={() => patchOutline({ revealed: true })}
         >
           Reveal
@@ -287,7 +292,11 @@ export function AnswerControls({ onRegenerate }: { onRegenerate: () => void }) {
           <FeedbackButtons outline={outline} />
         )}
         {outline && outline.state !== "streaming" && (
-          <button className="btn-secondary btn-sm" onClick={onRegenerate}>
+          <button
+            className="btn-secondary btn-sm"
+            data-ev="live.regenerate"
+            onClick={onRegenerate}
+          >
             Regenerate
           </button>
         )}

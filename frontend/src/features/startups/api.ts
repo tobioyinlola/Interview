@@ -1,3 +1,4 @@
+import { trackFeature } from "../../analytics";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiFetch } from "../../api/client";
@@ -107,7 +108,10 @@ export function useRequestOutreachAccess() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => post<{ access: string }>("/access/request"),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["me"] }),
+    onSuccess: () => {
+      trackFeature("outreach_request");
+      void qc.invalidateQueries({ queryKey: ["me"] });
+    },
   });
 }
 

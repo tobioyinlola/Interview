@@ -74,6 +74,9 @@ class User(Base):
     tour_done_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
     # The code in this person's invite link. Every account has one.
     referral_code: Mapped[str | None] = mapped_column(String(16), unique=True, nullable=True)
+    # Usage statistics (see services/analytics.py): on until the person turns them off, on every
+    # device at once. Turning them off also deletes what was collected.
+    analytics_opt_out: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
 
 
@@ -429,6 +432,41 @@ class Event(Base):
     data: Mapped[dict[str, Any]] = mapped_column(
         JSONB, default=dict, server_default=text("'{}'::jsonb")
     )
+
+
+class ClientEvent(Base):
+    """One thing a person did in the app, from the app itself: a screen opened, time spent, a button
+    used, a crash. Allow-listed names and short coded values only; there is no text column, so it
+    cannot hold anything anyone typed or said. Anonymous until sign-in (a random id kept on the
+    device, not a fingerprint). Removed with the account, and by age (ANALYTICS_RETENTION_DAYS)."""
+
+    __tablename__ = "client_events"
+    __table_args__ = (
+        Index("ix_client_events_user_ts", "user_id", "ts"),
+        Index("ix_client_events_device_ts", "device_id", "ts"),
+        Index("ix_client_events_name_ts", "name", "ts"),
+        Index("ix_client_events_platform_ts", "platform", "ts"),
+    )
+    id: Mapped[uuid.UUID] = _pk()
+    ts: Mapped[datetime] = mapped_column(_TS, index=True)  # when it happened, clamped by the server
+    received_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+    device_id: Mapped[str] = mapped_column(String(36))
+    session_id: Mapped[str] = mapped_column(String(36))
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=True
+    )
+    name: Mapped[str] = mapped_column(String(32))
+    route: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    props: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb")
+    )
+    platform: Mapped[str] = mapped_column(
+        String(16)
+    )  # web | windows | macos | linux | android | ios
+    form_factor: Mapped[str] = mapped_column(String(8))  # phone | tablet | desktop
+    app_version: Mapped[str] = mapped_column(String(20), default="")
+    locale: Mapped[str] = mapped_column(String(12), default="")
+    viewport: Mapped[str] = mapped_column(String(3), default="")  # xs | sm | md | lg | xl
 
 
 # ------------------------------------------------------------------------------ Auto-Apply

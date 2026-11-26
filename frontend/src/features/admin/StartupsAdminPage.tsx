@@ -59,7 +59,7 @@ function OutreachAccess() {
   const d = list.data;
   return (
     <section
-      className="overflow-hidden rounded-2xl bg-surface shadow-card"
+      className="overflow-hidden rounded-3xl bg-surface shadow-card"
       aria-label="Outreach access"
     >
       <div className="flex flex-wrap items-start justify-between gap-3 p-5 pb-3">
@@ -218,6 +218,7 @@ export function StartupsAdminPage() {
         aria-label="Startup totals"
       >
         <Stat
+          feature
           label="Startups known"
           value={num(d.startups)}
           to="/admin/startups/list"
@@ -239,7 +240,7 @@ export function StartupsAdminPage() {
           to="/admin/startups/roles"
         />
       </dl>
-      <p className="rounded-2xl bg-accent-soft p-4 text-sm text-ink/80">
+      <p className="rounded-3xl bg-accent-soft p-4 text-sm text-ink/80">
         By region:{" "}
         {Object.entries(d.by_region)
           .map(([k, v]) => `${regionName(k)} ${v}`)

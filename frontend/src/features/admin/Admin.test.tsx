@@ -140,8 +140,8 @@ describe("admin console: overview", () => {
     void nums;
     expect(await screen.findByText("120")).toBeInTheDocument(); // people
     expect(screen.getByText(/New in 30 days/)).toBeInTheDocument();
-    expect(screen.getByText(/▲ 100%/)).toBeInTheDocument(); // 40 against 20
-    expect(screen.getByText(/▼ 45%/)).toBeInTheDocument(); // 55 against 100
+    expect(screen.getByText("100%")).toBeInTheDocument(); // 40 against 20
+    expect(screen.getByText("45%")).toBeInTheDocument(); // 55 against 100
     expect(screen.getByText("12 min 5 s")).toBeInTheDocument();
     expect(screen.getByText("4.2 answers each")).toBeInTheDocument();
     expect(screen.getByText("50%")).toBeInTheDocument(); // weekly over monthly actives
