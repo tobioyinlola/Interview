@@ -1,6 +1,7 @@
 """Turning what a job source reported into one clean posting, and recognising a listing that was
 already seen on another board."""
 
+import hashlib
 import re
 import uuid
 from datetime import UTC, datetime
@@ -88,6 +89,29 @@ def _word_map(text: str | None, table: dict[str, str]) -> str | None:
     return None
 
 
+PERIOD_WORDS = {  # what feeds call a pay period -> the periods a salary floor is given in
+    "hour": "hour", "hourly": "hour", "hr": "hour",
+    "day": "day", "daily": "day",
+    "week": "week", "weekly": "week",
+    "month": "month", "monthly": "month",
+    "year": "year", "yearly": "year", "annual": "year", "annually": "year", "yr": "year",
+}  # fmt: skip
+SENIORITY_LEVELS = {"executive", "lead", "senior", "mid", "junior", "intern"}
+KEY_MAX = 400  # the canonical_key column
+
+
+def _text(value: str | None) -> str:
+    """Feed text as Postgres will store it: NUL characters are refused by the database."""
+    return (value or "").replace("\x00", "")
+
+
+def _aware(value: datetime | None) -> datetime | None:
+    """A feed date without a timezone is taken as UTC; the columns hold aware timestamps."""
+    if value is not None and value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value
+
+
 def infer_seniority(title: str) -> str | None:
     low = f"{title.lower()} "
     for level, words in SENIORITY_WORDS:
@@ -97,6 +121,13 @@ def infer_seniority(title: str) -> str | None:
 
 
 def canonical_key(raw: RawPosting) -> tuple[str, bool]:
+    key, confident = _canonical_key(raw)
+    if len(key) > KEY_MAX:  # keep it unique: a cut-off key could merge two different jobs
+        key = f"{key[: KEY_MAX - 17]}#{hashlib.sha256(key.encode()).hexdigest()[:16]}"
+    return key, confident
+
+
+def _canonical_key(raw: RawPosting) -> tuple[str, bool]:
     """(key, confident). A requisition id is the best identity, then the employer's own
     application address; without either, a company-and-title guess that is flagged uncertain."""
     company = slug(raw.company)
@@ -108,9 +139,22 @@ def canonical_key(raw: RawPosting) -> tuple[str, bool]:
     return f"title:{company}:{slug(raw.title)}:{slug(raw.region)}", False
 
 
+def _clean(raw: RawPosting) -> RawPosting:
+    """The same posting with every text field safe to store."""
+    from dataclasses import fields, replace
+
+    changes = {
+        f.name: _text(getattr(raw, f.name))
+        for f in fields(raw)
+        if isinstance(getattr(raw, f.name), str) and "\x00" in getattr(raw, f.name)
+    }
+    return replace(raw, **changes) if changes else raw
+
+
 def normalise(raw: RawPosting) -> dict[str, Any]:
     """The fields of a posting, cleaned and typed. What a source did not say stays None: a missing
     fact is 'unknown', never a guess."""
+    raw = _clean(raw)
     text = f"{raw.title} {raw.description[:2000]}"
     arrangement = _word_map(raw.arrangement, ARRANGEMENT_WORDS) or _word_map(
         text, ARRANGEMENT_WORDS
@@ -134,15 +178,17 @@ def normalise(raw: RawPosting) -> dict[str, Any]:
         "region": (raw.region or "").strip()[:200] or None,
         "arrangement": arrangement,
         "contract": contract,
-        "seniority": raw.seniority or infer_seniority(raw.title),
+        "seniority": (
+            raw.seniority if raw.seniority in SENIORITY_LEVELS else infer_seniority(raw.title)
+        ),
         "industry": (raw.industry or "").strip()[:80] or None,
         "salary_min": raw.salary_min,
         "salary_max": raw.salary_max if raw.salary_max is not None else raw.salary_min,
         "salary_currency": currency if currency and len(currency) == 3 else None,
-        "salary_period": (raw.salary_period or "").lower() or None,
+        "salary_period": PERIOD_WORDS.get((raw.salary_period or "").lower().strip()),
         "sponsorship": sponsor,
-        "posted_at": raw.posted_at,
-        "expires_at": raw.expires_at,
+        "posted_at": _aware(raw.posted_at),
+        "expires_at": _aware(raw.expires_at),
         "application_url": clean_url(raw.application_url),
         "apply_email": (raw.apply_email or "").strip().lower()[:320] or None,
         "apply_instructions": raw.apply_instructions.strip()[:2000],

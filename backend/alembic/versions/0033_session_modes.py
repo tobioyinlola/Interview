@@ -3,18 +3,16 @@
 Additive: existing sessions become "mock", which is what they were.
 
 Revision ID: 0033
-Revises: 0030
+Revises: 0032
 
-Branch note: this branch starts from Staging, whose newest revision is 0030. The worker branch adds
-0031 and 0032. Whichever merges second sets this file's down_revision to the other's head (one line)
-so there is a single head; `alembic heads` must show one revision before deploying.
+Follows 0032 (job sources) since the worker and privacy branches were merged.
 """
 
 import sqlalchemy as sa
 from alembic import op
 
 revision = "0033"
-down_revision = "0030"
+down_revision = "0032"
 branch_labels = None
 depends_on = None
 
