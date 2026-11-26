@@ -7,7 +7,8 @@ import {
   useNavigate,
 } from "react-router-dom";
 
-import { useLogout, useMe } from "../api/hooks";
+import { useMe } from "../api/hooks";
+import { useSignOut } from "../ui/SignOut";
 import { LogoMark } from "../features/landing/Logo";
 import { GlobalSearch } from "../features/search/GlobalSearch";
 import { ProfileMenu } from "./ProfileMenu";
@@ -17,17 +18,14 @@ import { rememberPage } from "../features/support/lastPage";
 import { TourProvider } from "../features/tour/TourProvider";
 import {
   CloseIcon,
-  FileIcon,
   GearIcon,
   HomeIcon,
   ListIcon,
   LogoutIcon,
   MenuIcon,
   MicIcon,
-  ShieldIcon,
   ChevronIcon,
   GiftIcon,
-  HelpIcon,
   MailIcon,
   SendIcon,
   RocketIcon,
@@ -126,7 +124,7 @@ function Group({
 
 export function Layout() {
   const { data: me } = useMe();
-  const logout = useLogout();
+  const signOut = useSignOut();
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
@@ -160,13 +158,10 @@ export function Layout() {
     item("/settings", "Settings", <GearIcon />),
   ];
   const support = [
-    item("/help", "Help", <HelpIcon />),
     {
       ...item("/support", "Contact support", <MailIcon />),
       badge: unread.data?.count,
     },
-    item("/privacy", "Privacy", <ShieldIcon />),
-    item("/terms", "Terms", <FileIcon />),
   ];
 
   return (
@@ -259,11 +254,7 @@ export function Layout() {
               className={`mt-2 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-surface/75 hover:bg-surface/10 hover:text-surface ${
                 collapsed ? "lg:justify-center lg:px-0" : ""
               }`}
-              onClick={() =>
-                logout.mutate(undefined, {
-                  onSuccess: () => navigate("/login"),
-                })
-              }
+              onClick={signOut.ask}
             >
               <LogoutIcon />
               <span className={collapsed ? "lg:sr-only" : ""}>Sign out</span>
@@ -300,6 +291,7 @@ export function Layout() {
           <Outlet />
         </div>
       </div>
+      {signOut.dialog}
     </TourProvider>
   );
 }
