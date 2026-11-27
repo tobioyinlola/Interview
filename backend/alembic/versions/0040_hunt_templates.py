@@ -19,14 +19,20 @@ T = "aa_hunt_settings"
 
 
 def upgrade() -> None:
-    op.add_column(T, sa.Column("use_template", sa.Boolean(), nullable=False, server_default=sa.false()))
     op.add_column(
-        T,
-        sa.Column("template", postgresql.JSONB(), nullable=False, server_default=sa.text("'{}'::jsonb")),
+        T, sa.Column("use_template", sa.Boolean(), nullable=False, server_default=sa.false())
     )
     op.add_column(
         T,
-        sa.Column("variables", postgresql.JSONB(), nullable=False, server_default=sa.text("'{}'::jsonb")),
+        sa.Column(
+            "template", postgresql.JSONB(), nullable=False, server_default=sa.text("'{}'::jsonb")
+        ),
+    )
+    op.add_column(
+        T,
+        sa.Column(
+            "variables", postgresql.JSONB(), nullable=False, server_default=sa.text("'{}'::jsonb")
+        ),
     )
     op.add_column(
         T, sa.Column("follow_up_enabled", sa.Boolean(), nullable=False, server_default=sa.true())
