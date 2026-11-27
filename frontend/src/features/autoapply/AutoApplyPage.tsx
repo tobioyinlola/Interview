@@ -12,16 +12,7 @@ import {
   useRunDiscovery,
 } from "./api";
 import { isMobileApp } from "../../app/native";
-import {
-  DemoNotice,
-  Fail,
-  Pill,
-  STAGE,
-  Section,
-  SourceChips,
-  day,
-  when,
-} from "./ui";
+import { DemoNotice, Fail, Pill, STAGE, Section, day, when } from "./ui";
 import type { AAInterview } from "../../api/types";
 
 function NextInterview({ iv }: { iv: AAInterview }) {
@@ -156,16 +147,14 @@ function Ring({
 
 type Dash = NonNullable<ReturnType<typeof useDashboard>["data"]>;
 
-/** One set of numbers for the whole of Auto-Apply: job applications and startup pitches together. */
+/** The numbers for Auto-Apply: job applications only. Startup pitches are counted on their own page. */
 export function totals(d: Dash) {
   const jobs = (d.counts.submitted ?? 0) + (d.counts.sent_email ?? 0);
-  const startups = d.startups?.sent ?? 0;
   return {
-    sent: jobs + startups,
+    sent: jobs,
     jobs,
-    startups,
-    replies: (d.startups?.replied ?? 0) + (d.review_count ?? 0),
-    waiting: (d.counts.needs_input ?? 0) + (d.startups?.waiting ?? 0),
+    replies: d.review_count ?? 0,
+    waiting: d.counts.needs_input ?? 0,
     interviews: d.open_invites.length + (d.next_interview ? 1 : 0),
   };
 }
@@ -264,7 +253,7 @@ function Hero({
               >
                 {p.label}
               </a>
-            ) : p.href ? (
+            ) : p.href && p.kind !== "preferences" && p.kind !== "last_run" ? (
               <Link to={p.href} className={cta}>
                 {p.label}
               </Link>
@@ -289,16 +278,20 @@ function Tile({
   value,
   hint,
   bar,
+  to,
 }: {
   label: string;
   value: React.ReactNode;
   hint?: string;
   bar?: number;
+  to?: string;
 }) {
   const phone = isMobileApp();
-  return (
+  const card = (
     <div
-      className={`bg-surface shadow-card ${phone ? "rounded-[1.25rem] p-3" : "rounded-2xl p-4"}`}
+      className={`h-full bg-surface shadow-card ${phone ? "rounded-[1.25rem] p-3" : "rounded-2xl p-4"} ${
+        to ? "transition-shadow hover:shadow-lift" : ""
+      }`}
     >
       <dt className="text-xs text-muted">{label}</dt>
       <dd className="mt-1 text-2xl font-semibold tracking-tight">{value}</dd>
@@ -315,6 +308,13 @@ function Tile({
       )}
       {hint && !phone && <p className="mt-1 text-xs text-muted">{hint}</p>}
     </div>
+  );
+  return to ? (
+    <Link to={to} className="block min-w-0">
+      {card}
+    </Link>
+  ) : (
+    card
   );
 }
 
@@ -345,19 +345,12 @@ export function AutoApplyPage() {
   const d = dash.data;
   const c = d.campaign;
   const t = totals(d);
-  // job applications and startup pitches in one list, newest first
-  const activity = [
-    ...d.recent.map((a) => ({
-      kind: "job" as const,
+  // job applications only; startup pitches live on the Startups page
+  const activity = d.recent
+    .map((a) => ({
       a,
       at: Date.parse(a.updated_at ?? a.created_at ?? "") || 0,
-    })),
-    ...(d.startup_recent ?? []).map((p) => ({
-      kind: "startup" as const,
-      p,
-      at: Date.parse(p.sent_at ?? "") || 0,
-    })),
-  ]
+    }))
     .sort((x, y) => y.at - x.at)
     .slice(0, 6);
   const running = c.state === "active" || c.state === "paused";
@@ -373,65 +366,33 @@ export function AutoApplyPage() {
 
       <Hero d={d} />
 
-      {d.startups && (
-        <Link
-          to="/startups"
-          className="flex min-h-[56px] items-center justify-between gap-3 rounded-2xl bg-surface p-4 shadow-card"
-        >
-          <span className="min-w-0">
-            <span className="block font-medium">
-              {d.startups.waiting > 0
-                ? `${d.startups.waiting} startup pitch${d.startups.waiting === 1 ? "" : "es"} waiting for you`
-                : "Startups"}
-            </span>
-            <span className="block text-sm text-muted">
-              {d.startups.sent} sent · {d.startups.replied} replies ·{" "}
-              {d.startups.openings} with an open role
-            </span>
-          </span>
-          <span aria-hidden="true" className="text-muted">
-            ›
-          </span>
-        </Link>
-      )}
-
       <dl
-        className={`grid gap-3 ${phone ? "grid-cols-3 gap-2" : "grid-cols-2 lg:grid-cols-4"}`}
+        className={`grid gap-3 ${phone ? "grid-cols-2 gap-2" : "grid-cols-2 lg:grid-cols-4"}`}
         aria-label="At a glance"
       >
         <Tile
           label="Sent so far"
           value={t.sent}
-          hint={
-            t.startups > 0
-              ? `${t.jobs} jobs · ${t.startups} startups`
-              : "applications"
-          }
-        />
-        {!phone && (
-          <Tile
-            label="Replies"
-            value={t.replies}
-            hint={
-              d.review_count > 0
-                ? `${d.review_count} to match`
-                : "from employers"
-            }
-          />
-        )}
-        <Tile
-          label="Waiting for you"
-          value={t.waiting}
-          hint={
-            d.startups?.waiting
-              ? `${d.startups.waiting} startup pitch${d.startups.waiting === 1 ? "" : "es"} to approve`
-              : "questions to answer"
-          }
+          hint="applications"
+          to="/auto-apply/applications?show=sent"
         />
         <Tile
-          label="Interviews"
-          value={t.interviews}
-          hint="invited or booked"
+          label="Ready to send"
+          value={(d.counts.queued ?? 0) + (d.counts.sending ?? 0)}
+          hint="going out next"
+          to="/auto-apply/applications?show=ready"
+        />
+        <Tile
+          label="Skipped"
+          value={d.counts.skipped ?? 0}
+          hint="not a fit, or closed"
+          to="/auto-apply/applications?show=skipped"
+        />
+        <Tile
+          label="Apply yourself"
+          value={d.counts.apply_yourself ?? 0}
+          hint="for you to submit"
+          to="/auto-apply/applications?show=apply"
         />
       </dl>
 
@@ -591,74 +552,42 @@ export function AutoApplyPage() {
                   </p>
                   <p className="mt-2 font-medium">Nothing has gone out yet</p>
                   <p className="text-sm text-muted">
-                    Applications and startup pitches appear here as they are
-                    sent, with what happened next.
+                    Applications appear here as they are sent, with what
+                    happened next.
                   </p>
                 </div>
               ) : (
                 <ul className="space-y-2">
-                  {activity.map((x) =>
-                    x.kind === "job" ? (
-                      <li key={x.a.id}>
-                        <Link
-                          to={`/auto-apply/applications/${x.a.id}`}
-                          className="flex items-center gap-3 rounded-2xl bg-canvas p-3 transition-colors hover:bg-accent-soft"
+                  {activity.map((x) => (
+                    <li key={x.a.id}>
+                      <Link
+                        to={`/auto-apply/applications/${x.a.id}`}
+                        className="flex items-center gap-3 rounded-2xl bg-canvas p-3 transition-colors hover:bg-accent-soft"
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-soft font-semibold text-accent-dark"
                         >
-                          <span
-                            aria-hidden="true"
-                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-soft font-semibold text-accent-dark"
-                          >
-                            {initial(x.a.posting.company)}
+                          {initial(x.a.posting.company)}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-medium">
+                            {x.a.posting.title} at {x.a.posting.company}
                           </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate font-medium">
-                              {x.a.posting.title} at {x.a.posting.company}
-                            </span>
-                            <span className="block truncate text-sm text-muted">
-                              {x.a.posting.region ?? "Anywhere"}
-                            </span>
+                          <span className="block truncate text-sm text-muted">
+                            {x.a.posting.region ?? "Anywhere"}
                           </span>
-                          {x.a.recruiting_stage && (
-                            <span className="hidden rounded-full bg-surface px-2.5 py-1 text-xs text-muted sm:inline">
-                              {STAGE[x.a.recruiting_stage] ??
-                                x.a.recruiting_stage}
-                            </span>
-                          )}
-                          <Pill status={x.a.status} />
-                        </Link>
-                      </li>
-                    ) : (
-                      <li key={x.p.id}>
-                        <Link
-                          to="/startups"
-                          className="flex items-center gap-3 rounded-2xl bg-canvas p-3 transition-colors hover:bg-accent-soft"
-                        >
-                          <span
-                            aria-hidden="true"
-                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-soft font-semibold text-accent-dark"
-                          >
-                            {initial(x.p.company)}
+                        </span>
+                        {x.a.recruiting_stage && (
+                          <span className="hidden rounded-full bg-surface px-2.5 py-1 text-xs text-muted sm:inline">
+                            {STAGE[x.a.recruiting_stage] ??
+                              x.a.recruiting_stage}
                           </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate font-medium">
-                              Pitch to {x.p.company}
-                            </span>
-                            <span className="block truncate text-sm text-muted">
-                              Startup
-                              {x.p.to_name ? ` · ${x.p.to_name}` : ""}
-                            </span>
-                          </span>
-                          <span className="rounded-full bg-surface px-2.5 py-1 text-xs text-muted">
-                            {x.p.status === "replied"
-                              ? "Replied"
-                              : x.p.status === "declined"
-                                ? "Said no"
-                                : "Sent"}
-                          </span>
-                        </Link>
-                      </li>
-                    ),
-                  )}
+                        )}
+                        <Pill status={x.a.status} />
+                      </Link>
+                    </li>
+                  ))}
                 </ul>
               )}
               <Link
@@ -674,8 +603,6 @@ export function AutoApplyPage() {
         <aside aria-label="Search and status" className="min-w-0 space-y-5">
           {show("search") && (
             <>
-              <SourceChips sources={d.sources ?? []} />
-
               <Section id="today-h" title="Today">
                 <dl className="grid gap-2 text-sm sm:grid-cols-2">
                   {d.usage && (
@@ -742,9 +669,6 @@ export function AutoApplyPage() {
                       Search for roles now
                     </button>
                   )}
-                  <Link to="/auto-apply/setup" className="btn-secondary">
-                    Search preferences
-                  </Link>
                 </div>
                 <Fail error={pause.error ?? resume.error ?? run.error} />
               </Section>

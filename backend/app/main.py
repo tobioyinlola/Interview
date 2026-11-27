@@ -39,6 +39,7 @@ from app.routers import (
     profile,
     sessions,
     staff_auth,
+    support,
 )
 from app.routers import (
     analytics as analytics_router,
@@ -163,6 +164,8 @@ def create_app() -> FastAPI:
         admin.router,
         admin_autoapply.router,
         app_releases.router,
+        support.router,
+        support.admin_router,
     ):
         app.include_router(r)
     return app

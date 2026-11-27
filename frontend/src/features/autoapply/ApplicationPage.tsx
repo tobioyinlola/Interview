@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
+import { apiBlob } from "../../api/client";
 import { Loading } from "../../ui/Loading";
 import { useApplication, useApplicationActions } from "./api";
 import { Fail, Pill, STAGE, Section, when } from "./ui";
@@ -19,6 +20,69 @@ type RuleRow = {
   status: string;
   evidence: string;
 };
+
+/** The CV prepared for this role as a PDF, in the look of the CV that was uploaded. */
+function DownloadCv({ id }: { id: string }) {
+  const [state, setState] = useState<"idle" | "busy" | "failed">("idle");
+  return (
+    <button
+      type="button"
+      className="btn-secondary"
+      disabled={state === "busy"}
+      onClick={async () => {
+        setState("busy");
+        try {
+          const blob = await apiBlob(
+            `/api/autoapply/applications/${id}/cv.pdf`,
+          );
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "Tailored CV.pdf";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 5000);
+          setState("idle");
+        } catch {
+          setState("failed");
+        }
+      }}
+    >
+      {state === "busy"
+        ? "Preparing the PDF…"
+        : state === "failed"
+          ? "Could not download. Try again"
+          : "Download CV (PDF)"}
+    </button>
+  );
+}
+
+/** Copies a prepared text, and says so; if the browser refuses, the text is on the page to select. */
+function CopyButton({ label, text }: { label: string; text: string }) {
+  const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
+  return (
+    <button
+      type="button"
+      className="btn-secondary"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          setState("copied");
+        } catch {
+          setState("failed");
+        }
+        setTimeout(() => setState("idle"), 2500);
+      }}
+    >
+      {state === "copied"
+        ? "Copied"
+        : state === "failed"
+          ? "Could not copy: select it below"
+          : label}
+    </button>
+  );
+}
 
 function NeedForm({ need, id }: { need: Need; id: string }) {
   const act = useApplicationActions(id);
@@ -198,6 +262,49 @@ export function ApplicationPage() {
         {a.skip_reason && <p className="text-sm">{a.skip_reason}</p>}
       </header>
 
+      {a.status === "apply_yourself" && a.posting.application_url && pkg && (
+        <Section
+          id="own-h"
+          title="Apply on the employer's site"
+          hint="Auto-Apply cannot fill in this site's form, so your application is ready for you to submit there. Nothing has been sent."
+        >
+          <ol className="list-decimal space-y-1 pl-5 text-sm">
+            <li>Open the application (it opens in a new tab).</li>
+            <li>Paste your CV and the note where the form asks for them.</li>
+            <li>Come back here and press &ldquo;I&apos;ve applied&rdquo;.</li>
+          </ol>
+          <div className="flex flex-wrap gap-2">
+            <a
+              href={a.posting.application_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-primary"
+            >
+              Open the application
+            </a>
+            <DownloadCv id={a.id} />
+            <CopyButton label="Copy my CV" text={pkg.cv.submitted_text} />
+            <CopyButton label="Copy the note" text={pkg.cover_text} />
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={act.applied.isPending}
+              onClick={() => act.applied.mutate()}
+            >
+              I&apos;ve applied
+            </button>
+          </div>
+          <Fail error={act.applied.error} />
+          <button
+            type="button"
+            className="text-sm text-muted underline"
+            onClick={() => act.skip.mutate()}
+          >
+            Skip this role
+          </button>
+        </Section>
+      )}
+
       {a.needs_input.length > 0 && (
         <Section id="in-h" title="Needs your input">
           <ul className="space-y-3">
@@ -258,7 +365,13 @@ export function ApplicationPage() {
       {pkg && (
         <Section
           id="pkg-h"
-          title={sent ? "What was sent" : "What will be sent"}
+          title={
+            sent
+              ? "What was sent"
+              : pkg.destination.channel === "manual"
+                ? "What is ready for you"
+                : "What will be sent"
+          }
           hint={
             pkg.cv.tailoring.mode === "model"
               ? "Your CV was reworded for this role using only your confirmed details."
@@ -268,8 +381,13 @@ export function ApplicationPage() {
           <p className="text-sm">
             {pkg.destination.channel === "form"
               ? "By the employer's form"
-              : `By email to ${pkg.destination.to}`}
+              : pkg.destination.channel === "manual"
+                ? "For you to submit on the employer's site"
+                : `By email to ${pkg.destination.to}`}
           </p>
+          <div>
+            <DownloadCv id={a.id} />
+          </div>
           <details>
             <summary className="cursor-pointer text-sm font-medium">
               The CV that {sent ? "went" : "will go"} out

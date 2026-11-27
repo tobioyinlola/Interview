@@ -7,6 +7,7 @@ from app.services.names import clean_name, first_name
 
 PASSWORD = "correct horse battery staple!"
 EMAIL = "jordan@example.com"
+NO_JOB_SEARCH = {"help": [], "search": None, "arrangement": []}  # not asked, so not stored
 ANSWERS = {
     "goal": "new_job",
     "level": "senior",
@@ -225,7 +226,45 @@ async def test_finishing_onboarding_saves_the_four_answers(new_client, sign_in) 
         r = await c.put("/api/onboarding", json=ANSWERS)
         me = (await c.get("/api/me")).json()
     assert r.status_code == 200 and r.json() == me
-    assert me["onboarded"] is True and me["onboarding"] == ANSWERS
+    assert me["onboarded"] is True and me["onboarding"] == {**ANSWERS, **NO_JOB_SEARCH}
+
+
+async def test_onboarding_keeps_the_job_search_answers_when_they_are_given(
+    new_client, sign_in
+) -> None:
+    body = {
+        **ANSWERS,
+        "help": ["auto_apply", "startups", "auto_apply"],  # a repeat is dropped, order kept
+        "search": "now",
+        "arrangement": ["remote", "hybrid"],
+    }
+    async with new_client() as c:
+        await sign_in(c, EMAIL)
+        r = await c.put("/api/onboarding", json=body)
+        me = (await c.get("/api/me")).json()
+    assert r.status_code == 200 and r.json() == me
+    assert me["onboarding"] == {
+        **ANSWERS,
+        "help": ["auto_apply", "startups"],
+        "search": "now",
+        "arrangement": ["remote", "hybrid"],
+    }
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"help": ["magic"]},
+        {"help": ["interviews", "auto_apply", "startups", "interviews"]},  # at most three
+        {"search": "yesterday"},
+        {"arrangement": ["moon"]},
+    ],
+)
+async def test_job_search_answers_must_be_from_the_lists(new_client, sign_in, extra) -> None:
+    async with new_client() as c:
+        await sign_in(c, EMAIL)
+        r = await c.put("/api/onboarding", json={**ANSWERS, **extra})
+    assert r.status_code == 422
 
 
 async def test_onboarding_is_a_one_time_step_signing_in_again_does_not_bring_it_back(
@@ -238,7 +277,7 @@ async def test_onboarding_is_a_one_time_step_signing_in_again_does_not_bring_it_
     async with new_client() as later:  # another day, another device
         await sign_in(later, EMAIL)
         me = (await later.get("/api/me")).json()
-    assert me["onboarded"] is True and me["onboarding"] == ANSWERS
+    assert me["onboarded"] is True and me["onboarding"] == {**ANSWERS, **NO_JOB_SEARCH}
 
 
 async def test_skipping_onboarding_is_remembered_and_keeps_any_partial_answers(

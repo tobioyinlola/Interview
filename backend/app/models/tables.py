@@ -1049,3 +1049,49 @@ class BgSchedule(Base):
     every_seconds: Mapped[int] = mapped_column(Integer)
     next_run_at: Mapped[datetime] = mapped_column(_TS, default=_now)
     last_run_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+
+
+# ---------------------------------------------------------------- support
+
+
+class SupportTicket(Base):
+    """A person asking the team for help. One thread of messages; staff answer it in the back
+    office. Deleted with the account."""
+
+    __tablename__ = "support_tickets"
+    __table_args__ = (
+        Index("ix_support_tickets_user", "user_id", "updated_at"),
+        Index("ix_support_tickets_status", "status", "updated_at"),
+    )
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = _fk("users.id")
+    subject: Mapped[str] = mapped_column(String(160))
+    category: Mapped[str] = mapped_column(String(16), default="question")
+    # open: waiting for the team | answered: waiting for the person | resolved | closed
+    status: Mapped[str] = mapped_column(String(10), default="open", server_default="open")
+    # which app and version it was sent from, and the page, so staff can reproduce a problem
+    context: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    unread_for_user: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    unread_for_staff: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default=text("true")
+    )
+    assigned_to: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+    resolved_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+
+
+class SupportMessage(Base):
+    __tablename__ = "support_messages"
+    __table_args__ = (Index("ix_support_messages_ticket", "ticket_id", "created_at"),)
+    id: Mapped[uuid.UUID] = _pk()
+    ticket_id: Mapped[uuid.UUID] = _fk("support_tickets.id")
+    # user: the person | staff: a reply they see | note: staff only, never shown to the person
+    kind: Mapped[str] = mapped_column(String(6))
+    author_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    body: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(_TS, default=_now)

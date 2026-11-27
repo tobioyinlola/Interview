@@ -7,7 +7,8 @@ import {
   useNavigate,
 } from "react-router-dom";
 
-import { useLogout, useMe } from "../api/hooks";
+import { useMe } from "../api/hooks";
+import { useSignOut } from "../ui/SignOut";
 import { isDesktopApp } from "./desktop";
 import { useStealthHud } from "../features/session/useStealthHud";
 import { DesktopTitleBar } from "./DesktopTitleBar";
@@ -15,25 +16,31 @@ import { LogoMark } from "../features/landing/Logo";
 import { GlobalSearch } from "../features/search/GlobalSearch";
 import { ProfileMenu } from "./ProfileMenu";
 import { UpdateBanner } from "./UpdateBanner";
+import { useUnread } from "../features/support/api";
+import { rememberPage } from "../features/support/lastPage";
 import { TourProvider } from "../features/tour/TourProvider";
 import {
   CloseIcon,
-  FileIcon,
   GearIcon,
   HomeIcon,
   ListIcon,
   LogoutIcon,
   MenuIcon,
   MicIcon,
-  ShieldIcon,
   ChevronIcon,
   GiftIcon,
-  HelpIcon,
+  MailIcon,
   SendIcon,
   RocketIcon,
 } from "./icons";
 
-type Item = { to: string; label: string; icon: React.ReactNode; end?: boolean };
+type Item = {
+  to: string;
+  label: string;
+  icon: React.ReactNode;
+  end?: boolean;
+  badge?: number; // a small count on the link, for something waiting for the person
+};
 
 const item = (
   to: string,
@@ -61,7 +68,7 @@ const readCollapsed = (): boolean => {
 const linkClass =
   (collapsed: boolean) =>
   ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
+    `relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
       collapsed ? "lg:justify-center lg:px-0" : ""
     } ${
       isActive
@@ -98,6 +105,18 @@ function Group({
             >
               {i.icon}
               <span className={collapsed ? "lg:sr-only" : ""}>{i.label}</span>
+              {!!i.badge && (
+                <span
+                  className={`ml-auto rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold text-surface ${
+                    collapsed
+                      ? "lg:absolute lg:right-1 lg:top-1 lg:ml-0 lg:px-1.5"
+                      : ""
+                  }`}
+                >
+                  <span className="sr-only">{i.badge} new: </span>
+                  {i.badge}
+                </span>
+              )}
             </NavLink>
           </li>
         ))}
@@ -113,7 +132,7 @@ export function Layout() {
   }
 
   const { data: me } = useMe();
-  const logout = useLogout();
+  const signOut = useSignOut();
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
@@ -128,6 +147,8 @@ export function Layout() {
       return !c;
     });
   useEffect(() => setOpen(false), [location.pathname]); // close the drawer after navigating
+  useEffect(() => rememberPage(location.pathname), [location.pathname]);
+  const unread = useUnread(Boolean(me));
 
   const menu = [
     item("/dashboard", "Overview", <HomeIcon />, true),
@@ -145,9 +166,10 @@ export function Layout() {
     item("/settings", "Settings", <GearIcon />),
   ];
   const support = [
-    item("/help", "Help", <HelpIcon />),
-    item("/privacy", "Privacy", <ShieldIcon />),
-    item("/terms", "Terms", <FileIcon />),
+    {
+      ...item("/support", "Contact support", <MailIcon />),
+      badge: unread.data?.count,
+    },
   ];
 
   return (
@@ -242,11 +264,7 @@ export function Layout() {
               className={`mt-2 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-surface/75 hover:bg-surface/10 hover:text-surface ${
                 collapsed ? "lg:justify-center lg:px-0" : ""
               }`}
-              onClick={() =>
-                logout.mutate(undefined, {
-                  onSuccess: () => navigate("/login"),
-                })
-              }
+              onClick={signOut.ask}
             >
               <LogoutIcon />
               <span className={collapsed ? "lg:sr-only" : ""}>Sign out</span>
@@ -258,7 +276,25 @@ export function Layout() {
           <UpdateBanner />
           {/* The top bar on every page: search on the left, the person's account on the right. */}
           <header className="sticky top-0 z-30 flex items-center justify-between gap-3 bg-canvas/85 px-4 py-3 backdrop-blur sm:px-5 lg:rounded-tl-[2rem] lg:px-5">
-            <GlobalSearch />
+            <div className="flex min-w-0 items-center gap-3">
+              {location.pathname !== "/dashboard" && (
+                <button
+                  type="button"
+                  aria-label="Back to the previous page"
+                  title="Back"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface text-ink shadow-card transition-colors hover:bg-accent-soft"
+                  // "default" means this page was opened directly, so there is no earlier page of ours
+                  onClick={() =>
+                    location.key !== "default"
+                      ? navigate(-1)
+                      : navigate("/dashboard")
+                  }
+                >
+                  <ChevronIcon className="h-5 w-5" direction="left" />
+                </button>
+              )}
+              <GlobalSearch />
+            </div>
             {/* the dashboard carries the account circle in its own greeting row */}
             {location.pathname !== "/dashboard" && <ProfileMenu />}
           </header>
@@ -266,6 +302,7 @@ export function Layout() {
         </div>
         </div>
       </div>
+      {signOut.dialog}
     </TourProvider>
   );
 }

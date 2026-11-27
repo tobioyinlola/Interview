@@ -1,6 +1,7 @@
 import { type DragEvent, useEffect, useRef, useState } from "react";
 
 import { useNotes, useRemoveCv, useUploadCv, saveRole } from "../../api/hooks";
+import { isDesktopApp } from "../../app/desktop";
 import { FileIcon } from "../../app/icons";
 import { formatWhen } from "../review/format";
 import { RoleInput } from "../../ui/Pickers";
@@ -61,6 +62,33 @@ export function CvPanel() {
     const bad = checkCvFile(file);
     setProblem(bad);
     if (!bad) upload.mutate(file);
+  };
+  const MIME: Record<string, string> = {
+    pdf: "application/pdf",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    txt: "text/plain",
+  };
+  // In the desktop app the picker opens in Downloads (the browser's one can open in app data).
+  const choose = async () => {
+    const pick = isDesktopApp()
+      ? window.interviewMeetDesktop?.pickCv
+      : undefined;
+    if (!pick) {
+      input.current?.click();
+      return;
+    }
+    try {
+      const got = await pick();
+      if (!got) return;
+      if (got.tooBig || !got.data) {
+        setProblem("That file is over 5 MB. Upload a smaller version.");
+        return;
+      }
+      const ext = got.name.split(".").pop()?.toLowerCase() ?? "";
+      send(new File([got.data], got.name, { type: MIME[ext] ?? "" }));
+    } catch {
+      input.current?.click();
+    }
   };
   const onDrop = (e: DragEvent) => {
     e.preventDefault();
@@ -130,7 +158,7 @@ export function CvPanel() {
           <button
             type="button"
             disabled={busy}
-            onClick={() => input.current?.click()}
+            onClick={() => void choose()}
             className="btn-primary btn-lg mt-4"
           >
             {upload.isPending ? "Reading your CV…" : "Choose a file"}
@@ -164,6 +192,12 @@ export function CvPanel() {
           {!fromFile && (
             <p className="text-sm text-muted">
               These are notes you typed earlier. Upload your CV to replace them.
+            </p>
+          )}
+          {fromFile && (
+            <p className="text-sm text-muted">
+              The CV we make for each role is a PDF in our standard layout,
+              built from the details you confirmed.
             </p>
           )}
 
@@ -209,7 +243,7 @@ export function CvPanel() {
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => input.current?.click()}
+                onClick={() => void choose()}
                 className="btn-secondary"
               >
                 {upload.isPending ? "Reading your CV…" : "Replace CV"}

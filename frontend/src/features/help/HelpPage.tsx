@@ -85,10 +85,13 @@ export function HelpPage() {
         How to get started, how the live panel works, and answers to common
         questions.
       </p>
-      <div>
+      <div className="flex flex-wrap gap-2">
         <button type="button" className="btn-primary" onClick={tour.start}>
           Take the tour
         </button>
+        <Link to="/support" className="btn-secondary">
+          Write to support
+        </Link>
       </div>
 
       <div className="grid gap-5 xl:grid-cols-2 xl:items-start">
@@ -147,7 +150,10 @@ export function HelpPage() {
             </li>
             <li>
               The panel can float over your Meet window: press{" "}
-              <strong>Float the answer panel</strong> in Chrome or Edge.
+              <strong>Float the answer panel</strong> in Chrome, Edge or the
+              Windows and Mac app. The answer waits until the interviewer has
+              finished asking, and is short on purpose: a line and a few points
+              to speak from.
             </li>
           </ul>
         </section>

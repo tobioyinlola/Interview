@@ -82,22 +82,19 @@ describe("terms and privacy", () => {
     ).toBeInTheDocument();
   });
 
-  it("every signed-in page has a footer with both links", async () => {
+  it("signed-in people reach both from Settings, Privacy and data", async () => {
     mockApi({
       "GET /api/me": () => ({ json: ME }),
       "GET /api/notes": () => ({
         json: { role: "", content: "", updated_at: null },
       }),
     });
-    renderApp(<App />, "/notes");
-    await screen.findByRole("heading", { name: "Your CV" });
-    expect(screen.getByRole("link", { name: "Terms" })).toHaveAttribute(
-      "href",
-      "/terms",
-    );
-    expect(screen.getByRole("link", { name: "Privacy" })).toHaveAttribute(
-      "href",
-      "/privacy",
-    );
+    renderApp(<App />, "/settings/privacy");
+    expect(
+      await screen.findByRole("link", { name: "terms of use" }),
+    ).toHaveAttribute("href", "/terms");
+    expect(
+      screen.getByRole("link", { name: "privacy notice" }),
+    ).toHaveAttribute("href", "/privacy");
   });
 });

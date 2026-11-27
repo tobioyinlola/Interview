@@ -292,6 +292,46 @@
         "title": "AdminFounderOut",
         "type": "object"
       },
+      "AdminMessageOut": {
+        "properties": {
+          "author": {
+            "title": "Author",
+            "type": "string"
+          },
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "user",
+              "staff",
+              "note"
+            ],
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "author",
+          "body",
+          "created_at"
+        ],
+        "title": "AdminMessageOut",
+        "type": "object"
+      },
       "AdminOpeningOut": {
         "properties": {
           "title": {
@@ -616,6 +656,235 @@
           "items"
         ],
         "title": "AdminStartupsOut",
+        "type": "object"
+      },
+      "AdminTicketDetailOut": {
+        "properties": {
+          "assigned_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned To"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TicketContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_message": {
+            "title": "Last Message",
+            "type": "string"
+          },
+          "messages": {
+            "title": "Messages",
+            "type": "integer"
+          },
+          "platform": {
+            "title": "Platform",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "thread": {
+            "items": {
+              "$ref": "#/components/schemas/AdminMessageOut"
+            },
+            "title": "Thread",
+            "type": "array"
+          },
+          "unread": {
+            "title": "Unread",
+            "type": "boolean"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "user_email": {
+            "title": "User Email",
+            "type": "string"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          },
+          "user_joined": {
+            "format": "date-time",
+            "title": "User Joined",
+            "type": "string"
+          },
+          "user_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Name"
+          }
+        },
+        "required": [
+          "id",
+          "subject",
+          "category",
+          "status",
+          "unread",
+          "user_id",
+          "user_email",
+          "user_name",
+          "platform",
+          "created_at",
+          "updated_at",
+          "last_message",
+          "messages",
+          "context",
+          "user_joined",
+          "assigned_to",
+          "thread"
+        ],
+        "title": "AdminTicketDetailOut",
+        "type": "object"
+      },
+      "AdminTicketListOut": {
+        "properties": {
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminTicketOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "counts"
+        ],
+        "title": "AdminTicketListOut",
+        "type": "object"
+      },
+      "AdminTicketOut": {
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_message": {
+            "title": "Last Message",
+            "type": "string"
+          },
+          "messages": {
+            "title": "Messages",
+            "type": "integer"
+          },
+          "platform": {
+            "title": "Platform",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "unread": {
+            "title": "Unread",
+            "type": "boolean"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "user_email": {
+            "title": "User Email",
+            "type": "string"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          },
+          "user_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Name"
+          }
+        },
+        "required": [
+          "id",
+          "subject",
+          "category",
+          "status",
+          "unread",
+          "user_id",
+          "user_email",
+          "user_name",
+          "platform",
+          "created_at",
+          "updated_at",
+          "last_message",
+          "messages"
+        ],
+        "title": "AdminTicketOut",
         "type": "object"
       },
       "AndroidRelease": {
@@ -1493,6 +1762,29 @@
           "rewards_redeemable"
         ],
         "title": "BillingOut",
+        "type": "object"
+      },
+      "BlockerOut": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "where": {
+            "default": "",
+            "title": "Where",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "text"
+        ],
+        "title": "BlockerOut",
         "type": "object"
       },
       "BriefContent": {
@@ -2405,6 +2697,27 @@
           "review_count"
         ],
         "title": "DashboardOut",
+        "type": "object"
+      },
+      "DeliveryOut": {
+        "properties": {
+          "approved": {
+            "title": "Approved",
+            "type": "integer"
+          },
+          "blockers": {
+            "items": {
+              "$ref": "#/components/schemas/BlockerOut"
+            },
+            "title": "Blockers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "approved",
+          "blockers"
+        ],
+        "title": "DeliveryOut",
         "type": "object"
       },
       "DesktopRelease": {
@@ -4271,6 +4584,61 @@
         "title": "MeOut",
         "type": "object"
       },
+      "MessageIn": {
+        "properties": {
+          "body": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Body",
+            "type": "string"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "title": "MessageIn",
+        "type": "object"
+      },
+      "MessageOut": {
+        "properties": {
+          "author": {
+            "title": "Author",
+            "type": "string"
+          },
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "user",
+              "staff",
+              "note"
+            ],
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "author",
+          "body",
+          "created_at"
+        ],
+        "title": "MessageOut",
+        "type": "object"
+      },
       "NotesIn": {
         "description": "A field left out is left as it is. The web app sends only the role; the text comes from the\nCV upload.",
         "properties": {
@@ -4358,6 +4726,19 @@
       },
       "OnboardingAnswers": {
         "properties": {
+          "arrangement": {
+            "items": {
+              "enum": [
+                "remote",
+                "hybrid",
+                "onsite"
+              ],
+              "type": "string"
+            },
+            "maxItems": 3,
+            "title": "Arrangement",
+            "type": "array"
+          },
           "focus": {
             "items": {
               "enum": [
@@ -4391,6 +4772,19 @@
             ],
             "title": "Goal"
           },
+          "help": {
+            "items": {
+              "enum": [
+                "interviews",
+                "auto_apply",
+                "startups"
+              ],
+              "type": "string"
+            },
+            "maxItems": 3,
+            "title": "Help",
+            "type": "array"
+          },
           "level": {
             "anyOf": [
               {
@@ -4407,6 +4801,22 @@
               }
             ],
             "title": "Level"
+          },
+          "search": {
+            "anyOf": [
+              {
+                "enum": [
+                  "now",
+                  "soon",
+                  "later"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search"
           },
           "timeline": {
             "anyOf": [
@@ -4430,8 +4840,21 @@
         "type": "object"
       },
       "OnboardingIn": {
-        "description": "Finish onboarding with all four answers, or skip it. `role` is the CV page's target role;\n`full_name` is only asked for when the account has none.",
+        "description": "Finish onboarding with the four interview answers (and, if they want job-search help, the\nothers), or skip it. `role` is the CV page's target role;\n`full_name` is only asked for when the account has none.",
         "properties": {
+          "arrangement": {
+            "items": {
+              "enum": [
+                "remote",
+                "hybrid",
+                "onsite"
+              ],
+              "type": "string"
+            },
+            "maxItems": 3,
+            "title": "Arrangement",
+            "type": "array"
+          },
           "focus": {
             "items": {
               "enum": [
@@ -4477,6 +4900,19 @@
             ],
             "title": "Goal"
           },
+          "help": {
+            "items": {
+              "enum": [
+                "interviews",
+                "auto_apply",
+                "startups"
+              ],
+              "type": "string"
+            },
+            "maxItems": 3,
+            "title": "Help",
+            "type": "array"
+          },
           "level": {
             "anyOf": [
               {
@@ -4505,6 +4941,22 @@
               }
             ],
             "title": "Role"
+          },
+          "search": {
+            "anyOf": [
+              {
+                "enum": [
+                  "now",
+                  "soon",
+                  "later"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search"
           },
           "skipped": {
             "default": false,
@@ -5232,6 +5684,52 @@
           "label"
         ],
         "title": "ReachOut",
+        "type": "object"
+      },
+      "RecheckIn": {
+        "properties": {
+          "ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ids"
+        ],
+        "title": "RecheckIn",
+        "type": "object"
+      },
+      "RecheckOut": {
+        "properties": {
+          "checked": {
+            "title": "Checked",
+            "type": "integer"
+          },
+          "left_alone": {
+            "title": "Left Alone",
+            "type": "integer"
+          },
+          "now_ready": {
+            "title": "Now Ready",
+            "type": "integer"
+          },
+          "still_skipped": {
+            "title": "Still Skipped",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "checked",
+          "now_ready",
+          "still_skipped",
+          "left_alone"
+        ],
+        "title": "RecheckOut",
         "type": "object"
       },
       "RecruitingOut": {
@@ -6786,6 +7284,25 @@
         "title": "StartupSentOut",
         "type": "object"
       },
+      "StatusIn": {
+        "properties": {
+          "status": {
+            "enum": [
+              "open",
+              "answered",
+              "resolved",
+              "closed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "StatusIn",
+        "type": "object"
+      },
       "SuggestIn": {
         "properties": {
           "question_text": {
@@ -7144,6 +7661,202 @@
         "title": "TemplatePreview",
         "type": "object"
       },
+      "TicketContext": {
+        "description": "Where the message was sent from. Optional; the app fills it in.",
+        "properties": {
+          "app_version": {
+            "default": "",
+            "maxLength": 30,
+            "title": "App Version",
+            "type": "string"
+          },
+          "page": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Page",
+            "type": "string"
+          },
+          "platform": {
+            "default": "",
+            "maxLength": 20,
+            "title": "Platform",
+            "type": "string"
+          }
+        },
+        "title": "TicketContext",
+        "type": "object"
+      },
+      "TicketDetailOut": {
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_message": {
+            "title": "Last Message",
+            "type": "string"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/MessageOut"
+            },
+            "title": "Messages",
+            "type": "array"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "unread": {
+            "title": "Unread",
+            "type": "boolean"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "subject",
+          "category",
+          "status",
+          "unread",
+          "created_at",
+          "updated_at",
+          "last_message",
+          "messages"
+        ],
+        "title": "TicketDetailOut",
+        "type": "object"
+      },
+      "TicketIn": {
+        "properties": {
+          "body": {
+            "maxLength": 4000,
+            "minLength": 3,
+            "title": "Body",
+            "type": "string"
+          },
+          "category": {
+            "default": "question",
+            "enum": [
+              "question",
+              "bug",
+              "billing",
+              "account",
+              "feedback",
+              "other"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TicketContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "subject": {
+            "maxLength": 160,
+            "minLength": 3,
+            "title": "Subject",
+            "type": "string"
+          }
+        },
+        "required": [
+          "subject",
+          "body"
+        ],
+        "title": "TicketIn",
+        "type": "object"
+      },
+      "TicketListOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TicketOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "TicketListOut",
+        "type": "object"
+      },
+      "TicketOut": {
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_message": {
+            "title": "Last Message",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "unread": {
+            "title": "Unread",
+            "type": "boolean"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "subject",
+          "category",
+          "status",
+          "unread",
+          "created_at",
+          "updated_at",
+          "last_message"
+        ],
+        "title": "TicketOut",
+        "type": "object"
+      },
       "TimelineItem": {
         "properties": {
           "at": {
@@ -7220,6 +7933,19 @@
           "native_min"
         ],
         "title": "UiRelease",
+        "type": "object"
+      },
+      "UnreadOut": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count"
+        ],
+        "title": "UnreadOut",
         "type": "object"
       },
       "UnresolvedRow": {
@@ -9647,6 +10373,258 @@
         ]
       }
     },
+    "/api/admin/support": {
+      "get": {
+        "operationId": "admin_list_api_admin_support_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Q",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminTicketListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin List",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/support/{ticket_id}": {
+      "get": {
+        "operationId": "admin_ticket_api_admin_support__ticket_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket_id",
+            "required": true,
+            "schema": {
+              "title": "Ticket Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminTicketDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Ticket",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/support/{ticket_id}/note": {
+      "post": {
+        "description": "A private note for the team. The person never sees it and is not emailed.",
+        "operationId": "admin_note_api_admin_support__ticket_id__note_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket_id",
+            "required": true,
+            "schema": {
+              "title": "Ticket Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminTicketDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Note",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/support/{ticket_id}/reply": {
+      "post": {
+        "operationId": "admin_reply_api_admin_support__ticket_id__reply_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket_id",
+            "required": true,
+            "schema": {
+              "title": "Ticket Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminTicketDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Reply",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/support/{ticket_id}/status": {
+      "post": {
+        "operationId": "admin_status_api_admin_support__ticket_id__status_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket_id",
+            "required": true,
+            "schema": {
+              "title": "Ticket Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StatusIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminTicketDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Status",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/admin/usage": {
       "get": {
         "description": "The owner's cost view: spend per day, the heaviest users, and the average cost of a session\nand of a research job. These are ESTIMATES from counted audio seconds and tokens times the\nPRICE_* settings; the provider's own billing is the source of truth.",
@@ -10804,6 +11782,48 @@
         ]
       }
     },
+    "/api/autoapply/applications/recheck": {
+      "post": {
+        "description": "Judge several skipped roles again against the search as it is now. Only skipped ones are\ntouched; anything already sent, or not yours, is left alone.",
+        "operationId": "recheck_skipped_api_autoapply_applications_recheck_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecheckIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecheckOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recheck Skipped",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
     "/api/autoapply/applications/{application_id}": {
       "get": {
         "operationId": "application_detail_api_autoapply_applications__application_id__get",
@@ -10899,6 +11919,49 @@
         ]
       }
     },
+    "/api/autoapply/applications/{application_id}/applied": {
+      "post": {
+        "description": "The candidate submitted a prepared application themselves, on the employer's own site. It is\nkept apart from what Auto-Apply sent: the numbers say which was which.",
+        "operationId": "applied_by_you_api_autoapply_applications__application_id__applied_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "application_id",
+            "required": true,
+            "schema": {
+              "title": "Application Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Applied By You",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
     "/api/autoapply/applications/{application_id}/approve": {
       "post": {
         "description": "The candidate has looked at a criterion the listing did not settle and says to go ahead.",
@@ -10947,6 +12010,47 @@
           }
         },
         "summary": "Approve Rule",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/applications/{application_id}/cv.pdf": {
+      "get": {
+        "description": "The CV prepared for this role as a PDF, in the house layout.",
+        "operationId": "tailored_cv_pdf_api_autoapply_applications__application_id__cv_pdf_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "application_id",
+            "required": true,
+            "schema": {
+              "title": "Application Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Tailored Cv Pdf",
         "tags": [
           "autoapply"
         ]
@@ -12581,6 +13685,28 @@
         ]
       }
     },
+    "/api/hunt/delivery": {
+      "get": {
+        "description": "Why approved notes are waiting, in words, so a note is never held back in silence. Uses the\nsame mailbox adapter and gates the sender does.",
+        "operationId": "delivery_api_hunt_delivery_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliveryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Delivery",
+        "tags": [
+          "hunt"
+        ]
+      }
+    },
     "/api/hunt/reach": {
       "get": {
         "description": "How many startups outreach can write to, so the page can say so truthfully. Open to anyone\nsigned in, invited or not.",
@@ -13738,6 +14864,224 @@
         "summary": "Suggestion Feedback",
         "tags": [
           "sessions"
+        ]
+      }
+    },
+    "/api/support/tickets": {
+      "get": {
+        "operationId": "my_tickets_api_support_tickets_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "My Tickets",
+        "tags": [
+          "support"
+        ]
+      },
+      "post": {
+        "operationId": "open_ticket_api_support_tickets_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TicketIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Open Ticket",
+        "tags": [
+          "support"
+        ]
+      }
+    },
+    "/api/support/tickets/{ticket_id}": {
+      "get": {
+        "operationId": "my_ticket_api_support_tickets__ticket_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket_id",
+            "required": true,
+            "schema": {
+              "title": "Ticket Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "My Ticket",
+        "tags": [
+          "support"
+        ]
+      }
+    },
+    "/api/support/tickets/{ticket_id}/messages": {
+      "post": {
+        "operationId": "reply_api_support_tickets__ticket_id__messages_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket_id",
+            "required": true,
+            "schema": {
+              "title": "Ticket Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reply",
+        "tags": [
+          "support"
+        ]
+      }
+    },
+    "/api/support/tickets/{ticket_id}/resolve": {
+      "post": {
+        "description": "The person says it is sorted out.",
+        "operationId": "mark_resolved_api_support_tickets__ticket_id__resolve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket_id",
+            "required": true,
+            "schema": {
+              "title": "Ticket Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mark Resolved",
+        "tags": [
+          "support"
+        ]
+      }
+    },
+    "/api/support/unread": {
+      "get": {
+        "operationId": "unread_api_support_unread_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnreadOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Unread",
+        "tags": [
+          "support"
         ]
       }
     },

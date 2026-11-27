@@ -76,13 +76,12 @@ describe("HelpPage", () => {
     expect(screen.getByText(/three friends who sign up/)).toBeInTheDocument();
   });
 
-  it("is reachable from the sidebar and the search", async () => {
+  it("is reachable from the search and Support, not the sidebar or the account menu", async () => {
     open();
     const nav = within(await screen.findByRole("navigation", { name: "Main" }));
-    expect(nav.getByRole("link", { name: "Help" })).toHaveAttribute(
-      "href",
-      "/help",
-    );
+    expect(nav.queryByRole("link", { name: "Help" })).toBeNull();
+    expect(nav.queryByRole("link", { name: "Privacy" })).toBeNull();
+    expect(nav.queryByRole("link", { name: "Terms" })).toBeNull();
     await userEvent.type(screen.getByRole("combobox"), "tour");
     expect(
       await screen.findByRole("option", { name: /Help/ }),

@@ -221,6 +221,42 @@ export const useApplications = (status: string) =>
     getNextPageParam: (last) => last.next_cursor ?? undefined,
   });
 
+export type RecheckResult = {
+  checked: number;
+  now_ready: number;
+  still_skipped: number;
+  left_alone: number;
+};
+
+/** Judge many skipped roles again. The server takes 50 at a time, so a long list goes in turns. */
+export function useRecheckSkipped() {
+  const refresh = useRefresh();
+  return useMutation({
+    mutationFn: async (ids: string[]): Promise<RecheckResult> => {
+      const total: RecheckResult = {
+        checked: 0,
+        now_ready: 0,
+        still_skipped: 0,
+        left_alone: 0,
+      };
+      for (let i = 0; i < ids.length; i += 50) {
+        const r = await post<RecheckResult>("/applications/recheck", {
+          ids: ids.slice(i, i + 50),
+        });
+        total.checked += r.checked;
+        total.now_ready += r.now_ready;
+        total.still_skipped += r.still_skipped;
+        total.left_alone += r.left_alone;
+      }
+      return total;
+    },
+    onSuccess: () => {
+      trackFeature("autoapply_recheck_skipped");
+      refresh();
+    },
+  });
+}
+
 export const useApplication = (id: string) =>
   useQuery<AAApplicationDetail>({
     queryKey: ["aa", "application", id],
@@ -251,6 +287,13 @@ export function useApplicationActions(id: string) {
     retry: useMutation({
       mutationFn: () => post<AAApplication>(`/applications/${id}/retry`),
       ...opts,
+    }),
+    applied: useMutation({
+      mutationFn: () => post<AAApplication>(`/applications/${id}/applied`),
+      onSuccess: () => {
+        trackFeature("autoapply_applied_by_you");
+        refresh();
+      },
     }),
     resolve: useMutation({
       mutationFn: (sent: boolean) =>

@@ -41,6 +41,14 @@ const desktopBridge = Object.freeze({
       return () => ipcRenderer.removeListener("im:stealth-state", handler);
     },
   },
+  // Opens the system file picker in Downloads; resolves to the chosen CV's name and bytes.
+  pickCv: () => ipcRenderer.invoke("im:pick-cv"),
+  // Capture protection for private screens. This build's window is always excluded from capture
+  // (see AGENTS.md), so the main process only re-asserts it and reports that it is on.
+  privacy: Object.freeze({
+    set: (on) => ipcRenderer.invoke("im:privacy", on === true),
+    setLive: (on) => ipcRenderer.invoke("im:privacy-live", on === true),
+  }),
 });
 
 contextBridge.exposeInMainWorld("interviewDesktop", desktopBridge);

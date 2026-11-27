@@ -8,6 +8,8 @@ import { endSessionApi, fetchAudioToken, sendFeedback } from "../../api/hooks";
 import { FeatureBoundary } from "../../ui/FeatureBoundary";
 import { answerOf } from "./answerText";
 import { LiveSessionController } from "./controller";
+import { privacy } from "../../app/privacy";
+import { AnswersOff, AssistantStatus, useSessionMode } from "./modes";
 import { StealthTerminalHud } from "./StealthTerminalHud";
 import { useStealthHud } from "./useStealthHud";
 import { type Line, type Outline, useLiveStore } from "./store";
@@ -133,12 +135,16 @@ function CapturePanel({
       )}
       <div className="flex gap-2">
         {status !== "ended" && !active && (
-          <button className="btn-primary" onClick={onShare}>
+          <button
+            className="btn-primary"
+            data-ev="live.share_tab"
+            onClick={onShare}
+          >
             Share Meet tab
           </button>
         )}
         {status !== "ended" && (
-          <button className="btn-secondary" onClick={onEnd}>
+          <button className="btn-secondary" data-ev="live.end" onClick={onEnd}>
             End session
           </button>
         )}
@@ -242,6 +248,7 @@ function QuestionAnswer({ outline }: { outline: Outline }) {
       {hidden && (
         <button
           className="btn-secondary btn-sm"
+          data-ev="live.reveal_answer"
           onClick={() => patchOutline({ revealed: true })}
         >
           Reveal
@@ -286,7 +293,11 @@ export function AnswerControls({ onRegenerate }: { onRegenerate: () => void }) {
           <FeedbackButtons outline={outline} />
         )}
         {outline && outline.state !== "streaming" && (
-          <button className="btn-secondary btn-sm" onClick={onRegenerate}>
+          <button
+            className="btn-secondary btn-sm"
+            data-ev="live.regenerate"
+            onClick={onRegenerate}
+          >
             Regenerate
           </button>
         )}
@@ -430,6 +441,7 @@ export function LiveSessionPage() {
   const float = useFloatingPanel();
   const stealth = useStealthHud();
 
+  const session = useSessionMode(id);
   const controller = useMemo(
     () =>
       new LiveSessionController({
@@ -437,10 +449,17 @@ export function LiveSessionPage() {
         sampleRate,
         fetchToken: async () => (await fetchAudioToken(id)).audio_token,
         endSession: () => endSessionApi(id),
+        answersOff: session.answersOff,
       }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- answersOff reads the latest mode
     [id, sampleRate],
   );
 
+  useEffect(() => {
+    // a live session is never hidden from a screen share: protection stays off while it is open
+    privacy.setLive(true);
+    return () => privacy.setLive(false);
+  }, []);
   useEffect(() => {
     void setDesktopStealthMode(true);
     return () => {
@@ -457,6 +476,8 @@ export function LiveSessionPage() {
       }
     };
   }, [controller]);
+
+  const off = session.mode === "standard";
 
   // Toggle body styling for true frameless transparency when in stealth mode
   useEffect(() => {
@@ -486,6 +507,12 @@ export function LiveSessionPage() {
 
   return (
     <main className="mx-auto grid max-w-5xl gap-4 p-6 md:grid-cols-2">
+      <div className="md:col-span-2">
+        <AssistantStatus
+          mode={session.mode}
+          authorizedBy={session.authorizedBy}
+        />
+      </div>
       <div className="space-y-4">
         {/* Stealth HUD launcher: only visible in the Electron desktop app */}
         {isDesktopApp() && (
@@ -521,7 +548,9 @@ export function LiveSessionPage() {
           />
         </FeatureBoundary>
         <FeatureBoundary name="answer panel">
-          {float.win ? (
+          {off ? (
+            <AnswersOff />
+          ) : float.win ? (
             <section className="card space-y-2">
               <p>The answer panel is in its own window, on top of Meet.</p>
               <button className="btn-secondary" onClick={float.close}>
@@ -543,13 +572,20 @@ export function LiveSessionPage() {
                   Float the answer panel
                 </button>
               )}
+              {float.problem && (
+                <p role="alert" className="notice-warn text-sm">
+                  {float.problem}
+                </p>
+              )}
             </>
           )}
         </FeatureBoundary>
-        <FeatureBoundary name="answer options">
-          <AnswerControls onRegenerate={() => controller.regenerate()} />
-        </FeatureBoundary>
-        {status !== "ended" && (
+        {!off && (
+          <FeatureBoundary name="answer options">
+            <AnswerControls onRegenerate={() => controller.regenerate()} />
+          </FeatureBoundary>
+        )}
+        {status !== "ended" && !off && (
           <ManualQuestion onSubmit={(q) => controller.submitManual(q)} />
         )}
       </div>

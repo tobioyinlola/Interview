@@ -10,7 +10,10 @@ export const STATUS: Record<string, { label: string; tone: string }> = {
   sent_email: { label: "Sent by email", tone: "good" },
   confirmation_pending: { label: "Confirming", tone: "warn" },
   needs_input: { label: "Needs your input", tone: "warn" },
+  apply_yourself: { label: "Ready for you to apply", tone: "info" },
+  applied_by_you: { label: "Applied by you", tone: "good" },
   skipped: { label: "Skipped", tone: "muted" },
+  expired: { label: "Expired", tone: "muted" },
   failed: { label: "Failed", tone: "bad" },
 };
 
@@ -97,29 +100,5 @@ export function DemoNotice() {
       <span className="font-medium">Demo mode.</span> These are sample jobs and
       sending is simulated. Nothing is sent to a real employer.
     </p>
-  );
-}
-
-/** The places jobs are looked for, as quiet chips. */
-export function SourceChips({ sources }: { sources: string[] }) {
-  if (!sources.length) return null;
-  return (
-    <section aria-label="Where we look for jobs" className="card">
-      <h2 className="font-semibold">Where we look for jobs</h2>
-      <p className="mt-1 text-sm text-muted">
-        Every day we search all of these together and drop any job we have
-        already found.
-      </p>
-      <ul className="mt-3 flex flex-wrap gap-2">
-        {sources.map((s) => (
-          <li
-            key={s}
-            className="rounded-full bg-accent-soft px-3 py-1 text-sm font-medium text-accent"
-          >
-            {s}
-          </li>
-        ))}
-      </ul>
-    </section>
   );
 }

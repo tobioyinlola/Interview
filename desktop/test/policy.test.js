@@ -95,6 +95,28 @@ test("a link used to start the app is found among its arguments", () => {
   assert.equal(p.linkFromArgv(undefined), null);
 });
 
+test("private-screen protection is only for the app's own pages, and never in a live session", () => {
+  const { privacyDecision } = require("../src/policy");
+  assert.equal(privacyDecision(true, false, true), true);
+  assert.equal(privacyDecision(true, true, true), false); // a live interview stays visible
+  assert.equal(privacyDecision(true, false, false), false); // another page cannot ask
+  assert.equal(privacyDecision(false, false, true), false);
+});
+
+test("the answer panel may open its own small window, and only that one", () => {
+  // an empty page named for the answer panel: the app's floating window
+  assert.equal(p.windowOpenDecision("", p.FLOAT_FRAME, APP), "float");
+  assert.equal(p.windowOpenDecision("about:blank", p.FLOAT_FRAME, APP), "float");
+  // an empty page with any other name, or the right name pointing somewhere else, is not allowed
+  assert.equal(p.windowOpenDecision("about:blank", "other", APP), "deny");
+  assert.equal(p.windowOpenDecision("", "", APP), "deny");
+  assert.equal(p.windowOpenDecision("https://evil.test/", p.FLOAT_FRAME, APP), "external");
+  assert.equal(p.windowOpenDecision("javascript:alert(1)", p.FLOAT_FRAME, APP), "deny");
+  // everything else is decided as before
+  assert.equal(p.windowOpenDecision("https://app.example.com/x", "", APP), "allow");
+  assert.equal(p.windowOpenDecision("https://news.example.org/", "", APP), "external");
+});
+
 test("main window strictly enforces content protection against screen capture and proctoring", () => {
   const fs = require("node:fs");
   const path = require("node:path");
@@ -128,7 +150,7 @@ test("stealth enter re-asserts content protection after dock policy change", () 
   const enterIdx = mainJs.indexOf("function enterStealthMode");
   const exitIdx = mainJs.indexOf("function exitStealthMode");
   const enterBody = mainJs.slice(enterIdx, exitIdx);
-  assert.match(enterBody, /setContentProtection\(true\)/);
+  assert.match(enterBody, /applyNativeStealth\(win, true\)|setContentProtection\(true\)/);
 });
 
 test("stealth mode uses Hide-Morph-Show to prevent flicker", () => {

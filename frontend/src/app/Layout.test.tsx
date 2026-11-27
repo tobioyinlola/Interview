@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { ME, mockApi, renderApp, stubSupportedBrowser } from "../test-utils";
@@ -18,6 +18,25 @@ const signedIn = (me: object = { ...ME, startup_outreach: true }) =>
   });
 
 describe("app shell", () => {
+  it("has a back button on every page except Overview, that returns to the page before", async () => {
+    signedIn();
+    renderApp(<App />, "/dashboard");
+    const nav = within(await screen.findByRole("navigation", { name: "Main" }));
+    expect(
+      screen.queryByRole("button", { name: "Back to the previous page" }),
+    ).toBeNull();
+    await userEvent.click(nav.getByRole("link", { name: "Settings" }));
+    const back = await screen.findByRole("button", {
+      name: "Back to the previous page",
+    });
+    await userEvent.click(back);
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: "Back to the previous page" }),
+      ).toBeNull(),
+    );
+  });
+
   it("groups navigation into Menu, Account and Support and marks the current page", async () => {
     signedIn();
     renderApp(<App />, "/dashboard");
@@ -28,8 +47,7 @@ describe("app shell", () => {
       "Interview",
       "History",
       "Settings",
-      "Privacy",
-      "Terms",
+      "Contact support",
     ]) {
       expect(nav.getByRole("link", { name })).toBeInTheDocument();
     }
@@ -208,9 +226,8 @@ describe("top bar on every page", () => {
       "href",
       "/settings",
     );
-    expect(
-      menu.getByRole("menuitem", { name: "Update my focus" }),
-    ).toHaveAttribute("href", "/onboarding");
+    for (const gone of ["Update my focus", "Help", "Privacy", "Terms"])
+      expect(menu.queryByRole("menuitem", { name: gone })).toBeNull();
     expect(
       menu.getByRole("menuitem", { name: "Sign out" }),
     ).toBeInTheDocument();
@@ -226,15 +243,7 @@ describe("top bar on every page", () => {
     await userEvent.click(
       await screen.findByRole("button", { name: /Account menu/ }),
     );
-    const names = [
-      "Settings",
-      "Update my focus",
-      "Help",
-      "Privacy",
-      "Terms",
-      "Take the tour",
-      "Sign out",
-    ];
+    const names = ["Settings", "Take the tour", "Sign out"];
     for (const n of names.slice(1)) {
       await userEvent.keyboard("{ArrowDown}");
       expect(screen.getByRole("menuitem", { name: n })).toHaveFocus();
@@ -286,9 +295,44 @@ describe("top bar on every page", () => {
       await screen.findByRole("button", { name: /Account menu/ }),
     );
     await userEvent.click(screen.getByRole("menuitem", { name: "Sign out" }));
+    await userEvent.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", {
+        name: "Sign out",
+      }),
+    );
     expect(
       await screen.findByRole("heading", { name: "Sign in" }),
     ).toBeInTheDocument();
+  });
+
+  it("asks before signing out, and staying signed in changes nothing", async () => {
+    const calls = mockApi({
+      "GET /api/me": () => ({ json: withName }),
+      "POST /api/auth/logout": () => ({ json: { status: "ok" } }),
+      "GET /api/notes": () => ({
+        json: { role: "", content: "", updated_at: null },
+      }),
+      "GET /api/companies": () => ({ json: [] }),
+      "GET /api/sessions": () => ({ json: { items: [], next_cursor: null } }),
+    });
+    renderApp(<App />, "/dashboard");
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Sign out" }),
+    );
+    const dialog = within(await screen.findByRole("alertdialog"));
+    expect(dialog.getByText("Sign out?")).toBeInTheDocument();
+    expect(calls.some((c) => c.key === "POST /api/auth/logout")).toBe(false);
+    await userEvent.click(
+      dialog.getByRole("button", { name: "Stay signed in" }),
+    );
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(calls.some((c) => c.key === "POST /api/auth/logout")).toBe(false);
+    // Escape closes it too
+    await userEvent.click(screen.getByRole("button", { name: "Sign out" }));
+    await screen.findByRole("alertdialog");
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(calls.some((c) => c.key === "POST /api/auth/logout")).toBe(false);
   });
 });
 

@@ -592,6 +592,62 @@ def outreach_approved(brand: Brand, to: str, name: str | None) -> EmailMessage:
     )
 
 
+def _one_line(text: str, limit: int = 120) -> str:
+    return " ".join(text.split())[:limit]
+
+
+def _paragraphs(text: str, limit: int = 1500) -> list[Block]:
+    parts = [p.strip() for p in text[:limit].split("\n\n") if p.strip()]
+    return [("p", p) for p in parts] or [("p", "")]
+
+
+def support_reply(
+    brand: Brand, to: str, name: str | None, subject: str, reply: str, ticket_id: str
+) -> EmailMessage:
+    return _message(
+        "support_reply",
+        brand,
+        to,
+        subject=f"Re: {_one_line(subject, 80)}",
+        preheader="The team has replied to your message.",
+        heading="We replied to your message",
+        blocks=[
+            ("p", _greeting(name)),
+            ("p", f"About: {_one_line(subject)}"),
+            *_paragraphs(reply),
+            ("button", "Open the conversation", f"{_origin(brand)}/support/{ticket_id}"),
+            ("p", "You can answer inside the app. We read every message."),
+        ],
+        why="You got this email because you asked InterviewMeet support for help.",
+    )
+
+
+def support_new(
+    brand: Brand,
+    to: str,
+    from_email: str,
+    subject: str,
+    body: str,
+    category: str,
+    platform: str,
+    ticket_id: str,
+) -> EmailMessage:
+    return _message(
+        "support_new",
+        brand,
+        to,
+        subject=f"Support: {_one_line(subject, 80)}",
+        preheader=f"{from_email} wrote to support.",
+        heading="A new support message",
+        blocks=[
+            ("p", f"From {from_email} ({category}, {platform or 'unknown app'})"),
+            *_paragraphs(body, 800),
+            ("button", "Open it in the back office", f"{_origin(brand)}/admin/support/{ticket_id}"),
+        ],
+        why="You got this email because you are on the InterviewMeet support list.",
+    )
+
+
 # ---------------------------------------------------------------------------- the catalogue
 
 # Every message the platform sends, for the admin console: what it is, when it goes out, who gets it,
@@ -643,6 +699,18 @@ CATALOG: list[tuple[str, str, str, str]] = [
         "An admin switches startup outreach on for someone.",
         "The person",
     ),
+    (
+        "support_reply",
+        "Support replied",
+        "The team answers someone's support message.",
+        "The person who asked",
+    ),
+    (
+        "support_new",
+        "New support message",
+        "Someone writes to support.",
+        "Staff on the support list",
+    ),
 ]
 
 
@@ -666,6 +734,24 @@ def sample_message(kind: str, brand: Brand, to: str = "jordan@example.com") -> E
         "trial_used": lambda: trial_used(brand, to, name, 3),
         "credit_granted": lambda: credit_granted(brand, to, name, 2, "Thanks for your feedback."),
         "outreach_approved": lambda: outreach_approved(brand, to, name),
+        "support_reply": lambda: support_reply(
+            brand,
+            to,
+            name,
+            "My CV will not upload",
+            "Thanks for telling us. Try exporting it as a PDF and uploading it again.",
+            "sample",
+        ),
+        "support_new": lambda: support_new(
+            brand,
+            to,
+            "jordan@example.com",
+            "My CV will not upload",
+            "It says it could not read the file.",
+            "bug",
+            "desktop",
+            "sample",
+        ),
     }
     if kind not in builders:
         raise KeyError(kind)

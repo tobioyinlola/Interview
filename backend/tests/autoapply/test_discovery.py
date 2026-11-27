@@ -1,6 +1,7 @@
 """Phase 2: discovery, normalising, de-duplicating, matching, exceptions and the frozen package."""
 
 import asyncio
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -463,6 +464,24 @@ async def test_unsupported_steps_and_captchas_go_to_the_candidate(ada, discovery
     assert n["kind"] == "unsupported" and "captcha" in n["reason"]
 
 
+async def test_a_listing_past_its_end_date_is_expired_not_skipped(ada, discovery_source):
+    from datetime import UTC, datetime
+
+    discovery_source.postings = [
+        job(1, expires_at=datetime(2020, 1, 1, tzinfo=UTC)),  # its own end date has passed
+        job(2, title="Plumber"),  # simply not a fit
+        job(3),
+    ]
+    await start(ada)
+    await run(ada)
+    gone = await apps(ada, "expired")
+    assert [a["posting"]["title"] for a in gone] == ["Senior Product Manager"]
+    assert gone[0]["skip_reason"] == "The listing has expired."
+    skipped = await apps(ada, "skipped")
+    assert [a["posting"]["title"] for a in skipped] == ["Plumber"]
+    assert len(await apps(ada, "needs_input,queued,submitted")) >= 1
+
+
 async def test_the_candidate_can_approve_an_unknown_rule_or_skip(ada, discovery_source):
     discovery_source.postings = [job(1), job(2)]
     await start(ada, criteria=VISA_SEARCH)
@@ -485,6 +504,48 @@ async def test_the_candidate_can_approve_an_unknown_rule_or_skip(ada, discovery_
     assert (await apps(ada, "skipped"))[0]["id"] == b["id"]
     back = await ada.post(f"/api/autoapply/applications/{b['id']}/retry")
     assert back.json()["status"] == "needs_input"
+
+
+async def test_many_skipped_roles_can_be_checked_again_at_once(ada, discovery_source, maker):
+    discovery_source.postings = [job(1), job(2), job(3)]
+    await start(ada, criteria=VISA_SEARCH)
+    await run(ada)
+    a, b, c = await apps(ada, "needs_input")
+    for x in (a, b):
+        await ada.post(f"/api/autoapply/applications/{x['id']}/skip")
+    async with maker() as db:  # one has already gone out: it must be left alone
+        row = (
+            await db.execute(select(Application).where(Application.id == uuid.UUID(c["id"])))
+        ).scalar_one()
+        row.status = "submitted"
+        await db.commit()
+    r = await ada.post(
+        "/api/autoapply/applications/recheck",
+        json={"ids": [a["id"], b["id"], c["id"], "not-an-id", str(uuid.uuid4())]},
+    )
+    assert r.status_code == 200
+    out = r.json()
+    assert out["checked"] == 2 and out["left_alone"] == 3
+    assert out["now_ready"] + out["still_skipped"] == 2
+    assert (await apps(ada, "skipped")) == []  # the ones the candidate skipped are judged again
+    assert len(await apps(ada, "submitted")) == 1
+
+
+async def test_checking_again_never_touches_another_candidates_roles(
+    ada, discovery_source, new_client, sign_in
+):
+    discovery_source.postings = [job(1)]
+    await start(ada, criteria=VISA_SEARCH)
+    await run(ada)
+    mine = (await apps(ada, "needs_input"))[0]["id"]
+    await ada.post(f"/api/autoapply/applications/{mine}/skip")
+    async with new_client() as eve:
+        await sign_in(eve, "eve@example.com")
+        r = await eve.post("/api/autoapply/applications/recheck", json={"ids": [mine]})
+        assert r.status_code in (200, 409)
+        if r.status_code == 200:
+            assert r.json()["checked"] == 0
+    assert (await apps(ada, "skipped"))[0]["id"] == mine
 
 
 async def test_changing_the_search_rechecks_open_applications_but_not_ones_that_went_out(
@@ -765,6 +826,19 @@ def test_a_job_with_no_email_and_a_link_we_cannot_fill_in_says_so():
     )
 
 
+def test_a_link_we_cannot_fill_in_is_kept_for_the_candidate_when_asked():
+    crit = {"roles": [{"value": "Senior Product Manager", "required": True}]}
+    m = decide(
+        crit, posting(application_url="https://jobs.example.com/apply/1"), routes=set(), manual=True
+    )
+    assert m.decision == "eligible"
+    how = next(r for r in m.rules if r.key == "channel")
+    assert "jobs.example.com" in how.evidence and "you submit it there" in how.evidence
+    # but with no link at all there is still nothing to go on
+    none = decide(crit, posting(application_url=None), routes=set(), manual=True)
+    assert none.decision == "skip"
+
+
 # ------------------------------------------------------------------ seniority, and places with two words
 
 
@@ -833,3 +907,67 @@ async def test_awkward_feed_data_is_stored_instead_of_failing_the_whole_board(ma
     other = RawPosting(**{**raw.__dict__, "source_url": "https://feed.example/jobs/2"})
     other.region = raw.region + ", Country 80"  # same long prefix, a different place
     assert pst.canonical_key(other)[0] != pst.canonical_key(raw)[0]
+
+
+# ------------------------------------------------------------------ an address in the listing's own words
+
+
+def test_an_address_is_taken_only_from_a_sentence_about_applying():
+    from app.autoapply.postings import extract_apply_email
+
+    said = extract_apply_email("We are growing fast. Please send your CV to Jobs@Acme.io today.")
+    assert said == ("jobs@acme.io", "Please send your CV to Jobs@Acme.io today.")
+    assert extract_apply_email("Interested candidates should apply: hiring@acme.io")[0] == (
+        "hiring@acme.io"
+    )
+    # an address for something else, in a sentence that is not about applying
+    assert (
+        extract_apply_email("Our office is at 1 High St. Questions about billing: a@b.io.") is None
+    )
+    # never a no-reply or support address, nor a placeholder
+    assert extract_apply_email("Apply by emailing noreply@acme.io") is None
+    assert extract_apply_email("Email your CV to support@acme.io") is None
+    assert extract_apply_email("Send your CV to you@example.com") is None
+
+
+def test_every_application_address_the_listing_gives_is_used():
+    from app.autoapply.postings import extract_apply_emails
+
+    text = "Send your CV to hr@acme.io. Or apply by email to jobs@other.io."
+    assert [a for a, _ in extract_apply_emails(text)] == ["hr@acme.io", "jobs@other.io"]
+    # the same address twice is one address
+    assert [a for a, _ in extract_apply_emails("Email hr@acme.io to apply. CV to hr@acme.io.")] == [
+        "hr@acme.io"
+    ]
+    # an address for something else is still left out, even beside application ones
+    mixed = "Send your CV to hr@acme.io. Press enquiries: press@acme.io. Billing: pay@acme.io."
+    assert [a for a, _ in extract_apply_emails(mixed)] == ["hr@acme.io"]
+    # at most three
+    many = "Apply by email: a@x.io, b@x.io, c@x.io, d@x.io"
+    assert [a for a, _ in extract_apply_emails(many)] == ["a@x.io", "b@x.io", "c@x.io"]
+
+
+async def test_a_stored_listing_gains_its_address_and_the_sentence_that_says_so(maker):
+    from sqlalchemy import select
+
+    from app.autoapply import postings as pst
+    from app.autoapply.adapters import RawPosting
+    from app.models import JobPosting
+
+    raw = RawPosting(
+        source="x", source_url="https://x.test/1", company="Acme", title="Engineer",
+        description="Build things. Interested? Email your CV to team@acme.io.",
+        application_url="https://careers.acme.io/1",
+    )  # fmt: skip
+    async with maker() as db:
+        first, created, _ = await pst.upsert(db, raw, NOW)
+        await db.commit()
+        assert created and first.apply_email == "team@acme.io"
+        assert "team@acme.io" in first.evidence["apply_email"]
+        # a listing stored before the sentence was read is filled in by the housekeeping pass
+        first.apply_email, first.evidence = None, {}
+        await db.commit()
+        assert await pst.backfill_apply_emails(db) == 1
+        row = (await db.execute(select(JobPosting))).scalar_one()
+        assert row.apply_email == "team@acme.io" and "apply_email" in row.evidence
+        assert await pst.backfill_apply_emails(db) == 0  # nothing left to do

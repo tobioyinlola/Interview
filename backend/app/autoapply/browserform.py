@@ -30,12 +30,20 @@ from urllib.parse import urlsplit
 
 from app.autoapply import cvfile
 from app.autoapply.adapters import AdapterError, FormField, FormReceipt, FormSchema
+from app.services.url_guard import UrlRejected, validate_public_url, validate_url_syntax
 
 # The sites whose forms are filled in. Greenhouse's own job boards were read in a real browser.
 # Ashby's (jobs.ashbyhq.com) are built from its public page structure and tested on a copy of it,
 # not yet seen in a real browser; both need a first supervised submission before anyone relies on
 # them. Others are added in AUTOAPPLY_FORM_HOSTS only after they have been checked the same way.
+# AUTOAPPLY_FORM_HOSTS="*" lets the app try ANY public https application link (see ANY_SITE below).
 DEFAULT_HOSTS = ("boards.greenhouse.io", "job-boards.greenhouse.io", "jobs.ashbyhq.com")
+
+# The setting that means "any public site". The form is still read first and filled only as far as
+# the app can honestly answer it; a human check (CAPTCHA), a sign-in wall, an unknown required
+# question or no form at all hands the job back to the person. Nothing here works round a site's
+# own checks.
+ANY_SITE = "*"
 
 LOAD_MS = 45_000
 SUBMIT_MS = 40_000
@@ -228,6 +236,7 @@ class BrowserForm:
         manager: Any = None,
     ) -> None:
         self.hosts = tuple(h.lower() for h in hosts)
+        self.any_site = ANY_SITE in self.hosts
         self.executable_path = executable_path
         self.proxy = proxy
         self._launcher = launcher
@@ -240,12 +249,31 @@ class BrowserForm:
 
     def _allowed(self, url: str) -> bool:
         parts = urlsplit(url)
+        if self.any_site:
+            return self._public_syntax(url)
         return parts.scheme in ("https", "http") and (parts.hostname or "").lower() in self.hosts
+
+    @staticmethod
+    def _public_syntax(url: str) -> bool:
+        """A public web address: no private or local network, no odd port, no login in the link."""
+        try:
+            validate_url_syntax(url)
+        except UrlRejected:
+            return False
+        return True
 
     def supports(self, application_url: str) -> bool:
         parts = urlsplit(application_url or "")
         secure = parts.scheme == "https" or (parts.hostname or "") in ("127.0.0.1", "localhost")
         return bool(secure and self._allowed(application_url))
+
+    async def _public(self, url: str) -> bool:
+        """The same, and the name really points at a public address (checked on the network)."""
+        try:
+            await validate_public_url(url)
+        except UrlRejected:
+            return False
+        return True
 
     # ------------------------------------------------------------------ the browser
 
@@ -259,7 +287,7 @@ class BrowserForm:
 
     async def _session(self, url: str) -> tuple[Any, Any, Callable[[], Awaitable[None]]]:
         """(page, scan, close) with the form on screen. Raises AdapterError, having closed it."""
-        if not self.supports(url):
+        if not self.supports(url) or (self.any_site and not await self._public(url)):
             raise AdapterError("rejected", "That form is not one we are approved to fill in.")
         try:
             from playwright.async_api import async_playwright
@@ -291,7 +319,9 @@ class BrowserForm:
 
             async def guard(route: Any) -> None:  # the page may not wander off to any other site
                 req = route.request
-                if req.is_navigation_request() and not self._allowed(req.url):
+                if req.is_navigation_request() and not (
+                    await self._public(req.url) if self.any_site else self._allowed(req.url)
+                ):
                     await route.abort()
                 else:
                     await route.continue_()
@@ -437,14 +467,19 @@ async def _open_choices(page: Any, c: Control) -> list[str]:
 
 
 async def _fill(
-    page: Any, c: Control, values: dict[str, str], cv_text: str, cv_filename: str, cover: str
+    page: Any,
+    c: Control,
+    values: dict[str, str],
+    cv_text: str,
+    cv_filename: str,
+    cover: str,
 ) -> None:
     """Put the answer for one control on the form. A control with no answer is left alone."""
     if c.kind == "file":
         if c.name == "resume" or c.name == "cv":
             data, name = cvfile.render_pdf(cv_text), cv_filename
         elif c.name == "cover_letter" and cover:
-            data, name = cvfile.render_pdf(cover), "Cover letter.pdf"
+            data, name = cvfile.render_letter(cover), "Cover letter.pdf"
         else:
             return
         await page.locator(c.selector).first.set_input_files(

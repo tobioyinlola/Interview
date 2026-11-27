@@ -1,4 +1,5 @@
 "use strict";
+const fs = require("node:fs");
 const path = require("node:path");
 const {
   app,
@@ -18,6 +19,8 @@ const {
   SCHEME,
   navigationDecision,
   permissionAllowed,
+  windowOpenDecision,
+  FLOAT_FRAME,
   captureAllowed,
   parseAuthLink,
   isGoogleStartUrl,
@@ -86,12 +89,46 @@ if (!app.requestSingleInstanceLock()) {
   });
 }
 
+// Private screens (settings, CV, mailbox passwords, the back office) ask for capture protection. In
+// this build the window is ALWAYS excluded from screen capture (AGENTS.md: "hidden from screen
+// sharing, proctoring or monitoring tools at all times"), so these only re-assert it and report
+// that it is on. The live-session flag changes nothing: it never switches protection off.
+ipcMain.handle("im:privacy", () => {
+  if (win && !win.isDestroyed()) reEnforceStealth(win);
+  return { active: true };
+});
+ipcMain.handle("im:privacy-live", () => {});
+
 ipcMain.on("im:open-in-browser", (event, url) => {
   // only the app's own pages may ask, and only for its own Google sign-in address
   const from = event.senderFrame ? event.senderFrame.url : "";
   if (captureAllowed(from, appOrigin) && isGoogleStartUrl(url, siteOrigin)) {
     shell.openExternal(url);
   }
+});
+
+// The CV picker. The ordinary file input opens wherever the system last left off, which for a
+// packaged Windows app is the app's own data folder; this one starts in Downloads.
+const CV_MAX_BYTES = 5 * 1024 * 1024;
+ipcMain.handle("im:pick-cv", async (event) => {
+  const from = event.senderFrame ? event.senderFrame.url : "";
+  if (!captureAllowed(from, appOrigin)) return null;
+  const win = BrowserWindow.fromWebContents(event.sender) || undefined;
+  const picked = await dialog.showOpenDialog(win, {
+    title: "Choose your CV",
+    defaultPath: app.getPath("downloads"),
+    properties: ["openFile"],
+    filters: [
+      { name: "CV (PDF, Word or text)", extensions: ["pdf", "docx", "txt"] },
+      { name: "All files", extensions: ["*"] },
+    ],
+  });
+  if (picked.canceled || !picked.filePaths[0]) return null;
+  const file = picked.filePaths[0];
+  const { size } = await fs.promises.stat(file);
+  const name = path.basename(file);
+  if (size > CV_MAX_BYTES) return { name, tooBig: true };
+  return { name, data: new Uint8Array(await fs.promises.readFile(file)) };
 });
 
 function openExternal(url) {
@@ -150,6 +187,9 @@ function createWindow() {
       nodeIntegration: false,
       webSecurity: true,
       spellcheck: true,
+      // A live interview keeps listening while the window is behind the call or minimised; the
+      // browser's habit of slowing hidden pages would make captions and answers late.
+      backgroundThrottling: false,
     },
   });
 
@@ -181,10 +221,41 @@ function createWindow() {
   win.webContents.setUserAgent(
     `${win.webContents.getUserAgent()} InterviewMeetDesktop/${app.getVersion()}`,
   );
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    if (navigationDecision(url, appOrigin) === "allow") return { action: "allow" };
+  win.webContents.setWindowOpenHandler(({ url, frameName }) => {
+    const d = windowOpenDecision(url, frameName, appOrigin);
+    if (d === "allow") return { action: "allow" };
+    if (d === "float") {
+      // The answer panel's own window: small, on top of the call, easy to move and resize. Nothing
+      // here hides it from screen capture.
+      return {
+        action: "allow",
+        overrideBrowserWindowOptions: {
+          width: 420,
+          height: 560,
+          minWidth: 300,
+          minHeight: 220,
+          alwaysOnTop: true,
+          autoHideMenuBar: true,
+          minimizable: true,
+          title: "InterviewMeet: question and answer",
+          backgroundColor: "#ffffff",
+        },
+      };
+    }
     openExternal(url);
     return { action: "deny" };
+  });
+  win.webContents.on("did-create-window", (child, details) => {
+    if (details.frameName !== FLOAT_FRAME) return;
+    child.setAlwaysOnTop(true, "floating"); // above a full-screen call, not just above windows
+    child.setMenuBarVisibility(false);
+    child.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+    child.webContents.on("will-navigate", (event) => event.preventDefault());
+    const closeWithApp = () => {
+      if (!child.isDestroyed()) child.close();
+    };
+    win.once("closed", closeWithApp);
+    child.once("closed", () => win && win.removeListener("closed", closeWithApp));
   });
   win.webContents.on("will-navigate", (event, url) => {
     const d = navigationDecision(url, appOrigin);
@@ -224,6 +295,7 @@ function createWindow() {
 
   win.on("closed", () => {
     win = null;
+    win32AffinityApplied = false; // allow re-application on a new window
   });
   win.loadURL(appUrl);
   win.webContents.once("did-finish-load", () => {

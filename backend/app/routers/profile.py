@@ -87,6 +87,12 @@ async def save_onboarding(
         answers["timeline"] = body.timeline
     if body.focus:
         answers["focus"] = list(dict.fromkeys(body.focus))  # no repeats, order kept
+    if body.help:
+        answers["help"] = list(dict.fromkeys(body.help))
+    if body.search:
+        answers["search"] = body.search
+    if body.arrangement:
+        answers["arrangement"] = list(dict.fromkeys(body.arrangement))
     if not body.skipped and not (body.goal and body.level and body.timeline and body.focus):
         raise ApiError(422, "onboarding_incomplete", "Answer all four questions, or skip for now.")
     if answers:

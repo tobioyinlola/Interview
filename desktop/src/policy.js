@@ -35,6 +35,20 @@ function navigationDecision(url, appOrigin) {
   return "deny";
 }
 
+/** The name the app gives the small window that holds the answer panel over a call. */
+const FLOAT_FRAME = "im-float";
+
+/** What to do when the page asks for a new window:
+ *  - "float": the answer panel's own window (an empty page the app fills, named FLOAT_FRAME). It is a
+ *    small always-on-top window, and it is NOT hidden from screen capture: a live interview stays
+ *    visible to anyone watching a shared screen.
+ *  - otherwise the same as a navigation: "allow" (the app's own address), "external" or "deny". */
+function windowOpenDecision(url, frameName, appOrigin) {
+  const blank = url === "" || url === "about:blank";
+  if (blank && frameName === FLOAT_FRAME) return "float";
+  return navigationDecision(url, appOrigin);
+}
+
 const ALLOWED_PERMISSIONS = new Set(["media", "display-capture", "clipboard-sanitized-write"]);
 
 /** Only the app's own pages may use the microphone or capture audio. */
@@ -109,6 +123,8 @@ function privacyDecision(want, live, fromAppPage) {
 }
 
 module.exports = {
+  FLOAT_FRAME,
+  windowOpenDecision,
   privacyDecision,
   SCHEME,
   parseAuthLink,

@@ -19,6 +19,13 @@ import {
   type Level,
   type Timeline,
   entries,
+  flowFor,
+  ARRANGEMENTS,
+  HELPS,
+  SEARCHES,
+  type Arrangement,
+  type Help,
+  type Search,
 } from "./content";
 
 const DONE = STEPS.length;
@@ -78,7 +85,45 @@ function Option({
   );
 }
 
-/** Four short questions after sign-up. Everything can be skipped, and the answers can be changed
+/** What to do first, for what the person asked for. A CV helps all of it. */
+function nextSteps(help: Help[]): [string, string, string][] {
+  const all = help.length === 0; // skipped the question: the original three
+  const out: [string, string, string][] = [
+    [
+      "/settings/cv",
+      "Upload your CV",
+      "Your stories and your applications come from it.",
+    ],
+  ];
+  if (help.includes("auto_apply"))
+    out.push([
+      "/auto-apply/setup",
+      "Set up Auto-Apply",
+      "Tell it the roles you want. It finds jobs and prepares each application.",
+    ]);
+  if (help.includes("startups"))
+    out.push([
+      "/startups",
+      "Reach out to startups",
+      "Short, honest notes to founders and hiring contacts.",
+    ]);
+  if (all || help.includes("interviews"))
+    out.push(
+      [
+        "/companies",
+        "Add a company",
+        "Get a brief where every fact cites a source.",
+      ],
+      [
+        "/session/new",
+        "Start an interview",
+        "Share a Meet tab with a friend who knows.",
+      ],
+    );
+  return out;
+}
+
+/** The short questions after sign-up. Everything can be skipped, and the answers can be changed
  *  later by coming back here. */
 export function OnboardingPage() {
   const { data: me } = useMe();
@@ -97,6 +142,15 @@ export function OnboardingPage() {
     start?.timeline ?? null,
   );
   const [focus, setFocus] = useState<Focus[]>(start?.focus ?? []);
+  const [help, setHelp] = useState<Help[]>(start?.help ?? []);
+  const [search, setSearch] = useState<Search | null>(start?.search ?? null);
+  const [arrangement, setArrangement] = useState<Arrangement[]>(
+    start?.arrangement ?? [],
+  );
+  // the job-search questions are asked only of someone who wants that kind of help
+  const flow = flowFor(help);
+  const pos = flow.indexOf(step);
+  const wantsJobs = flow.length > 5;
 
   useEffect(() => heading.current?.focus(), [step]); // announce each new question
   useEffect(
@@ -110,12 +164,18 @@ export function OnboardingPage() {
     level !== null,
     timeline !== null,
     focus.length > 0,
+    help.length > 0,
+    search !== null,
+    arrangement.length > 0,
   ];
   const answers = {
     goal: goal ?? undefined,
     level: level ?? undefined,
     timeline: timeline ?? undefined,
     focus,
+    help,
+    search: wantsJobs ? (search ?? undefined) : undefined,
+    arrangement: wantsJobs ? arrangement : [],
     role: role.trim() || undefined,
     full_name: needsName && name.trim() ? name.trim() : undefined,
   };
@@ -130,6 +190,8 @@ export function OnboardingPage() {
       { ...answers, skipped: true },
       { onSuccess: () => navigate("/dashboard", { replace: true }) },
     );
+  const toggle = <T,>(set: (fn: (cur: T[]) => T[]) => void, v: T) =>
+    set((cur) => (cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v]));
   const toggleFocus = (f: Focus) =>
     setFocus((cur) =>
       cur.includes(f)
@@ -140,6 +202,8 @@ export function OnboardingPage() {
     );
 
   const first = (me?.full_name ?? name).trim().split(" ")[0];
+  // the interview plan is for someone who is practising; with the question skipped, assume they are
+  const practising = help.length === 0 || help.includes("interviews");
 
   if (step === DONE) {
     return (
@@ -152,27 +216,17 @@ export function OnboardingPage() {
           You&apos;re all set{first ? `, ${first}` : ""}{" "}
           <span aria-hidden="true">🎉</span>
         </h1>
-        {timeline && <p className="mt-3 text-muted">{PLAN[timeline]}</p>}
-        {focus.length > 0 && (
+        {timeline && practising && (
+          <p className="mt-3 text-muted">{PLAN[timeline]}</p>
+        )}
+        {focus.length > 0 && practising && (
           <p className="mt-4 text-sm">
             <span className="text-muted">We&apos;ll keep in view: </span>
             {focus.map((f) => FOCUS[f].label).join(" · ")}
           </p>
         )}
         <ul className="mt-6 space-y-3">
-          {[
-            ["/settings/cv", "Upload your CV", "Your stories come from it."],
-            [
-              "/companies",
-              "Add a company",
-              "Get a brief where every fact cites a source.",
-            ],
-            [
-              "/session/new",
-              "Start an interview",
-              "Share a Meet tab with a friend who knows.",
-            ],
-          ].map(([to, title, text], i) => (
+          {nextSteps(help).map(([to, title, text], i) => (
             <li key={to}>
               <Link
                 to={to}
@@ -201,7 +255,7 @@ export function OnboardingPage() {
     <Frame
       onSkip={skip}
       skipDisabled={save.isPending}
-      progress={{ step: step + 1, of: STEPS.length }}
+      progress={{ step: pos + 1, of: flow.length }}
     >
       <h1
         ref={heading}
@@ -320,6 +374,57 @@ export function OnboardingPage() {
             </p>
           </fieldset>
         )}
+
+        {step === 4 && (
+          <fieldset className="space-y-3">
+            <legend className="sr-only">{info.title}</legend>
+            {entries(HELPS).map((o) => (
+              <Option
+                key={o.value}
+                type="checkbox"
+                name="help"
+                value={o.value}
+                choice={o}
+                checked={help.includes(o.value)}
+                onChange={() => toggle(setHelp, o.value)}
+              />
+            ))}
+          </fieldset>
+        )}
+
+        {step === 5 && (
+          <fieldset className="space-y-3">
+            <legend className="sr-only">{info.title}</legend>
+            {entries(SEARCHES).map((o) => (
+              <Option
+                key={o.value}
+                type="radio"
+                name="search"
+                value={o.value}
+                choice={o}
+                checked={search === o.value}
+                onChange={() => setSearch(o.value)}
+              />
+            ))}
+          </fieldset>
+        )}
+
+        {step === 6 && (
+          <fieldset className="space-y-3">
+            <legend className="sr-only">{info.title}</legend>
+            {entries(ARRANGEMENTS).map((o) => (
+              <Option
+                key={o.value}
+                type="checkbox"
+                name="arrangement"
+                value={o.value}
+                choice={o}
+                checked={arrangement.includes(o.value)}
+                onChange={() => toggle(setArrangement, o.value)}
+              />
+            ))}
+          </fieldset>
+        )}
       </div>
 
       {save.isError && (
@@ -329,20 +434,20 @@ export function OnboardingPage() {
       )}
 
       <div className="mt-6 flex gap-3">
-        {step > 0 && (
+        {pos > 0 && (
           <button
             type="button"
-            onClick={() => setStep(step - 1)}
+            onClick={() => setStep(flow[pos - 1]!)}
             disabled={save.isPending}
             className="btn-secondary btn-lg"
           >
             Back
           </button>
         )}
-        {step < STEPS.length - 1 ? (
+        {pos < flow.length - 1 ? (
           <button
             type="button"
-            onClick={() => setStep(step + 1)}
+            onClick={() => setStep(flow[pos + 1]!)}
             disabled={!valid[step]}
             className="btn-primary btn-lg flex-1"
           >

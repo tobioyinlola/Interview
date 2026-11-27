@@ -1,5 +1,11 @@
 import { type FormEvent, useState } from "react";
-import { NavLink, Navigate, useNavigate, useParams } from "react-router-dom";
+import {
+  Link,
+  NavLink,
+  Navigate,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
 
 import {
   useAnalyticsPreference,
@@ -9,6 +15,7 @@ import {
   useSaveProfile,
 } from "../../api/hooks";
 import { CvPanel } from "../notes/NotesPage";
+import { EmailTab } from "./EmailTab";
 import { COUNTRIES } from "../../data/countries";
 import { PasswordField } from "../../ui/PasswordField";
 import { CountrySelect, RoleInput } from "../../ui/Pickers";
@@ -46,6 +53,17 @@ export function PrivacyNotice() {
           time.
         </li>
       </ul>
+      <p className="text-sm">
+        Read the full{" "}
+        <Link to="/privacy" className="text-accent-dark underline">
+          privacy notice
+        </Link>{" "}
+        and the{" "}
+        <Link to="/terms" className="text-accent-dark underline">
+          terms of use
+        </Link>
+        .
+      </p>
     </section>
   );
 }
@@ -102,6 +120,8 @@ const TABS = [
   { id: "profile", label: "Profile" },
   { id: "password", label: "Password" },
   { id: "cv", label: "CV" },
+  { id: "email", label: "Email" },
+  { id: "auto-apply", label: "Auto-Apply" },
   { id: "privacy", label: "Privacy and data" },
 ] as const;
 
@@ -387,9 +407,9 @@ function ScreenPrivacy() {
         </ul>
       )}
       <p className="text-sm text-muted">
-        Private screens are your profile, password, CV, Auto-Apply details,
-        email connection and the back office. Live interview screens are never
-        hidden, so anyone watching can see the assistant is on.
+        Private screens are your profile, password, CV, email connection and the
+        back office. Live interview screens are never hidden, so anyone watching
+        can see the assistant is on.
       </p>
       {cap.method !== "none" && (
         <label className="flex min-h-[44px] items-center gap-3 text-sm">
@@ -475,6 +495,23 @@ function UsageStatistics() {
   );
 }
 
+function AutoApplyTab() {
+  return (
+    <section aria-labelledby="aa-prefs" className="card space-y-3">
+      <h2 id="aa-prefs" className="text-lg font-semibold">
+        Search preferences
+      </h2>
+      <p className="text-sm text-muted">
+        The roles, places, industries, pay and other choices Auto-Apply uses
+        when it looks for jobs for you.
+      </p>
+      <Link to="/auto-apply/setup" className="btn-secondary">
+        Edit your search preferences
+      </Link>
+    </section>
+  );
+}
+
 function PrivacyTab() {
   return (
     <>
@@ -530,6 +567,8 @@ export function SettingsPage() {
             {tab === "profile" && <ProfileTab />}
             {tab === "password" && <PasswordTab />}
             {tab === "cv" && <CvPanel />}
+            {tab === "email" && <EmailTab />}
+            {tab === "auto-apply" && <AutoApplyTab />}
           </PrivateScreen>
         )}
         {tab === "privacy" && <PrivacyTab />}

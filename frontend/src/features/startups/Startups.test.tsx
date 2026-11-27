@@ -77,6 +77,7 @@ const routes = (extra: Record<string, () => object> = {}) =>
     }),
     "GET /api/hunt/settings": () => ({ json: settings }),
     "GET /api/hunt/targets": () => ({ json: [target] }),
+    "GET /api/hunt/delivery": () => ({ json: { approved: 0, blockers: [] } }),
     ...extra,
   });
 
@@ -183,11 +184,13 @@ describe("Startups inside Auto-Apply", () => {
     ).toBeVisible();
   });
 
-  it("asks only for the address and the app password, then confirms the connection", async () => {
+  it("sends someone with no email connected to Settings to connect it, and back once it is", async () => {
     let connected = false;
     const connect = vi.fn(() => {
       connected = true;
-      return { json: { ...mailbox, connected: true } };
+      return {
+        json: { ...mailbox, connected: true, smtp_providers: viaPassword },
+      };
     });
     routes({
       "GET /api/autoapply/mailbox": () => ({
@@ -204,21 +207,14 @@ describe("Startups inside Auto-Apply", () => {
       "POST /api/autoapply/mailbox/connect-smtp": connect,
     });
     renderApp(<App />, "/startups");
+    // not the startups page: Settings, on the Email tab, with a way back
     expect(
-      await screen.findByRole("heading", {
-        name: "Connect your Gmail",
-      }),
+      await screen.findByRole("heading", { name: "Your email" }),
     ).toBeVisible();
-    expect(
-      screen.getByRole("link", { name: "Get an app password" }),
-    ).toHaveAttribute("href", "https://myaccount.google.com/apppasswords");
-    expect(screen.queryByText(/Step 1 of 3/)).toBeNull();
+    expect(screen.getByText(/Connect an email to carry on/)).toBeVisible();
+    expect(screen.queryByText(/Auto outreach to/)).toBeNull();
     const go = screen.getByRole("button", { name: "Connect" });
     expect(go).toBeDisabled();
-    await userEvent.type(
-      screen.getByLabelText("Gmail address"),
-      "ada@gmail.com",
-    );
     await userEvent.type(
       screen.getByLabelText("App password"),
       "abcd efgh ijkl mnop",
@@ -226,29 +222,24 @@ describe("Startups inside Auto-Apply", () => {
     expect(go).toBeEnabled();
     await userEvent.click(go);
     await waitFor(() => expect(connect).toHaveBeenCalled());
-    // confirmed, with the address, before going on
-    const done = await screen.findByRole("region", { name: "Gmail connected" });
-    expect(
-      within(done).getByText("Gmail connected and confirmed"),
-    ).toBeVisible();
+    expect(connect).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: {
+          provider: "gmail",
+          address: "me@example.com",
+          password: "abcd efgh ijkl mnop",
+        },
+      }),
+    );
+    const done = await screen.findByLabelText("Email connected");
     expect(within(done).getByText("ada@example.com")).toBeVisible();
     await userEvent.click(
-      within(done).getByRole("button", { name: "Continue" }),
+      within(done).getByRole("link", { name: "Continue to startup outreach" }),
     );
     expect(await screen.findByText(/Step 1 of 3/)).toBeVisible(); // now the outreach itself
   });
 
-  it("sends the address and the password as typed, and shows why Google said no", async () => {
-    const connect = vi.fn(() => ({
-      status: 422,
-      json: {
-        error: {
-          code: "mailbox_rejected",
-          message:
-            "Gmail or Google Workspace did not accept that address and app password.",
-        },
-      },
-    }));
+  it("shows why a wrong app password was refused", async () => {
     routes({
       "GET /api/autoapply/mailbox": () => ({
         json: {
@@ -259,91 +250,204 @@ describe("Startups inside Auto-Apply", () => {
           smtp_providers: viaPassword,
         },
       }),
-      "POST /api/autoapply/mailbox/connect-smtp": connect,
+      "POST /api/autoapply/mailbox/connect-smtp": () => ({
+        status: 422,
+        json: {
+          error: {
+            code: "mailbox_rejected",
+            message:
+              "Gmail or Google Workspace did not accept that address and app password.",
+          },
+        },
+      }),
     });
-    renderApp(<App />, "/startups");
+    renderApp(<App />, "/settings/email?next=/startups");
     await userEvent.type(
-      await screen.findByLabelText("Gmail address"),
-      "ada@gmail.com",
-    );
-    await userEvent.type(
-      screen.getByLabelText("App password"),
+      await screen.findByLabelText("App password"),
       "wrongwrongwrongwr",
     );
     await userEvent.click(screen.getByRole("button", { name: "Connect" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
       /did not accept that address and app password/,
     );
-    expect(connect).toHaveBeenCalledWith(
-      expect.objectContaining({
-        body: {
-          provider: "gmail",
-          address: "ada@gmail.com",
-          password: "wrongwrongwrongwr",
-        },
-      }),
-    );
   });
 
-  it("asks for a new app password when the old one stopped working", async () => {
+  it("asks to connect again when the saved sign-in stopped working", async () => {
     routes({
       "GET /api/autoapply/mailbox": () => ({
         json: {
           ...mailbox,
-          connected: false,
+          connected: true,
           status: "reauth_needed",
           smtp_providers: viaPassword,
         },
       }),
     });
-    renderApp(<App />, "/startups");
+    renderApp(<App />, "/settings/email?next=/startups");
     expect(
-      await screen.findByRole("heading", { name: "Reconnect your Gmail" }),
+      await screen.findByText("Needs to be connected again"),
     ).toBeVisible();
+    expect(screen.getByLabelText("App password")).toBeVisible(); // the form is open
+    expect(
+      screen.queryByRole("link", { name: "Continue to startup outreach" }),
+    ).toBeNull(); // not until it works
   });
 
-  it("falls back to the Google button when app passwords are not on", async () => {
+  it("offers the Google button, and no app password form, when app passwords are not on", async () => {
     routes({
       "GET /api/autoapply/mailbox": () => ({
         json: { ...mailbox, connected: false, address: null, status: null },
       }),
     });
-    renderApp(<App />, "/startups");
+    renderApp(<App />, "/settings/email");
     expect(
-      await screen.findByRole("heading", {
-        name: "Connect your Gmail",
-      }),
+      await screen.findByRole("button", { name: "Connect Gmail" }),
     ).toBeVisible();
-    expect(screen.getByRole("button", { name: "Connect Gmail" })).toBeVisible();
     expect(screen.queryByLabelText("App password")).toBeNull();
   });
 
-  it("shows a connected Gmail with Disconnect and Connect back", async () => {
+  it("shows what is connected in Settings, with Disconnect and a way to use another", async () => {
     const disconnect = vi.fn(() => ({
       json: { ...mailbox, connected: false, status: "disconnected" },
     }));
     routes({
-      "GET /api/hunt/settings": () => ({
-        json: { ...settings, enabled: true, ready: [] },
+      "GET /api/autoapply/mailbox": () => ({
+        json: { ...mailbox, smtp_providers: viaPassword },
       }),
       "POST /api/autoapply/mailbox/disconnect": disconnect,
     });
-    renderApp(<App />, "/startups");
-    const strip = await screen.findByRole("region", {
-      name: "Gmail connected",
-    });
-    expect(within(strip).getByText("ada@example.com")).toBeVisible();
+    renderApp(<App />, "/settings/email");
+    const card = await screen.findByLabelText("Email connected");
+    expect(within(card).getByText("ada@example.com")).toBeVisible();
+    expect(screen.queryByLabelText("App password")).toBeNull(); // not shown while it works
     await userEvent.click(
-      within(strip).getByRole("button", { name: "Connect back" }),
+      within(card).getByRole("button", { name: "Use a different email" }),
     );
-    expect(within(strip).getByLabelText("App password")).toBeVisible();
+    expect(screen.getByLabelText("App password")).toBeVisible();
     await userEvent.click(
-      within(strip).getByRole("button", { name: "Cancel" }),
-    );
-    await userEvent.click(
-      within(strip).getByRole("button", { name: "Disconnect" }),
+      within(card).getByRole("button", { name: "Disconnect" }),
     );
     await waitFor(() => expect(disconnect).toHaveBeenCalled());
+  });
+
+  it("no longer connects or disconnects on the startups page itself, but says where to", async () => {
+    routes({
+      "GET /api/hunt/settings": () => ({
+        json: { ...settings, enabled: true, ready: [] },
+      }),
+    });
+    renderApp(<App />, "/startups");
+    expect(await screen.findByText("ada@example.com")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Disconnect" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Change email" })).toHaveAttribute(
+      "href",
+      "/settings/email",
+    );
+  });
+
+  it("only ever sends someone back to a page it knows", async () => {
+    routes({
+      "GET /api/autoapply/mailbox": () => ({
+        json: { ...mailbox, smtp_providers: viaPassword },
+      }),
+    });
+    renderApp(<App />, "/settings/email?next=https://evil.example/x");
+    await screen.findByLabelText("Email connected");
+    expect(screen.queryByRole("link", { name: /Continue to/ })).toBeNull();
+  });
+
+  it("says why approved notes are waiting, and where to fix it, instead of holding them in silence", async () => {
+    routes({
+      "GET /api/hunt/settings": () => ({
+        json: { ...settings, enabled: true, ready: [] },
+      }),
+      "GET /api/hunt/delivery": () => ({
+        json: {
+          approved: 2,
+          blockers: [
+            {
+              code: "address",
+              text: "Add a postal address under Set up. Commercial email must carry one.",
+              where: "setup",
+            },
+            {
+              code: "reauth",
+              text: "Your email needs to be connected again, in Settings.",
+              where: "email",
+            },
+          ],
+        },
+      }),
+    });
+    renderApp(<App />, "/startups");
+    const why = await screen.findByRole("status", {
+      name: "Why your notes are waiting",
+    });
+    expect(
+      within(why).getByText(/2 approved notes are not going out yet/),
+    ).toBeVisible();
+    expect(
+      within(why).getByText(/Add a postal address under Set up/),
+    ).toBeVisible();
+    expect(
+      within(why).getByRole("link", { name: "Open Settings" }),
+    ).toHaveAttribute("href", "/settings/email?next=/startups");
+    await userEvent.click(
+      within(why).getByRole("button", { name: "Open Set up" }),
+    );
+    expect(await screen.findByText(/Step 1 of 3/)).toBeVisible();
+  });
+
+  it("does not promise 'Sending soon' for an approved note that something is holding back", async () => {
+    const approved = { ...target, status: "approved" };
+    const held = {
+      approved: 1,
+      blockers: [
+        {
+          code: "allowlist",
+          text: "Only the test list is written to.",
+          where: "",
+        },
+      ],
+    };
+    routes({
+      "GET /api/hunt/settings": () => ({
+        json: { ...settings, enabled: true, ready: [] },
+      }),
+      "GET /api/hunt/targets": () => ({ json: [approved] }),
+      "GET /api/hunt/delivery": () => ({ json: held }),
+    });
+    renderApp(<App />, "/startups");
+    await userEvent.click(await screen.findByRole("radio", { name: "Sent" }));
+    expect(await screen.findByText("Held back")).toBeVisible();
+    expect(screen.queryByText("Sending soon")).toBeNull();
+  });
+
+  it("says 'Sending soon' for an approved note when nothing is in the way", async () => {
+    routes({
+      "GET /api/hunt/settings": () => ({
+        json: { ...settings, enabled: true, ready: [] },
+      }),
+      "GET /api/hunt/targets": () => ({
+        json: [{ ...target, status: "approved" }],
+      }),
+    });
+    renderApp(<App />, "/startups");
+    await userEvent.click(await screen.findByRole("radio", { name: "Sent" }));
+    expect(await screen.findByText("Sending soon")).toBeVisible();
+  });
+
+  it("says nothing when nothing is waiting or nothing is in the way", async () => {
+    routes({
+      "GET /api/hunt/settings": () => ({
+        json: { ...settings, enabled: true, ready: [] },
+      }),
+    });
+    renderApp(<App />, "/startups");
+    await screen.findByText("ada@example.com");
+    expect(
+      screen.queryByRole("status", { name: "Why your notes are waiting" }),
+    ).toBeNull();
   });
 
   it("the old address still works", async () => {

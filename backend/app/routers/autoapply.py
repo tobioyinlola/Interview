@@ -16,6 +16,7 @@ from app.adapters.interfaces import LlmProvider
 from app.autoapply import campaign as camp
 from app.autoapply import (
     clock,
+    cvfile,
     dashboard,
     discovery,
     facts,
@@ -63,6 +64,8 @@ from app.autoapply.schemas import (
     PrepareOut,
     PrimaryAction,
     ProfileOut,
+    RecheckIn,
+    RecheckOut,
     RecruitingOut,
     ResolveIn,
     RunOut,
@@ -823,6 +826,94 @@ async def skip_application(
         raise ApiError(409, "already_sent", "This application has already gone out.")
     a.status, a.skip_reason, a.needs_input = "skipped", pipeline.USER_SKIPPED, []
     await pipeline.log(db, a, "skipped", reason="by you")
+    await db.commit()
+    return _app_out(a, p)
+
+
+@router.get("/applications/{application_id}/cv.pdf")
+async def tailored_cv_pdf(
+    application_id: str,
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> Response:
+    """The CV prepared for this role as a PDF, in the house layout."""
+    a, _ = await _owned(db, user.id, application_id)
+    cv = (a.package or {}).get("cv") or {}
+    text = cv.get("submitted_text") or ""
+    if not text.strip():
+        raise ApiError(404, "no_cv", "No CV has been prepared for this role yet.")
+    data = cvfile.render_pdf(text)
+    return Response(
+        data,
+        media_type="application/pdf",
+        headers={"content-disposition": 'attachment; filename="Tailored CV.pdf"'},
+    )
+
+
+@router.post("/applications/recheck")
+async def recheck_skipped(
+    body: RecheckIn,
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    now: datetime = Depends(get_now),  # noqa: B008
+    llm: LlmProvider = Depends(get_llm),  # noqa: B008
+    form: FormAdapter = Depends(get_form),  # noqa: B008
+) -> RecheckOut:
+    """Judge several skipped roles again against the search as it is now. Only skipped ones are
+    touched; anything already sent, or not yours, is left alone."""
+    c = await camp.current(db, user.id)
+    prof = await camp.get_profile(db, user.id)
+    if c is None or prof is None or c.status != "active" or c.ends_at <= now:
+        raise ApiError(409, "not_active", "Auto-Apply is not running.")
+    keys: list[uuid.UUID] = []
+    for raw in dict.fromkeys(body.ids):
+        try:
+            keys.append(uuid.UUID(raw))
+        except ValueError:
+            continue
+    rows = (
+        await db.execute(
+            select(Application, JobPosting)
+            .join(JobPosting, JobPosting.id == Application.posting_id)
+            .where(
+                Application.user_id == user.id,
+                Application.id.in_(keys),
+                Application.status == "skipped",
+            )
+        )
+    ).all()
+    ctx = await pipeline.load_context(db, user.id, c, prof, llm=llm, form=form, now=now)
+    ready = still = 0
+    for a, p in rows:
+        if a.skip_reason == pipeline.USER_SKIPPED:
+            a.skip_reason = None  # asking again is the person changing their mind
+        app, _ = await pipeline.process(db, ctx, p)
+        if app.status == "skipped":
+            still += 1
+        else:
+            ready += 1
+    await db.commit()
+    return RecheckOut(
+        checked=len(rows),
+        now_ready=ready,
+        still_skipped=still,
+        left_alone=len(body.ids) - len(rows),
+    )
+
+
+@router.post("/applications/{application_id}/applied")
+async def applied_by_you(
+    application_id: str,
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> ApplicationOut:
+    """The candidate submitted a prepared application themselves, on the employer's own site. It is
+    kept apart from what Auto-Apply sent: the numbers say which was which."""
+    a, p = await _owned(db, user.id, application_id)
+    if a.status != "apply_yourself":
+        raise ApiError(409, "not_waiting", "That is not waiting for you to apply.")
+    a.status = "applied_by_you"
+    await pipeline.log(db, a, "applied_by_you", url=p.application_url)
     await db.commit()
     return _app_out(a, p)
 

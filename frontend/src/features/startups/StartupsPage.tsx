@@ -1,16 +1,18 @@
 import { useState } from "react";
+import { Link, Navigate } from "react-router-dom";
 
 import { useMe } from "../../api/hooks";
 import { Loading } from "../../ui/Loading";
 import { useMailbox } from "../autoapply/api";
 import { Segmented } from "../autoapply/setup/controls";
 import {
+  useHuntDelivery,
   useHuntSettings,
   useHuntTargets,
   useRequestOutreachAccess,
 } from "./api";
 import { HistoryRow, StartupCard } from "./Cards";
-import { GmailConnect, MailboxConfirmed, StartupHero } from "./Connect";
+import { StartupHero } from "./Connect";
 import { Setup } from "./Setup";
 
 function Stat({ label, value }: { label: string; value: number }) {
@@ -23,6 +25,51 @@ function Stat({ label, value }: { label: string; value: number }) {
 }
 
 type Tab = "review" | "sent" | "setup";
+
+/** Approved notes that are not going out, and why, with where to fix it. Never shown when nothing
+ *  is waiting or nothing is in the way. */
+function WhyWaiting({ onSetup }: { onSetup: () => void }) {
+  const d = useHuntDelivery();
+  if (!d.data || d.data.approved === 0 || d.data.blockers.length === 0)
+    return null;
+  const n = d.data.approved;
+  return (
+    <section
+      role="status"
+      aria-label="Why your notes are waiting"
+      className="space-y-2 rounded-2xl bg-amber-50 p-4 text-amber-950"
+    >
+      <p className="font-semibold">
+        {n === 1 ? "1 approved note is" : `${n} approved notes are`} not going
+        out yet
+      </p>
+      <ul className="space-y-2 text-sm">
+        {d.data.blockers.map((b) => (
+          <li key={b.code}>
+            {b.text}{" "}
+            {b.where === "email" && (
+              <Link
+                to="/settings/email?next=/startups"
+                className="font-medium underline"
+              >
+                Open Settings
+              </Link>
+            )}
+            {b.where === "setup" && (
+              <button
+                type="button"
+                className="font-medium underline"
+                onClick={onSetup}
+              >
+                Open Set up
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 function StartupsBoard() {
   const settings = useHuntSettings();
@@ -50,7 +97,16 @@ function StartupsBoard() {
   return (
     <main className="page-narrow space-y-5">
       <StartupHero />
-      {s.mailbox && <MailboxConfirmed address={s.mailbox} />}
+      {s.mailbox && (
+        <p className="text-sm text-muted">
+          Pitches go from <span className="font-medium">{s.mailbox}</span>.{" "}
+          <Link to="/settings/email" className="text-accent-dark underline">
+            Change email
+          </Link>
+        </p>
+      )}
+
+      <WhyWaiting onSetup={() => setPicked("setup")} />
 
       {s.paused && (
         <p role="status" className="notice-info">
@@ -173,44 +229,16 @@ function RequestAccess({ requested }: { requested: boolean }) {
   );
 }
 
-/** Switched on for them, but nothing is sent from a stranger's address: connect Gmail first, then
- *  see it confirmed before going on. */
-function ConnectFirst({
-  confirmed,
-  onConnected,
-  onContinue,
-}: {
-  confirmed: string | null;
-  onConnected: () => void;
-  onContinue: () => void;
-}) {
-  return (
-    <main className="page-narrow space-y-5">
-      <StartupHero />
-      {confirmed ? (
-        <MailboxConfirmed address={confirmed} onContinue={onContinue} />
-      ) : (
-        <GmailConnect onConnected={onConnected} />
-      )}
-    </main>
-  );
-}
-
 export function StartupsPage() {
   const { data: me, isPending } = useMe();
   const box = useMailbox();
-  const [welcome, setWelcome] = useState(false); // just connected: show it confirmed first
   if (isPending) return <Loading label="Loading startups" />;
   if (me?.outreach_access !== "active")
     return <RequestAccess requested={me?.outreach_access === "requested"} />;
   if (box.isPending) return <Loading label="Loading startups" />;
-  if (box.data && (!box.data.connected || welcome))
-    return (
-      <ConnectFirst
-        confirmed={box.data.connected ? (box.data.address ?? null) : null}
-        onConnected={() => setWelcome(true)}
-        onContinue={() => setWelcome(false)}
-      />
-    );
+  // Nothing is sent from a stranger's address, and the email connection lives in Settings: send
+  // them there, and bring them back here once it is connected.
+  if (box.data && !box.data.connected)
+    return <Navigate to="/settings/email?next=/startups" replace />;
   return <StartupsBoard />;
 }

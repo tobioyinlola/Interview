@@ -9,9 +9,10 @@ import {
   Shield,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
-import { useLogout, useMe } from "../../api/hooks";
+import { useMe } from "../../api/hooks";
+import { useSignOut } from "../../ui/SignOut";
 import { Avatar } from "./Avatar";
 
 function Row({
@@ -47,8 +48,7 @@ function Row({
 /** Everything that is not one of the three main places. */
 export function ProfilePage() {
   const { data: me } = useMe();
-  const logout = useLogout();
-  const navigate = useNavigate();
+  const signOut = useSignOut();
   const icon = "h-5 w-5";
   return (
     <main className="space-y-5 px-5">
@@ -94,12 +94,11 @@ export function ProfilePage() {
       <button
         type="button"
         className="flex min-h-[56px] w-full items-center justify-center gap-2 rounded-[1.75rem] bg-surface font-medium text-red-700 shadow-card"
-        onClick={() =>
-          logout.mutate(undefined, { onSuccess: () => navigate("/login") })
-        }
+        onClick={signOut.ask}
       >
         <LogOut className={icon} /> Sign out
       </button>
+      {signOut.dialog}
     </main>
   );
 }

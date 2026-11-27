@@ -67,7 +67,7 @@ The API refuses to start in production with a half-configured Auto-Apply (see `h
 | Part | Choice | Status |
 | --- | --- | --- |
 | Mailbox | **Gmail** (OAuth, `gmail.send` + `gmail.readonly`) | Code complete and tested against recorded responses only. **Not run against live Google.** |
-| Job discovery | Several at once: **Remotive, Arbeitnow, Remote OK** (public feeds, no setup), **Greenhouse, Lever, Ashby** (employer boards you name), plus a fixture source | Parsing tested against sample responses in each feed's published format. **Not run against the live services from this repository** (no outbound network). Big feeds are thinned to titles that could be a role the candidate wants. The same job found by two sources is one application. These sources only find jobs; a job that needs the employer's own site is listed as "apply yourself" with the link |
+| Job discovery | Several at once: **Remotive, Arbeitnow, Remote OK** (public feeds, no setup), **Greenhouse, Lever, Ashby** (employer boards you name), plus a fixture source | Parsing tested against sample responses in each feed's published format. **Not run against the live services from this repository** (no outbound network). Big feeds are thinned to titles that could be a role the candidate wants. The same job found by two sources is one application. These sources only find jobs; a job that needs the employer's own site is kept as "Ready for you to apply" (see below) |
 | Employer forms | **Fixture adapter only** | No real employer form adapter exists yet. The interface (`FormAdapter`) is ready; `AUTOAPPLY_FORM_DISPATCH` has nothing real to enable until one is approved |
 | Everything else (limits, claims, reconciliation, matching, tailoring, replies, interviews, hand-off) | In-repo | Verified with the fixture adapters and the automated suite |
 
@@ -94,6 +94,21 @@ Fixture mode (default) → allowlisted test recipients → opt-in production. To
 `global` switch (or flip `AUTOAPPLY_ENABLED` off to hide the feature): new sends stop at once,
 history stays, and in-flight attempts keep being settled.
 
+## The tailored CV: one house layout
+
+Every CV that leaves (email attachment, form upload, startup note, the download button on the
+application page) is a PDF in one layout, set from a reference CV (`backend/app/autoapply/cvfile.py`):
+US Letter, Times, the name in capitals and centred over one contact line (place, phone, email, links),
+section headings in bold capitals with a rule under them (Professional Summary, Core Competencies,
+Professional Experience, Education and any other section), each job as a bold title with its dates in
+italics on the right and the company in italics under it, round bullets with a hanging indent, and
+the skills as one line of "•"-separated items. A paragraph under a job becomes one point per sentence.
+
+The text decides what goes in and the layout decides how it looks, so the words in the PDF are the
+words the candidate approved. The cover note is a plain letter, not this layout. There is no per
+person layout: uploading a CV only supplies its text (migration 0038 dropped the old layout column).
+`GET /api/autoapply/applications/{id}/cv.pdf` downloads the prepared CV.
+
 ## Data and deletion
 
 Stored: search profile and authorisation, confirmed CV facts, approved answers, postings, each
@@ -106,3 +121,63 @@ disconnecting deletes them and asks Google to revoke. Deleting the account delet
 ### Sources we do not use
 
 **LinkedIn** has no public job-search API (its job API is for partners who post jobs), and its terms prohibit scraping, so it is not a source. Indeed and Glassdoor are the same. Keyed aggregators such as Adzuna and Jooble are possible later if you obtain a key. Check each board's own terms before relying on it: Himalayas asks that its jobs not be resubmitted to third-party sites, Jobicy asks for credit and at most one poll an hour, and Remotive delays its feed by 24 hours.
+
+
+## Jobs with an application link or an email (how they are handled)
+
+A listing is applied for by one of three ways, in this order:
+
+1. **Its form, filled in for you**, when the link is on a site whose form the app has been checked
+   against (Greenhouse and Ashby by default; more only through `AUTOAPPLY_FORM_HOSTS`, after they have
+   been checked read-only on real forms). Needs the "employers' forms" channel on.
+2. **Email**, when the listing itself tells people to apply by email. The addresses are read from the
+   listing's own words ("send your CV to ..."): only an address in a sentence about applying counts,
+   never a support, no-reply or placeholder address. When the text gives several application
+   addresses (up to three) the application goes to **all of them** in one message. The sentence is
+   kept as the evidence. Needs the "email"
+   channel on and a connected mailbox. Listings stored before this was read are filled in by the
+   worker's hourly housekeeping, 500 at a time.
+3. **Hand-off: "Ready for you to apply".** A job that fits but whose link is on a site we cannot fill
+   in (or whose only route is a channel you switched off) is no longer skipped. The CV and the note
+   are prepared as for any application, and the job shows the link, copy buttons for both, and
+   "I've applied" and "Skip this role". Nothing is sent by the app, it never counts as sent by
+   Auto-Apply, and "Applied by you" is its own status, so the numbers say which was which.
+
+A job with no link and no email still cannot be acted on and is skipped, with the reason.
+
+A job whose own end date has passed is **Expired**, a status of its own, not Skipped (Skipped is for
+jobs that do not fit, or that you skipped). It happens when the job is matched, and also when the end
+date passes while a prepared application is waiting to go out; such a role leaves "Ready to send"
+instead of waiting forever. Applications → Expired lists them. Migration 0037 moved the ones that
+were already skipped for this reason.
+
+Why not submit every site's form: most employer sites have their own bot checks (CAPTCHA and the
+like) and different forms; the app does not work round those, and it does not submit to a site it has
+not been checked against. Adding a site is a decision made after reading its real form.
+
+### Trying any application link (`AUTOAPPLY_FORM_HOSTS=*`)
+
+By default only checked sites (Greenhouse, Ashby, and any named in `AUTOAPPLY_FORM_HOSTS`) are filled
+in. Setting `AUTOAPPLY_FORM_HOSTS=*` makes the app try **any public https application link**. It is the
+operator's choice, because it submits to sites nobody has checked. What stays the same:
+
+- The form is read first and filled only as far as the app can honestly answer it. A question it has
+  no answer for is asked of the person (the usual "needs your input").
+- A human check (CAPTCHA), a sign-in wall, "access denied" pages or no form at all are **never worked
+  round**. Nothing is sent, and the prepared application goes to the person as "Ready for you to
+  apply" (a form that fails this way no longer ends as "failed").
+- Only public web addresses: never plain http, a private or local network address, a name that
+  resolves to one, an unusual port, a link with a login in it, or a social profile. The check is
+  repeated on every page the browser navigates to.
+- It still needs `AUTOAPPLY_FORM_ADAPTER=browser` (the worker with `WITH_BROWSER=1`),
+  `AUTOAPPLY_FORM_DISPATCH=true`, and each person's "employers' forms" channel on.
+
+## Why startup notes can wait (and how to see it)
+
+An approved startup note is only sent when every gate is open: outreach switched on, a name and
+postal address, a connected email, not paused, `STARTUP_OUTREACH_DISPATCH`, weekdays 08:00-18:00 in
+the candidate's time zone, today's limit, a gap between notes, and (outside production) the recipient
+being on `AUTOAPPLY_ALLOWED_RECIPIENTS`. `GET /api/hunt/delivery` lists what is in the way, and the
+Startups page shows it with where to fix it. A server that is not `ENVIRONMENT=production` writes only
+to its test list; setting `STARTUP_OUTREACH_ANY_RECIPIENT=true` says, on purpose, that it may write to
+real startups (startup notes only).

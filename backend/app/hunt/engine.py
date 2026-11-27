@@ -1,6 +1,7 @@
 """The run loop for startup outreach: plan notes, send them one at a time under every rule,
 follow up once, and read replies, opt-outs and bounces so nobody is written to again."""
 
+import logging
 import re
 import uuid
 from datetime import datetime, timedelta
@@ -27,6 +28,8 @@ from app.models import (
 )
 from app.repositories import NotesRepo
 from app.services.events import record_from
+
+log = logging.getLogger(__name__)
 
 MAX_DAILY = 25
 MAX_BACKLOG = 30
@@ -318,6 +321,110 @@ def cv_filename(name: str) -> str:
     return f"{clean} - CV.pdf" if clean else "CV.pdf"
 
 
+async def delivery_blockers(
+    maker: async_sessionmaker[AsyncSession],
+    user_id: uuid.UUID,
+    adapter: MailboxAdapter,
+    settings: Settings,
+    now: datetime,
+) -> dict[str, Any]:
+    """Why approved notes are not going out right now: read-only, in the order a person can fix
+    them. The same gates send_next applies, said in words, so nothing is held back in silence.
+    Returns {"approved": n, "blockers": [{"code", "text", "where"}]}; no blockers means a note
+    goes in the next pass."""
+    out: list[dict[str, str]] = []
+
+    def add(code: str, text: str, where: str = "") -> None:
+        out.append({"code": code, "text": text, "where": where})
+
+    async with maker() as db:
+        approved = (
+            await db.execute(
+                select(func.count())
+                .select_from(HuntTarget)
+                .where(HuntTarget.user_id == user_id, HuntTarget.status == "approved")
+            )
+        ).scalar_one()
+        if approved == 0:
+            return {"approved": 0, "blockers": []}
+        st = await get_settings(db, user_id)
+        conn = await mailbox.get(db, user_id)
+        off = await switches.active(db)
+        prof = (
+            await db.execute(select(SearchProfile).where(SearchProfile.user_id == user_id))
+        ).scalar_one_or_none()
+        tz = prof.timezone if prof else "UTC"
+        if st is None or not st.enabled:
+            add("off", "Startup outreach is switched off. Turn it on under Set up.", "setup")
+        if st is not None and not st.sender_name.strip():
+            add("name", "Add the name your notes are signed with, under Set up.", "setup")
+        if st is not None and not st.postal_address.strip():
+            add(
+                "address",
+                "Add a postal address under Set up. Commercial email must carry one.",
+                "setup",
+            )
+        if conn is None or not conn.token_encrypted:
+            add(
+                "mailbox",
+                "Connect your email in Settings: notes go from your own address.",
+                "email",
+            )
+        elif conn.status != "connected":
+            add("reauth", "Your email needs to be connected again, in Settings.", "email")
+        if (why := switches.blocked(off, "hunt", adapter.name)) is not None:
+            add("switch", f"Sending is paused by the operator ({why}).")
+        if bool(prof and prof.paused):
+            add("paused", "Auto-Apply is paused, which pauses startup notes too. Resume it.")
+        if not settings.startup_outreach_dispatch and adapter.real:
+            add(
+                "server",
+                "Real sending is switched off on this server (STARTUP_OUTREACH_DISPATCH).",
+            )
+        elif (
+            adapter.real
+            and settings.environment != "production"
+            and not settings.startup_outreach_any_recipient
+        ):
+            add(
+                "allowlist",
+                "This server is not in production, so it only sends to addresses on its test list "
+                "(AUTOAPPLY_ALLOWED_RECIPIENTS). To let it write to real startups, the operator "
+                "sets STARTUP_OUTREACH_ANY_RECIPIENT=true.",
+            )
+        if st is not None and st.enabled and not in_window(now, tz):
+            add(
+                "window",
+                f"Notes go out on weekdays between 08:00 and 18:00 ({tz}). It is outside that "
+                "now, so the next one goes in the next window.",
+            )
+        if st is not None and await sent_today(db, user_id, now, tz) >= min(
+            st.daily_cap, MAX_DAILY
+        ):
+            add("cap", "Today's limit is reached. The next note goes tomorrow.")
+        last = (
+            await db.execute(
+                select(func.max(HuntTarget.claimed_at)).where(HuntTarget.user_id == user_id)
+            )
+        ).scalar_one()
+        if last is not None and now - last < MIN_GAP:
+            add("gap", "A short gap is kept between notes. The next goes in a minute.")
+    return {"approved": int(approved), "blockers": out}
+
+
+def _log_held(user_id: uuid.UUID, why: str) -> None:
+    log.info("startup note held back", extra={"user_id": str(user_id), "why": why})
+
+
+async def _has_approved(db: AsyncSession, user_id: uuid.UUID) -> bool:
+    row = await db.execute(
+        select(HuntTarget.id)
+        .where(HuntTarget.user_id == user_id, HuntTarget.status == "approved")
+        .limit(1)
+    )
+    return row.first() is not None
+
+
 async def send_next(
     maker: async_sessionmaker[AsyncSession],
     user_id: uuid.UUID,
@@ -334,20 +441,28 @@ async def send_next(
             await db.execute(select(SearchProfile).where(SearchProfile.user_id == user_id))
         ).scalar_one_or_none()
         tz = prof.timezone if prof else "UTC"
-        if (
-            st is None
-            or not st.enabled
-            or not st.sender_name.strip()
-            or not st.postal_address.strip()
-            or switches.blocked(off, "hunt", adapter.name) is not None
-            or conn is None
-            or conn.status != "connected"
-            or not conn.token_encrypted
-            or bool(prof and prof.paused)
-            or not in_window(now, tz)
-            or await sent_today(db, user_id, now, tz) >= min(st.daily_cap, MAX_DAILY)
-        ):
+        gate = None
+        if st is None or not st.enabled:
+            gate = "outreach_off"
+        elif not st.sender_name.strip():
+            gate = "no_sender_name"
+        elif not st.postal_address.strip():
+            gate = "no_postal_address"
+        elif switches.blocked(off, "hunt", adapter.name) is not None:
+            gate = "switched_off"
+        elif conn is None or conn.status != "connected" or not conn.token_encrypted:
+            gate = "mailbox_not_connected"
+        elif prof and prof.paused:
+            gate = "paused"
+        elif not in_window(now, tz):
+            gate = "outside_send_hours"
+        elif await sent_today(db, user_id, now, tz) >= min(st.daily_cap, MAX_DAILY):
+            gate = "daily_cap_reached"
+        if gate is not None:
+            if await _has_approved(db, user_id):
+                _log_held(user_id, gate)
             return None
+        assert st is not None and conn is not None  # the gates above stop when either is missing
         last = (
             await db.execute(
                 select(func.max(HuntTarget.claimed_at)).where(HuntTarget.user_id == user_id)
@@ -386,6 +501,7 @@ async def send_next(
                 t.status, t.reason = "skipped", why or "Outside the regions you chose."
                 continue
             if not outbox.dispatch_allowed(settings, "hunt", adapter.real, contact.email):
+                _log_held(user_id, "recipient_not_allowed_in_this_environment")
                 continue
             chosen, to = t, contact.email
             break
@@ -430,11 +546,19 @@ async def send_next(
             t.status, t.sent_at, t.thread_id = "sent", now, thread
             await db.commit()
             await record_from(db, "hunt.sent", user_id=user_id)
+            log.info("startup note sent", extra={"user_id": str(user_id), "target": str(tid)})
             return "sent"
         if error.code == "ambiguous":
             await db.commit()  # stays 'sending'; reconcile() settles it
+            log.warning(
+                "startup note send unclear", extra={"user_id": str(user_id), "target": str(tid)}
+            )
             return "ambiguous"
         t.status, t.reason = "failed", error.message[:300]
+        log.warning(
+            "startup note failed",
+            extra={"user_id": str(user_id), "target": str(tid), "code": error.code},
+        )
         if error.code == "reauth":
             c = await mailbox.get(db, user_id)
             if c is not None:

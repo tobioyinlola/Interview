@@ -1,18 +1,11 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
-import { useLogout, useMe } from "../api/hooks";
+import { useMe } from "../api/hooks";
+import { useSignOut } from "../ui/SignOut";
 import { firstName } from "../features/account/names";
 import { useTour } from "../features/tour/TourProvider";
-import {
-  FileIcon,
-  GearIcon,
-  HelpIcon,
-  HomeIcon,
-  LogoutIcon,
-  ShieldIcon,
-  CompassIcon,
-} from "./icons";
+import { GearIcon, LogoutIcon, CompassIcon } from "./icons";
 
 /** "JR" for Jordan Reyes; the first letter of the email when there is no name yet. */
 export function initials(
@@ -32,25 +25,12 @@ const ITEMS = [
     label: "Settings",
     icon: <GearIcon className="h-4 w-4" />,
   },
-  {
-    to: "/onboarding",
-    label: "Update my focus",
-    icon: <HomeIcon className="h-4 w-4" />,
-  },
-  { to: "/help", label: "Help", icon: <HelpIcon className="h-4 w-4" /> },
-  {
-    to: "/privacy",
-    label: "Privacy",
-    icon: <ShieldIcon className="h-4 w-4" />,
-  },
-  { to: "/terms", label: "Terms", icon: <FileIcon className="h-4 w-4" /> },
 ];
 
 /** The person's avatar in the top right corner, with a menu for their account. */
 export function ProfileMenu() {
   const { data: me } = useMe();
-  const logout = useLogout();
-  const navigate = useNavigate();
+  const signOut = useSignOut();
   const location = useLocation();
   const tour = useTour();
   const menuId = useId();
@@ -190,17 +170,17 @@ export function ProfileMenu() {
             role="menuitem"
             tabIndex={-1}
             className={`${row} text-red-700`}
-            onClick={() =>
-              logout.mutate(undefined, {
-                onSuccess: () => navigate("/login"),
-              })
-            }
+            onClick={() => {
+              setOpen(false);
+              signOut.ask();
+            }}
           >
             <LogoutIcon className="h-4 w-4" />
             Sign out
           </button>
         </div>
       )}
+      {signOut.dialog}
     </div>
   );
 }

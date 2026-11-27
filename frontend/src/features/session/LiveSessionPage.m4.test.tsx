@@ -333,3 +333,112 @@ describe("floating panel (FR-29)", () => {
     sheet.remove();
   });
 });
+
+describe("floating panel in the desktop app", () => {
+  /** The desktop app has Chrome's picture-in-picture API but it cannot open a window there, so the
+   *  panel must go through the app's own small window instead. */
+  function inDesktopApp(openResult: "window" | "blocked") {
+    (window as { interviewMeetDesktop?: unknown }).interviewMeetDesktop = {
+      isDesktop: true,
+      platform: "win32",
+    };
+    const requestWindow = vi.fn(async () => {
+      throw new DOMException("Internal error: no window", "InvalidStateError");
+    });
+    (
+      window as { documentPictureInPicture?: unknown }
+    ).documentPictureInPicture = { requestWindow };
+    const frame = document.createElement("iframe");
+    document.body.appendChild(frame);
+    const win = frame.contentWindow!;
+    win.close = vi.fn(() => {
+      win.dispatchEvent(new Event("pagehide"));
+    });
+    const open = vi
+      .spyOn(window, "open")
+      .mockReturnValue(openResult === "window" ? win : null);
+    return { win, open, requestWindow };
+  }
+  afterEach(() => {
+    delete (window as { interviewMeetDesktop?: unknown }).interviewMeetDesktop;
+  });
+
+  it("opens the app's own window, named so the desktop shell lets it through, and never uses picture-in-picture", async () => {
+    const x = inDesktopApp("window");
+    page();
+    set({ outline: outline() });
+    await userEvent.click(
+      screen.getByRole("button", { name: /Float the answer panel/ }),
+    );
+    await screen.findByText(/in its own window/);
+    expect(x.open).toHaveBeenCalledWith(
+      "",
+      "im-float",
+      expect.stringContaining("width=420"),
+    );
+    expect(x.requestWindow).not.toHaveBeenCalled();
+    expect(
+      within(x.win.document.body).getByRole("heading", {
+        name: "Question and answer",
+      }),
+    ).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Bring it back here" }),
+    );
+    expect(
+      screen.getByRole("button", { name: /Float the answer panel/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("says so, instead of doing nothing, when the window could not open", async () => {
+    inDesktopApp("blocked");
+    page();
+    set({ outline: outline() });
+    await userEvent.click(
+      screen.getByRole("button", { name: /Float the answer panel/ }),
+    );
+    expect(
+      await screen.findByText(/floating window could not open/i),
+    ).toBeInTheDocument();
+    // the answer is still on the page
+    expect(
+      screen.getByRole("heading", { name: "Question and answer" }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("floating panel in the browser, when the window cannot open", () => {
+  it("says so rather than leaving the button silent", async () => {
+    (
+      window as { documentPictureInPicture?: unknown }
+    ).documentPictureInPicture = {
+      requestWindow: vi.fn(async () => {
+        throw new DOMException("no window", "InvalidStateError");
+      }),
+    };
+    page();
+    set({ outline: outline() });
+    await userEvent.click(
+      screen.getByRole("button", { name: /Float the answer panel/ }),
+    );
+    expect(
+      await screen.findByText(/floating window could not open/i),
+    ).toBeInTheDocument();
+  });
+
+  it("stays quiet when the person dismisses the browser's own prompt", async () => {
+    (
+      window as { documentPictureInPicture?: unknown }
+    ).documentPictureInPicture = {
+      requestWindow: vi.fn(async () => {
+        throw new DOMException("dismissed", "NotAllowedError");
+      }),
+    };
+    page();
+    set({ outline: outline() });
+    await userEvent.click(
+      screen.getByRole("button", { name: /Float the answer panel/ }),
+    );
+    expect(screen.queryByText(/floating window could not open/i)).toBeNull();
+  });
+});

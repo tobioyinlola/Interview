@@ -64,10 +64,12 @@ def adapter(kind: str, board: str) -> DiscoveryAdapter:
         return getattr(more, discovery.MORE_COMPANY[kind][0])([board])  # type: ignore[no-any-return]
     if kind in discovery.MORE_BROAD:
         return getattr(more, discovery.MORE_BROAD[kind])()  # type: ignore[no-any-return]
-    simple = {"remotive": feeds.RemotiveSource, "arbeitnow": feeds.ArbeitnowSource,
-              "remoteok": feeds.RemoteOkSource}  # fmt: skip
-    if kind in simple:
-        return simple[kind]()  # type: ignore[no-any-return]
+    if kind == "remotive":
+        return feeds.RemotiveSource()
+    if kind == "arbeitnow":
+        return feeds.ArbeitnowSource()
+    if kind == "remoteok":
+        return feeds.RemoteOkSource()
     raise ValueError(f"unknown job source {kind!r}")
 
 

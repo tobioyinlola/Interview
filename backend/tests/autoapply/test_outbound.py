@@ -2,6 +2,7 @@
 and everything that must stop work before it is dispatched."""
 
 import asyncio
+import io
 from datetime import timedelta
 
 import pytest
@@ -98,11 +99,34 @@ async def test_an_email_only_listing_is_sent_from_the_connected_account_with_the
     assert pdf.filename == "CV.pdf" and pdf.content.startswith(b"%PDF")
     package = (await ada.get(f"/api/autoapply/applications/{a['id']}")).json()["package"]
     assert "Senior Product Manager" in cvfile.pdf_text(pdf.content)
-    assert cvfile.pdf_text(pdf.content).splitlines()[0] == "Ada Okoye"
+    assert cvfile.pdf_text(pdf.content).splitlines()[0] == "ADA OKOYE"  # the house layout
     assert package["cv"]["submitted_text"].splitlines()[0] == "Ada Okoye"
     d = (await ada.get(f"/api/autoapply/applications/{a['id']}")).json()
     att = d["attempts"][0]
     assert att["state"] == "confirmed" and att["provider_ref"].endswith("@interviewmeet.app")
+
+
+async def test_the_cv_sent_and_downloaded_is_a_pdf_in_the_house_layout(
+    ada, discovery_source, mailbox, tick
+):
+    discovery_source.postings = [email_job(1)]
+    await start(ada)
+    await connect_mailbox(ada)
+    await tick()
+    a = (await apps(ada))[0]
+    sent = mailbox.sent[0]["attachments"][0].content
+    download = (await ada.get(f"/api/autoapply/applications/{a['id']}/cv.pdf")).content
+    for pdf in (sent, download):
+        words = cvfile.pdf_text(pdf)
+        assert words.splitlines()[0] == "ADA OKOYE"  # the name in capitals, centred
+        assert "PROFESSIONAL EXPERIENCE" in words and "CORE COMPETENCIES" in words
+    got = await ada.get(f"/api/autoapply/applications/{a['id']}/cv.pdf")
+    assert got.headers["content-type"] == "application/pdf"
+    assert "attachment" in got.headers["content-disposition"]
+    stranger = await ada.get(
+        "/api/autoapply/applications/00000000-0000-0000-0000-000000000000/cv.pdf"
+    )
+    assert stranger.status_code == 404
 
 
 async def test_email_is_only_used_when_the_listing_itself_designates_it(
@@ -488,7 +512,8 @@ async def test_a_captcha_goes_to_the_candidate_and_nothing_is_sent(
     form.mode = "captcha"
     await tick()
     a = (await apps(ada))[0]
-    assert a["status"] == "needs_input" and a["needs_input"][0]["kind"] == "unsupported"
+    # nothing the person can answer in the app: it is handed to them, prepared, to submit themselves
+    assert a["status"] == "apply_yourself" and a["channel"] == "manual"
     assert form.calls == 0
 
 
@@ -554,6 +579,27 @@ def test_a_real_mailbox_in_staging_only_reaches_allowlisted_recipients(settings)
     assert outbox.dispatch_allowed(settings, "email", True, "ME@test.example") is True
     settings.autoapply_email_dispatch = False
     assert outbox.dispatch_allowed(settings, "email", True, "me@test.example") is False
+
+
+async def test_a_listing_that_expires_before_it_is_sent_becomes_expired(
+    ada, discovery_source, form, tick, maker
+):
+    from datetime import UTC, datetime
+
+    from app.models import JobPosting
+
+    discovery_source.postings = [job(1)]
+    await start(ada)
+    await run(ada)  # prepared and waiting to go out
+    async with maker() as db:
+        for p in (await db.execute(select(JobPosting))).scalars():
+            p.expires_at = datetime(2020, 1, 1, tzinfo=UTC)  # the end date passes meanwhile
+        await db.commit()
+    discovery_source.postings = []  # the next search brings nothing new; the stored listing is what counts
+    await tick()
+    a = (await apps(ada))[0]
+    assert a["status"] == "expired" and "expired" in a["skip_reason"]
+    assert form.calls == 0  # nothing reached the employer
 
 
 async def test_a_listing_cannot_change_who_an_email_goes_to(
@@ -768,12 +814,15 @@ async def test_outreach_to_the_applications_own_contact_respects_the_end_of_the_
 # ------------------------------------------------------------------------- small pieces
 
 
-def test_the_cv_file_round_trips_its_text():
-    text = "Ada Okoye\nSenior (PM) at A\\B\n" + "line\n" * 120
+def test_the_cv_file_carries_its_text_and_runs_to_more_pages():
+    from pypdf import PdfReader
+
+    text = "Ada Okoye\nSenior (PM) at A\\B\n\nSUMMARY\n" + "A line of the summary.\n" * 200
     pdf = cvfile.render_pdf(text)
-    assert pdf.startswith(b"%PDF-1.4") and pdf.rstrip().endswith(b"%%EOF")
-    assert cvfile.pdf_text(pdf).splitlines()[:2] == ["Ada Okoye", "Senior (PM) at A\\B"]
-    assert pdf.count(b"/Type /Page ") >= 3  # long text runs to more pages
+    assert pdf.startswith(b"%PDF-") and pdf.rstrip().endswith(b"%%EOF")
+    got = cvfile.pdf_text(pdf).splitlines()
+    assert got[0] == "ADA OKOYE" and "Senior (PM) at A\\B" in got[1]
+    assert len(PdfReader(io.BytesIO(pdf)).pages) >= 3  # long text runs to more pages
 
 
 def test_stored_secrets_need_the_right_key(settings):
@@ -789,3 +838,36 @@ def test_stored_secrets_need_the_right_key(settings):
     settings.environment = "production"
     with pytest.raises(crypto.CryptoError):
         crypto.encrypt(settings, "x")  # production refuses to guess a key
+
+
+async def test_a_form_that_cannot_be_filled_is_handed_to_the_person_not_failed(
+    ada, maker, form, mailbox, discovery_source, outbox_adapters, clock
+):
+    """No form on the page, a sign-in wall or a human check: nothing is sent and nothing failed. The
+    prepared CV and note go to the person to submit on the employer's own site."""
+    from app.autoapply import outbox
+    from app.autoapply.adapters import AdapterError
+    from tests.autoapply.conftest import apps, job, start
+
+    discovery_source.postings = [job(1)]
+    await start(ada)
+    await ada.post("/api/autoapply/discovery/run")
+    (a,) = await apps(ada)
+    assert a["status"] == "queued" and a["channel"] == "form"
+
+    async def no_form(url):
+        raise AdapterError("rejected", "The form asks for a human check (CAPTCHA).")
+
+    form.read_form = no_form  # type: ignore[method-assign]
+    uid = await user_id(maker)
+    claim = await outbox.claim_next(maker, uid, outbox_adapters, clock.now)
+    assert claim is not None
+    assert await outbox.execute(maker, claim, outbox_adapters, clock.now) == "cancelled"
+    (after,) = await apps(ada)
+    assert after["status"] == "apply_yourself" and after["channel"] == "manual"
+    detail = (await ada.get(f"/api/autoapply/applications/{a['id']}")).json()
+    assert [t["state"] for t in detail["attempts"]] == ["cancelled"]
+    assert detail["attempts"][0]["failure_message"].startswith("The form asks for a human check")
+    handed = [h for h in detail["history"] if h["kind"] == "handed_over"]
+    assert handed and "CAPTCHA" in handed[0]["detail"]["reason"]
+    assert detail["package"]["cv"]["submitted_text"]  # already prepared: ready for the person

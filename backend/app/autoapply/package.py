@@ -6,6 +6,7 @@ from typing import Any
 
 from app.adapters.interfaces import LlmProvider
 from app.autoapply import tailor
+from app.autoapply.postings import apply_to
 from app.models import Application, CandidateAnswer, CandidateFacts, JobPosting
 
 # Application states after which the package may never change again.
@@ -166,15 +167,16 @@ async def build(
         answers.setdefault(field, {"value": str(value), "source": "this application"})
     cv_out, note = await tailor.tailor_cv(llm, facts, cv_text, posting)
     cover = await tailor.cover_note(llm, facts, cv_text, posting)
-    destination = (
-        {"channel": "form", "url": posting.application_url}
-        if channel == "form"
-        else {
+    if channel == "form":
+        destination = {"channel": "form", "url": posting.application_url}
+    elif channel == "manual":
+        destination = {"channel": "manual", "url": posting.application_url}
+    else:
+        destination = {
             "channel": "email",
-            "to": posting.apply_email,
+            "to": apply_to(posting),
             "instructions": posting.apply_instructions,
         }
-    )
     return {
         "posting": posting_snapshot(posting),
         "destination": destination,

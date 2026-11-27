@@ -122,7 +122,7 @@ class Dispatcher:
                     error_class="unknown_kind", message=f"No handler for {t.kind!r}.", retry=False,
                 )  # fmt: skip
                 return
-            work: asyncio.Task[object] = asyncio.create_task(spec.handler(self.ctx, t))
+            work: asyncio.Task[object] = asyncio.ensure_future(spec.handler(self.ctx, t))
             beat = asyncio.create_task(self._beat(t, work))
             try:
                 await asyncio.wait_for(asyncio.shield(work), timeout=t.timeout_seconds)

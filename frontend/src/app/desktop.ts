@@ -1,4 +1,4 @@
-/** Set by the desktop app's preload script (desktop/src/preload.js). Absent in a normal browser. */
+/** Set by the desktop app's bridge (Electron: desktop/src/preload.js, Tauri: desktop-tauri/src-tauri/bridge.js). Absent in a normal browser. */
 
 export interface StealthState {
   active: boolean;
@@ -19,20 +19,34 @@ interface DesktopWindowControls {
   close: () => Promise<void>;
 }
 
+interface DesktopBridge {
+  isDesktop: true;
+  platform: string;
+  arch?: string;
+  systemAudio: boolean;
+  /** Opens an address in the person's normal browser (used for Google sign-in). */
+  openInBrowser?: (url: string) => void;
+  /** The system file picker, starting in Downloads. Null when cancelled. */
+  pickCv?: () => Promise<{
+    name: string;
+    data?: Uint8Array;
+    tooBig?: boolean;
+  } | null>;
+  /** Native protection for private screens (see app/privacy.ts). */
+  privacy?: {
+    set: (on: boolean) => Promise<{ active: boolean; reason?: string }>;
+    setLive: (on: boolean) => Promise<void>;
+  };
+  setStealthMode?: (enable: boolean) => Promise<{ ok: boolean; stealth: boolean }>;
+  windowControl?: (action: "minimize" | "maximize" | "close") => Promise<void>;
+  windowControls?: DesktopWindowControls;
+  stealth?: DesktopStealth;
+}
+
 declare global {
   interface Window {
-    interviewDesktop?: {
-      isDesktop: boolean;
-      platform: string;
-      setStealthMode: (enable: boolean) => Promise<{ ok: boolean; stealth: boolean }>;
-      windowControl: (action: "minimize" | "maximize" | "close") => Promise<void>;
-      arch?: string;
-      systemAudio?: boolean;
-      openInBrowser?: (url: string) => void;
-      windowControls?: DesktopWindowControls;
-      stealth?: DesktopStealth;
-    };
-    interviewMeetDesktop?: any;
+    interviewDesktop?: DesktopBridge;
+    interviewMeetDesktop?: DesktopBridge;
   }
 }
 
@@ -42,7 +56,9 @@ declare module "react" {
   }
 }
 
-export const isDesktopApp = () =>
+/** True when running inside the InterviewMeet desktop app. */
+export const isDesktopApp = (): boolean =>
+  typeof window !== "undefined" &&
   Boolean(window.interviewDesktop?.isDesktop ?? window.interviewMeetDesktop?.isDesktop);
 
 export async function setDesktopStealthMode(enable: boolean): Promise<void> {

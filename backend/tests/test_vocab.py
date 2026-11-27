@@ -102,3 +102,14 @@ def test_the_research_and_answer_prompts_are_about_the_company_interviewing_the_
     assert "what it does and HOW" in research
     answer = load_prompt("suggestion")
     assert "the company interviewing the candidate, never an employer from their CV" in answer
+
+
+def test_the_answer_prompt_asks_for_short_speaking_notes_not_a_script() -> None:
+    from app.prompts import load_prompt
+
+    p = load_prompt("suggestion")
+    assert "never more than 100" in p and "ONE sentence of 25 words or fewer" in p
+    assert "never a script to read out" in p
+    assert "100 to 160 words" not in p  # the old, much longer spoken answer
+    # several questions in one turn are all covered, in order
+    assert "MORE THAN ONE question" in p and "Never skip a question that was asked" in p

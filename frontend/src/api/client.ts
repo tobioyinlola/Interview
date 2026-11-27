@@ -34,10 +34,11 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiFetch<T>(
+/** Send a request and return the response, or throw an ApiError for any failure. */
+async function request(
   path: string,
   init: RequestInit = {},
-): Promise<T> {
+): Promise<Response> {
   const method = (init.method ?? "GET").toUpperCase();
   const headers = new Headers(init.headers);
   // JSON unless the caller sends something else (a file upload sets its own content type)
@@ -79,5 +80,17 @@ export async function apiFetch<T>(
     }
     throw new ApiError(res.status, code, message, requestId);
   }
-  return (await res.json()) as T;
+  return res;
+}
+
+export async function apiFetch<T>(
+  path: string,
+  init: RequestInit = {},
+): Promise<T> {
+  return (await (await request(path, init)).json()) as T;
+}
+
+/** A file from the API (a PDF), with the same sign-in and error handling as any other call. */
+export async function apiBlob(path: string): Promise<Blob> {
+  return (await request(path)).blob();
 }
