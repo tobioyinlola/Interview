@@ -164,7 +164,9 @@ class StartupIn(BaseModel):
     sector: str = Field("", max_length=120)
 
 
-async def _ready(db: AsyncSession, st: HuntSettings | None, user_id: uuid.UUID) -> list[str]:
+async def _ready(
+    db: AsyncSession, st: HuntSettings | None, user_id: uuid.UUID, footer: bool = False
+) -> list[str]:
     missing = []
     if await mailbox.connected_address(db, user_id) is None:
         missing.append("Connect your email")
@@ -174,7 +176,7 @@ async def _ready(db: AsyncSession, st: HuntSettings | None, user_id: uuid.UUID) 
         missing.append("Choose a region")
     if st is None or not st.sender_name.strip():
         missing.append("Add the name to sign with")
-    if st is None or not st.postal_address.strip():
+    if footer and (st is None or not st.postal_address.strip()):
         missing.append("Add a postal address (required on commercial email)")
     return missing
 
@@ -194,7 +196,7 @@ async def _suggestions(db: AsyncSession, user_id: uuid.UUID) -> tuple[list[str],
     return roles[:5], name
 
 
-async def _out(db: AsyncSession, user_id: uuid.UUID) -> SettingsOut:
+async def _out(db: AsyncSession, user_id: uuid.UUID, footer: bool = False) -> SettingsOut:
     st = await engine.get_settings(db, user_id)
     roles = list(st.roles) if st else []
     name = st.sender_name if st else ""
@@ -213,7 +215,7 @@ async def _out(db: AsyncSession, user_id: uuid.UUID) -> SettingsOut:
         sender_name=name,
         postal_address=st.postal_address if st else "",
         mailbox=await mailbox.connected_address(db, user_id),
-        ready=await _ready(db, st, user_id),
+        ready=await _ready(db, st, user_id, footer),
         prefilled=prefilled,
         paused=await engine.paused(db, user_id),
     )
@@ -223,8 +225,9 @@ async def _out(db: AsyncSession, user_id: uuid.UUID) -> SettingsOut:
 async def read_settings(
     user: User = Depends(active_user),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008
+    config: Settings = Depends(get_settings),  # noqa: B008
 ) -> SettingsOut:
-    return await _out(db, user.id)
+    return await _out(db, user.id, config.startup_outreach_footer)
 
 
 @router.put("/settings")
@@ -233,7 +236,9 @@ async def save_settings(
     user: User = Depends(active_user),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008
     now: datetime = Depends(get_now),  # noqa: B008
+    config: Settings = Depends(get_settings),  # noqa: B008
 ) -> SettingsOut:
+    footer = config.startup_outreach_footer
     if any(r not in policy.REGIONS for r in body.regions):
         raise ApiError(422, "invalid_region", "Regions can be us, eu or uk.")
     st = await engine.get_settings(db, user.id)
@@ -241,11 +246,11 @@ async def save_settings(
         st = HuntSettings(id=uuid.uuid4(), user_id=user.id)
         db.add(st)
     roles = [r.strip()[:120] for r in body.roles if r.strip()]
-    if body.enabled and await _ready(db, st, user.id):
+    if body.enabled and await _ready(db, st, user.id, footer):
         # turning on needs everything in place, judged against what is being saved
         st.sender_name, st.postal_address = body.sender_name, body.postal_address
         st.roles, st.regions = roles, body.regions
-        missing = await _ready(db, st, user.id)
+        missing = await _ready(db, st, user.id, footer)
         if missing:
             await db.rollback()
             raise ApiError(409, "not_ready", "Not ready yet: " + "; ".join(missing) + ".")
@@ -254,7 +259,7 @@ async def save_settings(
     st.sender_name, st.postal_address = body.sender_name.strip(), body.postal_address.strip()
     st.updated_at = now
     await db.commit()
-    return await _out(db, user.id)
+    return await _out(db, user.id, footer)
 
 
 # ------------------------------------------------------------------ the candidate's own emails

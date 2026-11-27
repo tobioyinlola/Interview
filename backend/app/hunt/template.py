@@ -10,7 +10,8 @@ portfolio link, phone, LinkedIn...). Rules that keep this safe:
   line breaks, a short length.
 * A variable with no value is never sent as "{{...}}": the note is held for the candidate with
   the missing names listed.
-* The opt-out footer and the postal address are added by code after the template, always.
+* An opt-out and postal-address block is added by code after the template only when the operator
+  switches it on (STARTUP_OUTREACH_FOOTER); otherwise the email is exactly what the candidate wrote.
 """
 
 import json

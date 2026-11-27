@@ -244,12 +244,7 @@ describe("Startups inside Auto-Apply", () => {
     expect(screen.getByDisplayValue("Senior Product Manager")).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Next" }));
     expect(screen.getByText(/Step 2 of 3/)).toBeVisible();
-    // the next step needs a postal address before it lets you go on
-    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
-    await userEvent.type(
-      screen.getByLabelText(/Postal address/),
-      "12 Marina, Lagos",
-    );
+    // a name to sign with is needed; the postal address is optional
     await userEvent.click(screen.getByRole("button", { name: "Next" }));
     expect(screen.getByText(/Step 3 of 3/)).toBeVisible();
   });

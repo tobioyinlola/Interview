@@ -42,7 +42,7 @@ export function Setup({ s, onDone }: { s: HuntSettings; onDone: () => void }) {
     .filter(Boolean);
   const can = [
     roles.length > 0 && form.regions.length > 0,
-    form.sender_name.trim() !== "" && form.postal_address.trim() !== "",
+    form.sender_name.trim() !== "",
     true,
   ];
   const last = step === STEPS.length - 1;
@@ -153,14 +153,16 @@ export function Setup({ s, onDone }: { s: HuntSettings; onDone: () => void }) {
               />
             </label>
             <label className="block space-y-1.5">
-              <span className="text-sm font-medium">Postal address</span>
+              <span className="text-sm font-medium">
+                Postal address (optional)
+              </span>
               <input
                 className="input w-full"
                 value={form.postal_address}
                 onChange={(e) => set("postal_address", e.target.value)}
               />
               <span className="block text-xs text-muted">
-                Commercial email must carry one. It goes in each footer.
+                Not added to your emails unless the operator turns that on.
               </span>
             </label>
           </div>

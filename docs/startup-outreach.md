@@ -82,8 +82,7 @@ before.
 * **Safety.** Substitution happens once, so a value is never read again as template text. Text that
   came from a startup's page is cleaned (no braces, one line, short). A subject is always one line.
   A note that still has a `{{variable}}` with no value is **held for the candidate and never sent**,
-  even on auto-send, and cannot be approved until it is filled in. The opt-out line, the postal
-  address and the regional notice are added by code after the template, always. The CV is attached.
+  even on auto-send, and cannot be approved until it is filled in. The CV is attached.
 * **Timing.** "Do not send before" (a date and time), sending hours on weekdays in the candidate's
   time zone (08:00 to 18:00 by default), a daily cap (Set up), and a follow-up after 1 to 30 days
   (default 5) with no reply, which can be switched off. At most one follow-up, never to anyone who
@@ -93,3 +92,12 @@ before.
 * **Who.** Startup outreach is by invitation (an admin switches it on per account), so for now it is
   only on for the people the operator chose. The endpoints are `GET/PUT /api/hunt/template` and
   `POST /api/hunt/template/preview`.
+
+### The disclosure block
+
+By default an email is exactly what the candidate wrote: nothing is added under it (no name and
+address line, no "reply no thanks" line, no EU/UK notice). A reply that asks to stop is still read
+and honoured, and nobody who asked to stop, bounced or declined is written to again. An operator who
+wants the block back for everyone sets `STARTUP_OUTREACH_FOOTER=true`; the postal address is then
+required before anything is sent. Commercial-email rules (CAN-SPAM, GDPR and PECR) can require an
+opt-out and an address, so that choice, and who bears it, is the operator's.

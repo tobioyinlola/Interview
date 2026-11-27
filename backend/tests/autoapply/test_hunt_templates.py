@@ -125,7 +125,8 @@ async def test_the_first_email_is_the_template_for_the_startup_it_goes_to(
     assert "Hi there," in m["body"]  # a jobs@ address has no first name
     assert "I've been following Acme0. Marketplace payments is close to my own work." in m["body"]
     assert "https://justus.example/work" in m["body"] and "{{" not in m["body"]
-    assert "reply with 'no thanks'" in m["body"] and "12 Marina" in m["body"]  # footer: always
+    assert "no thanks" not in m["body"] and "12 Marina" not in m["body"]  # exactly what you wrote
+    assert m["body"].rstrip().endswith("Best regards,\nAda Okoye")
     assert m["attachments"]  # the CV goes with it
 
 
