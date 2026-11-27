@@ -18,6 +18,7 @@ from sqlalchemy import (
     UniqueConstraint,
     false,
     text,
+    true,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -990,6 +991,20 @@ class HuntSettings(Base):
     auto_send: Mapped[bool] = mapped_column(Boolean, default=False)  # false: approve each one
     sender_name: Mapped[str] = mapped_column(String(120), default="")
     postal_address: Mapped[str] = mapped_column(String(300), default="")  # CAN-SPAM
+    # Their own emails: when on, the first note and the follow-up are these templates (with
+    # {{company}}, {{first_name}} and their own details filled in) instead of a written note.
+    use_template: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    template: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb")
+    )  # first_subject, first_body, follow_subject, follow_body
+    variables: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb")
+    )  # their own details: portfolio_link, phone, linkedin...
+    follow_up_enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    follow_up_days: Mapped[int] = mapped_column(Integer, default=5, server_default="5")
+    send_not_before: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    window_start: Mapped[int] = mapped_column(Integer, default=8, server_default="8")
+    window_end: Mapped[int] = mapped_column(Integer, default=18, server_default="18")
     updated_at: Mapped[datetime] = mapped_column(_TS, default=_now)
 
 

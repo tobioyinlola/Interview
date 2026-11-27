@@ -119,7 +119,7 @@ async def test_the_cv_sent_and_downloaded_is_a_pdf_in_the_house_layout(
     for pdf in (sent, download):
         words = cvfile.pdf_text(pdf)
         assert words.splitlines()[0] == "ADA OKOYE"  # the name in capitals, centred
-        assert "PROFESSIONAL EXPERIENCE" in words and "CORE COMPETENCIES" in words
+        assert "Senior Product Manager at Northwind" in words  # the CV's own text, unchanged
     got = await ada.get(f"/api/autoapply/applications/{a['id']}/cv.pdf")
     assert got.headers["content-type"] == "application/pdf"
     assert "attachment" in got.headers["content-disposition"]

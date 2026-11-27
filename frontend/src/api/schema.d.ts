@@ -2364,6 +2364,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/hunt/template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Template */
+        get: operations["read_template_api_hunt_template_get"];
+        /** Save Template */
+        put: operations["save_template_api_hunt_template_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hunt/template/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Template
+         * @description What the email would look like for a real researched startup (or a made-up one when none is
+         *     researched yet), with the candidate's details filled in. Nothing is sent or saved.
+         */
+        post: operations["preview_template_api_hunt_template_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/me": {
         parameters: {
             query?: never;
@@ -4756,6 +4795,33 @@ export interface components {
             /** Session Url */
             session_url: string;
         };
+        /** PreviewIn */
+        PreviewIn: {
+            /** Body */
+            body?: string | null;
+            /** Subject */
+            subject?: string | null;
+            /** Variables */
+            variables?: {
+                [key: string]: string;
+            } | null;
+            /**
+             * Which
+             * @default first
+             */
+            which: string;
+        };
+        /** PreviewOut */
+        PreviewOut: {
+            /** Body */
+            body: string;
+            /** Company */
+            company: string;
+            /** Missing */
+            missing: string[];
+            /** Subject */
+            subject: string;
+        };
         /** PrimaryAction */
         PrimaryAction: {
             /** Application Id */
@@ -5791,6 +5857,60 @@ export interface components {
             /** Website */
             website: string;
         };
+        /** TemplateIn */
+        TemplateIn: {
+            /**
+             * First Body
+             * @default
+             */
+            first_body: string;
+            /**
+             * First Subject
+             * @default
+             */
+            first_subject: string;
+            /**
+             * Follow Body
+             * @default
+             */
+            follow_body: string;
+            /**
+             * Follow Subject
+             * @default
+             */
+            follow_subject: string;
+            /**
+             * Follow Up Days
+             * @default 5
+             */
+            follow_up_days: number;
+            /**
+             * Follow Up Enabled
+             * @default true
+             */
+            follow_up_enabled: boolean;
+            /** Send Not Before */
+            send_not_before?: string | null;
+            /**
+             * Use Template
+             * @default false
+             */
+            use_template: boolean;
+            /** Variables */
+            variables?: {
+                [key: string]: string;
+            };
+            /**
+             * Window End
+             * @default 18
+             */
+            window_end: number;
+            /**
+             * Window Start
+             * @default 8
+             */
+            window_start: number;
+        };
         /** TemplateInfo */
         TemplateInfo: {
             /** Audience */
@@ -5801,6 +5921,70 @@ export interface components {
             title: string;
             /** When */
             when: string;
+        };
+        /** TemplateOut */
+        TemplateOut: {
+            /** Builtin */
+            builtin: {
+                [key: string]: string;
+            };
+            /**
+             * First Body
+             * @default
+             */
+            first_body: string;
+            /**
+             * First Subject
+             * @default
+             */
+            first_subject: string;
+            /**
+             * Follow Body
+             * @default
+             */
+            follow_body: string;
+            /**
+             * Follow Subject
+             * @default
+             */
+            follow_subject: string;
+            /**
+             * Follow Up Days
+             * @default 5
+             */
+            follow_up_days: number;
+            /**
+             * Follow Up Enabled
+             * @default true
+             */
+            follow_up_enabled: boolean;
+            /** Send Not Before */
+            send_not_before?: string | null;
+            /** Starter */
+            starter: {
+                [key: string]: string;
+            };
+            /** Unknown */
+            unknown: string[];
+            /**
+             * Use Template
+             * @default false
+             */
+            use_template: boolean;
+            /** Variables */
+            variables?: {
+                [key: string]: string;
+            };
+            /**
+             * Window End
+             * @default 18
+             */
+            window_end: number;
+            /**
+             * Window Start
+             * @default 8
+             */
+            window_start: number;
         };
         /** TemplatePreview */
         TemplatePreview: {
@@ -10067,6 +10251,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TargetOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_template_api_hunt_template_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateOut"];
+                };
+            };
+        };
+    };
+    save_template_api_hunt_template_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TemplateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_template_api_hunt_template_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreviewOut"];
                 };
             };
             /** @description Validation Error */

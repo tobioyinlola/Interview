@@ -25,6 +25,7 @@ import { BrowserNotice } from "./BrowserNotice";
 import { currentEnv, isSupported } from "./browserSupport";
 import { Layout } from "./Layout";
 import { AccessToast } from "../features/startups/AccessToast";
+import { EmailsPrompt } from "../features/startups/EmailsPrompt";
 import { watchCapture } from "./privacy";
 import { AppReturnPage } from "../features/auth/AppReturnPage";
 import { VerifiedToast } from "../features/auth/VerifiedToast";
@@ -242,6 +243,7 @@ function AppRoutes() {
               element={
                 <>
                   <AccessToast />
+                  <EmailsPrompt />
                   {isMobileApp() ? <PhoneLayout /> : <Layout />}
                 </>
               }

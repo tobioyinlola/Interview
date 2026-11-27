@@ -135,3 +135,59 @@ export const useReach = () =>
     queryFn: () => apiFetch(`${P}/reach`),
     staleTime: 10 * 60_000,
   });
+
+// ------------------------------------------------------------ your own emails
+
+export type HuntTemplate = {
+  use_template: boolean;
+  first_subject: string;
+  first_body: string;
+  follow_subject: string;
+  follow_body: string;
+  variables: Record<string, string>;
+  follow_up_enabled: boolean;
+  follow_up_days: number;
+  send_not_before: string | null;
+  window_start: number;
+  window_end: number;
+  builtin: Record<string, string>;
+  starter: Record<string, string>;
+  unknown: string[];
+};
+
+export type TemplatePreview = {
+  subject: string;
+  body: string;
+  company: string;
+  missing: string[];
+};
+
+export const useHuntTemplate = (enabled = true) =>
+  useQuery<HuntTemplate>({
+    queryKey: ["hunt", "template"],
+    queryFn: () => apiFetch(`${P}/template`),
+    enabled,
+  });
+
+export function useSaveTemplate() {
+  const refresh = useRefresh();
+  return useMutation({
+    mutationFn: (body: Omit<HuntTemplate, "builtin" | "starter" | "unknown">) =>
+      apiFetch<HuntTemplate>(`${P}/template`, {
+        method: "PUT",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: refresh,
+  });
+}
+
+/** What an email would look like for a real startup, with nothing sent or saved. */
+export const usePreviewTemplate = () =>
+  useMutation({
+    mutationFn: (v: {
+      which: "first" | "follow";
+      subject: string;
+      body: string;
+      variables: Record<string, string>;
+    }) => post<TemplatePreview>("/template/preview", v),
+  });

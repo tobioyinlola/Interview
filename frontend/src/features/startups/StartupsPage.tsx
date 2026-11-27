@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
 
 import { useMe } from "../../api/hooks";
 import { Loading } from "../../ui/Loading";
@@ -8,12 +8,15 @@ import { Segmented } from "../autoapply/setup/controls";
 import {
   useHuntDelivery,
   useHuntSettings,
+  useHuntTemplate,
+  type HuntSettings,
   useHuntTargets,
   useRequestOutreachAccess,
 } from "./api";
 import { HistoryRow, StartupCard } from "./Cards";
 import { StartupHero } from "./Connect";
 import { Setup } from "./Setup";
+import { Emails } from "./Emails";
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
@@ -24,7 +27,7 @@ function Stat({ label, value }: { label: string; value: number }) {
   );
 }
 
-type Tab = "review" | "sent" | "setup";
+type Tab = "review" | "sent" | "emails" | "setup";
 
 /** Approved notes that are not going out, and why, with where to fix it. Never shown when nothing
  *  is waiting or nothing is in the way. */
@@ -73,8 +76,13 @@ function WhyWaiting({ onSetup }: { onSetup: () => void }) {
 
 function StartupsBoard() {
   const settings = useHuntSettings();
+  const template = useHuntTemplate();
   const targets = useHuntTargets();
-  const [picked, setPicked] = useState<Tab | null>(null);
+  const [params] = useSearchParams();
+  const asked = params.get("tab");
+  const [picked, setPicked] = useState<Tab | null>(
+    asked === "emails" ? "emails" : null,
+  );
   if (settings.isPending) return <Loading label="Loading startups" />;
   if (settings.isError || !settings.data)
     return (
@@ -135,6 +143,7 @@ function StartupsBoard() {
             label: waiting.length ? `Review (${waiting.length})` : "Review",
           },
           { value: "sent", label: "Sent" },
+          { value: "emails", label: "Emails" },
           { value: "setup", label: setupNeeded ? "Set up •" : "Set up" },
         ]}
       />
@@ -146,6 +155,8 @@ function StartupsBoard() {
           onDone={() => setPicked("review")}
         />
       )}
+
+      {tab === "emails" && <EmailsTab q={template} s={s} />}
 
       {tab === "review" &&
         (waiting.length === 0 ? (
@@ -241,4 +252,21 @@ export function StartupsPage() {
   if (box.data && !box.data.connected)
     return <Navigate to="/settings/email?next=/startups" replace />;
   return <StartupsBoard />;
+}
+
+function EmailsTab({
+  q,
+  s,
+}: {
+  q: ReturnType<typeof useHuntTemplate>;
+  s: HuntSettings;
+}) {
+  if (q.isPending) return <Loading label="Loading your emails" />;
+  if (q.isError || !q.data)
+    return (
+      <p role="alert" className="notice-error">
+        Your emails could not be loaded. Try again in a moment.
+      </p>
+    );
+  return <Emails t={q.data} s={s} />;
 }

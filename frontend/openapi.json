@@ -5476,6 +5476,87 @@
         "title": "PrepareOut",
         "type": "object"
       },
+      "PreviewIn": {
+        "properties": {
+          "body": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          },
+          "variables": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variables"
+          },
+          "which": {
+            "default": "first",
+            "pattern": "^(first|follow)$",
+            "title": "Which",
+            "type": "string"
+          }
+        },
+        "title": "PreviewIn",
+        "type": "object"
+      },
+      "PreviewOut": {
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "company": {
+            "title": "Company",
+            "type": "string"
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          }
+        },
+        "required": [
+          "subject",
+          "body",
+          "company",
+          "missing"
+        ],
+        "title": "PreviewOut",
+        "type": "object"
+      },
       "PrimaryAction": {
         "properties": {
           "application_id": {
@@ -8232,6 +8313,87 @@
         "title": "TargetOut",
         "type": "object"
       },
+      "TemplateIn": {
+        "properties": {
+          "first_body": {
+            "default": "",
+            "maxLength": 4000,
+            "title": "First Body",
+            "type": "string"
+          },
+          "first_subject": {
+            "default": "",
+            "maxLength": 300,
+            "title": "First Subject",
+            "type": "string"
+          },
+          "follow_body": {
+            "default": "",
+            "maxLength": 4000,
+            "title": "Follow Body",
+            "type": "string"
+          },
+          "follow_subject": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Follow Subject",
+            "type": "string"
+          },
+          "follow_up_days": {
+            "default": 5,
+            "maximum": 30.0,
+            "minimum": 1.0,
+            "title": "Follow Up Days",
+            "type": "integer"
+          },
+          "follow_up_enabled": {
+            "default": true,
+            "title": "Follow Up Enabled",
+            "type": "boolean"
+          },
+          "send_not_before": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Send Not Before"
+          },
+          "use_template": {
+            "default": false,
+            "title": "Use Template",
+            "type": "boolean"
+          },
+          "variables": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "maxProperties": 30,
+            "title": "Variables",
+            "type": "object"
+          },
+          "window_end": {
+            "default": 18,
+            "maximum": 24.0,
+            "minimum": 1.0,
+            "title": "Window End",
+            "type": "integer"
+          },
+          "window_start": {
+            "default": 8,
+            "maximum": 23.0,
+            "minimum": 0.0,
+            "title": "Window Start",
+            "type": "integer"
+          }
+        },
+        "title": "TemplateIn",
+        "type": "object"
+      },
       "TemplateInfo": {
         "properties": {
           "audience": {
@@ -8258,6 +8420,113 @@
           "audience"
         ],
         "title": "TemplateInfo",
+        "type": "object"
+      },
+      "TemplateOut": {
+        "properties": {
+          "builtin": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Builtin",
+            "type": "object"
+          },
+          "first_body": {
+            "default": "",
+            "maxLength": 4000,
+            "title": "First Body",
+            "type": "string"
+          },
+          "first_subject": {
+            "default": "",
+            "maxLength": 300,
+            "title": "First Subject",
+            "type": "string"
+          },
+          "follow_body": {
+            "default": "",
+            "maxLength": 4000,
+            "title": "Follow Body",
+            "type": "string"
+          },
+          "follow_subject": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Follow Subject",
+            "type": "string"
+          },
+          "follow_up_days": {
+            "default": 5,
+            "maximum": 30.0,
+            "minimum": 1.0,
+            "title": "Follow Up Days",
+            "type": "integer"
+          },
+          "follow_up_enabled": {
+            "default": true,
+            "title": "Follow Up Enabled",
+            "type": "boolean"
+          },
+          "send_not_before": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Send Not Before"
+          },
+          "starter": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Starter",
+            "type": "object"
+          },
+          "unknown": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unknown",
+            "type": "array"
+          },
+          "use_template": {
+            "default": false,
+            "title": "Use Template",
+            "type": "boolean"
+          },
+          "variables": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "maxProperties": 30,
+            "title": "Variables",
+            "type": "object"
+          },
+          "window_end": {
+            "default": 18,
+            "maximum": 24.0,
+            "minimum": 1.0,
+            "title": "Window End",
+            "type": "integer"
+          },
+          "window_start": {
+            "default": 8,
+            "maximum": 23.0,
+            "minimum": 0.0,
+            "title": "Window Start",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "builtin",
+          "starter",
+          "unknown"
+        ],
+        "title": "TemplateOut",
         "type": "object"
       },
       "TemplatePreview": {
@@ -15042,6 +15311,108 @@
           }
         },
         "summary": "Skip",
+        "tags": [
+          "hunt"
+        ]
+      }
+    },
+    "/api/hunt/template": {
+      "get": {
+        "operationId": "read_template_api_hunt_template_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Template",
+        "tags": [
+          "hunt"
+        ]
+      },
+      "put": {
+        "operationId": "save_template_api_hunt_template_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Template",
+        "tags": [
+          "hunt"
+        ]
+      }
+    },
+    "/api/hunt/template/preview": {
+      "post": {
+        "description": "What the email would look like for a real researched startup (or a made-up one when none is\nresearched yet), with the candidate's details filled in. Nothing is sent or saved.",
+        "operationId": "preview_template_api_hunt_template_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Template",
         "tags": [
           "hunt"
         ]
