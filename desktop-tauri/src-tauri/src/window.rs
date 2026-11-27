@@ -77,3 +77,25 @@ pub async fn open_external<R: Runtime>(app: AppHandle<R>, url: String) -> Result
         .open_url(parsed.as_str(), None::<&str>)
         .map_err(|e| e.to_string())
 }
+
+#[derive(serde::Serialize)]
+pub struct PrivacyResult {
+    pub active: bool,
+}
+
+/// Private screens ask for capture protection. The window is always excluded from screen capture
+/// (AGENTS.md: hidden from sharing, proctoring and monitoring tools at all times), so this only
+/// re-asserts it and reports that it is on.
+#[command]
+pub async fn privacy_set<R: Runtime>(window: WebviewWindow<R>, on: bool) -> Result<PrivacyResult, String> {
+    let _ = on;
+    crate::stealth::re_enforce_stealth(&window);
+    Ok(PrivacyResult { active: true })
+}
+
+/// The live-session flag. It never switches protection off, so there is nothing to do.
+#[command]
+pub async fn privacy_live(on: bool) -> Result<(), String> {
+    let _ = on;
+    Ok(())
+}

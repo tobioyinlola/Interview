@@ -11,6 +11,7 @@
 //! The frontend is the same React app from `frontend/` — only the native bridge changes.
 
 mod audio;
+mod files;
 mod policy;
 mod stealth;
 mod window;
@@ -235,6 +236,7 @@ pub fn run() {
                 let _ = w.set_focus();
             }
         }))
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_deep_link::init())
@@ -268,6 +270,9 @@ pub fn run() {
             window::window_start_drag,
             window::open_in_browser,
             window::open_external,
+            window::privacy_set,
+            window::privacy_live,
+            files::pick_cv,
             // Audio
             audio::list_audio_devices,
             audio::start_audio_capture,

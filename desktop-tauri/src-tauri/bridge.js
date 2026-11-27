@@ -50,6 +50,13 @@
     /* cosmetic */
   }
 
+  const b64ToBytes = (b64) => {
+    const bin = atob(b64);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  };
+
   const windowControl = (action) =>
     action === "minimize"
       ? invoke("window_minimize")
@@ -71,6 +78,17 @@
     },
     setStealthMode: (enable) =>
       invoke("stealth_set_mode", { enable: !!enable }).then(() => ({ ok: true, stealth: !!enable })),
+    // The system file picker, starting in Downloads. Null when cancelled.
+    pickCv: () =>
+      invoke("pick_cv").then((r) =>
+        r ? { name: r.name, ...(r.tooBig ? { tooBig: true } : {}), ...(r.data ? { data: b64ToBytes(r.data) } : {}) } : null,
+      ),
+    // Capture protection for private screens. This app's window is always excluded from capture, so
+    // these only confirm it is on (see privacy_set / privacy_live in Rust).
+    privacy: Object.freeze({
+      set: (on) => invoke("privacy_set", { on: on === true }),
+      setLive: (on) => invoke("privacy_live", { on: on === true }).then(() => undefined),
+    }),
     windowControl,
     windowControls: Object.freeze({
       minimize: () => invoke("window_minimize"),
