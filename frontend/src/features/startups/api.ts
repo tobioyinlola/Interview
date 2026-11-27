@@ -162,10 +162,11 @@ export type TemplatePreview = {
   missing: string[];
 };
 
-export const useHuntTemplate = () =>
+export const useHuntTemplate = (enabled = true) =>
   useQuery<HuntTemplate>({
     queryKey: ["hunt", "template"],
     queryFn: () => apiFetch(`${P}/template`),
+    enabled,
   });
 
 export function useSaveTemplate() {

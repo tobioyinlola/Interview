@@ -4,7 +4,9 @@ import { ApiError } from "../../api/client";
 import { Switch } from "../autoapply/setup/controls";
 import {
   usePreviewTemplate,
+  useSaveHuntSettings,
   useSaveTemplate,
+  type HuntSettings,
   type HuntTemplate,
   type TemplatePreview,
 } from "./api";
@@ -22,8 +24,11 @@ function toLocalInput(iso: string | null): string {
 }
 
 /** The person's own emails, the details that fill them in, and when they go. */
-export function Emails({ t }: { t: HuntTemplate }) {
+export function Emails({ t, s }: { t: HuntTemplate; s: HuntSettings }) {
   const save = useSaveTemplate();
+  const saveSettings = useSaveHuntSettings();
+  const [auto, setAuto] = useState(s.auto_send);
+  const [activated, setActivated] = useState(false);
   const preview = usePreviewTemplate();
   const [on, setOn] = useState(t.use_template);
   const [first, setFirst] = useState({
@@ -76,12 +81,13 @@ export function Emails({ t }: { t: HuntTemplate }) {
     );
   };
 
-  const submit = () => {
+  const submit = (activate = false) => {
     setError("");
     setSaved(false);
+    setActivated(false);
     save.mutate(
       {
-        use_template: on,
+        use_template: activate ? true : on,
         first_subject: first.subject,
         first_body: first.body,
         follow_subject: follow.subject,
@@ -94,7 +100,31 @@ export function Emails({ t }: { t: HuntTemplate }) {
         window_end: to,
       },
       {
-        onSuccess: () => setSaved(true),
+        onSuccess: () => {
+          if (!activate) return setSaved(true);
+          setOn(true);
+          saveSettings.mutate(
+            {
+              enabled: true,
+              regions: s.regions,
+              roles: s.roles,
+              pitch: s.pitch,
+              daily_cap: s.daily_cap,
+              auto_send: auto,
+              sender_name: s.sender_name,
+              postal_address: s.postal_address,
+            },
+            {
+              onSuccess: () => setActivated(true),
+              onError: (e) =>
+                setError(
+                  e instanceof ApiError
+                    ? e.message
+                    : "Could not turn it on. Try again.",
+                ),
+            },
+          );
+        },
         onError: (e) =>
           setError(
             e instanceof ApiError ? e.message : "Could not save. Try again.",
@@ -322,14 +352,42 @@ export function Emails({ t }: { t: HuntTemplate }) {
           Saved.
         </p>
       )}
-      <button
-        type="button"
-        className="btn-primary"
-        disabled={save.isPending}
-        onClick={submit}
-      >
-        Save
-      </button>
+      {activated && (
+        <p role="status" className="notice-info">
+          Turned on.{" "}
+          {auto
+            ? "Emails go out by themselves at the times above."
+            : "Each email waits on the Review tab for you to approve it."}
+        </p>
+      )}
+      <div className="flex flex-wrap items-center gap-3">
+        <Switch
+          checked={auto}
+          onChange={setAuto}
+          label="Send automatically at the times above"
+        />
+        <span className="text-sm text-muted">
+          {auto ? "Sends without asking you" : "You approve each one first"}
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          className="btn-secondary"
+          disabled={save.isPending}
+          onClick={() => submit(false)}
+        >
+          Save
+        </button>
+        <button
+          type="button"
+          className="btn-primary"
+          disabled={save.isPending || saveSettings.isPending}
+          onClick={() => submit(true)}
+        >
+          Save and turn on
+        </button>
+      </div>
     </section>
   );
 }

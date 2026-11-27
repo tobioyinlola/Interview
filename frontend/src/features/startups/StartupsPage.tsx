@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
 
 import { useMe } from "../../api/hooks";
 import { Loading } from "../../ui/Loading";
@@ -9,6 +9,7 @@ import {
   useHuntDelivery,
   useHuntSettings,
   useHuntTemplate,
+  type HuntSettings,
   useHuntTargets,
   useRequestOutreachAccess,
 } from "./api";
@@ -77,7 +78,11 @@ function StartupsBoard() {
   const settings = useHuntSettings();
   const template = useHuntTemplate();
   const targets = useHuntTargets();
-  const [picked, setPicked] = useState<Tab | null>(null);
+  const [params] = useSearchParams();
+  const asked = params.get("tab");
+  const [picked, setPicked] = useState<Tab | null>(
+    asked === "emails" ? "emails" : null,
+  );
   if (settings.isPending) return <Loading label="Loading startups" />;
   if (settings.isError || !settings.data)
     return (
@@ -151,9 +156,7 @@ function StartupsBoard() {
         />
       )}
 
-      {tab === "emails" && (
-        <EmailsTab key={template.dataUpdatedAt} q={template} />
-      )}
+      {tab === "emails" && <EmailsTab q={template} s={s} />}
 
       {tab === "review" &&
         (waiting.length === 0 ? (
@@ -251,7 +254,13 @@ export function StartupsPage() {
   return <StartupsBoard />;
 }
 
-function EmailsTab({ q }: { q: ReturnType<typeof useHuntTemplate> }) {
+function EmailsTab({
+  q,
+  s,
+}: {
+  q: ReturnType<typeof useHuntTemplate>;
+  s: HuntSettings;
+}) {
   if (q.isPending) return <Loading label="Loading your emails" />;
   if (q.isError || !q.data)
     return (
@@ -259,5 +268,5 @@ function EmailsTab({ q }: { q: ReturnType<typeof useHuntTemplate> }) {
         Your emails could not be loaded. Try again in a moment.
       </p>
     );
-  return <Emails t={q.data} />;
+  return <Emails t={q.data} s={s} />;
 }
