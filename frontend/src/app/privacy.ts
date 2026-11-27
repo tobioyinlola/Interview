@@ -12,9 +12,9 @@
  *    app-switcher preview is covered.
  *  - A website: browsers offer nothing; Presentation mode hides personal details by hand.
  *
- *  Protection is only ever on while a private screen is open, and never during a live interview
- *  session: the live screens always stay visible, so whoever watches a shared screen can see the
- *  assistant is on. */
+ *  On desktop, protection is always on — the app must stay hidden from screen capture at all
+ *  times (see AGENTS.md). On mobile, protection is off during a live interview session so the
+ *  user can cast or record their own screen. */
 
 import { create } from "zustand";
 
@@ -168,10 +168,13 @@ function remember(): void {
   }
 }
 
-/** Whether native protection should be on now. Never during a live session. */
+/** Whether native protection should be on now.
+ *  Desktop: always on when enabled (AGENTS.md mandate).
+ *  Mobile: off during a live session so the user can cast/record. */
 export function wanted(
   s: Pick<PrivacyState, "enabled" | "live" | "open">,
 ): boolean {
+  if (isDesktopApp()) return s.enabled;
   return s.enabled && !s.live && s.open > 0;
 }
 

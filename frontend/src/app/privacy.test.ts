@@ -15,14 +15,27 @@ afterEach(() => {
 });
 
 describe("privacy controller", () => {
-  it("is on only while a private screen is open, and never during a live session", () => {
+  it("is on only while a private screen is open, and never during a live session (mobile)", () => {
+    // Mobile/web: respects live flag and open count
     expect(wanted({ enabled: true, live: false, open: 1 })).toBe(true);
     expect(wanted({ enabled: true, live: false, open: 0 })).toBe(false);
     expect(wanted({ enabled: false, live: false, open: 1 })).toBe(false);
     expect(wanted({ enabled: true, live: true, open: 1 })).toBe(false);
   });
 
-  it("asks the desktop app's window for protection, and turns it off for a live session", async () => {
+  it("is always on when enabled on desktop, regardless of live state (AGENTS.md mandate)", () => {
+    window.interviewMeetDesktop = {
+      isDesktop: true,
+      platform: "win32",
+      systemAudio: true,
+    };
+    expect(wanted({ enabled: true, live: false, open: 0 })).toBe(true);
+    expect(wanted({ enabled: true, live: true, open: 0 })).toBe(true);
+    expect(wanted({ enabled: true, live: true, open: 1 })).toBe(true);
+    expect(wanted({ enabled: false, live: false, open: 0 })).toBe(false);
+  });
+
+  it("keeps desktop protection on even during a live session (AGENTS.md mandate)", async () => {
     const set = vi.fn(async (on: boolean) => ({ active: on }));
     const setLive = vi.fn(async () => undefined);
     window.interviewMeetDesktop = {
@@ -35,15 +48,16 @@ describe("privacy controller", () => {
     await privacy.settled();
     expect(set).toHaveBeenLastCalledWith(true);
     expect(usePrivacy.getState().active).toBe(true);
+    // Going live must NOT turn off protection on desktop
     privacy.setLive(true);
     await privacy.settled();
-    expect(set).toHaveBeenLastCalledWith(false);
-    expect(setLive).toHaveBeenCalledWith(true);
-    expect(usePrivacy.getState().active).toBe(false);
+    expect(set).toHaveBeenLastCalledWith(true);
+    expect(usePrivacy.getState().active).toBe(true);
     privacy.setLive(false);
     privacy.leavePrivate();
     await privacy.settled();
-    expect(set).toHaveBeenLastCalledWith(false);
+    // Still on because desktop wanted() returns enabled regardless of open count
+    expect(set).toHaveBeenLastCalledWith(true);
   });
 
   it("uses the phone app's Privacy plugin, and says so plainly when it fails", async () => {
