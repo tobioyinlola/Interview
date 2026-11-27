@@ -315,7 +315,7 @@ async def claim_next(
                 now=now,
                 company=posting.company,
                 title=posting.title,
-                score=round(float(app.score or 0), 2),
+                score=_fit_fraction(app),
                 ats=ats.detect(posting.application_url or "").key if is_form else "email",
                 cv_version=cv_version(app.package or {}),
             )
@@ -496,6 +496,15 @@ def form_problem(schema: Any, pkg: dict[str, Any]) -> list[dict[str, Any]] | Non
                 need["options"] = list(f.options)
             missing.append(need)
     return missing or None
+
+
+def _fit_fraction(app: Application) -> float | None:
+    """How good a fit, 0 to 1, for the run panel: only the fit score (0 to 100) says that. The
+    ranking number the queue sorts by is not a percentage and is never shown as one."""
+    fit = ((app.match or {}).get("fit") or {}).get("score")
+    return (
+        round(max(0.0, min(float(fit), 100.0)) / 100, 2) if isinstance(fit, int | float) else None
+    )
 
 
 DESKTOP_WAIT = timedelta(hours=24)  # how long a job waits for the candidate's computer to be open
