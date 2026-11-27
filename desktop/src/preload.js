@@ -17,6 +17,9 @@ contextBridge.exposeInMainWorld(
     },
     // Opens the system file picker in Downloads; resolves to the chosen CV's name and bytes.
     pickCv: () => ipcRenderer.invoke("im:pick-cv"),
+    // Opens the Auto-Apply workspace (a visible window where applications are filled in). The page
+    // hands over its sign-in token and API address; the main process keeps them in memory only.
+    openWorkspace: (opts) => ipcRenderer.invoke("im:open-workspace", opts),
     // Native protection for private screens only; the main process refuses it during a live session.
     privacy: Object.freeze({
       set: (on) => ipcRenderer.invoke("im:privacy", on === true),

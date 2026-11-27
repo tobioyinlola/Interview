@@ -1,0 +1,16 @@
+<!doctype html><html><head><title>Apply</title></head><body>
+<h1>Designer</h1>
+<form id="f" method="post" action="/apply" enctype="multipart/form-data">
+ <div id="s1">
+  <label for="first_name">First Name*</label><input id="first_name" name="first_name" required>
+  <label for="last_name">Last Name*</label><input id="last_name" name="last_name" required>
+  <label for="email">Email*</label><input id="email" name="email" type="email" required>
+  <label for="resume">Resume/CV*</label><input id="resume" name="resume" type="file">
+  <button type="button" id="next" onclick="document.getElementById('s1').hidden=true;document.getElementById('s2').hidden=false">Next</button>
+ </div>
+ <div id="s2" hidden>
+  <label for="question_1">Why do you want to work here?*</label><textarea id="question_1" name="question_1" required></textarea>
+  
+  <button type="submit">Submit application</button>
+ </div>
+</form></body></html>

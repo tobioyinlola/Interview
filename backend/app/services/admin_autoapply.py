@@ -19,7 +19,7 @@ from app.models import (
     SubmissionAttempt,
     User,
 )
-from app.schemas.admin_autoapply import AutoApplyAdminOut, SwitchOut, UnresolvedRow
+from app.schemas.admin_autoapply import AutoApplyAdminOut, ExecutorRow, SwitchOut, UnresolvedRow
 
 SENT = ("submitted", "sent_email", "confirmation_pending")
 
@@ -120,7 +120,40 @@ async def overview(
         ).all()
     )
     switches = (await db.execute(select(KillSwitch).order_by(KillSwitch.name))).scalars().all()
+    week = (
+        await db.execute(
+            select(
+                SubmissionAttempt.executor,
+                SubmissionAttempt.channel,
+                func.count(),
+                func.count().filter(SubmissionAttempt.state == "confirmed"),
+                func.count().filter(SubmissionAttempt.state == "ambiguous"),
+                func.count().filter(SubmissionAttempt.state == "failed"),
+                func.avg(SubmissionAttempt.duration_ms),
+                func.coalesce(func.sum(SubmissionAttempt.duration_ms), 0),
+            )
+            .where(
+                SubmissionAttempt.claimed_at >= now - timedelta(days=7),
+                SubmissionAttempt.channel.in_(("form", "email")),
+            )
+            .group_by(SubmissionAttempt.executor, SubmissionAttempt.channel)
+            .order_by(SubmissionAttempt.executor, SubmissionAttempt.channel)
+        )
+    ).all()
     return AutoApplyAdminOut(
+        executors=[
+            ExecutorRow(
+                executor=ex,
+                channel=ch,
+                attempts=int(n),
+                confirmed=int(ok),
+                ambiguous=int(amb),
+                failed=int(bad),
+                avg_seconds=round(float(avg) / 1000, 1) if avg is not None else None,
+                total_minutes=round(float(total) / 60000, 1),
+            )
+            for ex, ch, n, ok, amb, bad, avg, total in week
+        ],
         enabled=settings.autoapply_enabled,
         dispatch={
             "form": settings.autoapply_form_dispatch,

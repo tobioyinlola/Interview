@@ -235,7 +235,8 @@ def test_only_approved_sites_are_filled_in():
     assert not f.supports("http://boards.greenhouse.io/acme/jobs/123")  # not over plain http
     assert not f.supports("https://evil.example/boards.greenhouse.io")
     assert not f.supports("https://greenhouse.io.evil.example/x")
-    assert not f.supports("https://jobs.lever.co/acme/1")  # not until it has been checked and added
+    assert f.supports("https://jobs.lever.co/acme/1")  # Lever: tested on its markup, on by default
+    assert not f.supports("https://jobs.smartrecruiters.com/acme/1")  # untested: off until enabled
     assert not f.supports("")
     assert f.real is True
 
@@ -321,7 +322,9 @@ def test_a_form_that_refuses_the_answers_means_nothing_was_sent(form, site):
                 cv_filename="cv.pdf",
             )
         )
-    assert e.value.code == "rejected" and not RECEIVED
+    # the unanswered question is found before anything is typed, and handed to the candidate
+    assert e.value.code == "needs_input" and not RECEIVED
+    assert [n["field"] for n in e.value.need] == ["question_1"]
 
 
 def test_an_answer_with_no_matching_choice_is_not_guessed(form, site):

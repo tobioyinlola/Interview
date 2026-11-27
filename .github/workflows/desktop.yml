@@ -75,6 +75,9 @@ jobs:
           INTERVIEWMEET_URL: ${{ vars.INTERVIEWMEET_URL }}
       # Starts the real app from source and checks what the page can and cannot do.
       - run: npm run smoke
+      # The Auto-Apply workspace in the real app, against pages served from this machine (nothing
+      # real is applied for): a form is filled in and confirmed, and a hostile page is kept out.
+      - run: npm run smoke:workspace
       # Signing: set repository secrets CSC_LINK (base64 .pfx) and CSC_KEY_PASSWORD. Without them
       # the installer is built UNSIGNED and Windows SmartScreen warns before running it.
       - name: Build installer

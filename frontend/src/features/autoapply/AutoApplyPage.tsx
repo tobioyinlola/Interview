@@ -258,6 +258,14 @@ function Hero({
                 {p.label}
               </Link>
             ) : null}
+            {running && (
+              <Link
+                to="/auto-apply/run"
+                className="btn btn-lg bg-surface/15 text-surface hover:bg-surface/25"
+              >
+                Watch live
+              </Link>
+            )}
           </div>
           <Fail error={prepare.error} />
         </div>

@@ -333,9 +333,11 @@ async def test_a_timeout_after_dispatch_is_unknown_and_never_sends_a_second_appl
     assert len(rows) == 1 and rows[0].state == "confirmed" and rows[0].provider_ref == "FX-0001"
 
 
-async def test_an_uncertain_form_submission_never_falls_through_to_email(
+async def test_an_explicit_email_address_is_used_before_a_browser_form(
     ada, discovery_source, form, mailbox, tick
 ):
+    """The method ladder prefers email (cheaper, needs no site): the form is never opened, so an
+    uncertain form outcome cannot happen for a job that has an address, nor fall through to email."""
     both = job(
         1, apply_email="jobs1@acme.test", evidence={"apply_email": "how to apply", "region": "x"}
     )
@@ -345,8 +347,8 @@ async def test_an_uncertain_form_submission_never_falls_through_to_email(
     form.mode = "timeout_before"
     await tick()
     await tick()
-    assert (await apps(ada))[0]["status"] == "confirmation_pending"
-    assert mailbox.sent == [] and form.calls == 1
+    assert (await apps(ada))[0]["status"] == "sent_email"
+    assert len(mailbox.sent) == 1 and form.calls == 0
 
 
 async def test_with_no_evidence_the_candidate_is_asked_and_can_allow_a_retry(
@@ -425,6 +427,7 @@ async def test_a_worker_that_died_after_marking_dispatch_leaves_an_unknown_outco
     async with maker() as db:
         a = await db.get(SubmissionAttempt, claim.attempt_id)
         a.state, a.dispatched_at = "dispatched", clock.now  # marked, then the process died
+        a.lease_until = clock.now + outbox.DISPATCH_GRACE  # as execute() sets it
         await db.commit()
     clock.now += timedelta(minutes=5)
     await tick()

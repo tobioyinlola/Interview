@@ -141,6 +141,10 @@ class Settings(BaseSettings):
     # "*" means any public https application link (the form is still read first, and a human check,
     # a sign-in wall or a question the app cannot answer hands the job back to the person).
     autoapply_form_hosts: str = ""
+    # Which job-board systems the browser filler works on (see autoapply/ats.py): empty means the
+    # ones seen working (Greenhouse, Ashby, Lever); "all" every known one except those that need an
+    # account; or a comma-separated list of system keys.
+    autoapply_ats_enabled: str = ""
     autoapply_browser_path: str = ""  # a Chromium to use instead of the one Playwright installed
     autoapply_email_dispatch: bool = False  # kill switch: applications sent from a mailbox
     autoapply_outreach_dispatch: bool = False  # kill switch: hiring outreach from a mailbox

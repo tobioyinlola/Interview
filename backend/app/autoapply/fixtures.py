@@ -79,8 +79,15 @@ class FixtureForm:
         values: dict[str, str],
         cv_text: str,
         cv_filename: str,
+        progress: Any = None,
     ) -> FormReceipt:
         self.calls += 1
+        if progress is not None:  # the same checkpoints a real browser would report
+            schema = self.schemas.get(application_url)
+            await progress("form_discovered", fields=len(schema.fields) if schema else 3, steps=1)
+            for name in values:
+                await progress("field_completed", field=name, label=name, field_kind="text")
+            await progress("document_uploaded", name=cv_filename, role="resume")
         if self.mode == "fail":
             raise AdapterError("rejected", "The form refused the application.")
         if self.mode == "timeout_before":

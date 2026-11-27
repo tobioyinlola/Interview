@@ -62,6 +62,10 @@ const SupportAdminPage = lazyPage(
   () => import("../features/admin/SupportAdminPage"),
   "SupportAdminPage",
 );
+const RunPage = lazyPage(
+  () => import("../features/autoapply/run/RunPage"),
+  "RunPage",
+);
 const HelpPage = lazyPage(
   () => import("../features/help/HelpPage"),
   "HelpPage",
@@ -272,6 +276,7 @@ function AppRoutes() {
                 path="/auto-apply/applications/:id"
                 element={<ApplicationPage />}
               />
+              <Route path="/auto-apply/run" element={<RunPage />} />
               <Route path="/startups" element={<StartupsPage />} />
               <Route
                 path="/auto-apply/startups"

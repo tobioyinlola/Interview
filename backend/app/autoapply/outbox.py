@@ -11,6 +11,7 @@ The rules that make this safe:
   * an unknown outcome is settled by looking for evidence (a receipt, the sent message), never by
     sending again, and a form is never retried by email."""
 
+import hashlib
 import logging
 import re
 import uuid
@@ -18,11 +19,11 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app import metrics
-from app.autoapply import campaign, clock, cvfile, mailbox, pipeline, switches
+from app.autoapply import ats, campaign, clock, cvfile, mailbox, pipeline, runlog, switches
 from app.autoapply.adapters import (
     AdapterError,
     FormAdapter,
@@ -171,11 +172,29 @@ async def _precheck(
     return None
 
 
+def cv_version(pkg: dict[str, Any]) -> str:
+    """Which CV this is: the facts it was made from and a checksum of its exact words."""
+    cv = pkg.get("cv") or {}
+    digest = hashlib.sha256(str(cv.get("submitted_text") or "").encode()).hexdigest()[:8]
+    return f"v{cv.get('facts_version', 0)}-{digest}"
+
+
 async def claim_next(
-    maker: async_sessionmaker[AsyncSession], user_id: uuid.UUID, adapters: Adapters, now: datetime
+    maker: async_sessionmaker[AsyncSession],
+    user_id: uuid.UUID,
+    adapters: Adapters,
+    now: datetime,
+    *,
+    executor: str = "cloud",
+    executor_id: str | None = None,
 ) -> Claim | None:
     """Take the next application that may go out for this candidate, or None. Everything here
-    happens under a lock on the candidate's campaign, so claims are one at a time."""
+    happens under a lock on the candidate's campaign, so claims are one at a time.
+
+    `executor` says who will carry it out: this server's worker or the candidate's desktop. An
+    application is only ever handed to the executor the candidate's settings name for its channel,
+    and the claim is the single point where it changes hands (the row is locked, the attempt has a
+    unique key and a lease), so the desktop and the server can never both send it."""
     async with maker() as db:
         camp = (
             await db.execute(
@@ -198,6 +217,24 @@ async def claim_next(
         if await used_today(db, user_id, ("form", "email"), day) >= prof.daily_application_cap:
             await db.rollback()
             return None
+        state = await runlog.state_for(db, user_id, lock=True)
+        if state.stopped:  # the candidate pressed stop: nothing starts until they start again
+            await db.rollback()
+            return None
+        runner = runlog.who_runs_forms(state, await runlog.desktop_ready(db, user_id, now))
+        # spacing between browser applications: the speed they chose, never faster than that
+        last_form = (
+            await db.execute(
+                select(func.max(SubmissionAttempt.claimed_at)).where(
+                    SubmissionAttempt.user_id == user_id, SubmissionAttempt.channel == "form"
+                )
+            )
+        ).scalar_one()
+        too_soon = (
+            (executor == "desktop" or adapters.form.real)
+            and last_form is not None
+            and now - last_form < timedelta(seconds=runlog.gap_seconds(state))
+        )
         rows = (
             await db.execute(
                 select(Application, JobPosting)
@@ -214,6 +251,11 @@ async def claim_next(
         ).all()
         moved = False
         for app, posting in rows:
+            is_form = (app.channel or "form") == "form"
+            if executor == "desktop" and not is_form:
+                continue  # only browser forms are carried out on a computer
+            if is_form and (runner != executor or too_soon):
+                continue  # another executor's, or not yet (speed)
             blocked = await _precheck(
                 db, adapters.settings, app, posting, camp, prof, adapters, now, off
             )
@@ -238,10 +280,29 @@ async def claim_next(
                 state="claimed",
                 local_day=day,
                 claimed_at=now,
+                executor=executor,
+                executor_id=executor_id,
+                lease_until=now
+                + timedelta(minutes=adapters.settings.autoapply_claim_timeout_minutes),
             )
             db.add(attempt)
             app.status = "sending"
             await pipeline.log(db, app, "sending", channel=app.channel)
+            await db.flush()
+            await runlog.add(
+                db,
+                user_id,
+                "application_started",
+                application_id=app.id,
+                attempt_id=attempt.id,
+                executor=executor,
+                now=now,
+                company=posting.company,
+                title=posting.title,
+                score=round(float(app.score or 0), 2),
+                ats=ats.detect(posting.application_url or "").key if is_form else "email",
+                cv_version=cv_version(app.package or {}),
+            )
             await db.commit()
             return Claim(attempt.id, app.id, app.channel or "form")
         if moved:
@@ -273,6 +334,16 @@ async def _release(
         app.status = "queued"
         app.not_before = not_before
     await pipeline.log(db, app, "held_back", reason=reason, action=action)
+    await _event(
+        db,
+        attempt,
+        app,
+        {"skip": "application_skipped", "wait": "application_paused"}.get(
+            action, "application_cancelled"
+        ),
+        now,
+        reason=reason,
+    )
 
 
 async def execute(
@@ -334,7 +405,9 @@ async def execute(
                 await db.commit()
                 return "cancelled"
         attempt.state, attempt.dispatched_at = "dispatched", now
+        attempt.lease_until = now + DISPATCH_GRACE  # progress reports renew it while it is alive
         key = attempt.idempotency_key
+        claim_user = app.user_id
         await db.commit()
     # --- the outside call (no database transaction is open)
     cv_text = pkg["cv"]["submitted_text"]
@@ -344,12 +417,18 @@ async def execute(
         if claim.channel == "form":
             values = {k: v["value"] for k, v in pkg.get("answers", {}).items()}
             values.setdefault("cover_letter", pkg.get("cover_text", ""))
+            progress = runlog.progress_for(
+                maker, claim_user, claim.application_id, claim.attempt_id, "cloud"
+            )
+            for name, a in (pkg.get("answers") or {}).items():
+                await progress("answer_resolved", field=name, label=name, source=a.get("source"))
             result = await adapters.form.submit(
                 posting.application_url or "",
                 idempotency_key=key,
                 values=values,
                 cv_text=cv_text,
                 cv_filename="CV.pdf",
+                progress=progress,
             )
         else:
             result = await adapters.mailbox.send(
@@ -407,6 +486,7 @@ async def _hand_over(
     attempt.failure_class, attempt.failure_message = "handed_over", why[:300]
     app.status, app.channel, app.needs_input = "apply_yourself", "manual", []
     await pipeline.log(db, app, "handed_over", reason=why)
+    await _event(db, attempt, app, "review_required", now, reason=why, handed_over=True)
     await db.commit()
     return "cancelled"
 
@@ -429,6 +509,7 @@ async def _transient(
         metrics.autoapply_dispatch.labels(attempt.channel, "failed").inc()
         app.status = "failed"
         await pipeline.log(db, app, "failed", reason=exc.message)
+        await _event(db, attempt, app, "application_failed", now, reason=exc.message, code=exc.code)
         await db.commit()
         await record_from(db, "autoapply.application_failed", user_id=app.user_id, reason=exc.code)
         return "failed"
@@ -458,41 +539,123 @@ async def _record(
         attempt = await db.get(SubmissionAttempt, claim.attempt_id, with_for_update=True)
         app = await db.get(Application, claim.application_id, with_for_update=True)
         assert attempt is not None and app is not None
-        if error is None:
-            attempt.state, attempt.finished_at = "confirmed", now
-            if claim.channel == "form":
-                attempt.provider_ref = result.reference
-                attempt.receipt = {"reference": result.reference, "evidence": result.evidence[:300]}
-                app.status = "submitted"
-            else:
-                attempt.provider_ref, attempt.thread_ref = result.message_id, result.thread_id
-                app.status = "sent_email"
-            await pipeline.log(
-                db, app, app.status, channel=claim.channel, reference=attempt.provider_ref
-            )
-            await db.commit()
-            await record_from(
-                db, "autoapply.application_sent", user_id=app.user_id, channel=claim.channel
-            )
-            return "confirmed"
-        if error.code == "ambiguous":
-            attempt.state = "ambiguous"
-            attempt.failure_class, attempt.failure_message = "ambiguous", error.message
-            app.status = "confirmation_pending"
-            await pipeline.log(db, app, "confirmation_pending", reason=error.message)
-            await db.commit()
-            metrics.autoapply_dispatch.labels(claim.channel, "ambiguous").inc()
-            return "ambiguous"
-        if error.code == "reauth":
-            conn = await mailbox.get(db, app.user_id)
-            if conn is not None:
-                await mailbox.mark_reauth(db, conn)
-            attempt.state, attempt.finished_at, attempt.failure_class = "cancelled", now, "reauth"
-            app.status = "queued"
-            await pipeline.log(db, app, "held_back", reason="your mailbox needs to be reconnected")
-            await db.commit()
-            return "cancelled"
-        return await _transient(db, attempt, app, error, now)
+        return await settle(db, attempt, app, claim.channel, result, error, now)
+
+
+async def _event(
+    db: AsyncSession,
+    attempt: SubmissionAttempt,
+    app: Application,
+    kind: str,
+    now: datetime,
+    **kw: Any,
+) -> None:
+    await runlog.add(
+        db,
+        app.user_id,
+        kind,
+        application_id=app.id,
+        attempt_id=attempt.id,
+        executor=attempt.executor,
+        now=now,
+        **kw,
+    )
+
+
+async def settle(
+    db: AsyncSession,
+    attempt: SubmissionAttempt,
+    app: Application,
+    channel: str,
+    result: Any,
+    error: AdapterError | None,
+    now: datetime,
+) -> str:
+    """Record how a carried-out attempt ended, whoever carried it out (this server or the desktop).
+    Commits."""
+    attempt.duration_ms = max(0, int((now - attempt.claimed_at).total_seconds() * 1000))
+    if error is None:
+        attempt.state, attempt.finished_at = "confirmed", now
+        if channel == "form":
+            attempt.provider_ref = result.reference
+            attempt.receipt = {
+                "reference": result.reference,
+                "evidence": result.evidence[:300],
+                "provider": result.provider,
+                "steps": result.steps,
+                "documents": result.documents,
+                "cv_version": cv_version(app.package or {}),
+                "executor": attempt.executor,
+                "verified_at": now.isoformat(),
+            }
+            app.status = "submitted"
+        else:
+            attempt.provider_ref, attempt.thread_ref = result.message_id, result.thread_id
+            app.status = "sent_email"
+        await pipeline.log(db, app, app.status, channel=channel, reference=attempt.provider_ref)
+        await _event(
+            db,
+            attempt,
+            app,
+            "submission_verified",
+            now,
+            reference=attempt.provider_ref,
+            provider=getattr(result, "provider", "") or channel,
+        )
+        await db.commit()
+        await record_from(db, "autoapply.application_sent", user_id=app.user_id, channel=channel)
+        return "confirmed"
+    if error.code == "interrupted":
+        # skip or stop, pressed by the candidate before the button was reached: nothing was sent
+        attempt.state, attempt.finished_at = "cancelled", now
+        attempt.failure_class, attempt.failure_message = "interrupted", error.message
+        if error.message == "skip":
+            app.status, app.skip_reason = "skipped", pipeline.USER_SKIPPED
+            await pipeline.log(db, app, "skipped", reason="by you, while it was running")
+            await _event(db, attempt, app, "application_skipped", now, reason="you skipped it")
+        else:
+            app.status = "queued"  # stopped: it waits for the candidate to start again
+            await pipeline.log(db, app, "held_back", reason="you stopped the run")
+            await _event(db, attempt, app, "application_cancelled", now, reason="you stopped it")
+        await db.commit()
+        return "cancelled"
+    if error.code == "needs_input":
+        # the form asked something only the candidate can answer: nothing was sent
+        attempt.state, attempt.finished_at = "cancelled", now
+        attempt.failure_class, attempt.failure_message = "needs_input", error.message
+        app.status, app.needs_input = "needs_input", error.need
+        await pipeline.log(db, app, "needs_input", reason="the form asked something new")
+        await _event(
+            db,
+            attempt,
+            app,
+            "review_required",
+            now,
+            reason="the form asks something only you can answer",
+            questions=[str(n.get("question", ""))[:120] for n in error.need][:5],
+        )
+        await db.commit()
+        return "cancelled"
+    if error.code == "ambiguous":
+        attempt.state = "ambiguous"
+        attempt.failure_class, attempt.failure_message = "ambiguous", error.message
+        app.status = "confirmation_pending"
+        await pipeline.log(db, app, "confirmation_pending", reason=error.message)
+        await _event(db, attempt, app, "application_paused", now, reason="waiting to confirm it")
+        await db.commit()
+        metrics.autoapply_dispatch.labels(channel, "ambiguous").inc()
+        return "ambiguous"
+    if error.code == "reauth":
+        conn = await mailbox.get(db, app.user_id)
+        if conn is not None:
+            await mailbox.mark_reauth(db, conn)
+        attempt.state, attempt.finished_at, attempt.failure_class = "cancelled", now, "reauth"
+        app.status = "queued"
+        await pipeline.log(db, app, "held_back", reason="your mailbox needs to be reconnected")
+        await _event(db, attempt, app, "application_paused", now, reason="reconnect your mailbox")
+        await db.commit()
+        return "cancelled"
+    return await _transient(db, attempt, app, error, now)
 
 
 async def reconcile(
@@ -510,6 +673,11 @@ async def reconcile(
                         SubmissionAttempt.state == "claimed",
                         SubmissionAttempt.claimed_at
                         < now - timedelta(minutes=settings.autoapply_claim_timeout_minutes),
+                        # an executor still reporting progress owns it
+                        or_(
+                            SubmissionAttempt.lease_until.is_(None),
+                            SubmissionAttempt.lease_until < now,
+                        ),
                     )
                 )
             )
@@ -530,6 +698,10 @@ async def reconcile(
                     select(SubmissionAttempt).where(
                         SubmissionAttempt.state == "dispatched",
                         SubmissionAttempt.dispatched_at < now - DISPATCH_GRACE,
+                        or_(
+                            SubmissionAttempt.lease_until.is_(None),
+                            SubmissionAttempt.lease_until < now,
+                        ),
                     )
                 )
             )

@@ -1,0 +1,9 @@
+<!doctype html><html><head><title>Apply</title></head><body>
+<form method="post" action="/apply"><label for="why">Why us?*</label><input id="why" name="why" required>
+<label for="resume">CV*</label><input id="resume" type="file"><button type="submit">Submit application</button></form>
+<script>
+ const r = { desktop: typeof window.interviewMeetDesktop, workspace: typeof window.workspace, req: typeof require, proc: typeof process };
+ fetch("http://10.255.255.1/x", { mode: "no-cors" }).then(() => { r.net = "reached"; }, () => { r.net = "blocked"; })
+   .finally(() => navigator.sendBeacon("/probe-report", JSON.stringify(r)));
+ window.open("https://example.com/");
+</script></body></html>

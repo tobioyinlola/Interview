@@ -1469,6 +1469,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/autoapply/desktop/attempts/{attempt_id}/dispatch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Desktop Dispatch */
+        post: operations["desktop_dispatch_api_autoapply_desktop_attempts__attempt_id__dispatch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/autoapply/desktop/attempts/{attempt_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Desktop Events */
+        post: operations["desktop_events_api_autoapply_desktop_attempts__attempt_id__events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/autoapply/desktop/attempts/{attempt_id}/result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Desktop Result */
+        post: operations["desktop_result_api_autoapply_desktop_attempts__attempt_id__result_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/autoapply/desktop/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Desktop Claim */
+        post: operations["desktop_claim_api_autoapply_desktop_claim_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/autoapply/desktop/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Desktop Register */
+        post: operations["desktop_register_api_autoapply_desktop_register_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/autoapply/discovery/last": {
         parameters: {
             query?: never;
@@ -1825,6 +1910,78 @@ export interface paths {
          * @description Settle an ambiguous employer message by choosing the application it belongs to.
          */
         post: operations["link_event_api_autoapply_recruiting__event_id__link_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/autoapply/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Run View */
+        get: operations["run_view_api_autoapply_run_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/autoapply/run/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Run Events
+         * @description Events after number `after`. With `wait`, holds the request open (up to 25 seconds) until
+         *     there is one, so a screen follows the run live over plain HTTP, on the web and in every app.
+         */
+        get: operations["run_events_api_autoapply_run_events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/autoapply/run/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Run Settings */
+        put: operations["run_settings_api_autoapply_run_settings_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/autoapply/run/{action}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run Control */
+        post: operations["run_control_api_autoapply_run__action__post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3275,6 +3432,11 @@ export interface components {
             enabled: boolean;
             /** Events Needing Review */
             events_needing_review: number;
+            /**
+             * Executors
+             * @default []
+             */
+            executors: components["schemas"]["ExecutorRow"][];
             /** Hours To First Application */
             hours_to_first_application: number | null;
             /** Interviews */
@@ -3505,6 +3667,11 @@ export interface components {
             second_session: number;
             /** Signups */
             signups: number;
+        };
+        /** ClaimIn */
+        ClaimIn: {
+            /** Executor Id */
+            executor_id: string;
         };
         /** CompanyCreatedOut */
         CompanyCreatedOut: {
@@ -3766,6 +3933,11 @@ export interface components {
             /** Shared */
             shared: string[];
         };
+        /** DispatchIn */
+        DispatchIn: {
+            /** Executor Id */
+            executor_id: string;
+        };
         /** EditIn */
         EditIn: {
             /** Body */
@@ -3911,6 +4083,29 @@ export interface components {
             route?: string | null;
             /** Ts */
             ts?: number | null;
+        };
+        /**
+         * ExecutorRow
+         * @description What each place that carries out applications did in the last 7 days. The desktop costs the
+         *     platform nothing; the cloud row is the one worker's browser time.
+         */
+        ExecutorRow: {
+            /** Ambiguous */
+            ambiguous: number;
+            /** Attempts */
+            attempts: number;
+            /** Avg Seconds */
+            avg_seconds: number | null;
+            /** Channel */
+            channel: string;
+            /** Confirmed */
+            confirmed: number;
+            /** Executor */
+            executor: string;
+            /** Failed */
+            failed: number;
+            /** Total Minutes */
+            total_minutes: number;
         };
         /** FactsIn */
         FactsIn: {
@@ -4742,6 +4937,35 @@ export interface components {
             /** User Id */
             user_id: string;
         };
+        /** RegisterIn */
+        RegisterIn: {
+            /**
+             * App Version
+             * @default
+             */
+            app_version: string;
+            /** Executor Id */
+            executor_id: string;
+            /**
+             * Name
+             * @default
+             */
+            name: string;
+            /**
+             * Platform
+             * @default
+             */
+            platform: string;
+        };
+        /** ReportIn */
+        ReportIn: {
+            /** Events */
+            events?: {
+                [key: string]: unknown;
+            }[];
+            /** Executor Id */
+            executor_id: string;
+        };
         /** RequestLinkIn */
         RequestLinkIn: {
             /** App Challenge */
@@ -4775,6 +4999,64 @@ export interface components {
             /** Sent */
             sent: boolean;
         };
+        /** ResultIn */
+        ResultIn: {
+            /**
+             * Before Url
+             * @default
+             */
+            before_url: string;
+            /**
+             * Command
+             * @default
+             */
+            command: string;
+            /** Documents */
+            documents?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Evidence
+             * @default
+             */
+            evidence: string;
+            /** Executor Id */
+            executor_id: string;
+            /**
+             * Message
+             * @default
+             */
+            message: string;
+            /** Need */
+            need?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Provider
+             * @default
+             */
+            provider: string;
+            /**
+             * Sent Unknown
+             * @default false
+             */
+            sent_unknown: boolean;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "confirmed" | "failed" | "needs_input" | "handed_over" | "interrupted" | "ambiguous";
+            /**
+             * Steps
+             * @default 1
+             */
+            steps: number;
+            /**
+             * Url
+             * @default
+             */
+            url: string;
+        };
         /** RetentionRow */
         RetentionRow: {
             /** Cohort */
@@ -4785,6 +5067,100 @@ export interface components {
             pct: number | null;
             /** Returned */
             returned: number;
+        };
+        /** RunCountersOut */
+        RunCountersOut: {
+            /** Failed */
+            failed: number;
+            /** Needs You */
+            needs_you: number;
+            /** Queued */
+            queued: number;
+            /** Skipped */
+            skipped: number;
+            /** Verified */
+            verified: number;
+            /** Verified Today */
+            verified_today: number;
+        };
+        /** RunCurrentOut */
+        RunCurrentOut: {
+            /** Ats */
+            ats?: string | null;
+            /** Ats Label */
+            ats_label?: string | null;
+            /** Company */
+            company?: string | null;
+            /** Cv Version */
+            cv_version?: string | null;
+            /** Executor */
+            executor?: string | null;
+            /**
+             * Fields Done
+             * @default 0
+             */
+            fields_done: number;
+            /**
+             * Fields Total
+             * @default 0
+             */
+            fields_total: number;
+            /**
+             * Progress
+             * @default 0
+             */
+            progress: number;
+            /** Question */
+            question?: string | null;
+            /** Score */
+            score?: number | null;
+            /** Stage */
+            stage?: string | null;
+            /**
+             * Step
+             * @default 1
+             */
+            step: number;
+            /** Title */
+            title?: string | null;
+        };
+        /** RunEventOut */
+        RunEventOut: {
+            /** Application Id */
+            application_id?: string | null;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Data */
+            data: {
+                [key: string]: unknown;
+            };
+            /** Executor */
+            executor: string;
+            /** Id */
+            id: number;
+            /** Kind */
+            kind: string;
+            /** Text */
+            text: string;
+        };
+        /** RunEventsOut */
+        RunEventsOut: {
+            /** Events */
+            events: components["schemas"]["RunEventOut"][];
+            /** Last Seq */
+            last_seq: number;
+        };
+        /** RunExecutorOut */
+        RunExecutorOut: {
+            /** Name */
+            name: string;
+            /** Online */
+            online: boolean;
+            /** Platform */
+            platform: string;
         };
         /** RunOut */
         RunOut: {
@@ -4811,6 +5187,40 @@ export interface components {
             started_at: string;
             /** Status */
             status: string;
+        };
+        /** RunSettingsIn */
+        RunSettingsIn: {
+            /** Execution Mode */
+            execution_mode?: ("auto" | "desktop" | "cloud") | null;
+            /** Speed */
+            speed?: ("slow" | "normal" | "fast") | null;
+        };
+        /** RunViewOut */
+        RunViewOut: {
+            counters: components["schemas"]["RunCountersOut"];
+            current: components["schemas"]["RunCurrentOut"] | null;
+            /** Desktop Open */
+            desktop_open: boolean;
+            /** Events */
+            events: components["schemas"]["RunEventOut"][];
+            /** Execution Mode */
+            execution_mode: string;
+            /** Executors */
+            executors: components["schemas"]["RunExecutorOut"][];
+            /**
+             * Forms Run On
+             * @enum {string}
+             */
+            forms_run_on: "desktop" | "cloud";
+            /** Last Seq */
+            last_seq: number;
+            /** Speed */
+            speed: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "idle" | "running" | "paused" | "stopped" | "ended";
         };
         /** ScoreOut */
         ScoreOut: {
@@ -8166,6 +8576,187 @@ export interface operations {
             };
         };
     };
+    desktop_dispatch_api_autoapply_desktop_attempts__attempt_id__dispatch_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attempt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DispatchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    desktop_events_api_autoapply_desktop_attempts__attempt_id__events_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attempt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    desktop_result_api_autoapply_desktop_attempts__attempt_id__result_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attempt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResultIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    desktop_claim_api_autoapply_desktop_claim_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClaimIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    desktop_register_api_autoapply_desktop_register_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     last_run_api_autoapply_discovery_last_get: {
         parameters: {
             query?: never;
@@ -8701,6 +9292,122 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RecruitingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_view_api_autoapply_run_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunViewOut"];
+                };
+            };
+        };
+    };
+    run_events_api_autoapply_run_events_get: {
+        parameters: {
+            query?: {
+                after?: number;
+                wait?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunEventsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_settings_api_autoapply_run_settings_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunSettingsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunViewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_control_api_autoapply_run__action__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                action: "start" | "pause" | "resume" | "skip" | "stop";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunViewOut"];
                 };
             };
             /** @description Validation Error */

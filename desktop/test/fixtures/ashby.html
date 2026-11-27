@@ -1,0 +1,43 @@
+<!doctype html><html><head><title>Apply</title></head><body>
+<div class="ashby-application-form-container">
+ <div class="ashby-application-form-field-entry">
+  <label class="ashby-application-form-question-title" for="_systemfield_name">Legal Name</label>
+  <input id="_systemfield_name" name="_systemfield_name" type="text" required></div>
+ <div class="ashby-application-form-field-entry">
+  <label class="ashby-application-form-question-title" for="_systemfield_email">Email</label>
+  <input id="_systemfield_email" name="_systemfield_email" type="email" required></div>
+ <div class="ashby-application-form-field-entry">
+  <label class="ashby-application-form-question-title" for="4b71">Phone</label>
+  <input id="4b71" type="tel" required></div>
+ <div class="ashby-application-form-field-entry">
+  <label class="ashby-application-form-question-title" for="_systemfield_resume">Resume*</label>
+  <button type="button">Upload File</button>
+  <input id="_systemfield_resume" type="file" style="display:none"></div>
+ <div class="ashby-application-form-field-entry">
+  <label class="ashby-application-form-question-title" for="dc91">LinkedIn Profile</label>
+  <input id="dc91" type="text"></div>
+ <div class="ashby-application-form-field-entry" id="yesno">
+  <label class="ashby-application-form-question-title">Do you have 5 years of experience?*</label>
+  <div><button type="button" onclick="pick(this)">Yes</button><button type="button" onclick="pick(this)">No</button></div></div>
+ <div class="ashby-application-form-field-entry">
+  <label class="ashby-application-form-question-title" for="long1">Tell us about a hard problem you solved*</label>
+  <textarea id="long1" required></textarea></div>
+ <button type="submit" class="ashby-application-form-submit-button" onclick="send()">Submit Application</button>
+</div>
+<script>
+ let answer = "";
+ function pick(b) { answer = b.textContent; b.dataset.on = "1"; }
+ async function send() {
+   const f = new FormData();
+   f.append("name", document.getElementById("_systemfield_name").value);
+   f.append("email", document.getElementById("_systemfield_email").value);
+   f.append("phone", document.getElementById("4b71").value);
+   f.append("linkedin", document.getElementById("dc91").value);
+   f.append("long1", document.getElementById("long1").value);
+   f.append("yesno", answer);
+   const file = document.getElementById("_systemfield_resume").files[0];
+   if (file) f.append("resume", file);
+   await fetch("/ashby/apply", {method: "POST", body: f});
+   document.body.innerHTML = "<p>Your application was successfully submitted.</p>";
+ }
+</script></body></html>

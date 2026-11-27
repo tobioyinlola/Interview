@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import metrics
 from app.adapters.interfaces import LlmProvider
-from app.autoapply import matching, package
+from app.autoapply import matching, package, routing
 from app.autoapply.adapters import FormAdapter
 from app.autoapply.postings import is_expired
 from app.models import (
@@ -257,10 +257,8 @@ async def process(
             app.status, app.needs_input, app.skip_reason = "eligible", [], None
             await log(db, app, "matched")
         return app, "eligible"
-    channel = next(
-        (c for c in ("form", "email") if c in routes and (ctx.profile.channels or {}).get(c)),
-        "manual",
-    )
+    route = routing.choose(routes, ctx.profile.channels or {}, posting.application_url or "")
+    channel = route.channel if route.channel in ("form", "email") else "manual"
     built, missing = await package.build(
         app=app,
         posting=posting,
