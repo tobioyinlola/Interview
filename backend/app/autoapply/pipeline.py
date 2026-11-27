@@ -182,7 +182,10 @@ async def process(
         overrides=approved,
         manual=manual,
     )
-    app.match = result.as_dict()
+    kept = {
+        k: v for k, v in (app.match or {}).items() if k in ("needs_desktop", "needs_desktop_at")
+    }
+    app.match = {**result.as_dict(), **kept}  # a job waiting for the desktop keeps waiting
     app.score = result.score
     app.profile_version = ctx.profile.version
     app.campaign_id = ctx.campaign.id

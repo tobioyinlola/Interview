@@ -227,7 +227,9 @@ async def claim_next(
         last_form = (
             await db.execute(
                 select(func.max(SubmissionAttempt.claimed_at)).where(
-                    SubmissionAttempt.user_id == user_id, SubmissionAttempt.channel == "form"
+                    SubmissionAttempt.user_id == user_id,
+                    SubmissionAttempt.channel == "form",
+                    SubmissionAttempt.state != "cancelled",  # nothing was sent: no gap needed
                 )
             )
         ).scalar_one()
