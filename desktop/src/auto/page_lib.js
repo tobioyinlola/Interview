@@ -25,6 +25,24 @@
     count: (sel) => find(sel).length,
     visible: (sel) => { const a = find(sel); return a.length > 0 && shown(a[a.length - 1]); },
     // scroll a control into view and say where its centre is (for a real click)
+    // a visible cursor and an outline on the control being worked on, so the person can follow along
+    mark: (x, y) => {
+      let c = document.getElementById('__im_cursor');
+      if (!c) {
+        c = document.createElement('div'); c.id = '__im_cursor';
+        c.style.cssText = 'position:fixed;left:0;top:0;width:22px;height:22px;z-index:2147483647;pointer-events:none;transition:transform .35s ease;will-change:transform';
+        c.innerHTML = '<svg width="22" height="22" viewBox="0 0 22 22"><path d="M2 2l6 17 2.5-7L18 9.5z" fill="#5b3fd6" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+        document.documentElement.appendChild(c);
+      }
+      c.style.transform = 'translate(' + Math.round(x) + 'px,' + Math.round(y) + 'px)';
+    },
+    outline: (sel, which) => {
+      for (const o of document.querySelectorAll('[data-im-on]')) { o.style.outline = o.getAttribute('data-im-on'); o.removeAttribute('data-im-on'); }
+      const a = find(sel); const el = which === 'last' ? a[a.length - 1] : a[which == null || which === 'first' ? 0 : which];
+      if (!el) return;
+      el.setAttribute('data-im-on', el.style.outline || '');
+      el.style.outline = '2px solid #5b3fd6';
+    },
     locate: (sel, which, text) => {
       let a = find(sel);
       if (text) { const re = new RegExp('^\\s*' + text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*$'); a = a.filter((e) => re.test(e.innerText || '')); }

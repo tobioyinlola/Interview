@@ -9,7 +9,12 @@ function render(v) {
   if (!v) return;
   const cur = v.view.current;
   set("who", cur ? `${cur.company || ""}${cur.title ? " · " + cur.title : ""}` : "Waiting for the next application");
-  set("stage", cur ? `${cur.stage || ""}${cur.ats_label ? " · " + cur.ats_label : ""}` : v.view.state === "paused" ? "Paused" : v.view.state === "stopped" ? "Stopped" : "");
+  const why = (kinds) => {
+    const e = [...v.view.events].reverse().find((x) => kinds.includes(x.kind));
+    return e && e.data && e.data.reason ? ` (${e.data.reason})` : "";
+  };
+  const reason = cur && cur.stage === "Failed" ? why(["application_failed"]) : cur && cur.stage === "Waiting for you" ? why(["review_required"]) : "";
+  set("stage", cur ? `${cur.stage || ""}${reason}${cur.ats_label ? " · " + cur.ats_label : ""}` : v.view.state === "paused" ? "Paused" : v.view.state === "stopped" ? "Stopped" : "");
   $("prog").style.width = `${cur ? cur.progress : 0}%`;
   set("q", cur && cur.question ? `Question: ${cur.question}` : "");
   set("meta", cur ? [cur.score != null ? `Match ${Math.round(cur.score * 100)}%` : "", cur.cv_version ? `CV ${cur.cv_version}` : "", `Step ${cur.step}`].filter(Boolean).join(" · ") : "");
@@ -23,7 +28,7 @@ function render(v) {
   const log = $("log"); log.replaceChildren();
   for (const e of v.view.events.slice(-30).reverse()) {
     const li = document.createElement("li");
-    li.textContent = `${e.text}${e.data && e.data.label ? ": " + e.data.label : ""}`;
+    li.textContent = `${e.text}${e.data && (e.data.label || e.data.reason) ? ": " + (e.data.label || e.data.reason) : ""}`;
     log.appendChild(li);
   }
   const need = $("need");

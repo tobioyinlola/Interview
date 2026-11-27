@@ -74,8 +74,12 @@ SHA-256 of every document uploaded (the exact CV, `cv_version`).
 
 CAPTCHA, a sign-in wall, a closed job, a question that has no stored answer, a required declaration
 (work authorisation, clearance, sponsorship…): the application stops. On the desktop the person is
-looking at the form, so the panel asks them to deal with it and continue, or skip. On the server it is
-handed to the candidate. An unanswered required question is found **before anything is typed**.
+looking at the form, so the panel asks them to deal with it and continue, or skip. On the server, a CAPTCHA no longer sends the job to the "apply yourself" list: it goes back in the
+queue marked for the desktop (`match.needs_desktop`), the server skips it, and the desktop app picks it
+up, fills the form and waits for the person to pass the check. A system that nearly always has one
+(Lever) goes straight to the desktop when it is open. If the desktop is not opened within 24 hours, or
+the person chose "our servers only", it is handed to them as before. A CAPTCHA is never solved or
+worked round by the app. Other stops (sign-in wall, closed job) go to the candidate. An unanswered required question is found **before anything is typed**.
 Answers come only from the candidate's saved facts and the frozen package; nothing is invented.
 
 ## How answers are chosen

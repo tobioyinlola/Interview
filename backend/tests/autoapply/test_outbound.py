@@ -507,7 +507,7 @@ async def test_a_form_that_now_asks_something_new_waits_for_the_candidate(
     )
 
 
-async def test_a_captcha_goes_to_the_candidate_and_nothing_is_sent(
+async def test_a_captcha_waits_for_the_candidates_computer_and_nothing_is_sent(
     ada, discovery_source, form, tick
 ):
     discovery_source.postings = [job(1)]
@@ -515,9 +515,26 @@ async def test_a_captcha_goes_to_the_candidate_and_nothing_is_sent(
     form.mode = "captcha"
     await tick()
     a = (await apps(ada))[0]
-    # nothing the person can answer in the app: it is handed to them, prepared, to submit themselves
-    assert a["status"] == "apply_yourself" and a["channel"] == "manual"
+    # the server never passes a human check, but the candidate can at their own computer: the
+    # application waits, prepared, for the desktop app to carry it out
+    assert a["status"] == "queued" and a["channel"] == "form"
     assert form.calls == 0
+    await tick()
+    assert (await apps(ada))[0]["status"] == "queued" and form.calls == 0  # the server leaves it
+
+
+async def test_a_captcha_goes_to_the_candidate_when_they_chose_servers_only(
+    ada, discovery_source, form, tick
+):
+    discovery_source.postings = [job(1)]
+    await start(ada)
+    assert (
+        await ada.put("/api/autoapply/run/settings", json={"execution_mode": "cloud"})
+    ).status_code == 200
+    form.mode = "captcha"
+    await tick()
+    a = (await apps(ada))[0]
+    assert a["status"] == "apply_yourself" and a["channel"] == "manual" and form.calls == 0
 
 
 async def test_a_mailbox_that_needs_reconnecting_pauses_email_and_says_so(
@@ -846,8 +863,9 @@ def test_stored_secrets_need_the_right_key(settings):
 async def test_a_form_that_cannot_be_filled_is_handed_to_the_person_not_failed(
     ada, maker, form, mailbox, discovery_source, outbox_adapters, clock
 ):
-    """No form on the page, a sign-in wall or a human check: nothing is sent and nothing failed. The
-    prepared CV and note go to the person to submit on the employer's own site."""
+    """No form on the page or a sign-in wall: nothing is sent and nothing failed. The prepared CV and
+    note go to the person to submit on the employer's own site. (A human check waits for their
+    desktop instead: see the next tests.)"""
     from app.autoapply import outbox
     from app.autoapply.adapters import AdapterError
     from tests.autoapply.conftest import apps, job, start
@@ -859,7 +877,7 @@ async def test_a_form_that_cannot_be_filled_is_handed_to_the_person_not_failed(
     assert a["status"] == "queued" and a["channel"] == "form"
 
     async def no_form(url):
-        raise AdapterError("rejected", "The form asks for a human check (CAPTCHA).")
+        raise AdapterError("rejected", "The employer asks you to sign in to apply.")
 
     form.read_form = no_form  # type: ignore[method-assign]
     uid = await user_id(maker)
@@ -870,7 +888,7 @@ async def test_a_form_that_cannot_be_filled_is_handed_to_the_person_not_failed(
     assert after["status"] == "apply_yourself" and after["channel"] == "manual"
     detail = (await ada.get(f"/api/autoapply/applications/{a['id']}")).json()
     assert [t["state"] for t in detail["attempts"]] == ["cancelled"]
-    assert detail["attempts"][0]["failure_message"].startswith("The form asks for a human check")
+    assert detail["attempts"][0]["failure_message"].startswith("The employer asks you to sign in")
     handed = [h for h in detail["history"] if h["kind"] == "handed_over"]
-    assert handed and "CAPTCHA" in handed[0]["detail"]["reason"]
+    assert handed and "sign in" in handed[0]["detail"]["reason"]
     assert detail["package"]["cv"]["submitted_text"]  # already prepared: ready for the person
