@@ -149,6 +149,10 @@ class Settings(BaseSettings):
     autoapply_email_dispatch: bool = False  # kill switch: applications sent from a mailbox
     autoapply_outreach_dispatch: bool = False  # kill switch: hiring outreach from a mailbox
     startup_outreach_enabled: bool = False  # feature flag: startup outreach routes and jobs
+    # Add the disclosure block (name, postal address, how to opt out, the EU/UK notice) under each
+    # startup note. Off: the note is only what the person wrote. Replies asking to stop are honoured
+    # either way. An operator who wants the block back sets STARTUP_OUTREACH_FOOTER=true.
+    startup_outreach_footer: bool = False
     startup_outreach_dispatch: bool = False  # kill switch: startup notes from a real mailbox
     # Outside production a real mailbox may only write to AUTOAPPLY_ALLOWED_RECIPIENTS, so a test
     # server can never reach a real startup. Turn this on to say, deliberately, that THIS server may

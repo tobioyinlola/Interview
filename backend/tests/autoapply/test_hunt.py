@@ -312,7 +312,8 @@ async def test_notes_wait_for_approval_then_send_once(
         assert await engine.plan(db, uid, NOW, write_llm) == 2
     listed = (await ada.get("/api/hunt/targets")).json()
     assert {t["status"] for t in listed} == {"drafted"}
-    assert "reply with 'no thanks'" in listed[0]["body"] and "12 Marina" in listed[0]["body"]
+    # no disclosure block unless the operator switches it on
+    assert "no thanks" not in listed[0]["body"] and "12 Marina" not in listed[0]["body"]
     assert await engine.send_next(maker, uid, mailbox, settings, NOW) is None  # nothing approved
     assert (await ada.post(f"/api/hunt/targets/{listed[0]['id']}/approve")).status_code == 200
     assert (await ada.post(f"/api/hunt/targets/{listed[1]['id']}/approve")).status_code == 200
@@ -327,6 +328,17 @@ async def test_notes_wait_for_approval_then_send_once(
         await engine.send_next(maker, uid, mailbox, settings, NOW + timedelta(minutes=3)) == "sent"
     )
     assert len(mailbox.sent) == 2 and len({m["to"] for m in mailbox.sent}) == 2
+
+
+async def test_the_disclosure_block_is_added_only_when_the_operator_turns_it_on(
+    ada, maker, mailbox, write_llm
+):
+    uid = await setup(ada, maker, mailbox)
+    await seed(maker, 1)
+    async with maker() as db:
+        await engine.plan(db, uid, NOW, write_llm, footer=True)
+    body = (await ada.get("/api/hunt/targets")).json()[0]["body"]
+    assert "reply with 'no thanks'" in body and "12 Marina" in body
 
 
 async def test_no_double_planning_and_region_filter(ada, maker, mailbox, write_llm):
@@ -349,7 +361,8 @@ async def test_no_double_planning_and_region_filter(ada, maker, mailbox, write_l
         assert await engine.plan(db, uid, NOW, write_llm) == 0
 
 
-async def test_cannot_turn_on_until_ready(ada, maker):
+async def test_cannot_turn_on_until_ready(ada, maker, settings):
+    settings.startup_outreach_footer = True  # a postal address is only needed for the footer
     await let_in(maker)
     r = await ada.put(
         "/api/hunt/settings", json={"enabled": True, "regions": ["us"], "roles": ["PM"]}
@@ -2235,6 +2248,7 @@ async def test_the_reason_nothing_is_going_out_is_said_in_words(
 async def test_missing_setup_and_email_are_named_with_where_to_fix_them(
     ada, maker, mailbox, settings, write_llm
 ):
+    settings.startup_outreach_footer = True
     uid = await setup(ada, maker, mailbox, auto_send=True)
     await seed(maker, 1)
     async with maker() as db:

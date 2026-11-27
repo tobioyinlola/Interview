@@ -1,6 +1,7 @@
 """The run loop for startup outreach: plan notes, send them one at a time under every rule,
 follow up once, and read replies, opt-outs and bounces so nobody is written to again."""
 
+import asyncio
 import logging
 import re
 import uuid
@@ -144,7 +145,13 @@ async def get_settings(db: AsyncSession, user_id: uuid.UUID) -> HuntSettings | N
 
 
 async def plan(
-    db: AsyncSession, user_id: uuid.UUID, now: datetime, llm: LlmProvider, *, limit: int = 8
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    now: datetime,
+    llm: LlmProvider,
+    *,
+    limit: int = 8,
+    footer: bool = False,
 ) -> int:
     """Draft notes for the best-fitting researched startups this candidate has not met yet."""
     st = await get_settings(db, user_id)
@@ -208,12 +215,13 @@ async def plan(
             subject, body, held = template.compose(
                 st, s, c, "first", await template.hook(llm, facts, st, s)
             )
-            body += "\n\n" + policy.footer(
-                s.region, st.sender_name, st.postal_address, c.source_url
-            )
+            if footer:
+                body += "\n\n" + policy.footer(
+                    s.region, st.sender_name, st.postal_address, c.source_url
+                )
         else:
             subject, body = await draft.write(
-                llm, facts, st, s, c, region=s.region, openings=found, why=why
+                llm, facts, st, s, c, region=s.region, openings=found, why=why, footer=footer
             )
         db.add(
             HuntTarget(
@@ -237,12 +245,67 @@ async def plan(
     return made
 
 
+async def redraft(
+    db: AsyncSession, user_id: uuid.UUID, llm: LlmProvider, *, footer: bool = False
+) -> int:
+    """The candidate saved their own emails: every note still waiting for their review is written
+    again from them, so what they approve is what they just saved. Approved, sent and closed notes
+    are never touched."""
+    st = await get_settings(db, user_id)
+    if st is None or not st.use_template:
+        return 0
+    row = await facts_mod.get(db, user_id)
+    facts = row.data if row else None
+    waiting = (
+        (
+            await db.execute(
+                select(HuntTarget).where(
+                    HuntTarget.user_id == user_id, HuntTarget.status == "drafted"
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    jobs: list[tuple[HuntTarget, Startup, StartupContact, str]] = []
+    for t in waiting:
+        which = "first" if t.step == 1 else "follow"
+        startup = await db.get(Startup, t.startup_id)
+        contact = await db.get(StartupContact, t.contact_id)
+        if startup is None or contact is None or not _uses_template(st, which):
+            continue
+        jobs.append((t, startup, contact, which))
+    gate = asyncio.Semaphore(6)
+
+    async def hook_for(startup: Startup, which: str) -> str:
+        if which != "first":
+            return ""
+        async with gate:
+            return await template.hook(llm, facts, st, startup)
+
+    hooks = await asyncio.gather(*(hook_for(s_, w) for _, s_, _, w in jobs))
+    for (t, startup, contact, which), hook in zip(jobs, hooks, strict=True):
+        subject, body, held = template.compose(
+            st, startup, contact, which, hook, first_subject=t.subject if which != "first" else ""
+        )
+        if footer:
+            body += "\n\n" + policy.footer(
+                startup.region, st.sender_name, st.postal_address, contact.source_url
+            )
+        t.subject, t.body = subject, body
+        t.reason = ("Fill in: " + ", ".join(held))[:300] if held else None
+    await db.commit()
+    return len(jobs)
+
+
 def _uses_template(st: HuntSettings, which: str) -> bool:
     t = st.template or {}
     return bool(st.use_template and str(t.get(f"{which}_body") or "").strip())
 
 
-async def plan_followups(db: AsyncSession, user_id: uuid.UUID, now: datetime) -> int:
+async def plan_followups(
+    db: AsyncSession, user_id: uuid.UUID, now: datetime, *, footer: bool = False
+) -> int:
     """One short follow-up, five days after a note that nobody answered. Never a second."""
     st = await get_settings(db, user_id)
     if st is None or not st.enabled or not st.follow_up_enabled:
@@ -286,16 +349,20 @@ async def plan_followups(db: AsyncSession, user_id: uuid.UUID, now: datetime) ->
             subject, body, held = template.compose(
                 st, startup, contact, "follow", "", first_subject=t.subject
             )
-            body += "\n\n" + policy.footer(
-                startup.region, sign, st.postal_address, contact.source_url
-            )
+            if footer:
+                body += "\n\n" + policy.footer(
+                    startup.region, sign, st.postal_address, contact.source_url
+                )
         else:
             body = (
                 f"Hi again - a quick nudge on my note below in case it got buried. I would still "
                 f"love to talk about a {(st.roles or ['role'])[0]} role at {startup.name}. If now "
-                f"is not the time, no problem at all.\n\n{sign}\n\n"
-                + policy.footer(startup.region, sign, st.postal_address, contact.source_url)
+                f"is not the time, no problem at all.\n\n{sign}"
             )
+            if footer:
+                body += "\n\n" + policy.footer(
+                    startup.region, sign, st.postal_address, contact.source_url
+                )
         db.add(
             HuntTarget(
                 id=uuid.uuid4(),
@@ -395,7 +462,7 @@ async def delivery_blockers(
             add("off", "Startup outreach is switched off. Turn it on under Set up.", "setup")
         if st is not None and not st.sender_name.strip():
             add("name", "Add the name your notes are signed with, under Set up.", "setup")
-        if st is not None and not st.postal_address.strip():
+        if st is not None and settings.startup_outreach_footer and not st.postal_address.strip():
             add(
                 "address",
                 "Add a postal address under Set up. Commercial email must carry one.",
@@ -486,7 +553,7 @@ async def send_next(
             gate = "outreach_off"
         elif not st.sender_name.strip():
             gate = "no_sender_name"
-        elif not st.postal_address.strip():
+        elif settings.startup_outreach_footer and not st.postal_address.strip():
             gate = "no_postal_address"
         elif switches.blocked(off, "hunt", adapter.name) is not None:
             gate = "switched_off"
@@ -720,7 +787,8 @@ async def tick_user(
     now: datetime,
 ) -> dict[str, Any]:
     async with maker() as db:
-        drafted = await plan(db, user_id, now, llm)
-        followups = await plan_followups(db, user_id, now)
+        footer = settings.startup_outreach_footer
+        drafted = await plan(db, user_id, now, llm, footer=footer)
+        followups = await plan_followups(db, user_id, now, footer=footer)
     sent = await send_next(maker, user_id, adapter, settings, now)
     return {"drafted": drafted, "followups": followups, "sent": sent}

@@ -178,6 +178,7 @@ async def write(
     region: str,
     openings: list[dict[str, str]] | None = None,
     why: list[str] | None = None,
+    footer: bool = False,
 ) -> tuple[str, str]:
     r = startup.research or {}
     brief = {
@@ -211,8 +212,7 @@ async def write(
             break
     sign = st.sender_name or ((facts or {}).get("contact") or {}).get("name", "")
     # added by code, never by the model: the greeting, the CV line, the sign-off and the footer
-    body = (
-        f"{greeting(contact, startup)}\n\n{body}\n\nMy CV is attached.\n\nThank you,\n{sign}\n\n"
-        + policy.footer(region, sign, st.postal_address, contact.source_url)
-    )
+    body = f"{greeting(contact, startup)}\n\n{body}\n\nMy CV is attached.\n\nThank you,\n{sign}"
+    if footer:
+        body += "\n\n" + policy.footer(region, sign, st.postal_address, contact.source_url)
     return subject, body

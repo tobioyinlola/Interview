@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 import { ApiError } from "../../api/client";
+import { Linkify } from "../../ui/Linkify";
 import { Switch } from "../autoapply/setup/controls";
 import {
   usePreviewTemplate,
@@ -51,7 +53,8 @@ export function Emails({ t, s }: { t: HuntTemplate; s: HuntSettings }) {
     which: string;
     p: TemplatePreview;
   } | null>(null);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState<{ redrafted: number } | null>(null);
+  const [editing, setEditing] = useState(!t.first_body.trim());
   const [error, setError] = useState("");
 
   const variables = () =>
@@ -83,7 +86,7 @@ export function Emails({ t, s }: { t: HuntTemplate; s: HuntSettings }) {
 
   const submit = (activate = false) => {
     setError("");
-    setSaved(false);
+    setSaved(null);
     setActivated(false);
     save.mutate(
       {
@@ -100,8 +103,12 @@ export function Emails({ t, s }: { t: HuntTemplate; s: HuntSettings }) {
         window_end: to,
       },
       {
-        onSuccess: () => {
-          if (!activate) return setSaved(true);
+        onSuccess: (done) => {
+          const finish = () => {
+            setSaved({ redrafted: done.redrafted ?? 0 });
+            setEditing(false);
+          };
+          if (!activate) return finish();
           setOn(true);
           saveSettings.mutate(
             {
@@ -115,7 +122,10 @@ export function Emails({ t, s }: { t: HuntTemplate; s: HuntSettings }) {
               postal_address: s.postal_address,
             },
             {
-              onSuccess: () => setActivated(true),
+              onSuccess: () => {
+                setActivated(true);
+                finish();
+              },
               onError: (e) =>
                 setError(
                   e instanceof ApiError
@@ -178,7 +188,9 @@ export function Emails({ t, s }: { t: HuntTemplate; s: HuntSettings }) {
             Preview for {shown.p.company}, to a contact named Sam
           </p>
           <p className="font-medium">{shown.p.subject}</p>
-          <pre className="whitespace-pre-wrap font-sans">{shown.p.body}</pre>
+          <p className="whitespace-pre-wrap">
+            <Linkify text={shown.p.body} />
+          </p>
           {shown.p.missing.length > 0 && (
             <p role="status" className="notice-info">
               Missing details: {shown.p.missing.join(", ")}. Add them below, or
@@ -189,6 +201,87 @@ export function Emails({ t, s }: { t: HuntTemplate; s: HuntSettings }) {
       )}
     </fieldset>
   );
+
+  const popup = saved && (
+    <div
+      role="dialog"
+      aria-label="Saved"
+      className="fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-50 mx-auto max-w-md space-y-2 rounded-2xl bg-ink p-4 text-surface shadow-lift"
+    >
+      <p className="font-semibold">Saved</p>
+      <p className="text-sm">
+        {saved.redrafted > 0
+          ? `${saved.redrafted} email${saved.redrafted === 1 ? "" : "s"} waiting for your review ${saved.redrafted === 1 ? "was" : "were"} rewritten from it. `
+          : "New emails to startups will use it. "}
+        {on ? "" : "It is saved but not turned on yet. "}
+        <Link
+          to="/startups?tab=review"
+          className="underline"
+          onClick={() => setSaved(null)}
+        >
+          See them in Review
+        </Link>
+      </p>
+      <button
+        type="button"
+        className="min-h-[44px] text-sm font-medium"
+        onClick={() => setSaved(null)}
+      >
+        OK
+      </button>
+    </div>
+  );
+
+  if (!editing)
+    return (
+      <>
+        <section className="card space-y-3" aria-label="Your emails">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1">
+              <h2 className="text-lg font-semibold tracking-tight">
+                Your emails are saved
+              </h2>
+              <p className="text-sm text-muted">
+                {on
+                  ? "They are used for every email to a startup."
+                  : "They are saved but not turned on yet."}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setEditing(true)}
+            >
+              Edit
+            </button>
+          </div>
+          <dl className="grid gap-1 text-sm">
+            <div className="flex gap-2">
+              <dt className="text-muted">First email</dt>
+              <dd className="font-medium">{first.subject || "(no subject)"}</dd>
+            </div>
+            <div className="flex gap-2">
+              <dt className="text-muted">Follow-up</dt>
+              <dd>
+                {followOn
+                  ? `after ${days} day${days === 1 ? "" : "s"} with no reply`
+                  : "off"}
+              </dd>
+            </div>
+            <div className="flex gap-2">
+              <dt className="text-muted">Sent</dt>
+              <dd>
+                weekdays {String(from).padStart(2, "0")}:00 to{" "}
+                {String(to).padStart(2, "0")}:00
+                {notBefore ? `, not before ${notBefore.replace("T", " ")}` : ""}
+                {auto ? ", automatically" : ", after you approve each one"}
+              </dd>
+            </div>
+          </dl>
+        </section>
+        {popup}
+      </>
+    );
 
   return (
     <section className="card space-y-6" aria-label="Your emails">
@@ -345,11 +438,6 @@ export function Emails({ t, s }: { t: HuntTemplate; s: HuntSettings }) {
       {error && (
         <p role="alert" className="notice-error">
           {error}
-        </p>
-      )}
-      {saved && (
-        <p role="status" className="notice-info">
-          Saved.
         </p>
       )}
       {activated && (

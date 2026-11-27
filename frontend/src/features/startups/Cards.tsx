@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { Linkify } from "../../ui/Linkify";
 import { useAddJob } from "../autoapply/api";
 import { useHuntDelivery, useTargetActions, type HuntTarget } from "./api";
 
@@ -115,10 +116,11 @@ function Careers({ t }: { t: HuntTarget }) {
 function Pitch({ t }: { t: HuntTarget }) {
   const { approve, skip, edit } = useTargetActions();
   const [editing, setEditing] = useState(false);
+  // what is typed while editing; otherwise the note as it is now (it can be written again when
+  // the emails are saved, so it is never copied once and left)
   const [subject, setSubject] = useState(t.subject);
   const [body, setBody] = useState(t.body);
   const waiting = t.status === "drafted";
-  const text = body.split("\n--")[0].trim();
   return (
     <div className="space-y-3 rounded-2xl bg-canvas p-4">
       <h4 className="text-sm font-semibold">2 · Email pitch</h4>
@@ -170,7 +172,9 @@ function Pitch({ t }: { t: HuntTarget }) {
       ) : (
         <div className="space-y-1 rounded-xl bg-surface p-3 text-sm">
           <p className="font-medium">{t.subject}</p>
-          <p className="whitespace-pre-line text-muted">{text}</p>
+          <p className="whitespace-pre-line text-muted">
+            <Linkify text={t.body.trim()} />
+          </p>
         </div>
       )}
       <p className="text-xs text-muted">
@@ -189,7 +193,11 @@ function Pitch({ t }: { t: HuntTarget }) {
           <button
             className="btn-secondary"
             type="button"
-            onClick={() => setEditing(true)}
+            onClick={() => {
+              setSubject(t.subject);
+              setBody(t.body);
+              setEditing(true);
+            }}
           >
             Edit
           </button>

@@ -125,7 +125,8 @@ async def test_the_first_email_is_the_template_for_the_startup_it_goes_to(
     assert "Hi there," in m["body"]  # a jobs@ address has no first name
     assert "I've been following Acme0. Marketplace payments is close to my own work." in m["body"]
     assert "https://justus.example/work" in m["body"] and "{{" not in m["body"]
-    assert "reply with 'no thanks'" in m["body"] and "12 Marina" in m["body"]  # footer: always
+    assert "no thanks" not in m["body"] and "12 Marina" not in m["body"]  # exactly what you wrote
+    assert m["body"].rstrip().endswith("Best regards,\nAda Okoye")
     assert m["attachments"]  # the CV goes with it
 
 
@@ -241,3 +242,54 @@ async def test_a_company_name_cannot_inject_template_text(ada, maker, mailbox):
     assert "\n" not in subject and "Bcc:" in subject  # a harmless word, on one line
     assert "{{" not in subject.replace("{{company_hook}}", "")
     del uid
+
+
+def test_a_detail_meant_as_a_link_gets_its_https_so_it_is_clickable():
+    got = template.clean_variables(
+        {
+            "Portfolio link": "justus.dev/work",
+            "linkedin": "www.linkedin.com/in/justus",
+            "github": "https://github.com/justus",
+            "phone": "+234 703 244 7412",
+            "calendly": "not a link",
+        }
+    )
+    assert got["portfolio_link"] == "https://justus.dev/work"
+    assert got["linkedin"] == "https://www.linkedin.com/in/justus"
+    assert got["github"] == "https://github.com/justus"  # already one
+    assert got["phone"] == "+234 703 244 7412" and got["calendly"] == "not a link"
+
+
+async def test_saving_your_emails_rewrites_every_note_waiting_for_review(
+    ada,
+    maker,
+    mailbox,
+    settings,
+    write_llm,  # noqa: F811
+):
+    uid = await setup(ada, maker, mailbox)
+    await seed(maker, 2)
+    async with (
+        maker() as db
+    ):  # two written notes waiting for review, from before there was a template
+        await engine.plan(db, uid, NOW, write_llm)
+    before = (await ada.get("/api/hunt/targets")).json()
+    assert len(before) == 2 and all("My CV is attached." in t["body"] for t in before)
+    first = before[0]["id"]
+    assert (await ada.post(f"/api/hunt/targets/{first}/approve")).status_code == 200  # one approved
+    approved_body = next(
+        t["body"] for t in (await ada.get("/api/hunt/targets")).json() if t["id"] == first
+    )
+
+    saved = (
+        await ada.put(
+            "/api/hunt/template",
+            json=body(variables={"portfolio_link": "justus.dev/work"}),
+        )
+    ).json()
+    assert saved["redrafted"] == 1  # only the one still waiting
+    after = {t["id"]: t for t in (await ada.get("/api/hunt/targets")).json()}
+    waiting = next(t for i, t in after.items() if i != first)
+    assert waiting["subject"].startswith("Product Manager interested in Acme")
+    assert "https://justus.dev/work" in waiting["body"] and "{{" not in waiting["body"]
+    assert after[first]["body"] == approved_body  # an approved note is never touched

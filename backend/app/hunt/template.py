@@ -10,7 +10,8 @@ portfolio link, phone, LinkedIn...). Rules that keep this safe:
   line breaks, a short length.
 * A variable with no value is never sent as "{{...}}": the note is held for the candidate with
   the missing names listed.
-* The opt-out footer and the postal address are added by code after the template, always.
+* An opt-out and postal-address block is added by code after the template only when the operator
+  switches it on (STARTUP_OUTREACH_FOOTER); otherwise the email is exactly what the candidate wrote.
 """
 
 import json
@@ -89,6 +90,19 @@ def clean_public(text: str, limit: int = 120) -> str:
     return " ".join(t.split())[:limit]
 
 
+LINKY = ("link", "url", "site", "website", "portfolio", "linkedin", "github", "calendly", "cal")
+BARE_DOMAIN = re.compile(
+    r"^(?:www\.)?[a-z0-9][a-z0-9-]*(?:\.[a-z0-9-]+)*\.[a-z]{2,}(?:[/?#]\S*)?$", re.I
+)
+
+
+def as_link(name: str, value: str) -> str:
+    """A detail meant to be a link gets its https:// so mail programs make it clickable."""
+    if any(w in name for w in LINKY) and " " not in value and BARE_DOMAIN.match(value):
+        return "https://" + value
+    return value
+
+
 def clean_variables(raw: dict[str, Any]) -> dict[str, str]:
     """The candidate's own details: names normalised, values one line (a link is fine)."""
     out: dict[str, str] = {}
@@ -96,7 +110,7 @@ def clean_variables(raw: dict[str, Any]) -> dict[str, str]:
         k = key(str(name))
         v = " ".join(str(value).replace("{", "").replace("}", "").split())[:MAX_VALUE]
         if NAME_OK.match(k) and k not in BUILTIN and v:
-            out[k] = v
+            out[k] = as_link(k, v)
     return out
 
 
