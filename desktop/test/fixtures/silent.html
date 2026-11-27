@@ -1,0 +1,41 @@
+<!doctype html><html><head><title>Apply</title></head><body>
+<h1>Product Manager</h1>
+<form id="f" method="post" action="/silent" enctype="multipart/form-data">
+ <label for="first_name">First Name*</label><input id="first_name" name="first_name" aria-required="true">
+ <label for="last_name">Last Name*</label><input id="last_name" name="last_name" aria-required="true">
+ <label for="email">Email*</label><input id="email" name="email" type="email" required>
+ <label for="phone">Phone</label><input id="phone" name="phone" type="tel">
+ <label for="country">Country*</label>
+ <input id="country" role="combobox" aria-autocomplete="list" aria-required="true" autocomplete="off">
+ <input type="hidden" id="country_val" name="country">
+ <ul id="opts" role="listbox" hidden></ul>
+ <label for="resume">Resume/CV*</label><input id="resume" name="resume" type="file">
+ <label for="cover_letter">Cover letter</label><input id="cover_letter" name="cover_letter" type="file">
+ <label for="question_1">Why do you want to work here?*</label><textarea id="question_1" name="question_1" aria-required="true"></textarea>
+ <label for="linkedin">LinkedIn Profile</label><input id="linkedin" name="linkedin">
+ <label for="auth">Are you legally authorized to work in the US?*</label>
+ <select id="auth" name="auth" required><option value="">Select...</option><option>Yes</option><option>No</option></select>
+ <fieldset><legend>Veteran status</legend>
+  <label><input type="radio" name="veteran" value="y">I am a veteran</label>
+  <label><input type="radio" name="veteran" value="n">I am not a veteran</label>
+  <label><input type="radio" name="veteran" value="d">Prefer not to say</label></fieldset>
+ <label><input type="checkbox" id="consent" name="consent" required>I agree to the privacy policy*</label>
+ <input name="trap" style="display:none" tabindex="-1">
+ 
+ <button type="submit">Submit application</button>
+</form>
+<script>
+ const COUNTRIES = ["Nigeria", "United Kingdom", "United States"];
+ const box = document.getElementById("country"), list = document.getElementById("opts");
+ function show() {
+   const q = box.value.toLowerCase();
+   list.innerHTML = "";
+   COUNTRIES.filter(c => c.toLowerCase().includes(q)).forEach(c => {
+     const li = document.createElement("li"); li.setAttribute("role", "option"); li.textContent = c;
+     li.onclick = () => { box.value = c; document.getElementById("country_val").value = c; list.hidden = true; };
+     list.appendChild(li);
+   });
+   list.hidden = false;
+ }
+ box.addEventListener("click", show); box.addEventListener("input", show);
+</script></body></html>
