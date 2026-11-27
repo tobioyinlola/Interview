@@ -67,7 +67,7 @@ export type AAInterview = S["InterviewOut"];
 export type AARecruiting = S["RecruitingOut"];
 export type AAMailbox = S["MailboxOut"];
 export type AAMailboxCheck = S["MailboxCheckOut"];
-export type AARun = S["RunOut"];
+export type AARun = S["RunViewOut"];
 export type AAOutreach = S["OutreachOut"];
 export type AAPrepared = S["PrepareOut"];
 export type AdminAutoApply = S["AutoApplyAdminOut"];
@@ -84,3 +84,7 @@ export type SupportTicketInput = S["TicketIn"];
 export type AdminSupportList = S["AdminTicketListOut"];
 export type AdminSupportTicket = S["AdminTicketOut"];
 export type AdminSupportDetail = S["AdminTicketDetailOut"];
+
+export type AutoRun = S["RunViewOut"];
+export type AutoRunEvent = S["RunEventOut"];
+export type AutoRunCurrent = S["RunCurrentOut"];

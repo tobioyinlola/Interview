@@ -2480,44 +2480,6 @@
         "title": "ConnectSmtpIn",
         "type": "object"
       },
-      "CountersOut": {
-        "properties": {
-          "failed": {
-            "title": "Failed",
-            "type": "integer"
-          },
-          "needs_you": {
-            "title": "Needs You",
-            "type": "integer"
-          },
-          "queued": {
-            "title": "Queued",
-            "type": "integer"
-          },
-          "skipped": {
-            "title": "Skipped",
-            "type": "integer"
-          },
-          "verified": {
-            "title": "Verified",
-            "type": "integer"
-          },
-          "verified_today": {
-            "title": "Verified Today",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "queued",
-          "verified",
-          "verified_today",
-          "failed",
-          "skipped",
-          "needs_you"
-        ],
-        "title": "CountersOut",
-        "type": "object"
-      },
       "CreditBreakdown": {
         "properties": {
           "gifted": {
@@ -2549,131 +2511,6 @@
           "used"
         ],
         "title": "CreditBreakdown",
-        "type": "object"
-      },
-      "CurrentOut": {
-        "properties": {
-          "ats": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ats"
-          },
-          "ats_label": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ats Label"
-          },
-          "company": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Company"
-          },
-          "cv_version": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Cv Version"
-          },
-          "executor": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Executor"
-          },
-          "fields_done": {
-            "default": 0,
-            "title": "Fields Done",
-            "type": "integer"
-          },
-          "fields_total": {
-            "default": 0,
-            "title": "Fields Total",
-            "type": "integer"
-          },
-          "progress": {
-            "default": 0,
-            "title": "Progress",
-            "type": "integer"
-          },
-          "question": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Question"
-          },
-          "score": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Score"
-          },
-          "stage": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Stage"
-          },
-          "step": {
-            "default": 1,
-            "title": "Step",
-            "type": "integer"
-          },
-          "title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Title"
-          }
-        },
-        "title": "CurrentOut",
         "type": "object"
       },
       "CvUploadOut": {
@@ -2761,7 +2598,7 @@
           "last_run": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/app__autoapply__schemas__RunOut"
+                "$ref": "#/components/schemas/RunOut"
               },
               {
                 "type": "null"
@@ -3607,102 +3444,6 @@
           "name"
         ],
         "title": "EventIn",
-        "type": "object"
-      },
-      "EventOut": {
-        "properties": {
-          "application_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Application Id"
-          },
-          "at": {
-            "format": "date-time",
-            "title": "At",
-            "type": "string"
-          },
-          "data": {
-            "additionalProperties": true,
-            "title": "Data",
-            "type": "object"
-          },
-          "executor": {
-            "title": "Executor",
-            "type": "string"
-          },
-          "id": {
-            "title": "Id",
-            "type": "integer"
-          },
-          "kind": {
-            "title": "Kind",
-            "type": "string"
-          },
-          "text": {
-            "title": "Text",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "kind",
-          "text",
-          "executor",
-          "data",
-          "at"
-        ],
-        "title": "EventOut",
-        "type": "object"
-      },
-      "EventsOut": {
-        "properties": {
-          "events": {
-            "items": {
-              "$ref": "#/components/schemas/EventOut"
-            },
-            "title": "Events",
-            "type": "array"
-          },
-          "last_seq": {
-            "title": "Last Seq",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "events",
-          "last_seq"
-        ],
-        "title": "EventsOut",
-        "type": "object"
-      },
-      "ExecutorOut": {
-        "properties": {
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "online": {
-            "title": "Online",
-            "type": "boolean"
-          },
-          "platform": {
-            "title": "Platform",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name",
-          "platform",
-          "online"
-        ],
-        "title": "ExecutorOut",
         "type": "object"
       },
       "FactsIn": {
@@ -6503,6 +6244,457 @@
         "title": "RetentionRow",
         "type": "object"
       },
+      "RunCountersOut": {
+        "properties": {
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "needs_you": {
+            "title": "Needs You",
+            "type": "integer"
+          },
+          "queued": {
+            "title": "Queued",
+            "type": "integer"
+          },
+          "skipped": {
+            "title": "Skipped",
+            "type": "integer"
+          },
+          "verified": {
+            "title": "Verified",
+            "type": "integer"
+          },
+          "verified_today": {
+            "title": "Verified Today",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "queued",
+          "verified",
+          "verified_today",
+          "failed",
+          "skipped",
+          "needs_you"
+        ],
+        "title": "RunCountersOut",
+        "type": "object"
+      },
+      "RunCurrentOut": {
+        "properties": {
+          "ats": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ats"
+          },
+          "ats_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ats Label"
+          },
+          "company": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company"
+          },
+          "cv_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cv Version"
+          },
+          "executor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Executor"
+          },
+          "fields_done": {
+            "default": 0,
+            "title": "Fields Done",
+            "type": "integer"
+          },
+          "fields_total": {
+            "default": 0,
+            "title": "Fields Total",
+            "type": "integer"
+          },
+          "progress": {
+            "default": 0,
+            "title": "Progress",
+            "type": "integer"
+          },
+          "question": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          },
+          "step": {
+            "default": 1,
+            "title": "Step",
+            "type": "integer"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "title": "RunCurrentOut",
+        "type": "object"
+      },
+      "RunEventOut": {
+        "properties": {
+          "application_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Application Id"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "data": {
+            "additionalProperties": true,
+            "title": "Data",
+            "type": "object"
+          },
+          "executor": {
+            "title": "Executor",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "text",
+          "executor",
+          "data",
+          "at"
+        ],
+        "title": "RunEventOut",
+        "type": "object"
+      },
+      "RunEventsOut": {
+        "properties": {
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/RunEventOut"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "last_seq": {
+            "title": "Last Seq",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "events",
+          "last_seq"
+        ],
+        "title": "RunEventsOut",
+        "type": "object"
+      },
+      "RunExecutorOut": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "online": {
+            "title": "Online",
+            "type": "boolean"
+          },
+          "platform": {
+            "title": "Platform",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "platform",
+          "online"
+        ],
+        "title": "RunExecutorOut",
+        "type": "object"
+      },
+      "RunOut": {
+        "properties": {
+          "eligible": {
+            "title": "Eligible",
+            "type": "integer"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "found": {
+            "title": "Found",
+            "type": "integer"
+          },
+          "local_day": {
+            "title": "Local Day",
+            "type": "string"
+          },
+          "needs_input": {
+            "title": "Needs Input",
+            "type": "integer"
+          },
+          "new": {
+            "title": "New",
+            "type": "integer"
+          },
+          "skipped": {
+            "title": "Skipped",
+            "type": "integer"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "local_day",
+          "status",
+          "found",
+          "new",
+          "eligible",
+          "needs_input",
+          "skipped",
+          "error",
+          "started_at",
+          "finished_at"
+        ],
+        "title": "RunOut",
+        "type": "object"
+      },
+      "RunSettingsIn": {
+        "properties": {
+          "execution_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "auto",
+                  "desktop",
+                  "cloud"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Execution Mode"
+          },
+          "speed": {
+            "anyOf": [
+              {
+                "enum": [
+                  "slow",
+                  "normal",
+                  "fast"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speed"
+          }
+        },
+        "title": "RunSettingsIn",
+        "type": "object"
+      },
+      "RunViewOut": {
+        "properties": {
+          "counters": {
+            "$ref": "#/components/schemas/RunCountersOut"
+          },
+          "current": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunCurrentOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "desktop_open": {
+            "title": "Desktop Open",
+            "type": "boolean"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/RunEventOut"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "execution_mode": {
+            "title": "Execution Mode",
+            "type": "string"
+          },
+          "executors": {
+            "items": {
+              "$ref": "#/components/schemas/RunExecutorOut"
+            },
+            "title": "Executors",
+            "type": "array"
+          },
+          "forms_run_on": {
+            "enum": [
+              "desktop",
+              "cloud"
+            ],
+            "title": "Forms Run On",
+            "type": "string"
+          },
+          "last_seq": {
+            "title": "Last Seq",
+            "type": "integer"
+          },
+          "speed": {
+            "title": "Speed",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "idle",
+              "running",
+              "paused",
+              "stopped",
+              "ended"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "speed",
+          "execution_mode",
+          "forms_run_on",
+          "desktop_open",
+          "executors",
+          "counters",
+          "current",
+          "events",
+          "last_seq"
+        ],
+        "title": "RunViewOut",
+        "type": "object"
+      },
       "ScoreOut": {
         "properties": {
           "answer_text": {
@@ -7160,6 +7352,65 @@
           "question_count"
         ],
         "title": "SessionSummary",
+        "type": "object"
+      },
+      "SettingsIn": {
+        "properties": {
+          "auto_send": {
+            "default": false,
+            "title": "Auto Send",
+            "type": "boolean"
+          },
+          "daily_cap": {
+            "default": 8,
+            "maximum": 25.0,
+            "minimum": 1.0,
+            "title": "Daily Cap",
+            "type": "integer"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "pitch": {
+            "default": "",
+            "maxLength": 1200,
+            "title": "Pitch",
+            "type": "string"
+          },
+          "postal_address": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Postal Address",
+            "type": "string"
+          },
+          "regions": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 3,
+            "title": "Regions",
+            "type": "array"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 5,
+            "title": "Roles",
+            "type": "array"
+          },
+          "sender_name": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Sender Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "SettingsIn",
         "type": "object"
       },
       "SettingsOut": {
@@ -9039,80 +9290,6 @@
         "title": "WorkerOut",
         "type": "object"
       },
-      "app__autoapply__schemas__RunOut": {
-        "properties": {
-          "eligible": {
-            "title": "Eligible",
-            "type": "integer"
-          },
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error"
-          },
-          "finished_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Finished At"
-          },
-          "found": {
-            "title": "Found",
-            "type": "integer"
-          },
-          "local_day": {
-            "title": "Local Day",
-            "type": "string"
-          },
-          "needs_input": {
-            "title": "Needs Input",
-            "type": "integer"
-          },
-          "new": {
-            "title": "New",
-            "type": "integer"
-          },
-          "skipped": {
-            "title": "Skipped",
-            "type": "integer"
-          },
-          "started_at": {
-            "format": "date-time",
-            "title": "Started At",
-            "type": "string"
-          },
-          "status": {
-            "title": "Status",
-            "type": "string"
-          }
-        },
-        "required": [
-          "local_day",
-          "status",
-          "found",
-          "new",
-          "eligible",
-          "needs_input",
-          "skipped",
-          "error",
-          "started_at",
-          "finished_at"
-        ],
-        "title": "RunOut",
-        "type": "object"
-      },
       "app__autoapply__schemas__StatusOut": {
         "properties": {
           "campaign": {
@@ -9133,183 +9310,6 @@
           "campaign"
         ],
         "title": "StatusOut",
-        "type": "object"
-      },
-      "app__routers__autoapply_run__RunOut": {
-        "properties": {
-          "counters": {
-            "$ref": "#/components/schemas/CountersOut"
-          },
-          "current": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/CurrentOut"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "desktop_open": {
-            "title": "Desktop Open",
-            "type": "boolean"
-          },
-          "events": {
-            "items": {
-              "$ref": "#/components/schemas/EventOut"
-            },
-            "title": "Events",
-            "type": "array"
-          },
-          "execution_mode": {
-            "title": "Execution Mode",
-            "type": "string"
-          },
-          "executors": {
-            "items": {
-              "$ref": "#/components/schemas/ExecutorOut"
-            },
-            "title": "Executors",
-            "type": "array"
-          },
-          "forms_run_on": {
-            "enum": [
-              "desktop",
-              "cloud"
-            ],
-            "title": "Forms Run On",
-            "type": "string"
-          },
-          "last_seq": {
-            "title": "Last Seq",
-            "type": "integer"
-          },
-          "speed": {
-            "title": "Speed",
-            "type": "string"
-          },
-          "state": {
-            "enum": [
-              "idle",
-              "running",
-              "paused",
-              "stopped",
-              "ended"
-            ],
-            "title": "State",
-            "type": "string"
-          }
-        },
-        "required": [
-          "state",
-          "speed",
-          "execution_mode",
-          "forms_run_on",
-          "desktop_open",
-          "executors",
-          "counters",
-          "current",
-          "events",
-          "last_seq"
-        ],
-        "title": "RunOut",
-        "type": "object"
-      },
-      "app__routers__autoapply_run__SettingsIn": {
-        "properties": {
-          "execution_mode": {
-            "anyOf": [
-              {
-                "enum": [
-                  "auto",
-                  "desktop",
-                  "cloud"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Execution Mode"
-          },
-          "speed": {
-            "anyOf": [
-              {
-                "enum": [
-                  "slow",
-                  "normal",
-                  "fast"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Speed"
-          }
-        },
-        "title": "SettingsIn",
-        "type": "object"
-      },
-      "app__routers__hunt__SettingsIn": {
-        "properties": {
-          "auto_send": {
-            "default": false,
-            "title": "Auto Send",
-            "type": "boolean"
-          },
-          "daily_cap": {
-            "default": 8,
-            "maximum": 25.0,
-            "minimum": 1.0,
-            "title": "Daily Cap",
-            "type": "integer"
-          },
-          "enabled": {
-            "title": "Enabled",
-            "type": "boolean"
-          },
-          "pitch": {
-            "default": "",
-            "maxLength": 1200,
-            "title": "Pitch",
-            "type": "string"
-          },
-          "postal_address": {
-            "default": "",
-            "maxLength": 300,
-            "title": "Postal Address",
-            "type": "string"
-          },
-          "regions": {
-            "items": {
-              "type": "string"
-            },
-            "maxItems": 3,
-            "title": "Regions",
-            "type": "array"
-          },
-          "roles": {
-            "items": {
-              "type": "string"
-            },
-            "maxItems": 5,
-            "title": "Roles",
-            "type": "array"
-          },
-          "sender_name": {
-            "default": "",
-            "maxLength": 120,
-            "title": "Sender Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "enabled"
-        ],
-        "title": "SettingsIn",
         "type": "object"
       },
       "app__schemas__api__StatusOut": {
@@ -13195,7 +13195,7 @@
                 "schema": {
                   "anyOf": [
                     {
-                      "$ref": "#/components/schemas/app__autoapply__schemas__RunOut"
+                      "$ref": "#/components/schemas/RunOut"
                     },
                     {
                       "type": "null"
@@ -13225,7 +13225,7 @@
                 "schema": {
                   "anyOf": [
                     {
-                      "$ref": "#/components/schemas/app__autoapply__schemas__RunOut"
+                      "$ref": "#/components/schemas/RunOut"
                     },
                     {
                       "type": "null"
@@ -13929,7 +13929,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/app__routers__autoapply_run__RunOut"
+                  "$ref": "#/components/schemas/RunViewOut"
                 }
               }
             },
@@ -13973,7 +13973,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EventsOut"
+                  "$ref": "#/components/schemas/RunEventsOut"
                 }
               }
             },
@@ -14003,7 +14003,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/app__routers__autoapply_run__SettingsIn"
+                "$ref": "#/components/schemas/RunSettingsIn"
               }
             }
           },
@@ -14014,7 +14014,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/app__routers__autoapply_run__RunOut"
+                  "$ref": "#/components/schemas/RunViewOut"
                 }
               }
             },
@@ -14063,7 +14063,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/app__routers__autoapply_run__RunOut"
+                  "$ref": "#/components/schemas/RunViewOut"
                 }
               }
             },
@@ -14731,7 +14731,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/app__routers__hunt__SettingsIn"
+                "$ref": "#/components/schemas/SettingsIn"
               }
             }
           },

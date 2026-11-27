@@ -34,7 +34,7 @@ LONG_POLL_MAX = 25.0
 # ---------------------------------------------------------------------------------- schemas
 
 
-class EventOut(BaseModel):
+class RunEventOut(BaseModel):
     id: int
     kind: str
     text: str
@@ -44,7 +44,7 @@ class EventOut(BaseModel):
     application_id: uuid.UUID | None = None
 
 
-class CurrentOut(BaseModel):
+class RunCurrentOut(BaseModel):
     company: str | None = None
     title: str | None = None
     score: float | None = None
@@ -60,7 +60,7 @@ class CurrentOut(BaseModel):
     progress: int = 0  # percent of the form filled in
 
 
-class CountersOut(BaseModel):
+class RunCountersOut(BaseModel):
     queued: int
     verified: int
     verified_today: int
@@ -69,31 +69,31 @@ class CountersOut(BaseModel):
     needs_you: int
 
 
-class ExecutorOut(BaseModel):
+class RunExecutorOut(BaseModel):
     name: str
     platform: str
     online: bool
 
 
-class RunOut(BaseModel):
+class RunViewOut(BaseModel):
     state: Literal["idle", "running", "paused", "stopped", "ended"]
     speed: str
     execution_mode: str
     forms_run_on: Literal["desktop", "cloud"]
     desktop_open: bool
-    executors: list[ExecutorOut]
-    counters: CountersOut
-    current: CurrentOut | None
-    events: list[EventOut]
+    executors: list[RunExecutorOut]
+    counters: RunCountersOut
+    current: RunCurrentOut | None
+    events: list[RunEventOut]
     last_seq: int
 
 
-class EventsOut(BaseModel):
-    events: list[EventOut]
+class RunEventsOut(BaseModel):
+    events: list[RunEventOut]
     last_seq: int
 
 
-class SettingsIn(BaseModel):
+class RunSettingsIn(BaseModel):
     speed: Literal["slow", "normal", "fast"] | None = None
     execution_mode: Literal["auto", "desktop", "cloud"] | None = None
 
@@ -101,8 +101,8 @@ class SettingsIn(BaseModel):
 # ----------------------------------------------------------------------------------- helpers
 
 
-def _event(e: Any) -> EventOut:
-    return EventOut(
+def _event(e: Any) -> RunEventOut:
+    return RunEventOut(
         id=e.id,
         kind=e.kind,
         text=runlog.KINDS.get(e.kind, e.kind),
@@ -113,7 +113,7 @@ def _event(e: Any) -> EventOut:
     )
 
 
-async def _counters(db: AsyncSession, user_id: uuid.UUID, today: Any) -> CountersOut:
+async def _counters(db: AsyncSession, user_id: uuid.UUID, today: Any) -> RunCountersOut:
     rows = (
         await db.execute(
             select(Application.status, func.count())
@@ -133,7 +133,7 @@ async def _counters(db: AsyncSession, user_id: uuid.UUID, today: Any) -> Counter
             )
         )
     ).scalar_one()
-    return CountersOut(
+    return RunCountersOut(
         queued=n.get("queued", 0) + n.get("sending", 0),
         verified=n.get("submitted", 0) + n.get("sent_email", 0),
         verified_today=int(verified_today),
@@ -145,7 +145,7 @@ async def _counters(db: AsyncSession, user_id: uuid.UUID, today: Any) -> Counter
     )
 
 
-def _current(raw: dict[str, Any] | None) -> CurrentOut | None:
+def _current(raw: dict[str, Any] | None) -> RunCurrentOut | None:
     if not raw:
         return None
     system = ats.BY_KEY.get(str(raw.get("ats") or ""))
@@ -153,7 +153,7 @@ def _current(raw: dict[str, Any] | None) -> CurrentOut | None:
     done = int(raw.get("fields_done") or 0)
     stage = str(raw.get("stage") or "")
     pct = 100 if stage == "Done" else min(95, round(100 * done / total)) if total else 0
-    return CurrentOut(
+    return RunCurrentOut(
         company=raw.get("company"),
         title=raw.get("title"),
         score=raw.get("score"),
@@ -170,7 +170,7 @@ def _current(raw: dict[str, Any] | None) -> CurrentOut | None:
     )
 
 
-async def _snapshot(db: AsyncSession, user_id: uuid.UUID, now: datetime) -> RunOut:
+async def _snapshot(db: AsyncSession, user_id: uuid.UUID, now: datetime) -> RunViewOut:
     from app.autoapply import clock
 
     camp = await campaign.current(db, user_id)
@@ -202,14 +202,14 @@ async def _snapshot(db: AsyncSession, user_id: uuid.UUID, now: datetime) -> RunO
     )
     events = await runlog.latest(db, user_id, 40)
     await db.commit()  # the row created for a first-time user
-    return RunOut(
+    return RunViewOut(
         state=label,
         speed=state.speed,
         execution_mode=state.execution_mode,
         forms_run_on=runlog.who_runs_forms(state, open_),
         desktop_open=open_,
         executors=[
-            ExecutorOut(
+            RunExecutorOut(
                 name=e.name or "Desktop",
                 platform=e.platform,
                 online=e.last_seen >= now - runlog.DESKTOP_FRESH,
@@ -231,7 +231,7 @@ async def run_view(
     user: User = Depends(current_user),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008
     now: datetime = Depends(get_now),  # noqa: B008
-) -> RunOut:
+) -> RunViewOut:
     return await _snapshot(db, user.id, now)
 
 
@@ -241,7 +241,7 @@ async def run_events(
     wait: float = 0.0,
     user: User = Depends(current_user),  # noqa: B008
     maker: async_sessionmaker[AsyncSession] = Depends(get_sessionmaker),  # noqa: B008
-) -> EventsOut:
+) -> RunEventsOut:
     """Events after number `after`. With `wait`, holds the request open (up to 25 seconds) until
     there is one, so a screen follows the run live over plain HTTP, on the web and in every app."""
     waited = 0.0
@@ -250,7 +250,7 @@ async def run_events(
         async with maker() as db:
             rows = await runlog.events_after(db, user.id, max(after, 0))
         if rows or waited >= wait:
-            return EventsOut(
+            return RunEventsOut(
                 events=[_event(e) for e in rows], last_seq=rows[-1].id if rows else max(after, 0)
             )
         await asyncio.sleep(0.6)
@@ -260,7 +260,7 @@ async def run_events(
 # ------------------------------------------------------------------------------- controls
 
 
-async def _control(db: AsyncSession, user_id: uuid.UUID, now: datetime, action: str) -> RunOut:
+async def _control(db: AsyncSession, user_id: uuid.UUID, now: datetime, action: str) -> RunViewOut:
     state = await runlog.state_for(db, user_id, lock=True)
     camp = await campaign.current(db, user_id)
     prof = await campaign.get_profile(db, user_id)
@@ -307,17 +307,17 @@ async def run_control(
     user: User = Depends(current_user),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008
     now: datetime = Depends(get_now),  # noqa: B008
-) -> RunOut:
+) -> RunViewOut:
     return await _control(db, user.id, now, action)
 
 
 @router.put("/run/settings")
 async def run_settings(
-    body: SettingsIn,
+    body: RunSettingsIn,
     user: User = Depends(current_user),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008
     now: datetime = Depends(get_now),  # noqa: B008
-) -> RunOut:
+) -> RunViewOut:
     state = await runlog.state_for(db, user.id, lock=True)
     changed: dict[str, Any] = {}
     if body.speed is not None and body.speed != state.speed:

@@ -3772,21 +3772,6 @@ export interface components {
             /** Provider */
             provider: string;
         };
-        /** CountersOut */
-        CountersOut: {
-            /** Failed */
-            failed: number;
-            /** Needs You */
-            needs_you: number;
-            /** Queued */
-            queued: number;
-            /** Skipped */
-            skipped: number;
-            /** Verified */
-            verified: number;
-            /** Verified Today */
-            verified_today: number;
-        };
         /** CreditBreakdown */
         CreditBreakdown: {
             /** Gifted */
@@ -3799,47 +3784,6 @@ export interface components {
             trial: number;
             /** Used */
             used: number;
-        };
-        /** CurrentOut */
-        CurrentOut: {
-            /** Ats */
-            ats?: string | null;
-            /** Ats Label */
-            ats_label?: string | null;
-            /** Company */
-            company?: string | null;
-            /** Cv Version */
-            cv_version?: string | null;
-            /** Executor */
-            executor?: string | null;
-            /**
-             * Fields Done
-             * @default 0
-             */
-            fields_done: number;
-            /**
-             * Fields Total
-             * @default 0
-             */
-            fields_total: number;
-            /**
-             * Progress
-             * @default 0
-             */
-            progress: number;
-            /** Question */
-            question?: string | null;
-            /** Score */
-            score?: number | null;
-            /** Stage */
-            stage?: string | null;
-            /**
-             * Step
-             * @default 1
-             */
-            step: number;
-            /** Title */
-            title?: string | null;
         };
         /** CvUploadOut */
         CvUploadOut: {
@@ -3872,7 +3816,7 @@ export interface components {
             };
             /** Demo */
             demo: boolean;
-            last_run: components["schemas"]["app__autoapply__schemas__RunOut"] | null;
+            last_run: components["schemas"]["RunOut"] | null;
             mailbox: components["schemas"]["MailboxOut"];
             /** Needs Input */
             needs_input: components["schemas"]["ApplicationOut"][];
@@ -4134,44 +4078,6 @@ export interface components {
             route?: string | null;
             /** Ts */
             ts?: number | null;
-        };
-        /** EventOut */
-        EventOut: {
-            /** Application Id */
-            application_id?: string | null;
-            /**
-             * At
-             * Format: date-time
-             */
-            at: string;
-            /** Data */
-            data: {
-                [key: string]: unknown;
-            };
-            /** Executor */
-            executor: string;
-            /** Id */
-            id: number;
-            /** Kind */
-            kind: string;
-            /** Text */
-            text: string;
-        };
-        /** EventsOut */
-        EventsOut: {
-            /** Events */
-            events: components["schemas"]["EventOut"][];
-            /** Last Seq */
-            last_seq: number;
-        };
-        /** ExecutorOut */
-        ExecutorOut: {
-            /** Name */
-            name: string;
-            /** Online */
-            online: boolean;
-            /** Platform */
-            platform: string;
         };
         /** FactsIn */
         FactsIn: {
@@ -5134,6 +5040,160 @@ export interface components {
             /** Returned */
             returned: number;
         };
+        /** RunCountersOut */
+        RunCountersOut: {
+            /** Failed */
+            failed: number;
+            /** Needs You */
+            needs_you: number;
+            /** Queued */
+            queued: number;
+            /** Skipped */
+            skipped: number;
+            /** Verified */
+            verified: number;
+            /** Verified Today */
+            verified_today: number;
+        };
+        /** RunCurrentOut */
+        RunCurrentOut: {
+            /** Ats */
+            ats?: string | null;
+            /** Ats Label */
+            ats_label?: string | null;
+            /** Company */
+            company?: string | null;
+            /** Cv Version */
+            cv_version?: string | null;
+            /** Executor */
+            executor?: string | null;
+            /**
+             * Fields Done
+             * @default 0
+             */
+            fields_done: number;
+            /**
+             * Fields Total
+             * @default 0
+             */
+            fields_total: number;
+            /**
+             * Progress
+             * @default 0
+             */
+            progress: number;
+            /** Question */
+            question?: string | null;
+            /** Score */
+            score?: number | null;
+            /** Stage */
+            stage?: string | null;
+            /**
+             * Step
+             * @default 1
+             */
+            step: number;
+            /** Title */
+            title?: string | null;
+        };
+        /** RunEventOut */
+        RunEventOut: {
+            /** Application Id */
+            application_id?: string | null;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Data */
+            data: {
+                [key: string]: unknown;
+            };
+            /** Executor */
+            executor: string;
+            /** Id */
+            id: number;
+            /** Kind */
+            kind: string;
+            /** Text */
+            text: string;
+        };
+        /** RunEventsOut */
+        RunEventsOut: {
+            /** Events */
+            events: components["schemas"]["RunEventOut"][];
+            /** Last Seq */
+            last_seq: number;
+        };
+        /** RunExecutorOut */
+        RunExecutorOut: {
+            /** Name */
+            name: string;
+            /** Online */
+            online: boolean;
+            /** Platform */
+            platform: string;
+        };
+        /** RunOut */
+        RunOut: {
+            /** Eligible */
+            eligible: number;
+            /** Error */
+            error: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /** Found */
+            found: number;
+            /** Local Day */
+            local_day: string;
+            /** Needs Input */
+            needs_input: number;
+            /** New */
+            new: number;
+            /** Skipped */
+            skipped: number;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Status */
+            status: string;
+        };
+        /** RunSettingsIn */
+        RunSettingsIn: {
+            /** Execution Mode */
+            execution_mode?: ("auto" | "desktop" | "cloud") | null;
+            /** Speed */
+            speed?: ("slow" | "normal" | "fast") | null;
+        };
+        /** RunViewOut */
+        RunViewOut: {
+            counters: components["schemas"]["RunCountersOut"];
+            current: components["schemas"]["RunCurrentOut"] | null;
+            /** Desktop Open */
+            desktop_open: boolean;
+            /** Events */
+            events: components["schemas"]["RunEventOut"][];
+            /** Execution Mode */
+            execution_mode: string;
+            /** Executors */
+            executors: components["schemas"]["RunExecutorOut"][];
+            /**
+             * Forms Run On
+             * @enum {string}
+             */
+            forms_run_on: "desktop" | "cloud";
+            /** Last Seq */
+            last_seq: number;
+            /** Speed */
+            speed: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "idle" | "running" | "paused" | "stopped" | "ended";
+        };
         /** ScoreOut */
         ScoreOut: {
             /** Answer Text */
@@ -5369,6 +5429,40 @@ export interface components {
             started_at: string;
             /** Status */
             status: string;
+        };
+        /** SettingsIn */
+        SettingsIn: {
+            /**
+             * Auto Send
+             * @default false
+             */
+            auto_send: boolean;
+            /**
+             * Daily Cap
+             * @default 8
+             */
+            daily_cap: number;
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Pitch
+             * @default
+             */
+            pitch: string;
+            /**
+             * Postal Address
+             * @default
+             */
+            postal_address: string;
+            /** Regions */
+            regions?: string[];
+            /** Roles */
+            roles?: string[];
+            /**
+             * Sender Name
+             * @default
+             */
+            sender_name: string;
         };
         /** SettingsOut */
         SettingsOut: {
@@ -6090,32 +6184,6 @@ export interface components {
             /** Oldest Due Seconds */
             oldest_due_seconds: number;
         };
-        /** RunOut */
-        app__autoapply__schemas__RunOut: {
-            /** Eligible */
-            eligible: number;
-            /** Error */
-            error: string | null;
-            /** Finished At */
-            finished_at: string | null;
-            /** Found */
-            found: number;
-            /** Local Day */
-            local_day: string;
-            /** Needs Input */
-            needs_input: number;
-            /** New */
-            new: number;
-            /** Skipped */
-            skipped: number;
-            /**
-             * Started At
-             * Format: date-time
-             */
-            started_at: string;
-            /** Status */
-            status: string;
-        };
         /** StatusOut */
         app__autoapply__schemas__StatusOut: {
             campaign: components["schemas"]["CampaignOut"];
@@ -6126,74 +6194,6 @@ export interface components {
             demo: boolean;
             /** Enabled */
             enabled: boolean;
-        };
-        /** RunOut */
-        app__routers__autoapply_run__RunOut: {
-            counters: components["schemas"]["CountersOut"];
-            current: components["schemas"]["CurrentOut"] | null;
-            /** Desktop Open */
-            desktop_open: boolean;
-            /** Events */
-            events: components["schemas"]["EventOut"][];
-            /** Execution Mode */
-            execution_mode: string;
-            /** Executors */
-            executors: components["schemas"]["ExecutorOut"][];
-            /**
-             * Forms Run On
-             * @enum {string}
-             */
-            forms_run_on: "desktop" | "cloud";
-            /** Last Seq */
-            last_seq: number;
-            /** Speed */
-            speed: string;
-            /**
-             * State
-             * @enum {string}
-             */
-            state: "idle" | "running" | "paused" | "stopped" | "ended";
-        };
-        /** SettingsIn */
-        app__routers__autoapply_run__SettingsIn: {
-            /** Execution Mode */
-            execution_mode?: ("auto" | "desktop" | "cloud") | null;
-            /** Speed */
-            speed?: ("slow" | "normal" | "fast") | null;
-        };
-        /** SettingsIn */
-        app__routers__hunt__SettingsIn: {
-            /**
-             * Auto Send
-             * @default false
-             */
-            auto_send: boolean;
-            /**
-             * Daily Cap
-             * @default 8
-             */
-            daily_cap: number;
-            /** Enabled */
-            enabled: boolean;
-            /**
-             * Pitch
-             * @default
-             */
-            pitch: string;
-            /**
-             * Postal Address
-             * @default
-             */
-            postal_address: string;
-            /** Regions */
-            regions?: string[];
-            /** Roles */
-            roles?: string[];
-            /**
-             * Sender Name
-             * @default
-             */
-            sender_name: string;
         };
         /** StatusOut */
         app__schemas__api__StatusOut: {
@@ -8744,7 +8744,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["app__autoapply__schemas__RunOut"] | null;
+                    "application/json": components["schemas"]["RunOut"] | null;
                 };
             };
         };
@@ -8764,7 +8764,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["app__autoapply__schemas__RunOut"] | null;
+                    "application/json": components["schemas"]["RunOut"] | null;
                 };
             };
         };
@@ -9292,7 +9292,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["app__routers__autoapply_run__RunOut"];
+                    "application/json": components["schemas"]["RunViewOut"];
                 };
             };
         };
@@ -9315,7 +9315,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EventsOut"];
+                    "application/json": components["schemas"]["RunEventsOut"];
                 };
             };
             /** @description Validation Error */
@@ -9338,7 +9338,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["app__routers__autoapply_run__SettingsIn"];
+                "application/json": components["schemas"]["RunSettingsIn"];
             };
         };
         responses: {
@@ -9348,7 +9348,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["app__routers__autoapply_run__RunOut"];
+                    "application/json": components["schemas"]["RunViewOut"];
                 };
             };
             /** @description Validation Error */
@@ -9379,7 +9379,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["app__routers__autoapply_run__RunOut"];
+                    "application/json": components["schemas"]["RunViewOut"];
                 };
             };
             /** @description Validation Error */
@@ -9878,7 +9878,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["app__routers__hunt__SettingsIn"];
+                "application/json": components["schemas"]["SettingsIn"];
             };
         };
         responses: {
