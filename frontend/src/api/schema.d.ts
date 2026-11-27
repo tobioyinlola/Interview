@@ -5958,6 +5958,11 @@ export interface components {
              * @default true
              */
             follow_up_enabled: boolean;
+            /**
+             * Redrafted
+             * @default 0
+             */
+            redrafted: number;
             /** Send Not Before */
             send_not_before?: string | null;
             /** Starter */

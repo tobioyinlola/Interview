@@ -1,6 +1,7 @@
 """The run loop for startup outreach: plan notes, send them one at a time under every rule,
 follow up once, and read replies, opt-outs and bounces so nobody is written to again."""
 
+import asyncio
 import logging
 import re
 import uuid
@@ -242,6 +243,59 @@ async def plan(
         made += 1
     await db.commit()
     return made
+
+
+async def redraft(
+    db: AsyncSession, user_id: uuid.UUID, llm: LlmProvider, *, footer: bool = False
+) -> int:
+    """The candidate saved their own emails: every note still waiting for their review is written
+    again from them, so what they approve is what they just saved. Approved, sent and closed notes
+    are never touched."""
+    st = await get_settings(db, user_id)
+    if st is None or not st.use_template:
+        return 0
+    row = await facts_mod.get(db, user_id)
+    facts = row.data if row else None
+    waiting = (
+        (
+            await db.execute(
+                select(HuntTarget).where(
+                    HuntTarget.user_id == user_id, HuntTarget.status == "drafted"
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    jobs: list[tuple[HuntTarget, Startup, StartupContact, str]] = []
+    for t in waiting:
+        which = "first" if t.step == 1 else "follow"
+        startup = await db.get(Startup, t.startup_id)
+        contact = await db.get(StartupContact, t.contact_id)
+        if startup is None or contact is None or not _uses_template(st, which):
+            continue
+        jobs.append((t, startup, contact, which))
+    gate = asyncio.Semaphore(6)
+
+    async def hook_for(startup: Startup, which: str) -> str:
+        if which != "first":
+            return ""
+        async with gate:
+            return await template.hook(llm, facts, st, startup)
+
+    hooks = await asyncio.gather(*(hook_for(s_, w) for _, s_, _, w in jobs))
+    for (t, startup, contact, which), hook in zip(jobs, hooks, strict=True):
+        subject, body, held = template.compose(
+            st, startup, contact, which, hook, first_subject=t.subject if which != "first" else ""
+        )
+        if footer:
+            body += "\n\n" + policy.footer(
+                startup.region, st.sender_name, st.postal_address, contact.source_url
+            )
+        t.subject, t.body = subject, body
+        t.reason = ("Fill in: " + ", ".join(held))[:300] if held else None
+    await db.commit()
+    return len(jobs)
 
 
 def _uses_template(st: HuntSettings, which: str) -> bool:

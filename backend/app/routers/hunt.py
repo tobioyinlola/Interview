@@ -283,6 +283,7 @@ class TemplateOut(TemplateIn):
     builtin: dict[str, str]  # variables everyone has, and what they hold
     starter: dict[str, str]  # a generic starting point to copy from
     unknown: list[str]  # variables the emails use that have no value yet
+    redrafted: int = 0  # notes waiting for review that were written again from these emails
 
 
 class PreviewIn(BaseModel):
@@ -340,6 +341,8 @@ async def save_template(
     user: User = Depends(active_user),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008
     now: datetime = Depends(get_now),  # noqa: B008
+    llm: LlmProvider = Depends(get_llm),  # noqa: B008
+    config: Settings = Depends(get_settings),  # noqa: B008
 ) -> TemplateOut:
     if body.window_end <= body.window_start:
         raise ApiError(422, "bad_window", "The end hour must be after the start hour.")
@@ -362,7 +365,10 @@ async def save_template(
     st.window_start, st.window_end = body.window_start, body.window_end
     st.updated_at = now
     await db.commit()
-    return _template_out(st)
+    # what is waiting for review is written again from the saved emails
+    out = _template_out(st)
+    out.redrafted = await engine.redraft(db, user.id, llm, footer=config.startup_outreach_footer)
+    return out
 
 
 @router.post("/template/preview")

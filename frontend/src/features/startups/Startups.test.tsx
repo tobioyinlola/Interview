@@ -178,7 +178,59 @@ describe("Startups inside Auto-Apply", () => {
     expect(
       (saveS.mock.calls[0][0] as { body: Record<string, unknown> }).body,
     ).toMatchObject({ enabled: true, auto_send: true });
-    expect(await screen.findByText(/Turned on/)).toBeVisible();
+    // saved: a popup says so, and the editor closes into a card
+    expect(await screen.findByRole("dialog", { name: "Saved" })).toBeVisible();
+    expect(screen.getByText("Your emails are saved")).toBeVisible();
+    expect(screen.queryByLabelText("Days before the follow-up")).toBeNull();
+  });
+
+  it("shows saved emails as a closed card, and Edit opens the editor again", async () => {
+    localStorage.clear();
+    routes({
+      "GET /api/hunt/settings": () => ({
+        json: { ...settings, enabled: true, ready: [] },
+      }),
+      "GET /api/hunt/template": () => ({
+        json: {
+          ...template,
+          use_template: true,
+          first_subject: "PM interested in {{company}}",
+          first_body: "Hi {{first_name}}",
+          follow_up_days: 6,
+        },
+      }),
+    });
+    renderApp(<App />, "/startups?tab=emails");
+    expect(await screen.findByText("Your emails are saved")).toBeVisible();
+    expect(screen.getByText("PM interested in {{company}}")).toBeVisible();
+    expect(screen.getByText(/after 6 days/)).toBeVisible();
+    expect(screen.queryByLabelText("Days before the follow-up")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Edit" }));
+    expect(screen.getByLabelText("Days before the follow-up")).toHaveValue(6);
+  });
+
+  it("makes every link in a note waiting for review clickable", async () => {
+    routes({
+      "GET /api/hunt/settings": () => ({
+        json: { ...settings, enabled: true, ready: [] },
+      }),
+      "GET /api/hunt/targets": () => ({
+        json: [
+          {
+            ...target,
+            body: "Portfolio: https://justus.dev/work and www.linkedin.com/in/justus.",
+          },
+        ],
+      }),
+    });
+    renderApp(<App />, "/startups");
+    const link = await screen.findByRole("link", {
+      name: "https://justus.dev/work",
+    });
+    expect(link).toHaveAttribute("href", "https://justus.dev/work");
+    expect(
+      screen.getByRole("link", { name: "www.linkedin.com/in/justus" }),
+    ).toHaveAttribute("href", "https://www.linkedin.com/in/justus");
   });
 
   it("lets you write your own emails, set your details and timing, preview and save", async () => {

@@ -153,6 +153,7 @@ export type HuntTemplate = {
   builtin: Record<string, string>;
   starter: Record<string, string>;
   unknown: string[];
+  redrafted?: number;
 };
 
 export type TemplatePreview = {
@@ -172,7 +173,9 @@ export const useHuntTemplate = (enabled = true) =>
 export function useSaveTemplate() {
   const refresh = useRefresh();
   return useMutation({
-    mutationFn: (body: Omit<HuntTemplate, "builtin" | "starter" | "unknown">) =>
+    mutationFn: (
+      body: Omit<HuntTemplate, "builtin" | "starter" | "unknown" | "redrafted">,
+    ) =>
       apiFetch<HuntTemplate>(`${P}/template`, {
         method: "PUT",
         body: JSON.stringify(body),
