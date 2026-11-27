@@ -18,9 +18,17 @@ mod window;
 
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Mutex, MutexGuard};
+use std::sync::{Mutex, MutexGuard, OnceLock};
+use std::time::Instant;
 use tauri::{command, AppHandle, Emitter, Manager, Runtime, WebviewWindow};
 use tauri_plugin_opener::OpenerExt;
+
+/// When the app started, so the log can say where launch time went (window, page, first paint).
+static BOOT: OnceLock<Instant> = OnceLock::new();
+
+fn since_boot() -> u128 {
+    BOOT.get().map(|t| t.elapsed().as_millis()).unwrap_or(0)
+}
 
 /// Lock a mutex even if a thread panicked while holding it. The data here is plain state, so a
 /// poisoned lock must never take the whole app down with it.
@@ -240,6 +248,7 @@ pub fn run() {
     // A panic is written to the log file before anything else happens, so a crash always leaves
     // a trace to read.
     std::panic::set_hook(Box::new(|info| log::error!("[panic] {info}")));
+    let _ = BOOT.set(Instant::now());
 
     tauri::Builder::default()
         .plugin(
@@ -272,6 +281,11 @@ pub fn run() {
         .manage(AppState::default())
         .manage(audio::AudioState::default())
         .on_page_load(|webview, payload| {
+            let what = match payload.event() {
+                tauri::webview::PageLoadEvent::Started => "started",
+                tauri::webview::PageLoadEvent::Finished => "finished",
+            };
+            log::info!("[App] page load {what} at {} ms", since_boot());
             if let tauri::webview::PageLoadEvent::Finished = payload.event() {
                 let app = webview.app_handle();
                 let state = app.state::<AppState>();
@@ -337,6 +351,7 @@ pub fn run() {
             // The window starts hidden (tauri.conf.json); show it now that stealth is applied.
             let _ = window.show();
             stealth::re_enforce_stealth(&window);
+            log::info!("[App] window shown at {} ms", since_boot());
 
             let win = window.clone();
             window.on_window_event(move |event| {

@@ -8,6 +8,7 @@ import {
 import { trackFeature } from "../analytics";
 import { setOptOut } from "../analytics/client";
 import { ApiError, apiFetch } from "./client";
+import { APP_SHELL, hasSessionToken } from "./session";
 import { isNativeApp } from "../app/native";
 import { newAppChallenge } from "../features/auth/nativeGoogle";
 import { savedInvite, savedUtm } from "../features/referral/invite";
@@ -42,6 +43,10 @@ export function useMe() {
     retry: false,
     staleTime: 60_000,
     queryFn: async () => {
+      // The installed apps sign in with a saved token, never a cookie. With none saved, nobody can
+      // be signed in and the server would only say no, so a first launch does not wait for it:
+      // the sign-in page opens at once instead of an empty screen until the first call is answered.
+      if (APP_SHELL && !hasSessionToken()) return null;
       try {
         return await apiFetch<Me>("/api/me");
       } catch (e) {

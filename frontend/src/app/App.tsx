@@ -158,7 +158,10 @@ const SessionSetupPage = lazyPage(
 /** The landing page is for signed-out visitors; signed-in users go straight to the dashboard. */
 function Home() {
   const { data: me, isPending } = useMe();
-  if (isPending) return null;
+  // The installed apps say something is happening; an empty screen while the first call is slow
+  // looked like a freeze. (The website keeps showing nothing for the instant before its landing page.)
+  if (isPending)
+    return isNativeApp() ? <Loading label="Opening InterviewMeet" /> : null;
   if (me) return <Navigate to="/dashboard" replace />;
   // The installed apps are not a website: they open straight on sign-in, not the marketing page.
   if (isMobileApp() && !welcomeSeen())
