@@ -16,7 +16,7 @@ from app.autoapply import clock, cvfile, mailbox, outbox, switches
 from app.autoapply import facts as facts_mod
 from app.autoapply.adapters import AdapterError, InboundMessage, MailAttachment, MailboxAdapter
 from app.config import Settings
-from app.hunt import draft, fit, policy
+from app.hunt import draft, fit, policy, template
 from app.models import (
     HuntSettings,
     HuntTarget,
@@ -34,7 +34,6 @@ log = logging.getLogger(__name__)
 MAX_DAILY = 25
 MAX_BACKLOG = 30
 MIN_GAP = timedelta(seconds=90)
-FOLLOW_UP_AFTER = timedelta(days=5)
 STALE_CLAIM = timedelta(minutes=10)
 _KIND_RANK = {"person": 0, "role": 1, "general": 2}
 
@@ -204,9 +203,18 @@ async def plan(
     made = 0
     for pts, why, s, c in ranked[:room]:
         found = fit.openings_for(st.roles, s)
-        subject, body = await draft.write(
-            llm, facts, st, s, c, region=s.region, openings=found, why=why
-        )
+        held: list[str] = []
+        if _uses_template(st, "first"):
+            subject, body, held = template.compose(
+                st, s, c, "first", await template.hook(llm, facts, st, s)
+            )
+            body += "\n\n" + policy.footer(
+                s.region, st.sender_name, st.postal_address, c.source_url
+            )
+        else:
+            subject, body = await draft.write(
+                llm, facts, st, s, c, region=s.region, openings=found, why=why
+            )
         db.add(
             HuntTarget(
                 id=uuid.uuid4(),
@@ -219,7 +227,8 @@ async def plan(
                 openings=found,
                 subject=subject,
                 body=body,
-                status="approved" if st.auto_send else "drafted",
+                status="approved" if st.auto_send and not held else "drafted",
+                reason=("Fill in: " + ", ".join(held))[:300] if held else None,
                 created_at=now,
             )
         )
@@ -228,11 +237,17 @@ async def plan(
     return made
 
 
+def _uses_template(st: HuntSettings, which: str) -> bool:
+    t = st.template or {}
+    return bool(st.use_template and str(t.get(f"{which}_body") or "").strip())
+
+
 async def plan_followups(db: AsyncSession, user_id: uuid.UUID, now: datetime) -> int:
     """One short follow-up, five days after a note that nobody answered. Never a second."""
     st = await get_settings(db, user_id)
-    if st is None or not st.enabled:
+    if st is None or not st.enabled or not st.follow_up_enabled:
         return 0
+    after = timedelta(days=min(max(st.follow_up_days, 1), 30))
     sent = (
         (
             await db.execute(
@@ -240,7 +255,7 @@ async def plan_followups(db: AsyncSession, user_id: uuid.UUID, now: datetime) ->
                     HuntTarget.user_id == user_id,
                     HuntTarget.step == 1,
                     HuntTarget.status == "sent",
-                    HuntTarget.sent_at <= now - FOLLOW_UP_AFTER,
+                    HuntTarget.sent_at <= now - after,
                 )
             )
         )
@@ -265,12 +280,22 @@ async def plan_followups(db: AsyncSession, user_id: uuid.UUID, now: datetime) ->
         if await suppressed(db, user_id, contact.email):
             continue
         sign = st.sender_name
-        body = (
-            f"Hi again - a quick nudge on my note below in case it got buried. I would still "
-            f"love to talk about a {(st.roles or ['role'])[0]} role at {startup.name}. If now "
-            f"is not the time, no problem at all.\n\n{sign}\n\n"
-            + policy.footer(startup.region, sign, st.postal_address, contact.source_url)
-        )
+        held: list[str] = []
+        subject = "Re: " + t.subject[:290]
+        if _uses_template(st, "follow"):
+            subject, body, held = template.compose(
+                st, startup, contact, "follow", "", first_subject=t.subject
+            )
+            body += "\n\n" + policy.footer(
+                startup.region, sign, st.postal_address, contact.source_url
+            )
+        else:
+            body = (
+                f"Hi again - a quick nudge on my note below in case it got buried. I would still "
+                f"love to talk about a {(st.roles or ['role'])[0]} role at {startup.name}. If now "
+                f"is not the time, no problem at all.\n\n{sign}\n\n"
+                + policy.footer(startup.region, sign, st.postal_address, contact.source_url)
+            )
         db.add(
             HuntTarget(
                 id=uuid.uuid4(),
@@ -280,9 +305,10 @@ async def plan_followups(db: AsyncSession, user_id: uuid.UUID, now: datetime) ->
                 step=2,
                 fit=t.fit,
                 fit_reasons=t.fit_reasons,
-                subject="Re: " + t.subject[:290],
+                subject=subject,
                 body=body,
-                status="approved" if st.auto_send else "drafted",
+                status="approved" if st.auto_send and not held else "drafted",
+                reason=("Fill in: " + ", ".join(held))[:300] if held else None,
                 created_at=now,
             )
         )
@@ -294,10 +320,21 @@ async def plan_followups(db: AsyncSession, user_id: uuid.UUID, now: datetime) ->
 # ------------------------------------------------------------------------------ sending
 
 
-def in_window(now: datetime, tz: str) -> bool:
-    """Weekdays, 08:00-18:00 where the candidate is: notes should read like a person wrote them."""
+def in_window(now: datetime, tz: str, start: int = 8, end: int = 18) -> bool:
+    """Weekdays, within the hours the candidate chose (08:00-18:00 by default) where they are:
+    notes should read like a person wrote them."""
     local = now.astimezone(clock.zone(tz))
-    return local.weekday() < 5 and 8 <= local.hour < 18
+    return local.weekday() < 5 and start <= local.hour < end
+
+
+def window_of(st: HuntSettings) -> tuple[int, int]:
+    a = min(max(st.window_start, 0), 23)
+    return a, min(max(st.window_end, a + 1), 24)
+
+
+def too_early(st: HuntSettings, now: datetime) -> bool:
+    """The candidate asked for nothing to go out before a given time."""
+    return st.send_not_before is not None and now < st.send_not_before
 
 
 async def sent_today(db: AsyncSession, user_id: uuid.UUID, now: datetime, tz: str) -> int:
@@ -392,11 +429,14 @@ async def delivery_blockers(
                 "(AUTOAPPLY_ALLOWED_RECIPIENTS). To let it write to real startups, the operator "
                 "sets STARTUP_OUTREACH_ANY_RECIPIENT=true.",
             )
-        if st is not None and st.enabled and not in_window(now, tz):
+        if st is not None and st.enabled and too_early(st, now):
+            add("not_yet", "You asked for nothing to go out before the start time you set.")
+        a, b = window_of(st) if st is not None else (8, 18)
+        if st is not None and st.enabled and not in_window(now, tz, a, b):
             add(
                 "window",
-                f"Notes go out on weekdays between 08:00 and 18:00 ({tz}). It is outside that "
-                "now, so the next one goes in the next window.",
+                f"Notes go out on weekdays between {a:02d}:00 and {b:02d}:00 ({tz}). It is "
+                "outside that now, so the next one goes in the next window.",
             )
         if st is not None and await sent_today(db, user_id, now, tz) >= min(
             st.daily_cap, MAX_DAILY
@@ -454,7 +494,9 @@ async def send_next(
             gate = "mailbox_not_connected"
         elif prof and prof.paused:
             gate = "paused"
-        elif not in_window(now, tz):
+        elif too_early(st, now):
+            gate = "not_yet"
+        elif not in_window(now, tz, *window_of(st)):
             gate = "outside_send_hours"
         elif await sent_today(db, user_id, now, tz) >= min(st.daily_cap, MAX_DAILY):
             gate = "daily_cap_reached"
@@ -490,6 +532,9 @@ async def send_next(
             startup = await db.get(Startup, t.startup_id)
             if contact is None or startup is None:
                 t.status, t.reason = "skipped", "The contact no longer exists."
+                continue
+            if template.has_placeholder(t.subject) or template.has_placeholder(t.body):
+                t.status, t.reason = "drafted", "It still has a {{variable}} to fill in."
                 continue
             why = policy.may_write_to(startup.region, contact.email, startup.domain)
             why = why or (

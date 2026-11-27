@@ -8,12 +8,14 @@ import { Segmented } from "../autoapply/setup/controls";
 import {
   useHuntDelivery,
   useHuntSettings,
+  useHuntTemplate,
   useHuntTargets,
   useRequestOutreachAccess,
 } from "./api";
 import { HistoryRow, StartupCard } from "./Cards";
 import { StartupHero } from "./Connect";
 import { Setup } from "./Setup";
+import { Emails } from "./Emails";
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
@@ -24,7 +26,7 @@ function Stat({ label, value }: { label: string; value: number }) {
   );
 }
 
-type Tab = "review" | "sent" | "setup";
+type Tab = "review" | "sent" | "emails" | "setup";
 
 /** Approved notes that are not going out, and why, with where to fix it. Never shown when nothing
  *  is waiting or nothing is in the way. */
@@ -73,6 +75,7 @@ function WhyWaiting({ onSetup }: { onSetup: () => void }) {
 
 function StartupsBoard() {
   const settings = useHuntSettings();
+  const template = useHuntTemplate();
   const targets = useHuntTargets();
   const [picked, setPicked] = useState<Tab | null>(null);
   if (settings.isPending) return <Loading label="Loading startups" />;
@@ -135,6 +138,7 @@ function StartupsBoard() {
             label: waiting.length ? `Review (${waiting.length})` : "Review",
           },
           { value: "sent", label: "Sent" },
+          { value: "emails", label: "Emails" },
           { value: "setup", label: setupNeeded ? "Set up •" : "Set up" },
         ]}
       />
@@ -145,6 +149,10 @@ function StartupsBoard() {
           key={settings.dataUpdatedAt}
           onDone={() => setPicked("review")}
         />
+      )}
+
+      {tab === "emails" && (
+        <EmailsTab key={template.dataUpdatedAt} q={template} />
       )}
 
       {tab === "review" &&
@@ -241,4 +249,15 @@ export function StartupsPage() {
   if (box.data && !box.data.connected)
     return <Navigate to="/settings/email?next=/startups" replace />;
   return <StartupsBoard />;
+}
+
+function EmailsTab({ q }: { q: ReturnType<typeof useHuntTemplate> }) {
+  if (q.isPending) return <Loading label="Loading your emails" />;
+  if (q.isError || !q.data)
+    return (
+      <p role="alert" className="notice-error">
+        Your emails could not be loaded. Try again in a moment.
+      </p>
+    );
+  return <Emails t={q.data} />;
 }

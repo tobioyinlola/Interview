@@ -62,6 +62,28 @@ const target = {
   sent_at: null,
 };
 
+const template = {
+  use_template: false,
+  first_subject: "",
+  first_body: "",
+  follow_subject: "",
+  follow_body: "",
+  variables: {},
+  follow_up_enabled: true,
+  follow_up_days: 5,
+  send_not_before: null,
+  window_start: 8,
+  window_end: 18,
+  builtin: { company: "The startup's name", first_name: "First name" },
+  starter: {
+    first_subject: "{{role}} interested in {{company}}",
+    first_body: "Hi {{first_name}}, I like {{company}}. {{portfolio_link}}",
+    follow_subject: "Re: {{role}} interested in {{company}}",
+    follow_body: "Following up. {{portfolio_link}}",
+  },
+  unknown: [],
+};
+
 const routes = (extra: Record<string, () => object> = {}) =>
   mockApi({
     "GET /api/me": () => ({ json: me }),
@@ -76,12 +98,69 @@ const routes = (extra: Record<string, () => object> = {}) =>
       json: { companies: 1234, label: "over 1,000" },
     }),
     "GET /api/hunt/settings": () => ({ json: settings }),
+    "GET /api/hunt/template": () => ({ json: template }),
     "GET /api/hunt/targets": () => ({ json: [target] }),
     "GET /api/hunt/delivery": () => ({ json: { approved: 0, blockers: [] } }),
     ...extra,
   });
 
 describe("Startups inside Auto-Apply", () => {
+  it("lets you write your own emails, set your details and timing, preview and save", async () => {
+    const save = vi.fn((...args: unknown[]) => ({
+      json: {
+        ...template,
+        ...(args[0] as { body: object }).body,
+        unknown: [],
+      },
+    }));
+    const preview = vi.fn(() => ({
+      json: {
+        subject: "Senior PM interested in Acme",
+        body: "Hi Sam, I like Acme. https://me.example",
+        company: "Acme",
+        missing: [],
+      },
+    }));
+    routes({
+      "GET /api/hunt/settings": () => ({
+        json: { ...settings, enabled: true, ready: [] },
+      }),
+      "PUT /api/hunt/template": save,
+      "POST /api/hunt/template/preview": preview,
+    });
+    renderApp(<App />, "/startups");
+    await userEvent.click(await screen.findByRole("radio", { name: "Emails" }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Start from an example" }),
+    );
+    expect(screen.getByDisplayValue(/I like \{\{company\}\}/)).toBeVisible();
+    await userEvent.type(
+      screen.getByLabelText("Detail value"),
+      "https://me.example",
+    );
+    await userEvent.click(
+      screen.getAllByRole("button", { name: "Preview this email" })[0],
+    );
+    expect(
+      await screen.findByText("Senior PM interested in Acme"),
+    ).toBeVisible();
+    const days = screen.getByLabelText("Days before the follow-up");
+    await userEvent.clear(days);
+    await userEvent.type(days, "7");
+    await userEvent.click(
+      screen.getByRole("switch", { name: "Use my own emails" }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(save).toHaveBeenCalled());
+    const sent = (save.mock.calls[0][0] as { body: Record<string, unknown> })
+      .body;
+    expect(sent).toMatchObject({
+      use_template: true,
+      follow_up_days: 7,
+      variables: { portfolio_link: "https://me.example" },
+    });
+  });
+
   it("starts on the setup steps when it is not set up, then walks through them", async () => {
     routes();
     renderApp(<App />, "/startups");

@@ -67,3 +67,29 @@ and UI. **Not** verified live from the build environment (no outbound network): 
 pages, real startup sites, Gmail sending and the restricted `gmail.readonly` scope needed to
 read replies. Test on a staging mailbox with `STARTUP_OUTREACH_DISPATCH` and a recipient
 allowlist before opening it to anyone.
+
+## Your own emails (templates)
+
+Under Startups → **Emails** a candidate writes the first email and the follow-up once, and decides
+when they go. It is off until they turn it on; until then notes are written for each startup as
+before.
+
+* **Variables.** `{{company}}` is always the startup being written to, and `{{first_name}}` the
+  person (or "there" for a team address). Also built in: `{{company_hook}}` (one or two sentences
+  about what the startup does, written from what it published and checked like every written note),
+  `{{role}}` and `{{sender_name}}`. The candidate adds their own details, such as `{{portfolio_link}}`,
+  `{{phone}}` or `{{linkedin}}`. Names are forgiving: `{{Portfolio link}}` is `portfolio_link`.
+* **Safety.** Substitution happens once, so a value is never read again as template text. Text that
+  came from a startup's page is cleaned (no braces, one line, short). A subject is always one line.
+  A note that still has a `{{variable}}` with no value is **held for the candidate and never sent**,
+  even on auto-send, and cannot be approved until it is filled in. The opt-out line, the postal
+  address and the regional notice are added by code after the template, always. The CV is attached.
+* **Timing.** "Do not send before" (a date and time), sending hours on weekdays in the candidate's
+  time zone (08:00 to 18:00 by default), a daily cap (Set up), and a follow-up after 1 to 30 days
+  (default 5) with no reply, which can be switched off. At most one follow-up, never to anyone who
+  replied or asked to stop. All of the earlier rules (suppression, regions, role and general
+  addresses) still apply.
+* **Preview.** The editor renders either email for a real researched startup, with nothing sent.
+* **Who.** Startup outreach is by invitation (an admin switches it on per account), so for now it is
+  only on for the people the operator chose. The endpoints are `GET/PUT /api/hunt/template` and
+  `POST /api/hunt/template/preview`.

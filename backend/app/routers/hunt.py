@@ -17,7 +17,7 @@ from app.config import Settings, get_settings
 from app.db import get_db
 from app.deps import current_user, get_notifier, require_admin
 from app.errors import ApiError
-from app.hunt import directory, engine, policy, research
+from app.hunt import directory, engine, policy, research, template
 from app.models import (
     Directory,
     HuntSettings,
@@ -257,6 +257,151 @@ async def save_settings(
     return await _out(db, user.id)
 
 
+# ------------------------------------------------------------------ the candidate's own emails
+
+
+class TemplateIn(BaseModel):
+    use_template: bool = False
+    first_subject: str = Field("", max_length=300)
+    first_body: str = Field("", max_length=template.MAX_TEXT)
+    follow_subject: str = Field("", max_length=300)
+    follow_body: str = Field("", max_length=template.MAX_TEXT)
+    variables: dict[str, str] = Field(default_factory=dict, max_length=30)
+    follow_up_enabled: bool = True
+    follow_up_days: int = Field(5, ge=1, le=30)
+    send_not_before: datetime | None = None
+    window_start: int = Field(8, ge=0, le=23)
+    window_end: int = Field(18, ge=1, le=24)
+
+
+class TemplateOut(TemplateIn):
+    builtin: dict[str, str]  # variables everyone has, and what they hold
+    starter: dict[str, str]  # a generic starting point to copy from
+    unknown: list[str]  # variables the emails use that have no value yet
+
+
+class PreviewIn(BaseModel):
+    which: str = Field("first", pattern="^(first|follow)$")
+    # an unsaved edit can be previewed: send it and it is used instead of the saved one
+    subject: str | None = Field(None, max_length=300)
+    body: str | None = Field(None, max_length=template.MAX_TEXT)
+    variables: dict[str, str] | None = None
+
+
+class PreviewOut(BaseModel):
+    subject: str
+    body: str
+    company: str
+    missing: list[str]  # variables with no value: the email would be held until they are filled
+
+
+def _template_out(st: HuntSettings | None) -> TemplateOut:
+    t = (st.template if st else None) or {}
+    variables = template.clean_variables((st.variables if st else None) or {})
+    names: list[str] = []
+    for k in ("first_subject", "first_body", "follow_subject", "follow_body"):
+        for n in template.used(str(t.get(k) or "")):
+            if n not in names:
+                names.append(n)
+    return TemplateOut(
+        use_template=bool(st and st.use_template),
+        first_subject=str(t.get("first_subject") or ""),
+        first_body=str(t.get("first_body") or ""),
+        follow_subject=str(t.get("follow_subject") or ""),
+        follow_body=str(t.get("follow_body") or ""),
+        variables=variables,
+        follow_up_enabled=bool(st.follow_up_enabled) if st else True,
+        follow_up_days=st.follow_up_days if st else 5,
+        send_not_before=st.send_not_before if st else None,
+        window_start=st.window_start if st else 8,
+        window_end=st.window_end if st else 18,
+        builtin=template.BUILTIN,
+        starter=template.STARTER,
+        unknown=[n for n in names if n not in template.BUILTIN and n not in variables],
+    )
+
+
+@router.get("/template")
+async def read_template(
+    user: User = Depends(active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> TemplateOut:
+    return _template_out(await engine.get_settings(db, user.id))
+
+
+@router.put("/template")
+async def save_template(
+    body: TemplateIn,
+    user: User = Depends(active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    now: datetime = Depends(get_now),  # noqa: B008
+) -> TemplateOut:
+    if body.window_end <= body.window_start:
+        raise ApiError(422, "bad_window", "The end hour must be after the start hour.")
+    if body.use_template and not body.first_body.strip():
+        raise ApiError(422, "no_first_email", "Write the first email before turning this on.")
+    st = await engine.get_settings(db, user.id)
+    if st is None:
+        st = HuntSettings(id=uuid.uuid4(), user_id=user.id)
+        db.add(st)
+    st.use_template = body.use_template
+    st.template = {
+        "first_subject": " ".join(body.first_subject.split()),
+        "first_body": body.first_body.strip(),
+        "follow_subject": " ".join(body.follow_subject.split()),
+        "follow_body": body.follow_body.strip(),
+    }
+    st.variables = template.clean_variables(body.variables)
+    st.follow_up_enabled, st.follow_up_days = body.follow_up_enabled, body.follow_up_days
+    st.send_not_before = body.send_not_before
+    st.window_start, st.window_end = body.window_start, body.window_end
+    st.updated_at = now
+    await db.commit()
+    return _template_out(st)
+
+
+@router.post("/template/preview")
+async def preview_template(
+    body: PreviewIn,
+    user: User = Depends(active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> PreviewOut:
+    """What the email would look like for a real researched startup (or a made-up one when none is
+    researched yet), with the candidate's details filled in. Nothing is sent or saved."""
+    st = await engine.get_settings(db, user.id) or HuntSettings(user_id=user.id)
+    sample = (
+        await db.execute(
+            select(Startup).where(Startup.status == "researched").order_by(Startup.created_at)
+        )
+    ).scalars().first() or Startup(
+        name="Acme", domain="acme.example", website="https://acme.example", one_liner=""
+    )
+    contact = StartupContact(email="hello@acme.example", name="Sam Rivera", kind="person",
+                             source_url=sample.website)  # fmt: skip
+    t = dict(st.template or {})
+    if body.subject is not None:
+        t[f"{body.which}_subject"] = body.subject
+    if body.body is not None:
+        t[f"{body.which}_body"] = body.body
+    shown = HuntSettings(
+        template=t,
+        variables=body.variables if body.variables is not None else (st.variables or {}),
+        roles=st.roles or [],
+        sender_name=st.sender_name or "",
+        postal_address=st.postal_address or "",
+    )
+    hook = (sample.one_liner or "").strip().rstrip(".")
+    sample_hook = (
+        f"What {sample.name} is building ({hook[0].lower() + hook[1:]}) is close to my work."
+        if hook
+        else ""
+    )
+    subject, text, missing = template.compose(
+        shown, sample, contact, body.which, sample_hook, first_subject="(your first subject)"
+    )
+    return PreviewOut(subject=subject, body=text, company=sample.name, missing=missing)
+
+
 async def _target_out(db: AsyncSession, t: HuntTarget) -> TargetOut:
     s = await db.get(Startup, t.startup_id)
     c = await db.get(StartupContact, t.contact_id)
@@ -373,6 +518,10 @@ async def approve(
     t = await _mine(db, user.id, tid)
     if t.status != "drafted":
         raise ApiError(409, "locked", "That note is not waiting for approval.")
+    if template.has_placeholder(t.subject) or template.has_placeholder(t.body):
+        raise ApiError(
+            409, "unfilled", "Fill in the {{variables}} in this note first, then approve it."
+        )
     t.status = "approved"
     await db.commit()
     return await _target_out(db, t)
