@@ -11,6 +11,7 @@ const rules = require("../src/auto/rules");
 
 const backend = path.join(__dirname, "..", "..", "backend");
 const have = fs.existsSync(path.join(backend, "app", "autoapply", "browserform.py"));
+const py3 = spawnSync("python3", ["--version"]).status === 0;
 
 const LABELS = [["Email address", "x"], ["First Name*", "first_name"], ["Legal Name", "_systemfield_name"], ["Phone number", "p"],
   ["LinkedIn Profile", "dc91"], ["Country", "c"], ["Current company", "c2"], ["Where are you based?", "w"], ["Why us?", "question_1"],
@@ -25,7 +26,7 @@ const CONF = [["greenhouse", "https://x/confirmation", "", "https://x/apply"], [
   ["lever", "https://jobs.lever.co/x/thanks", "", "https://jobs.lever.co/x/apply"], ["generic", "https://x/apply", "Working on it", "https://x/apply"],
   ["ashby", "https://x", "Your application was successfully submitted.", "https://x"], ["workable", "https://x", "Thank you", "https://x"]];
 
-test("the JavaScript rules give the same answers as the Python ones", { skip: !have && "backend not present" }, () => {
+test("the JavaScript rules give the same answers as the Python ones", { skip: (!have && "backend not present") || (!py3 && "no python") }, () => {
   const py = `
 import json, sys
 sys.path.insert(0, ${JSON.stringify(backend)})

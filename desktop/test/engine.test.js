@@ -16,12 +16,18 @@ const VALUES = {
   country: "Nigeria", question_1: "I love the product.", auth: "Yes", veteran: "I am not a veteran", consent: "yes",
 };
 
+const fs = require("node:fs");
+const CHROME = process.env.CHROME || "/opt/pw-browsers/chromium";
+const SKIP = !fs.existsSync(CHROME) && "no test browser here (set CHROME); the workspace smoke test covers the real app";
+if (SKIP) { test("engine tests need a browser", { skip: SKIP }, () => {}); process.exitCode = process.exitCode || 0; }
+
 let browser, server;
 test.before(async () => {
+  if (SKIP) return;
   server = await site.start();
-  browser = await chromium.launch({ executablePath: process.env.CHROME || "/opt/pw-browsers/chromium", args: ["--no-sandbox"] });
+  browser = await chromium.launch({ executablePath: CHROME, args: ["--no-sandbox"] });
 });
-test.after(async () => { await browser.close(); await server.close(); });
+test.after(async () => { if (SKIP) return; await browser.close(); await server.close(); });
 
 async function open(path) {
   const ctx = await browser.newContext();
@@ -45,7 +51,7 @@ function run(driver, path, over = {}) {
   return { done, events, ctl };
 }
 
-test("fills a Greenhouse-style form, uploads the exact CV and ends on the employer's confirmation", async () => {
+test("fills a Greenhouse-style form, uploads the exact CV and ends on the employer's confirmation", { skip: SKIP }, async () => {
   server.received.length = 0;
   const { driver, close, page } = await open("/jobs/1");
   const r = run(driver, "/jobs/1");
@@ -66,7 +72,7 @@ test("fills a Greenhouse-style form, uploads the exact CV and ends on the employ
   await close(); void page;
 });
 
-test("an Ashby-style form drawn by script: button choices, hidden file input", async () => {
+test("an Ashby-style form drawn by script: button choices, hidden file input", { skip: SKIP }, async () => {
   server.received.length = 0;
   const { driver, close } = await open("/ashby/jobs/1");
   const r = run(driver, "/ashby/jobs/1", { job: { ats: "ashby", values: { name: "Ada Obi", email: "ada@example.com", phone: "+234 801", linkedin: "https://x", q_do_you_have_5_years_of_experience: "Yes", long1: "A hard problem." } } });
@@ -79,7 +85,7 @@ test("an Ashby-style form drawn by script: button choices, hidden file input", a
   await close();
 });
 
-test("a required question with no answer is handed back before anything is typed", async () => {
+test("a required question with no answer is handed back before anything is typed", { skip: SKIP }, async () => {
   const { driver, close, page } = await open("/jobs/1");
   const values = { ...VALUES }; delete values.question_1;
   const r = run(driver, "/jobs/1", { job: { values } });
@@ -91,7 +97,7 @@ test("a required question with no answer is handed back before anything is typed
   await close();
 });
 
-test("a sensitive declaration with no stored answer is never guessed", async () => {
+test("a sensitive declaration with no stored answer is never guessed", { skip: SKIP }, async () => {
   const { driver, close } = await open("/jobs/clearance");
   const r = run(driver, "/jobs/clearance", { job: { values: { first_name: "Ada", email: "ada@example.com" } } });
   const out = await r.done;
@@ -100,7 +106,7 @@ test("a sensitive declaration with no stored answer is never guessed", async () 
   await close();
 });
 
-test("a CAPTCHA asks the person; skipping hands it back and nothing is submitted", async () => {
+test("a CAPTCHA asks the person; skipping hands it back and nothing is submitted", { skip: SKIP }, async () => {
   server.received.length = 0;
   const { driver, close } = await open("/jobs/captcha");
   const r = run(driver, "/jobs/captcha", { answer: "skip" });
@@ -111,7 +117,7 @@ test("a CAPTCHA asks the person; skipping hands it back and nothing is submitted
   await close();
 });
 
-test("a multi-step form is completed screen by screen", async () => {
+test("a multi-step form is completed screen by screen", { skip: SKIP }, async () => {
   server.received.length = 0;
   const { driver, close } = await open("/jobs/steps");
   const r = run(driver, "/jobs/steps");
@@ -123,7 +129,7 @@ test("a multi-step form is completed screen by screen", async () => {
   await close();
 });
 
-test("skip pressed mid-form ends it before the submit button", async () => {
+test("skip pressed mid-form ends it before the submit button", { skip: SKIP }, async () => {
   server.received.length = 0;
   const { driver, close } = await open("/jobs/1");
   const r = run(driver, "/jobs/1", { onSay: (kind, d, ctl) => { if (kind === "field_completed" && d.field === "email") ctl.command = "skip"; } });
@@ -135,7 +141,7 @@ test("skip pressed mid-form ends it before the submit button", async () => {
   await close();
 });
 
-test("the server's last check can refuse: the submit button is never pressed", async () => {
+test("the server's last check can refuse: the submit button is never pressed", { skip: SKIP }, async () => {
   server.received.length = 0;
   const { driver, close } = await open("/jobs/1");
   const r = run(driver, "/jobs/1", { deny: "you stopped the run" });
@@ -145,7 +151,7 @@ test("the server's last check can refuse: the submit button is never pressed", a
   await close();
 });
 
-test("pressing submit with no confirmation is ambiguous, never success", async () => {
+test("pressing submit with no confirmation is ambiguous, never success", { skip: SKIP }, async () => {
   const { driver, close } = await open("/jobs/silent");
   const r = run(driver, "/jobs/silent");
   const out = await r.done;
