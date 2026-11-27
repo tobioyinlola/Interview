@@ -563,6 +563,8 @@ async def test_old_run_history_and_silent_computers_are_cleared(ada, maker):
         await db.commit()
     assert await runlog.purge(maker, 90) == 1
     async with maker() as db:
-        assert [e.kind for e in (await db.execute(select(RunEvent))).scalars().all()] == ["run_paused"]
+        assert [e.kind for e in (await db.execute(select(RunEvent))).scalars().all()] == [
+            "run_paused"
+        ]
         names = {e.executor_id for e in (await db.execute(select(Executor))).scalars().all()}
         assert names == {"new-pc-0001"}

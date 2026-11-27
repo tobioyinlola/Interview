@@ -52,7 +52,9 @@ class Route:
         return {
             "method": self.method,
             "channel": self.channel,
-            "ladder": [{"method": s.method, "available": s.available, "why": s.why} for s in self.ladder],
+            "ladder": [
+                {"method": s.method, "available": s.available, "why": s.why} for s in self.ladder
+            ],
         }
 
 

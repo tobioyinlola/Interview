@@ -325,7 +325,9 @@ async def purge(maker: async_sessionmaker[AsyncSession], days: int) -> int:
     now = datetime.now().astimezone()
     try:
         async with maker() as db:
-            gone = await db.execute(delete(RunEvent).where(RunEvent.at < now - timedelta(days=days)))
+            gone = await db.execute(
+                delete(RunEvent).where(RunEvent.at < now - timedelta(days=days))
+            )
             await db.execute(delete(Executor).where(Executor.last_seen < now - timedelta(days=30)))
             await db.commit()
             return int(gone.rowcount or 0)  # type: ignore[attr-defined]
