@@ -425,6 +425,7 @@ async def test_a_worker_that_died_after_marking_dispatch_leaves_an_unknown_outco
     async with maker() as db:
         a = await db.get(SubmissionAttempt, claim.attempt_id)
         a.state, a.dispatched_at = "dispatched", clock.now  # marked, then the process died
+        a.lease_until = clock.now + outbox.DISPATCH_GRACE  # as execute() sets it
         await db.commit()
     clock.now += timedelta(minutes=5)
     await tick()

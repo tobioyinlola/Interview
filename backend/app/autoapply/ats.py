@@ -49,6 +49,33 @@ class Ats:
         return not self.path or re.search(self.path, parts.path or "", re.I) is not None
 
 
+# What a confirmation looks like on any employer's site, before a system's own words are added.
+SUCCESS_URL = re.compile(r"/(confirmation|thank|submitted|success|applied)", re.I)
+SUCCESS_TEXT = re.compile(
+    r"thank you for (applying|your application|your interest|submitting)"
+    r"|application (has been )?(submitted|received|sent|complete)"
+    r"|we(?:'ve| have) received your application"
+    r"|successfully submitted",
+    re.I,
+)
+
+
+def confirmation(system: "Ats", url: str, text: str, before_url: str = "") -> str | None:
+    """The proof the employer took an application: its own words on the page, or a new address that
+    says so. None when there is none (pressing the button is never proof)."""
+    m = SUCCESS_TEXT.search(text) or (
+        re.search(system.success_text, text, re.I) if system.success_text else None
+    )
+    if m:
+        return m.group(0)[:200]
+    moved = url != before_url
+    if moved and (
+        SUCCESS_URL.search(url) or (system.success_url and re.search(system.success_url, url, re.I))
+    ):
+        return url[:200]
+    return None
+
+
 GENERIC = Ats(
     key="generic",
     label="Company career form",

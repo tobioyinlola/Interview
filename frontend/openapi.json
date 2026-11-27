@@ -2130,6 +2130,22 @@
         "title": "ChannelRow",
         "type": "object"
       },
+      "ClaimIn": {
+        "properties": {
+          "executor_id": {
+            "maxLength": 64,
+            "minLength": 8,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Executor Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "executor_id"
+        ],
+        "title": "ClaimIn",
+        "type": "object"
+      },
       "CompanyCreatedOut": {
         "properties": {
           "company": {
@@ -2464,6 +2480,44 @@
         "title": "ConnectSmtpIn",
         "type": "object"
       },
+      "CountersOut": {
+        "properties": {
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "needs_you": {
+            "title": "Needs You",
+            "type": "integer"
+          },
+          "queued": {
+            "title": "Queued",
+            "type": "integer"
+          },
+          "skipped": {
+            "title": "Skipped",
+            "type": "integer"
+          },
+          "verified": {
+            "title": "Verified",
+            "type": "integer"
+          },
+          "verified_today": {
+            "title": "Verified Today",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "queued",
+          "verified",
+          "verified_today",
+          "failed",
+          "skipped",
+          "needs_you"
+        ],
+        "title": "CountersOut",
+        "type": "object"
+      },
       "CreditBreakdown": {
         "properties": {
           "gifted": {
@@ -2495,6 +2549,131 @@
           "used"
         ],
         "title": "CreditBreakdown",
+        "type": "object"
+      },
+      "CurrentOut": {
+        "properties": {
+          "ats": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ats"
+          },
+          "ats_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ats Label"
+          },
+          "company": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company"
+          },
+          "cv_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cv Version"
+          },
+          "executor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Executor"
+          },
+          "fields_done": {
+            "default": 0,
+            "title": "Fields Done",
+            "type": "integer"
+          },
+          "fields_total": {
+            "default": 0,
+            "title": "Fields Total",
+            "type": "integer"
+          },
+          "progress": {
+            "default": 0,
+            "title": "Progress",
+            "type": "integer"
+          },
+          "question": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          },
+          "step": {
+            "default": 1,
+            "title": "Step",
+            "type": "integer"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "title": "CurrentOut",
         "type": "object"
       },
       "CvUploadOut": {
@@ -2582,7 +2761,7 @@
           "last_run": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/RunOut"
+                "$ref": "#/components/schemas/app__autoapply__schemas__RunOut"
               },
               {
                 "type": "null"
@@ -2938,6 +3117,22 @@
           "problems"
         ],
         "title": "Disclosure",
+        "type": "object"
+      },
+      "DispatchIn": {
+        "properties": {
+          "executor_id": {
+            "maxLength": 64,
+            "minLength": 8,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Executor Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "executor_id"
+        ],
+        "title": "DispatchIn",
         "type": "object"
       },
       "EditIn": {
@@ -3412,6 +3607,102 @@
           "name"
         ],
         "title": "EventIn",
+        "type": "object"
+      },
+      "EventOut": {
+        "properties": {
+          "application_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Application Id"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "data": {
+            "additionalProperties": true,
+            "title": "Data",
+            "type": "object"
+          },
+          "executor": {
+            "title": "Executor",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "text",
+          "executor",
+          "data",
+          "at"
+        ],
+        "title": "EventOut",
+        "type": "object"
+      },
+      "EventsOut": {
+        "properties": {
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/EventOut"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "last_seq": {
+            "title": "Last Seq",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "events",
+          "last_seq"
+        ],
+        "title": "EventsOut",
+        "type": "object"
+      },
+      "ExecutorOut": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "online": {
+            "title": "Online",
+            "type": "boolean"
+          },
+          "platform": {
+            "title": "Platform",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "platform",
+          "online"
+        ],
+        "title": "ExecutorOut",
         "type": "object"
       },
       "FactsIn": {
@@ -5926,6 +6217,65 @@
         "title": "ReferrerRow",
         "type": "object"
       },
+      "RegisterIn": {
+        "properties": {
+          "app_version": {
+            "default": "",
+            "maxLength": 30,
+            "title": "App Version",
+            "type": "string"
+          },
+          "executor_id": {
+            "maxLength": 64,
+            "minLength": 8,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Executor Id",
+            "type": "string"
+          },
+          "name": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Name",
+            "type": "string"
+          },
+          "platform": {
+            "default": "",
+            "maxLength": 20,
+            "title": "Platform",
+            "type": "string"
+          }
+        },
+        "required": [
+          "executor_id"
+        ],
+        "title": "RegisterIn",
+        "type": "object"
+      },
+      "ReportIn": {
+        "properties": {
+          "events": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "maxItems": 60,
+            "title": "Events",
+            "type": "array"
+          },
+          "executor_id": {
+            "maxLength": 64,
+            "minLength": 8,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Executor Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "executor_id"
+        ],
+        "title": "ReportIn",
+        "type": "object"
+      },
       "RequestLinkIn": {
         "properties": {
           "app_challenge": {
@@ -6023,6 +6373,101 @@
         "title": "ResolveIn",
         "type": "object"
       },
+      "ResultIn": {
+        "properties": {
+          "before_url": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Before Url",
+            "type": "string"
+          },
+          "command": {
+            "default": "",
+            "maxLength": 8,
+            "title": "Command",
+            "type": "string"
+          },
+          "documents": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "maxItems": 5,
+            "title": "Documents",
+            "type": "array"
+          },
+          "evidence": {
+            "default": "",
+            "maxLength": 3000,
+            "title": "Evidence",
+            "type": "string"
+          },
+          "executor_id": {
+            "maxLength": 64,
+            "minLength": 8,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Executor Id",
+            "type": "string"
+          },
+          "message": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Message",
+            "type": "string"
+          },
+          "need": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "maxItems": 20,
+            "title": "Need",
+            "type": "array"
+          },
+          "provider": {
+            "default": "",
+            "maxLength": 24,
+            "title": "Provider",
+            "type": "string"
+          },
+          "sent_unknown": {
+            "default": false,
+            "title": "Sent Unknown",
+            "type": "boolean"
+          },
+          "status": {
+            "enum": [
+              "confirmed",
+              "failed",
+              "needs_input",
+              "handed_over",
+              "interrupted",
+              "ambiguous"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "steps": {
+            "default": 1,
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Steps",
+            "type": "integer"
+          },
+          "url": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "executor_id",
+          "status"
+        ],
+        "title": "ResultIn",
+        "type": "object"
+      },
       "RetentionRow": {
         "properties": {
           "cohort": {
@@ -6056,80 +6501,6 @@
           "pct"
         ],
         "title": "RetentionRow",
-        "type": "object"
-      },
-      "RunOut": {
-        "properties": {
-          "eligible": {
-            "title": "Eligible",
-            "type": "integer"
-          },
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error"
-          },
-          "finished_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Finished At"
-          },
-          "found": {
-            "title": "Found",
-            "type": "integer"
-          },
-          "local_day": {
-            "title": "Local Day",
-            "type": "string"
-          },
-          "needs_input": {
-            "title": "Needs Input",
-            "type": "integer"
-          },
-          "new": {
-            "title": "New",
-            "type": "integer"
-          },
-          "skipped": {
-            "title": "Skipped",
-            "type": "integer"
-          },
-          "started_at": {
-            "format": "date-time",
-            "title": "Started At",
-            "type": "string"
-          },
-          "status": {
-            "title": "Status",
-            "type": "string"
-          }
-        },
-        "required": [
-          "local_day",
-          "status",
-          "found",
-          "new",
-          "eligible",
-          "needs_input",
-          "skipped",
-          "error",
-          "started_at",
-          "finished_at"
-        ],
-        "title": "RunOut",
         "type": "object"
       },
       "ScoreOut": {
@@ -6789,65 +7160,6 @@
           "question_count"
         ],
         "title": "SessionSummary",
-        "type": "object"
-      },
-      "SettingsIn": {
-        "properties": {
-          "auto_send": {
-            "default": false,
-            "title": "Auto Send",
-            "type": "boolean"
-          },
-          "daily_cap": {
-            "default": 8,
-            "maximum": 25.0,
-            "minimum": 1.0,
-            "title": "Daily Cap",
-            "type": "integer"
-          },
-          "enabled": {
-            "title": "Enabled",
-            "type": "boolean"
-          },
-          "pitch": {
-            "default": "",
-            "maxLength": 1200,
-            "title": "Pitch",
-            "type": "string"
-          },
-          "postal_address": {
-            "default": "",
-            "maxLength": 300,
-            "title": "Postal Address",
-            "type": "string"
-          },
-          "regions": {
-            "items": {
-              "type": "string"
-            },
-            "maxItems": 3,
-            "title": "Regions",
-            "type": "array"
-          },
-          "roles": {
-            "items": {
-              "type": "string"
-            },
-            "maxItems": 5,
-            "title": "Roles",
-            "type": "array"
-          },
-          "sender_name": {
-            "default": "",
-            "maxLength": 120,
-            "title": "Sender Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "enabled"
-        ],
-        "title": "SettingsIn",
         "type": "object"
       },
       "SettingsOut": {
@@ -8727,6 +9039,80 @@
         "title": "WorkerOut",
         "type": "object"
       },
+      "app__autoapply__schemas__RunOut": {
+        "properties": {
+          "eligible": {
+            "title": "Eligible",
+            "type": "integer"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "found": {
+            "title": "Found",
+            "type": "integer"
+          },
+          "local_day": {
+            "title": "Local Day",
+            "type": "string"
+          },
+          "needs_input": {
+            "title": "Needs Input",
+            "type": "integer"
+          },
+          "new": {
+            "title": "New",
+            "type": "integer"
+          },
+          "skipped": {
+            "title": "Skipped",
+            "type": "integer"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "local_day",
+          "status",
+          "found",
+          "new",
+          "eligible",
+          "needs_input",
+          "skipped",
+          "error",
+          "started_at",
+          "finished_at"
+        ],
+        "title": "RunOut",
+        "type": "object"
+      },
       "app__autoapply__schemas__StatusOut": {
         "properties": {
           "campaign": {
@@ -8747,6 +9133,183 @@
           "campaign"
         ],
         "title": "StatusOut",
+        "type": "object"
+      },
+      "app__routers__autoapply_run__RunOut": {
+        "properties": {
+          "counters": {
+            "$ref": "#/components/schemas/CountersOut"
+          },
+          "current": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CurrentOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "desktop_open": {
+            "title": "Desktop Open",
+            "type": "boolean"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/EventOut"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "execution_mode": {
+            "title": "Execution Mode",
+            "type": "string"
+          },
+          "executors": {
+            "items": {
+              "$ref": "#/components/schemas/ExecutorOut"
+            },
+            "title": "Executors",
+            "type": "array"
+          },
+          "forms_run_on": {
+            "enum": [
+              "desktop",
+              "cloud"
+            ],
+            "title": "Forms Run On",
+            "type": "string"
+          },
+          "last_seq": {
+            "title": "Last Seq",
+            "type": "integer"
+          },
+          "speed": {
+            "title": "Speed",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "idle",
+              "running",
+              "paused",
+              "stopped",
+              "ended"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "speed",
+          "execution_mode",
+          "forms_run_on",
+          "desktop_open",
+          "executors",
+          "counters",
+          "current",
+          "events",
+          "last_seq"
+        ],
+        "title": "RunOut",
+        "type": "object"
+      },
+      "app__routers__autoapply_run__SettingsIn": {
+        "properties": {
+          "execution_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "auto",
+                  "desktop",
+                  "cloud"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Execution Mode"
+          },
+          "speed": {
+            "anyOf": [
+              {
+                "enum": [
+                  "slow",
+                  "normal",
+                  "fast"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speed"
+          }
+        },
+        "title": "SettingsIn",
+        "type": "object"
+      },
+      "app__routers__hunt__SettingsIn": {
+        "properties": {
+          "auto_send": {
+            "default": false,
+            "title": "Auto Send",
+            "type": "boolean"
+          },
+          "daily_cap": {
+            "default": 8,
+            "maximum": 25.0,
+            "minimum": 1.0,
+            "title": "Daily Cap",
+            "type": "integer"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "pitch": {
+            "default": "",
+            "maxLength": 1200,
+            "title": "Pitch",
+            "type": "string"
+          },
+          "postal_address": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Postal Address",
+            "type": "string"
+          },
+          "regions": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 3,
+            "title": "Regions",
+            "type": "array"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 5,
+            "title": "Roles",
+            "type": "array"
+          },
+          "sender_name": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Sender Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "SettingsIn",
         "type": "object"
       },
       "app__schemas__api__StatusOut": {
@@ -12374,6 +12937,254 @@
         ]
       }
     },
+    "/api/autoapply/desktop/attempts/{attempt_id}/dispatch": {
+      "post": {
+        "operationId": "desktop_dispatch_api_autoapply_desktop_attempts__attempt_id__dispatch_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attempt_id",
+            "required": true,
+            "schema": {
+              "title": "Attempt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DispatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Desktop Dispatch Api Autoapply Desktop Attempts  Attempt Id  Dispatch Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Desktop Dispatch",
+        "tags": [
+          "autoapply-run"
+        ]
+      }
+    },
+    "/api/autoapply/desktop/attempts/{attempt_id}/events": {
+      "post": {
+        "operationId": "desktop_events_api_autoapply_desktop_attempts__attempt_id__events_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attempt_id",
+            "required": true,
+            "schema": {
+              "title": "Attempt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Desktop Events Api Autoapply Desktop Attempts  Attempt Id  Events Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Desktop Events",
+        "tags": [
+          "autoapply-run"
+        ]
+      }
+    },
+    "/api/autoapply/desktop/attempts/{attempt_id}/result": {
+      "post": {
+        "operationId": "desktop_result_api_autoapply_desktop_attempts__attempt_id__result_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attempt_id",
+            "required": true,
+            "schema": {
+              "title": "Attempt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResultIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Desktop Result Api Autoapply Desktop Attempts  Attempt Id  Result Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Desktop Result",
+        "tags": [
+          "autoapply-run"
+        ]
+      }
+    },
+    "/api/autoapply/desktop/claim": {
+      "post": {
+        "operationId": "desktop_claim_api_autoapply_desktop_claim_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClaimIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Desktop Claim Api Autoapply Desktop Claim Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Desktop Claim",
+        "tags": [
+          "autoapply-run"
+        ]
+      }
+    },
+    "/api/autoapply/desktop/register": {
+      "post": {
+        "operationId": "desktop_register_api_autoapply_desktop_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Desktop Register Api Autoapply Desktop Register Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Desktop Register",
+        "tags": [
+          "autoapply-run"
+        ]
+      }
+    },
     "/api/autoapply/discovery/last": {
       "get": {
         "operationId": "last_run_api_autoapply_discovery_last_get",
@@ -12384,7 +13195,7 @@
                 "schema": {
                   "anyOf": [
                     {
-                      "$ref": "#/components/schemas/RunOut"
+                      "$ref": "#/components/schemas/app__autoapply__schemas__RunOut"
                     },
                     {
                       "type": "null"
@@ -12414,7 +13225,7 @@
                 "schema": {
                   "anyOf": [
                     {
-                      "$ref": "#/components/schemas/RunOut"
+                      "$ref": "#/components/schemas/app__autoapply__schemas__RunOut"
                     },
                     {
                       "type": "null"
@@ -13110,6 +13921,171 @@
         ]
       }
     },
+    "/api/autoapply/run": {
+      "get": {
+        "operationId": "run_view_api_autoapply_run_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__routers__autoapply_run__RunOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Run View",
+        "tags": [
+          "autoapply-run"
+        ]
+      }
+    },
+    "/api/autoapply/run/events": {
+      "get": {
+        "description": "Events after number `after`. With `wait`, holds the request open (up to 25 seconds) until\nthere is one, so a screen follows the run live over plain HTTP, on the web and in every app.",
+        "operationId": "run_events_api_autoapply_run_events_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "After",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "wait",
+            "required": false,
+            "schema": {
+              "default": 0.0,
+              "title": "Wait",
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Events",
+        "tags": [
+          "autoapply-run"
+        ]
+      }
+    },
+    "/api/autoapply/run/settings": {
+      "put": {
+        "operationId": "run_settings_api_autoapply_run_settings_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/app__routers__autoapply_run__SettingsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__routers__autoapply_run__RunOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Settings",
+        "tags": [
+          "autoapply-run"
+        ]
+      }
+    },
+    "/api/autoapply/run/{action}": {
+      "post": {
+        "operationId": "run_control_api_autoapply_run__action__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "action",
+            "required": true,
+            "schema": {
+              "enum": [
+                "start",
+                "pause",
+                "resume",
+                "skip",
+                "stop"
+              ],
+              "title": "Action",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__routers__autoapply_run__RunOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Control",
+        "tags": [
+          "autoapply-run"
+        ]
+      }
+    },
     "/api/autoapply/status": {
       "get": {
         "operationId": "status_api_autoapply_status_get",
@@ -13755,7 +14731,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SettingsIn"
+                "$ref": "#/components/schemas/app__routers__hunt__SettingsIn"
               }
             }
           },

@@ -59,14 +59,6 @@ MAX_OPTIONS = 80
 # What a script-drawn dropdown's choices look like: standard roles, or react-select's own classes.
 OPTIONS = "[role=option], [class*=select__option], [id*='-option-']"
 
-SUCCESS_URL = re.compile(r"/(confirmation|thank|submitted|success|applied)", re.I)
-SUCCESS_TEXT = re.compile(
-    r"thank you for (applying|your application|your interest|submitting)"
-    r"|application (has been )?(submitted|received|sent|complete)"
-    r"|we(?:'ve| have) received your application"
-    r"|successfully submitted",
-    re.I,
-)
 CLOSED_TEXT = re.compile(
     r"no longer (accepting|available|open)|position (has been |is )?(filled|closed)"
     r"|job (is |has been )?(closed|removed)|this (job|position|role) (is|has been) (closed|filled)"
@@ -533,23 +525,10 @@ class BrowserForm:
                 state = await page.evaluate(STATE)
             except Exception:  # noqa: BLE001, S112 - the page is navigating: look again
                 continue
-            url_ok = SUCCESS_URL.search(state["url"]) or (
-                system.success_url and re.search(system.success_url, state["url"], re.I)
-            )
-            text_ok = SUCCESS_TEXT.search(state["text"]) or (
-                system.success_text and re.search(system.success_text, state["text"], re.I)
-            )
-            if (state["url"] != before and url_ok) or text_ok:
-                m = SUCCESS_TEXT.search(state["text"]) or (
-                    re.search(system.success_text, state["text"], re.I)
-                    if system.success_text
-                    else None
-                )
+            proof = ats.confirmation(system, state["url"], state["text"], before)
+            if proof:
                 ref = hashlib.sha256(key.encode()).hexdigest()[:12]
-                return FormReceipt(
-                    reference=f"browser-{ref}",
-                    evidence=(m.group(0) if m else state["url"])[:200],
-                )
+                return FormReceipt(reference=f"browser-{ref}", evidence=proof)
             if SPAM_TEXT.search(state["text"]):
                 raise AdapterError(
                     "rejected", "The employer's site flagged the submission as automated."

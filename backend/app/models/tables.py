@@ -757,6 +757,70 @@ class SubmissionAttempt(Base):
     claimed_at: Mapped[datetime] = mapped_column(_TS, default=_now)
     dispatched_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    # Who is carrying it out: this server's worker ("cloud") or the candidate's own computer
+    # ("desktop"). The lease says until when that executor owns it; it is renewed while the
+    # executor reports progress. An expired lease lets the work be recovered, never sent twice.
+    executor: Mapped[str] = mapped_column(String(8), default="cloud", server_default="cloud")
+    executor_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    lease_until: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)  # claim to result
+
+
+class RunState(Base):
+    """What the candidate asked of the application run, one row each. Shared by every executor
+    and every screen, so a control pressed on the phone is obeyed by the desktop and the server."""
+
+    __tablename__ = "aa_run_state"
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = _fk("users.id", unique=True)
+    stopped: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    speed: Mapped[str] = mapped_column(String(8), default="normal", server_default="normal")
+    # auto: the desktop when it is open and ready, otherwise the server | desktop | cloud
+    execution_mode: Mapped[str] = mapped_column(String(8), default="auto", server_default="auto")
+    command: Mapped[str | None] = mapped_column(String(8), nullable=True)  # skip | stop
+    command_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    current_attempt_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    # what is happening now: company, title, score, ats, stage, fields_done, fields_total, step,
+    # question, cv_version, executor. Facts about the job, never what was typed.
+    current: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+
+
+class RunEvent(Base):
+    """One thing that happened while applications were carried out, in order. The audit trail and
+    what every screen follows. Holds the question asked and the fact found, never an answer."""
+
+    __tablename__ = "aa_run_events"
+    __table_args__ = (Index("ix_aa_run_events_user_seq", "user_id", "id"),)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[uuid.UUID] = _fk("users.id")
+    application_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("aa_applications.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    attempt_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    kind: Mapped[str] = mapped_column(String(28))
+    executor: Mapped[str] = mapped_column(String(8), default="", server_default="")
+    data: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb")
+    )
+    at: Mapped[datetime] = mapped_column(_TS, default=_now)
+
+
+class Executor(Base):
+    """A computer the candidate has opened the desktop app on, and when it last checked in."""
+
+    __tablename__ = "aa_executors"
+    __table_args__ = (UniqueConstraint("user_id", "executor_id"),)
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = _fk("users.id")
+    executor_id: Mapped[str] = mapped_column(String(64))
+    name: Mapped[str] = mapped_column(String(80), default="")
+    platform: Mapped[str] = mapped_column(String(20), default="")
+    app_version: Mapped[str] = mapped_column(String(30), default="")
+    last_seen: Mapped[datetime] = mapped_column(_TS, default=_now)
 
 
 class Outreach(Base):
