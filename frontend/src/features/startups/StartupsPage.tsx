@@ -10,10 +10,11 @@ import {
   useHuntSettings,
   useHuntTemplate,
   type HuntSettings,
+  type HuntTarget,
   useHuntTargets,
   useRequestOutreachAccess,
 } from "./api";
-import { HistoryRow, StartupCard } from "./Cards";
+import { OutreachRow, StartupCard } from "./Cards";
 import { StartupHero } from "./Connect";
 import { Setup } from "./Setup";
 import { Emails } from "./Emails";
@@ -28,6 +29,28 @@ function Stat({ label, value }: { label: string; value: number }) {
 }
 
 type Tab = "review" | "sent" | "emails" | "setup";
+
+/** The notes that are no longer waiting for review, grouped so each startup contact is one row: its
+ *  first email and, when there is one, the follow-up. Newest first. */
+function outreaches(list: HuntTarget[]) {
+  const by = new Map<string, { first?: HuntTarget; follow?: HuntTarget }>();
+  for (const t of list) {
+    const k = `${t.startup}|${t.contact}`;
+    const g = by.get(k) ?? {};
+    if (t.step === 2) g.follow = t;
+    else g.first = t;
+    by.set(k, g);
+  }
+  const rows: { first: HuntTarget; follow?: HuntTarget }[] = [];
+  for (const g of by.values()) {
+    // a follow-up with no first email left in this list is shown on its own
+    const first = g.first ?? g.follow;
+    if (first) rows.push({ first, follow: g.first ? g.follow : undefined });
+  }
+  const at = (r: { first: HuntTarget; follow?: HuntTarget }) =>
+    Date.parse((r.follow ?? r.first).sent_at ?? "") || 0;
+  return rows.sort((a, b) => at(b) - at(a));
+}
 
 /** Approved notes that are not going out, and why, with where to fix it. Never shown when nothing
  *  is waiting or nothing is in the way. */
@@ -195,8 +218,14 @@ function StartupsBoard() {
           </section>
         ) : (
           <ul className="space-y-3">
-            {done.map((t) => (
-              <HistoryRow key={t.id} t={t} />
+            {outreaches(done).map((o) => (
+              <OutreachRow
+                key={o.first.id}
+                first={o.first}
+                follow={o.follow}
+                days={template.data?.follow_up_days ?? 5}
+                followOn={template.data?.follow_up_enabled ?? true}
+              />
             ))}
           </ul>
         ))}

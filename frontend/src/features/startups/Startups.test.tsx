@@ -209,6 +209,60 @@ describe("Startups inside Auto-Apply", () => {
     expect(screen.getByLabelText("Days before the follow-up")).toHaveValue(6);
   });
 
+  it("shows, for each outreach, when the first email was sent and when the second was", async () => {
+    routes({
+      "GET /api/hunt/settings": () => ({
+        json: { ...settings, enabled: true, ready: [] },
+      }),
+      "GET /api/hunt/targets": () => ({
+        json: [
+          {
+            ...target,
+            id: "a1",
+            status: "sent",
+            step: 1,
+            sent_at: "2026-11-02T09:15:00Z",
+          },
+          {
+            ...target,
+            id: "a2",
+            status: "sent",
+            step: 2,
+            sent_at: "2026-11-09T10:30:00Z",
+          },
+          {
+            ...target,
+            id: "b1",
+            startup: "Beta",
+            contact: "jobs@beta.io",
+            status: "sent",
+            step: 1,
+            sent_at: "2026-11-20T09:00:00Z",
+          },
+          {
+            ...target,
+            id: "c1",
+            startup: "Gamma",
+            contact: "jobs@gamma.io",
+            status: "replied",
+            step: 1,
+            sent_at: "2026-11-21T09:00:00Z",
+          },
+        ],
+      }),
+    });
+    renderApp(<App />, "/startups");
+    await userEvent.click(await screen.findByRole("radio", { name: "Sent" }));
+    const rows = await screen.findAllByRole("listitem");
+    const acme = rows.find((r) => within(r).queryByText("Acme"))!;
+    expect(within(acme).getAllByText(/Sent .*2026/)).toHaveLength(2); // both dates
+    const beta = rows.find((r) => within(r).queryByText("Beta"))!;
+    expect(within(beta).getByText(/Sent .*2026/)).toBeVisible();
+    expect(within(beta).getByText(/Due about/)).toBeVisible(); // second email expected
+    const gamma = rows.find((r) => within(r).queryByText("Gamma"))!;
+    expect(within(gamma).getByText("Not needed: they replied")).toBeVisible();
+  });
+
   it("makes every link in a note waiting for review clickable", async () => {
     routes({
       "GET /api/hunt/settings": () => ({
