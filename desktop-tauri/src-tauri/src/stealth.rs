@@ -27,8 +27,6 @@ use windows::Win32::Foundation::HWND;
 
 /// Windows Display Affinity values
 #[cfg(target_os = "windows")]
-const WDA_NONE: u32 = 0x00000000;
-#[cfg(target_os = "windows")]
 const WDA_EXCLUDEFROMCAPTURE: u32 = 0x00000011;
 
 #[cfg(target_os = "windows")]
@@ -46,15 +44,18 @@ fn get_hwnd(window: &WebviewWindow<impl Runtime>) -> Option<HWND> {
 
 /// Apply or remove native stealth protection.
 ///
-/// When `enable` is true:
-///   - Windows: strips WS_EX_LAYERED, applies WDA_EXCLUDEFROMCAPTURE, adds WS_EX_TOOLWINDOW
-///   - macOS: hides Dock icon, sets content protection
+/// Capture exclusion is applied every time, whatever `hud` says.
 ///
-/// When `enable` is false:
-///   - Windows: clears WDA_EXCLUDEFROMCAPTURE, restores WS_EX_APPWINDOW
-///   - macOS: shows Dock icon, clears content protection
+/// `hud` true (the floating HUD):
+///   - Windows: also adds WS_EX_TOOLWINDOW (no taskbar button)
+///   - macOS: also hides the Dock icon
+///
+/// `hud` false (the normal window):
+///   - Windows: restores the taskbar button
+///   - macOS: shows the Dock icon
 #[cfg(target_os = "windows")]
-pub fn apply_native_stealth(window: &WebviewWindow<impl Runtime>, enable: bool) {
+pub fn apply_native_stealth(window: &WebviewWindow<impl Runtime>, hud: bool) {
+    let enable = hud;
     let Some(hwnd) = get_hwnd(window) else {
         log::error!("[Stealth] Could not get HWND");
         return;
@@ -65,14 +66,14 @@ pub fn apply_native_stealth(window: &WebviewWindow<impl Runtime>, enable: bool) 
         let current_style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as isize;
 
         // 2. Build new style: always strip WS_EX_LAYERED (defensive)
+        // HUD: no taskbar button. Normal window: taskbar button back. Never layered.
         let new_style = if enable {
-            (current_style
-                | WS_EX_TOOLWINDOW.0 as isize)
+            (current_style | WS_EX_TOOLWINDOW.0 as isize)
                 & !(WS_EX_APPWINDOW.0 as isize)
                 & !(WS_EX_LAYERED.0 as isize)
         } else {
-            (current_style & !(WS_EX_TOOLWINDOW.0 as isize))
-                | WS_EX_APPWINDOW.0 as isize
+            ((current_style & !(WS_EX_TOOLWINDOW.0 as isize)) | WS_EX_APPWINDOW.0 as isize)
+                & !(WS_EX_LAYERED.0 as isize)
         };
 
         SetWindowLongPtrW(hwnd, GWL_EXSTYLE, new_style);
@@ -86,8 +87,9 @@ pub fn apply_native_stealth(window: &WebviewWindow<impl Runtime>, enable: bool) 
         );
 
         // 3. Apply or clear capture exclusion
-        let target = if enable { WDA_EXCLUDEFROMCAPTURE } else { WDA_NONE };
-        let ok = SetWindowDisplayAffinity(hwnd, target);
+        // Capture exclusion is never switched off: the app stays hidden from screen sharing
+        // outside the HUD too.
+        let ok = SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE);
 
         // 4. Verify
         let mut active_affinity: u32 = 0;
@@ -99,7 +101,7 @@ pub fn apply_native_stealth(window: &WebviewWindow<impl Runtime>, enable: bool) 
             enable, hwnd, ok, active_affinity, layered
         );
 
-        if ok == 0 && enable {
+        if ok == 0 {
             log::error!(
                 "[Stealth] FAILED to set WDA_EXCLUDEFROMCAPTURE! Check for WS_EX_LAYERED."
             );
@@ -133,9 +135,11 @@ pub fn re_enforce_stealth(window: &WebviewWindow<impl Runtime>) {
 }
 
 #[cfg(target_os = "macos")]
-pub fn apply_native_stealth(window: &WebviewWindow<impl Runtime>, enable: bool) {
+pub fn apply_native_stealth(window: &WebviewWindow<impl Runtime>, hud: bool) {
+    let enable = hud;
     // macOS: content protection hides from ScreenCaptureKit, CGWindowListCreateImage, etc.
-    let _ = window.set_content_protected(enable);
+    // It stays on in the normal window too.
+    let _ = window.set_content_protected(true);
 
     // Hide/show Dock icon to remove from Cmd-Tab
     let app = window.app_handle();
@@ -145,7 +149,7 @@ pub fn apply_native_stealth(window: &WebviewWindow<impl Runtime>, enable: bool) 
         let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
     }
 
-    log::info!("[Stealth] macOS: enable={} content_protected={}", enable, enable);
+    log::info!("[Stealth] macOS: hud={} content_protected=true", enable);
 }
 
 #[cfg(target_os = "macos")]
@@ -157,7 +161,7 @@ pub fn re_enforce_stealth(window: &WebviewWindow<impl Runtime>) {
 // Linux is not a supported desktop target; these keep the crate compiling there (development
 // checks) without pretending to protect anything.
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-pub fn apply_native_stealth(_window: &WebviewWindow<impl Runtime>, _enable: bool) {}
+pub fn apply_native_stealth(_window: &WebviewWindow<impl Runtime>, _hud: bool) {}
 
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
 pub fn re_enforce_stealth(_window: &WebviewWindow<impl Runtime>) {}

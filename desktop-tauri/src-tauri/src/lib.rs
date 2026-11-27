@@ -18,9 +18,15 @@ mod window;
 
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard};
 use tauri::{command, AppHandle, Emitter, Manager, Runtime, WebviewWindow};
 use tauri_plugin_opener::OpenerExt;
+
+/// Lock a mutex even if a thread panicked while holding it. The data here is plain state, so a
+/// poisoned lock must never take the whole app down with it.
+fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
+    m.lock().unwrap_or_else(|e| e.into_inner())
+}
 
 // ─── Stealth state (mirrors Electron's global variables) ───
 
@@ -60,33 +66,34 @@ impl Default for AppState {
 
 /// Enter stealth mode: morphs the window into a compact floating HUD
 /// invisible to all screen capture tools.
+///
+/// The state lock is only ever held for a moment, never across a window call: window calls wait
+/// for the main thread, and the main thread (shortcuts, events) takes this same lock. Holding it
+/// across them froze the whole app.
 #[command]
 async fn stealth_enter<R: Runtime>(
     app: AppHandle<R>,
     win: WebviewWindow<R>,
 ) -> Result<StealthState, String> {
     let state = app.state::<AppState>();
-    let mut stealth = state.stealth.lock().map_err(|e| e.to_string())?;
-
-    if stealth.active {
-        return Ok(stealth.clone());
+    {
+        let mut stealth = lock(&state.stealth);
+        if stealth.active {
+            return Ok(stealth.clone());
+        }
+        stealth.active = true;
+        stealth.click_through = false;
     }
 
-    stealth.active = true;
-    stealth.click_through = false;
-
     // Save current bounds for restore
-    if let Ok(pos) = win.outer_position() {
-        if let Ok(size) = win.outer_size() {
-            *state.normal_bounds.lock().unwrap() =
-                Some((pos.x, pos.y, size.width, size.height));
-        }
+    if let (Ok(pos), Ok(size)) = (win.outer_position(), win.outer_size()) {
+        *lock(&state.normal_bounds) = Some((pos.x, pos.y, size.width, size.height));
     }
 
     // 1. Hide briefly to prevent flicker during morph
     let _ = win.hide();
 
-    // 2. Apply native stealth (WDA_EXCLUDEFROMCAPTURE on Windows, content protection on macOS)
+    // 2. HUD window style (capture exclusion is always on; this adds the taskbar-less HUD look)
     stealth::apply_native_stealth(&win, true);
 
     // 3. Morph into compact floating HUD
@@ -112,37 +119,40 @@ async fn stealth_enter<R: Runtime>(
     stealth::re_enforce_stealth(&win);
 
     // 6. Notify frontend
-    let new_state = stealth.clone();
+    let new_state = lock(&state.stealth).clone();
     let _ = win.emit("stealth-state", &new_state);
 
     Ok(new_state)
 }
 
-/// Exit stealth mode: restore the full desktop window.
+/// Exit stealth mode: restore the full desktop window (still hidden from screen capture).
 #[command]
 async fn stealth_exit<R: Runtime>(
     app: AppHandle<R>,
     win: WebviewWindow<R>,
 ) -> Result<StealthState, String> {
     let state = app.state::<AppState>();
-    let mut stealth = state.stealth.lock().map_err(|e| e.to_string())?;
-
-    if !stealth.active {
-        return Ok(stealth.clone());
-    }
+    let was_click_through = {
+        let mut stealth = lock(&state.stealth);
+        if !stealth.active {
+            return Ok(stealth.clone());
+        }
+        let was = stealth.click_through;
+        stealth.active = false;
+        stealth.click_through = false;
+        was
+    };
 
     // Disable click-through first
-    if stealth.click_through {
-        stealth.click_through = false;
+    if was_click_through {
         let _ = win.set_ignore_cursor_events(false);
     }
-
-    stealth.active = false;
 
     // 1. Hide while morphing back
     let _ = win.hide();
 
-    // 2. Remove stealth native flags
+    // 2. Back to the normal window style. Capture exclusion stays on: the app is hidden from
+    //    screen sharing at all times, not only while the HUD is showing.
     stealth::apply_native_stealth(&win, false);
 
     // 3. Restore normal window chrome
@@ -154,7 +164,7 @@ async fn stealth_exit<R: Runtime>(
     let _ = win.set_skip_taskbar(false);
 
     // 4. Restore previous bounds
-    let bounds = state.normal_bounds.lock().unwrap().take();
+    let bounds = lock(&state.normal_bounds).take();
     if let Some((x, y, w, h)) = bounds {
         let _ = win.set_position(tauri::PhysicalPosition::new(x, y));
         let _ = win.set_size(tauri::PhysicalSize::new(w, h));
@@ -166,9 +176,10 @@ async fn stealth_exit<R: Runtime>(
     // 5. Show and focus
     let _ = win.show();
     let _ = win.set_focus();
+    stealth::re_enforce_stealth(&win);
 
     // 6. Notify frontend
-    let new_state = stealth.clone();
+    let new_state = lock(&state.stealth).clone();
     let _ = win.emit("stealth-state", &new_state);
 
     Ok(new_state)
@@ -196,19 +207,19 @@ async fn stealth_set_click_through<R: Runtime>(
     enable: bool,
 ) -> Result<StealthState, String> {
     let state = app.state::<AppState>();
-    let mut stealth = state.stealth.lock().map_err(|e| e.to_string())?;
-
-    if !stealth.active {
-        return Ok(stealth.clone());
+    {
+        let mut stealth = lock(&state.stealth);
+        if !stealth.active {
+            return Ok(stealth.clone());
+        }
+        stealth.click_through = enable;
     }
-
-    stealth.click_through = enable;
     let _ = win.set_ignore_cursor_events(enable);
 
     // Re-enforce stealth since set_ignore_cursor_events might add WS_EX_LAYERED
     stealth::re_enforce_stealth(&win);
 
-    let new_state = stealth.clone();
+    let new_state = lock(&state.stealth).clone();
     let _ = win.emit("stealth-state", &new_state);
 
     Ok(new_state)
@@ -218,15 +229,31 @@ async fn stealth_set_click_through<R: Runtime>(
 #[command]
 async fn stealth_query<R: Runtime>(app: AppHandle<R>) -> Result<StealthState, String> {
     let state = app.state::<AppState>();
-    let stealth = state.stealth.lock().map_err(|e| e.to_string())?;
-    Ok(stealth.clone())
+    let current = lock(&state.stealth).clone();
+    Ok(current)
 }
 
 // ─── App setup ───
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // A panic is written to the log file before anything else happens, so a crash always leaves
+    // a trace to read.
+    std::panic::set_hook(Box::new(|info| log::error!("[panic] {info}")));
+
     tauri::Builder::default()
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .level(log::LevelFilter::Info)
+                .targets([
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
+                        file_name: Some("interviewmeet".into()),
+                    }),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
+                ])
+                .max_file_size(1_000_000)
+                .build(),
+        )
         // Must be the first plugin. A second launch (Windows/Linux hand the interviewmeet:// sign-in
         // link over this way) is forwarded to the running app, which comes to the front.
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
@@ -249,7 +276,7 @@ pub fn run() {
                 let app = webview.app_handle();
                 let state = app.state::<AppState>();
                 state.page_ready.store(true, Ordering::SeqCst);
-                let pending = state.pending_link.lock().unwrap().take();
+                let pending = lock(&state.pending_link).take();
                 if let Some(link) = pending {
                     handle_deep_link(app, &link);
                 }
@@ -304,7 +331,8 @@ pub fn run() {
 
             // Apply capture exclusion on startup (before the window is shown).
             // STRICT REQUIREMENT: App must be hidden from screen sharing at all times.
-            stealth::apply_native_stealth(&window, true);
+            // (Normal window style: it keeps its taskbar button until the HUD is entered.)
+            stealth::apply_native_stealth(&window, false);
 
             // The window starts hidden (tauri.conf.json); show it now that stealth is applied.
             let _ = window.show();
@@ -319,10 +347,14 @@ pub fn run() {
             });
 
             // Register global shortcuts
-            setup_global_shortcuts(app)?;
+            if let Err(e) = setup_global_shortcuts(app) {
+                log::warn!("[App] global shortcuts unavailable: {e}");
+            }
 
             // Handle deep links (interviewmeet:// protocol)
-            setup_deep_links(app)?;
+            if let Err(e) = setup_deep_links(app) {
+                log::warn!("[App] deep links unavailable: {e}");
+            }
 
             log::info!("[App] InterviewMeet Tauri desktop app started");
             Ok(())
@@ -346,9 +378,7 @@ fn setup_global_shortcuts(app: &tauri::App) -> Result<(), Box<dyn std::error::Er
 
         let Some(window) = app.get_webview_window("main") else { return };
         let state = app.state::<AppState>();
-        let stealth = state.stealth.lock().unwrap();
-
-        if !stealth.active {
+        if !lock(&state.stealth).active {
             return;
         }
 
@@ -362,13 +392,14 @@ fn setup_global_shortcuts(app: &tauri::App) -> Result<(), Box<dyn std::error::Er
             }
         } else if shortcut == &toggle_mouse {
             // Toggle click-through
-            drop(stealth); // Release lock before modifying
-            let mut stealth = state.stealth.lock().unwrap();
-            stealth.click_through = !stealth.click_through;
-            let enable = stealth.click_through;
+            let enable = {
+                let mut stealth = lock(&state.stealth);
+                stealth.click_through = !stealth.click_through;
+                stealth.click_through
+            };
             let _ = window.set_ignore_cursor_events(enable);
             stealth::re_enforce_stealth(&window);
-            let new_state = stealth.clone();
+            let new_state = lock(&state.stealth).clone();
             let _ = window.emit("stealth-state", &new_state);
         }
     })?;
@@ -424,7 +455,7 @@ fn handle_deep_link<R: Runtime>(app: &AppHandle<R>, link: &str) {
 
     // a one-time code is used once
     {
-        let mut last = state.last_link.lock().unwrap();
+        let mut last = lock(&state.last_link);
         if last.as_deref() == Some(link) {
             return;
         }
@@ -433,8 +464,8 @@ fn handle_deep_link<R: Runtime>(app: &AppHandle<R>, link: &str) {
 
     // the page is not up yet: keep the link and use it as soon as it is
     if !state.page_ready.load(Ordering::SeqCst) {
-        *state.pending_link.lock().unwrap() = Some(link.to_string());
-        *state.last_link.lock().unwrap() = None;
+        *lock(&state.pending_link) = Some(link.to_string());
+        *lock(&state.last_link) = None;
         return;
     }
 

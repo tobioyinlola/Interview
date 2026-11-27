@@ -10,6 +10,7 @@ import { initFingerprint } from "./api/fingerprint";
 import { persistCache, restoreCache } from "./api/persist";
 import { APP_SHELL, loadSession } from "./api/session";
 import { captureInvite } from "./features/referral/invite";
+import { RootBoundary } from "./ui/RootBoundary";
 import "./index.css";
 
 void initFingerprint(); // a coarse device hash, sent with requests so self-invites do not count
@@ -38,11 +39,13 @@ async function start() {
 function render() {
   createRoot(document.getElementById("root")!).render(
     <StrictMode>
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
-      </QueryClientProvider>
+      <RootBoundary>
+        <QueryClientProvider client={queryClient}>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </QueryClientProvider>
+      </RootBoundary>
     </StrictMode>,
   );
 }

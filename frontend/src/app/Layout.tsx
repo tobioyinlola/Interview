@@ -127,10 +127,6 @@ function Group({
 
 export function Layout() {
   const stealth = useStealthHud();
-  if (isDesktopApp() && stealth.state.active) {
-    return <Outlet />;
-  }
-
   const { data: me } = useMe();
   const signOut = useSignOut();
   const navigate = useNavigate();
@@ -171,6 +167,12 @@ export function Layout() {
       badge: unread.data?.count,
     },
   ];
+
+  // Hooks must run in the same order on every render, so this check comes after the last one.
+  // (Returning above them blanked the whole window the moment a session turned stealth mode on.)
+  if (isDesktopApp() && stealth.state.active) {
+    return <Outlet />;
+  }
 
   return (
     <TourProvider>

@@ -385,3 +385,45 @@ describe("the phone app's tab bar", () => {
     expect(screen.queryByRole("navigation", { name: "Tabs" })).toBeNull();
   });
 });
+
+describe("desktop stealth HUD", () => {
+  afterEach(() => {
+    delete (window as unknown as { interviewMeetDesktop?: unknown }).interviewMeetDesktop;
+  });
+
+  // Starting a session turns stealth mode on. The shell used to return early, before its other
+  // hooks, when that happened: React then threw "Rendered fewer hooks than expected" and, with
+  // nothing to catch it, the whole window went blank.
+  it("keeps rendering when stealth mode turns on or off after the shell has mounted", async () => {
+    signedIn();
+    let report: (s: { active: boolean; clickThrough: boolean }) => void = () => {};
+    (window as unknown as { interviewMeetDesktop: unknown }).interviewMeetDesktop = {
+      isDesktop: true,
+      platform: "win32",
+      systemAudio: false,
+      stealth: {
+        enter: async () => {},
+        exit: async () => {},
+        setClickThrough: async () => {},
+        // the shell mounts with stealth off, then the desktop app says it is on
+        query: () => new Promise((resolve) => (report = resolve as typeof report)),
+        onStateChanged: () => () => {},
+      },
+    };
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    renderApp(<App />, "/dashboard");
+    await screen.findByRole("navigation", { name: "Main" });
+
+    report({ active: true, clickThrough: false });
+    await waitFor(() =>
+      expect(screen.queryByRole("navigation", { name: "Main" })).toBeNull(),
+    );
+
+    const hookErrors = errors.mock.calls.filter((c) =>
+      String(c[0] ?? "").concat(String(c[1] ?? "")).match(/fewer hooks|more hooks|Minified React error #3(00|10)/),
+    );
+    expect(hookErrors).toEqual([]);
+    // the page behind the shell is still on screen: not a blank window
+    expect(document.body.textContent?.trim().length).toBeGreaterThan(0);
+  });
+});
