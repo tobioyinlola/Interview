@@ -8,7 +8,7 @@ const path = require("node:path");
 const page = (n) => fs.readFileSync(path.join(__dirname, "fixtures", n), "utf8");
 const ROUTES = {
   "/jobs/1": "greenhouse.html", "/jobs/captcha": "captcha.html", "/jobs/silent": "silent.html",
-  "/ashby/jobs/1": "ashby.html", "/jobs/steps": "steps.html", "/jobs/clearance": "declaration.html",
+  "/ashby/jobs/1": "ashby.html", "/jobs/probe": "probe.html", "/jobs/steps": "steps.html", "/jobs/clearance": "declaration.html",
 };
 
 function parseMultipart(buf, type) {
@@ -29,6 +29,12 @@ function start() {
     const html = (b, code = 200) => { res.writeHead(code, { "content-type": "text/html" }); res.end(b); };
     if (req.method === "GET" && ROUTES[url.pathname]) return html(page(ROUTES[url.pathname]));
     if (req.method === "GET" && url.pathname === "/confirmation") return html("<html><body><h2>Thank you for applying!</h2></body></html>");
+    if (req.method === "POST" && url.pathname === "/probe-report") {
+      const chunks = [];
+      req.on("data", (c) => chunks.push(c));
+      req.on("end", () => { try { received.probe = JSON.parse(Buffer.concat(chunks).toString()); } catch { /* ignore */ } res.writeHead(204); res.end(); });
+      return;
+    }
     if (req.method === "POST") {
       const chunks = [];
       req.on("data", (c) => chunks.push(c));

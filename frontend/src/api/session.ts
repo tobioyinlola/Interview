@@ -50,6 +50,9 @@ export function setSessionToken(next: string | null): void {
 
 export const hasSessionToken = () => token !== null;
 
+/** For the desktop app's workspace window only: it carries applications out for this person. */
+export const currentSessionToken = () => token;
+
 /** Headers and credentials for a request to the API, whichever shell this is. */
 export function authInit(init: RequestInit = {}): RequestInit {
   if (!APP_SHELL) return { ...init, credentials: "include" };

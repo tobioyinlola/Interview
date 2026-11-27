@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'self'">
+<title>InterviewMeet Auto-Apply</title>
+<style>
+ :root { color-scheme: light dark; --b:#d6d3e6; --m:#6b6880; --a:#5b3fd6; --bad:#b3261e; --ok:#1c7c3c; }
+ * { box-sizing: border-box } body { margin:0; font:13px/1.4 system-ui,sans-serif; background:#f6f5fb; color:#1c1b2e; height:100vh; display:flex; flex-direction:column }
+ @media (prefers-color-scheme: dark) { body { background:#1c1b2e; color:#eceaf7 } .card { background:#26243d !important } }
+ #panel { width:340px; margin-left:auto; height:100%; overflow:auto; padding:12px; display:flex; flex-direction:column; gap:10px; border-left:1px solid var(--b) }
+ .card { background:#fff; border:1px solid var(--b); border-radius:10px; padding:10px }
+ h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--m); margin:0 0 6px }
+ .row { display:flex; gap:6px; flex-wrap:wrap } button { font:inherit; padding:6px 10px; border-radius:8px; border:1px solid var(--b); background:transparent; color:inherit; cursor:pointer }
+ button.p { background:var(--a); color:#fff; border-color:var(--a) } button:disabled { opacity:.45; cursor:default }
+ .bar { height:6px; border-radius:3px; background:var(--b); overflow:hidden } .bar > i { display:block; height:100%; background:var(--a) }
+ .n { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; text-align:center } .n b { display:block; font-size:18px }
+ #log { list-style:none; margin:0; padding:0; max-height:200px; overflow:auto } #log li { padding:3px 0; border-bottom:1px solid var(--b); color:var(--m) }
+ #need { display:none; border-color:var(--a) } .m { color:var(--m) } .t { font-weight:600 }
+</style></head>
+<body>
+<div id="panel" role="complementary" aria-label="Auto-Apply controls">
+ <div class="card"><h2>Now</h2>
+  <div class="t" id="who">Waiting for the next application</div>
+  <div class="m" id="stage"></div>
+  <div class="bar" style="margin:8px 0"><i id="prog" style="width:0"></i></div>
+  <div class="m" id="q"></div>
+  <div class="m" id="meta"></div></div>
+ <div class="card" id="need"><h2>Needs you</h2><div id="needText"></div>
+  <div class="row" style="margin-top:8px"><button class="p" id="cont">I have done it, continue</button><button id="leave">Skip this one</button></div></div>
+ <div class="card"><h2>Controls</h2>
+  <div class="row"><button id="pause">Pause</button><button id="resume" class="p">Resume</button><button id="skip">Skip</button><button id="stop">Stop</button></div>
+  <div class="row" style="margin-top:8px"><label class="m" for="speed">Speed</label>
+   <select id="speed"><option value="slow">Slow</option><option value="normal">Normal</option><option value="fast">Fast</option></select></div></div>
+ <div class="card"><h2>Today</h2><div class="n">
+  <div><b id="c-queued">0</b><span class="m">queued</span></div><div><b id="c-verified">0</b><span class="m">verified</span></div>
+  <div><b id="c-needs">0</b><span class="m">need you</span></div><div><b id="c-failed">0</b><span class="m">failed</span></div>
+  <div><b id="c-skipped">0</b><span class="m">skipped</span></div><div><b id="c-today">0</b><span class="m">today</span></div></div></div>
+ <div class="card"><h2>Activity</h2><ul id="log"></ul></div>
+</div>
+<script src="workspace-panel.js"></script>
+</body></html>

@@ -14,6 +14,7 @@ const {
 } = require("electron");
 const { load } = require("./config");
 const protocolRules = require("./protocol");
+const workspaceLib = require("./workspace");
 const {
   SCHEME,
   navigationDecision,
@@ -124,6 +125,28 @@ ipcMain.handle("im:pick-cv", async (event) => {
   if (size > CV_MAX_BYTES) return { name, tooBig: true };
   return { name, data: new Uint8Array(await fs.promises.readFile(file)) };
 });
+
+// The Auto-Apply workspace: the app's own page hands over the sign-in token and API address (only
+// the app's own pages may), and the workspace then carries applications out in a visible window.
+// (Only an unpackaged build, run by the tests, may be told to reach a plain-http fixture site.)
+const testHosts = !app.isPackaged && process.env.IM_TEST_HTTP_HOSTS ? process.env.IM_TEST_HTTP_HOSTS.split(",") : [];
+const workspace = workspaceLib.create({
+  electron: require("electron"),
+  appVersion: app.getVersion(),
+  guardOpts: { allowHttpHosts: testHosts },
+  log: (...a) => { if (!app.isPackaged) console.error("[workspace]", ...a); },
+});
+ipcMain.handle("im:open-workspace", (event, opts) => {
+  const from = event.senderFrame ? event.senderFrame.url : "";
+  if (!captureAllowed(from, appOrigin) || !opts || typeof opts !== "object") return false;
+  return workspace.open({
+    token: typeof opts.token === "string" ? opts.token : "",
+    base: typeof opts.base === "string" ? opts.base : "",
+    name: require("node:os").hostname().slice(0, 60),
+    platform: process.platform === "win32" ? "windows" : process.platform === "darwin" ? "mac" : "linux",
+  });
+});
+ipcMain.handle("im:workspace-open", () => workspace.isOpen());
 
 function openExternal(url) {
   if (navigationDecision(url, appOrigin) !== "deny") shell.openExternal(url);

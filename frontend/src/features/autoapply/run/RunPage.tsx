@@ -1,6 +1,9 @@
 import { Link, useSearchParams } from "react-router-dom";
 
 import { Loading } from "../../../ui/Loading";
+import { API_BASE_URL } from "../../../api/client";
+import { currentSessionToken } from "../../../api/session";
+import { isDesktopApp } from "../../../app/desktop";
 import type { AutoRun } from "../../../api/types";
 import { useRun, useRunControl, useRunLive, useRunSettings } from "./api";
 
@@ -86,6 +89,17 @@ export function RunPage() {
     ),
   );
   const history = [...r.events].reverse();
+  const canWatch =
+    !workspace &&
+    isDesktopApp() &&
+    Boolean(window.interviewMeetDesktop?.openWorkspace);
+  const openWorkspace = () => {
+    const token = currentSessionToken();
+    if (!token) return;
+    const base =
+      API_BASE_URL || new URL(window.location.href).origin.replace(/\/$/, "");
+    void window.interviewMeetDesktop?.openWorkspace?.({ token, base });
+  };
 
   return (
     <main className={workspace ? "space-y-4 p-4" : "page-narrow"}>
@@ -123,6 +137,15 @@ export function RunPage() {
               onClick={() => control.mutate("start")}
             >
               Start
+            </button>
+          )}
+          {canWatch && (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={openWorkspace}
+            >
+              Open workspace
             </button>
           )}
           {r.state === "running" && (

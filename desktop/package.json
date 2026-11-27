@@ -11,7 +11,8 @@
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
     "smoke": "node test/smoke.js",
-    "smoke:float": "node test/float.js"
+    "smoke:float": "node test/float.js",
+    "smoke:workspace": "node test/workspace.js"
   },
   "dependencies": {
     "electron-updater": "^6.3.9"

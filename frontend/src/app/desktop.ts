@@ -12,6 +12,8 @@ interface DesktopBridge {
     data?: Uint8Array;
     tooBig?: boolean;
   } | null>;
+  /** Opens the Auto-Apply workspace window (forms filled in where the person can watch). */
+  openWorkspace?: (opts: { token: string; base: string }) => Promise<boolean>;
   /** Native protection for private screens (see app/privacy.ts). */
   privacy?: {
     set: (on: boolean) => Promise<{ active: boolean; reason?: string }>;
