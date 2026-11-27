@@ -43,8 +43,10 @@ cost.
 ## Size, measured
 
 * Electron runtime alone: **284 MB** unpacked (`node_modules/electron/dist`).
-* Tauri: the web interface is 1.4 MB; the release binary size is in the table below. On Windows it
-  relies on WebView2, which current Windows 10 and 11 already include.
+* Tauri: the release binary with the whole web interface inside is **10.7 MB** (Linux build, measured;
+  Windows and Mac will differ somewhat). On Windows it relies on WebView2, which current Windows 10
+  and 11 already include. The installers would be a similar fraction of Electron's, since Electron
+  ships its own Chromium and Node.
 
 ## Recommendation
 
