@@ -36,6 +36,16 @@ impl Default for AudioState {
     }
 }
 
+/// Clears the "capturing" flag when the capture thread ends, however it ends. A thread that
+/// panicked used to leave the flag set, and every later start then failed with "already running".
+struct ClearOnDrop(Arc<AtomicBool>);
+
+impl Drop for ClearOnDrop {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::SeqCst);
+    }
+}
+
 /// List available audio devices (mic + loopback)
 #[command]
 pub async fn list_audio_devices() -> Result<Vec<AudioDevice>, String> {
@@ -58,8 +68,11 @@ pub async fn start_audio_capture<R: Runtime>(
     let capturing_clone = state.capturing.clone();
     let capturing_done = state.capturing.clone();
     let app_clone = app.clone();
+    let app_failed = app.clone();
 
     std::thread::spawn(move || {
+        // Thread finished (stopped, failed or panicked): allow a new capture to start.
+        let _clear = ClearOnDrop(capturing_done);
         if let Err(e) = platform::capture_system_audio(
             device_id.as_deref(),
             capturing_clone,
@@ -85,9 +98,9 @@ pub async fn start_audio_capture<R: Runtime>(
             },
         ) {
             log::error!("[Audio] Capture error: {}", e);
+            // Tell the page: otherwise it keeps saying "listening" to a capture that never began.
+            let _ = app_failed.emit("audio-error", e.to_string());
         }
-        // Thread finished (stopped or failed): allow a new capture to start.
-        capturing_done.store(false, Ordering::SeqCst);
     });
 
     Ok(())

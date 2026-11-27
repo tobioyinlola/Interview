@@ -113,6 +113,28 @@ describe("LiveSessionController: starting", () => {
     await x.c.share();
     expect(x.sock.started).toBe(true);
   });
+
+  // The desktop app starts listening by itself when the session opens, so a click on the Share
+  // button (or a remount) can arrive while the first start is still waiting for the capture.
+  it("a second share while the first is still starting opens only one capture", async () => {
+    const captures = vi.fn();
+    const sock = { started: 0, start() { this.started += 1; }, stop() {}, sendAudio() {} };
+    const c = new LiveSessionController({
+      sessionId: "s1",
+      sampleRate: 24000,
+      fetchToken: async () => "t",
+      endSession: async () => undefined,
+      capture: async () => {
+        captures();
+        await new Promise((r) => setTimeout(r, 10));
+        return { stop: () => undefined };
+      },
+      makeSocket: () => sock as unknown as AudioSocket,
+    });
+    await Promise.all([c.share(), c.share()]);
+    expect(captures).toHaveBeenCalledTimes(1);
+    expect(sock.started).toBe(1);
+  });
 });
 
 describe("LiveSessionController: audio", () => {

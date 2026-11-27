@@ -1,5 +1,7 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useEffect } from "react";
+import { Route, Routes } from "react-router-dom";
 
 import { ME, mockApi, renderApp, stubSupportedBrowser } from "../test-utils";
 import { App } from "./App";
@@ -425,5 +427,63 @@ describe("desktop stealth HUD", () => {
     expect(hookErrors).toEqual([]);
     // the page behind the shell is still on screen: not a blank window
     expect(document.body.textContent?.trim().length).toBeGreaterThan(0);
+  });
+
+  // Exiting the HUD flashed the normal page and then snapped back into the HUD, over and over:
+  // the shell swapped a bare page for the full shell, which remounted the live session page, and
+  // its on-mount effect turned stealth mode straight back on (and its cleanup stopped capture).
+  it("never remounts the page when stealth mode turns on and off", async () => {
+    signedIn();
+    let push: (s: { active: boolean; clickThrough: boolean }) => void = () => {};
+    (window as unknown as { interviewMeetDesktop: unknown }).interviewMeetDesktop = {
+      isDesktop: true,
+      platform: "win32",
+      systemAudio: false,
+      stealth: {
+        enter: async () => {},
+        exit: async () => {},
+        setClickThrough: async () => {},
+        query: async () => ({ active: false, clickThrough: false }),
+        onStateChanged: (cb: typeof push) => {
+          push = cb;
+          return () => {};
+        },
+      },
+    };
+    const mounts = vi.fn();
+    const unmounts = vi.fn();
+    function Probe() {
+      useEffect(() => {
+        mounts();
+        return unmounts;
+      }, []);
+      return <p>live page</p>;
+    }
+    // the stealth hook subscribes once, when its module loads: load it after the stub is in place
+    vi.resetModules();
+    const { Layout: FreshLayout } = await import("./Layout");
+    renderApp(
+      <Routes>
+        <Route element={<FreshLayout />}>
+          <Route path="/live" element={<Probe />} />
+        </Route>
+      </Routes>,
+      "/live",
+    );
+    await screen.findByText("live page");
+    expect(mounts).toHaveBeenCalledTimes(1);
+
+    act(() => push({ active: true, clickThrough: false }));
+    await waitFor(() =>
+      expect(screen.queryByRole("navigation", { name: "Main" })).toBeNull(),
+    );
+    act(() => push({ active: false, clickThrough: false }));
+    await screen.findByRole("navigation", { name: "Main" });
+    act(() => push({ active: true, clickThrough: false }));
+    act(() => push({ active: false, clickThrough: false }));
+
+    expect(screen.getByText("live page")).toBeInTheDocument();
+    expect(mounts).toHaveBeenCalledTimes(1);
+    expect(unmounts).not.toHaveBeenCalled();
   });
 });

@@ -25,7 +25,8 @@
         "label": "main",
         "create": false,
         "useHttpsScheme": true,
-        "backgroundColor": "#0f172a"
+        "backgroundColor": "#0f172a",
+        "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --autoplay-policy=no-user-gesture-required"
       }
     ],
     "security": {

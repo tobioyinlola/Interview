@@ -477,6 +477,13 @@ export function LiveSessionPage() {
     };
   }, [controller]);
 
+  // The desktop app answers the capture request itself (the computer's sound, no picker and no
+  // click), and the session opens straight into the floating HUD, which has no Share button. So
+  // listening starts here, as soon as the session opens, the way the phone starts on its own.
+  useEffect(() => {
+    if (isDesktopApp()) void controller.share();
+  }, [controller]);
+
   const off = session.mode === "standard";
 
   // Toggle body styling for true frameless transparency when in stealth mode

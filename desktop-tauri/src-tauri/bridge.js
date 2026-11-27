@@ -217,10 +217,17 @@
       }
       const stream = dest.stream;
       let stopped = false;
+      // The native capture failed (no output device, WASAPI refused): end the stream the way a
+      // stopped screen share ends, so the app says listening stopped instead of waiting in silence.
+      const offError = listen("audio-error", (message) => {
+        console.error("[InterviewMeet] system audio capture failed:", message);
+        for (const track of stream.getTracks()) track.dispatchEvent(new Event("ended"));
+      });
       const cleanup = () => {
         if (stopped) return;
         stopped = true;
         off();
+        offError();
         invoke("stop_audio_capture").catch(() => {});
         ctx.close().catch(() => {});
       };

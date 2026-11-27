@@ -60,6 +60,18 @@ describe("LiveSessionPage", () => {
     expect(ctl.share).toHaveBeenCalledTimes(1);
   });
 
+  // The desktop app answers the capture request itself (no picker, no click), and the session opens
+  // straight into the floating HUD, which has no Share button: listening has to start by itself.
+  it("in the desktop app, starts listening by itself when the session opens", () => {
+    (window as { interviewMeetDesktop?: unknown }).interviewMeetDesktop = {
+      isDesktop: true,
+      platform: "win32",
+      systemAudio: true,
+    };
+    renderPage();
+    expect(ctl.share).toHaveBeenCalledTimes(1);
+  });
+
   it("shows Listening with a level meter, and hides the share button while running", () => {
     renderPage();
     set({ status: "listening", level: 0.1 });

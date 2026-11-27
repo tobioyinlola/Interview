@@ -168,140 +168,160 @@ export function Layout() {
     },
   ];
 
-  // Hooks must run in the same order on every render, so this check comes after the last one.
-  // (Returning above them blanked the whole window the moment a session turned stealth mode on.)
-  if (isDesktopApp() && stealth.state.active) {
-    return <Outlet />;
-  }
+  // In the floating HUD only the page is shown, without the shell's chrome. The page must stay at
+  // the same place in the tree either way: swapping a bare <Outlet /> for the full shell remounted
+  // it on every change, which restarted the session page (it turned the HUD straight back on and
+  // stopped capture). So the chrome is switched off, never the structure.
+  const hud = isDesktopApp() && stealth.state.active;
 
   return (
     <TourProvider>
-      <div className="flex min-h-screen flex-col bg-ink">
-        <DesktopTitleBar />
-        <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-          {/* Mobile top bar */}
-          <div className="flex items-center justify-between bg-ink px-4 py-3 text-surface lg:hidden">
-          <Link
-            to="/dashboard"
-            className="flex items-center gap-2 font-semibold"
-          >
-            <LogoMark className="h-7 w-7" /> InterviewMeet
-          </Link>
-          <button
-            type="button"
-            aria-label={open ? "Close menu" : "Open menu"}
-            aria-expanded={open}
-            aria-controls="sidebar"
-            onClick={() => setOpen((v) => !v)}
-            className="flex h-11 w-11 items-center justify-center rounded-lg hover:bg-surface/10"
-          >
-            {open ? <CloseIcon /> : <MenuIcon />}
-          </button>
-        </div>
-
-        <aside
-          id="sidebar"
-          className={`${
-            open ? "flex" : "hidden"
-          } flex-col bg-ink px-4 py-5 text-surface transition-[width] duration-200 lg:sticky lg:top-0 lg:flex lg:h-screen lg:shrink-0 ${
-            collapsed ? "lg:w-[84px] lg:px-3" : "lg:w-64"
-          }`}
+      <div className={hud ? undefined : "flex min-h-screen flex-col bg-ink"}>
+        {!hud && <DesktopTitleBar />}
+        <div
+          className={
+            hud ? undefined : "flex min-h-0 flex-1 flex-col lg:flex-row"
+          }
         >
-          <div
-            className={`hidden items-center lg:flex ${
-              collapsed ? "justify-center" : "justify-between"
-            }`}
-          >
-            <Link
-              to="/dashboard"
-              title={collapsed ? "InterviewMeet" : undefined}
-              className="flex items-center gap-2 px-1 text-lg font-semibold"
-            >
-              <LogoMark className="h-8 w-8" />
-              <span className={collapsed ? "sr-only" : ""}>InterviewMeet</span>
-            </Link>
-            {!collapsed && (
+          {/* Mobile top bar */}
+          {!hud && (
+            <div className="flex items-center justify-between bg-ink px-4 py-3 text-surface lg:hidden">
+              <Link
+                to="/dashboard"
+                className="flex items-center gap-2 font-semibold"
+              >
+                <LogoMark className="h-7 w-7" /> InterviewMeet
+              </Link>
               <button
                 type="button"
-                aria-label="Collapse sidebar"
-                aria-expanded={true}
-                aria-controls="sidebar-nav"
-                onClick={toggleCollapsed}
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-surface/70 hover:bg-surface/10 hover:text-surface"
+                aria-label={open ? "Close menu" : "Open menu"}
+                aria-expanded={open}
+                aria-controls="sidebar"
+                onClick={() => setOpen((v) => !v)}
+                className="flex h-11 w-11 items-center justify-center rounded-lg hover:bg-surface/10"
               >
-                <ChevronIcon className="h-5 w-5" direction="left" />
+                {open ? <CloseIcon /> : <MenuIcon />}
               </button>
-            )}
-          </div>
-          {collapsed && (
-            <button
-              type="button"
-              aria-label="Expand sidebar"
-              aria-expanded={false}
-              aria-controls="sidebar-nav"
-              onClick={toggleCollapsed}
-              className="mx-auto mt-3 hidden h-9 w-9 items-center justify-center rounded-lg text-surface/70 hover:bg-surface/10 hover:text-surface lg:flex"
-            >
-              <ChevronIcon className="h-5 w-5" direction="right" />
-            </button>
+            </div>
           )}
-          <nav
-            id="sidebar-nav"
-            aria-label="Main"
-            className="lg:mt-2 lg:flex-1 lg:overflow-y-auto"
-          >
-            <Group title="Menu" items={menu} collapsed={collapsed} />
-            <Group title="Account" items={account} collapsed={collapsed} />
-            <Group title="Support" items={support} collapsed={collapsed} />
-          </nav>
-          <div className="mt-6 pt-4">
-            <p
-              className={`truncate px-3 text-xs text-surface/60 ${collapsed ? "lg:sr-only" : ""}`}
-            >
-              {me?.email}
-            </p>
-            <button
-              type="button"
-              title={collapsed ? "Sign out" : undefined}
-              className={`mt-2 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-surface/75 hover:bg-surface/10 hover:text-surface ${
-                collapsed ? "lg:justify-center lg:px-0" : ""
-              }`}
-              onClick={signOut.ask}
-            >
-              <LogoutIcon />
-              <span className={collapsed ? "lg:sr-only" : ""}>Sign out</span>
-            </button>
-          </div>
-        </aside>
 
-        <div className="min-w-0 flex-1 bg-canvas lg:min-h-screen lg:rounded-l-[2rem]">
-          <UpdateBanner />
-          {/* The top bar on every page: search on the left, the person's account on the right. */}
-          <header className="sticky top-0 z-30 flex items-center justify-between gap-3 bg-canvas/85 px-4 py-3 backdrop-blur sm:px-5 lg:rounded-tl-[2rem] lg:px-5">
-            <div className="flex min-w-0 items-center gap-3">
-              {location.pathname !== "/dashboard" && (
+          {!hud && (
+            <aside
+              id="sidebar"
+              className={`${
+                open ? "flex" : "hidden"
+              } flex-col bg-ink px-4 py-5 text-surface transition-[width] duration-200 lg:sticky lg:top-0 lg:flex lg:h-screen lg:shrink-0 ${
+                collapsed ? "lg:w-[84px] lg:px-3" : "lg:w-64"
+              }`}
+            >
+              <div
+                className={`hidden items-center lg:flex ${
+                  collapsed ? "justify-center" : "justify-between"
+                }`}
+              >
+                <Link
+                  to="/dashboard"
+                  title={collapsed ? "InterviewMeet" : undefined}
+                  className="flex items-center gap-2 px-1 text-lg font-semibold"
+                >
+                  <LogoMark className="h-8 w-8" />
+                  <span className={collapsed ? "sr-only" : ""}>
+                    InterviewMeet
+                  </span>
+                </Link>
+                {!collapsed && (
+                  <button
+                    type="button"
+                    aria-label="Collapse sidebar"
+                    aria-expanded={true}
+                    aria-controls="sidebar-nav"
+                    onClick={toggleCollapsed}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg text-surface/70 hover:bg-surface/10 hover:text-surface"
+                  >
+                    <ChevronIcon className="h-5 w-5" direction="left" />
+                  </button>
+                )}
+              </div>
+              {collapsed && (
                 <button
                   type="button"
-                  aria-label="Back to the previous page"
-                  title="Back"
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface text-ink shadow-card transition-colors hover:bg-accent-soft"
-                  // "default" means this page was opened directly, so there is no earlier page of ours
-                  onClick={() =>
-                    location.key !== "default"
-                      ? navigate(-1)
-                      : navigate("/dashboard")
-                  }
+                  aria-label="Expand sidebar"
+                  aria-expanded={false}
+                  aria-controls="sidebar-nav"
+                  onClick={toggleCollapsed}
+                  className="mx-auto mt-3 hidden h-9 w-9 items-center justify-center rounded-lg text-surface/70 hover:bg-surface/10 hover:text-surface lg:flex"
                 >
-                  <ChevronIcon className="h-5 w-5" direction="left" />
+                  <ChevronIcon className="h-5 w-5" direction="right" />
                 </button>
               )}
-              <GlobalSearch />
-            </div>
-            {/* the dashboard carries the account circle in its own greeting row */}
-            {location.pathname !== "/dashboard" && <ProfileMenu />}
-          </header>
-          <Outlet />
-        </div>
+              <nav
+                id="sidebar-nav"
+                aria-label="Main"
+                className="lg:mt-2 lg:flex-1 lg:overflow-y-auto"
+              >
+                <Group title="Menu" items={menu} collapsed={collapsed} />
+                <Group title="Account" items={account} collapsed={collapsed} />
+                <Group title="Support" items={support} collapsed={collapsed} />
+              </nav>
+              <div className="mt-6 pt-4">
+                <p
+                  className={`truncate px-3 text-xs text-surface/60 ${collapsed ? "lg:sr-only" : ""}`}
+                >
+                  {me?.email}
+                </p>
+                <button
+                  type="button"
+                  title={collapsed ? "Sign out" : undefined}
+                  className={`mt-2 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-surface/75 hover:bg-surface/10 hover:text-surface ${
+                    collapsed ? "lg:justify-center lg:px-0" : ""
+                  }`}
+                  onClick={signOut.ask}
+                >
+                  <LogoutIcon />
+                  <span className={collapsed ? "lg:sr-only" : ""}>
+                    Sign out
+                  </span>
+                </button>
+              </div>
+            </aside>
+          )}
+
+          <div
+            className={
+              hud
+                ? undefined
+                : "min-w-0 flex-1 bg-canvas lg:min-h-screen lg:rounded-l-[2rem]"
+            }
+          >
+            {!hud && <UpdateBanner />}
+            {/* The top bar on every page: search on the left, the person's account on the right. */}
+            {!hud && (
+              <header className="sticky top-0 z-30 flex items-center justify-between gap-3 bg-canvas/85 px-4 py-3 backdrop-blur sm:px-5 lg:rounded-tl-[2rem] lg:px-5">
+                <div className="flex min-w-0 items-center gap-3">
+                  {location.pathname !== "/dashboard" && (
+                    <button
+                      type="button"
+                      aria-label="Back to the previous page"
+                      title="Back"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface text-ink shadow-card transition-colors hover:bg-accent-soft"
+                      // "default" means this page was opened directly, so there is no earlier page of ours
+                      onClick={() =>
+                        location.key !== "default"
+                          ? navigate(-1)
+                          : navigate("/dashboard")
+                      }
+                    >
+                      <ChevronIcon className="h-5 w-5" direction="left" />
+                    </button>
+                  )}
+                  <GlobalSearch />
+                </div>
+                {/* the dashboard carries the account circle in its own greeting row */}
+                {location.pathname !== "/dashboard" && <ProfileMenu />}
+              </header>
+            )}
+            <Outlet />
+          </div>
         </div>
       </div>
       {signOut.dialog}

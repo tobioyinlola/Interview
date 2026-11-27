@@ -113,8 +113,18 @@ export function StealthTerminalHud({
   onExitStealth: () => void;
 }) {
   const { state: stealthState, toggleClickThrough } = useStealthHud();
-  const { status, level, mic, micLevel, outline, lines, partial, turnStart } =
-    useLiveStore();
+  const {
+    status,
+    level,
+    mic,
+    micLevel,
+    outline,
+    lines,
+    partial,
+    turnStart,
+    problem,
+    notice,
+  } = useLiveStore();
 
   const [activeTab, setActiveTab] = useState<"copilot" | "transcript">("copilot");
   const [opacity, setOpacity] = useState(92);
@@ -534,7 +544,41 @@ export function StealthTerminalHud({
                 }}
               >
                 <div style={{ marginBottom: "6px", fontSize: "18px" }}>🎙️</div>
-                <span>Listening for interviewer questions... Outlines will appear here automatically.</span>
+                {status === "listening" || status === "reconnecting" ? (
+                  <span>Listening for interviewer questions... Outlines will appear here automatically.</span>
+                ) : status === "starting" ? (
+                  <span>Starting…</span>
+                ) : status === "ended" ? (
+                  <span>Session ended.</span>
+                ) : (
+                  // idle, stopped or failed: say so, with the reason, and let the person start again
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
+                    {problem ? (
+                      <span role="alert" style={{ color: "#fca5a5" }}>{problem}</span>
+                    ) : (
+                      <span>Not listening yet.</span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => void controller.share()}
+                      style={{
+                        padding: "8px 14px",
+                        backgroundColor: "#7b47f3",
+                        color: "#ffffff",
+                        border: "1px solid #9061f9",
+                        borderRadius: "8px",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Start listening
+                    </button>
+                  </div>
+                )}
+                {notice && (status === "listening" || status === "reconnecting") && (
+                  <div style={{ marginTop: "8px", color: "#fcd34d" }}>{notice}</div>
+                )}
               </div>
             )}
 

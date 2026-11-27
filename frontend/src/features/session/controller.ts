@@ -73,6 +73,9 @@ export class LiveSessionController {
   private readonly silence = new SilenceWatch();
   private noteSeq = 0;
   private ended = false;
+  /** A start is waiting for the capture. A second one (the desktop app starts by itself, and the
+   *  Share button can be pressed too) must not open a second capture and socket. */
+  private starting = false;
   private settleTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private readonly d: ControllerDeps) {
@@ -84,9 +87,19 @@ export class LiveSessionController {
     return this.s.getState();
   }
 
-  /** Must run from a click: the browser's share picker needs a user gesture. */
+  /** In a browser this must run from a click: the share picker needs a user gesture. The desktop
+   *  app has no picker and starts it by itself. */
   async share(): Promise<void> {
-    if (this.ended || this.capture) return;
+    if (this.ended || this.capture || this.starting) return;
+    this.starting = true;
+    try {
+      await this.start();
+    } finally {
+      this.starting = false;
+    }
+  }
+
+  private async start(): Promise<void> {
     this.state.set({ status: "starting", problem: null, notice: null });
     const makeSocket = this.d.makeSocket ?? ((o, ev) => new AudioSocket(o, ev));
     const isNative = this.d.source === "dual" || this.d.source === "device";
