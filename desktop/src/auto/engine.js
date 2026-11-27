@@ -44,10 +44,14 @@ async function runJob({ page, job, say, command, authorize, intervene, now = Dat
 
   try {
     let scan = await page.fnValue(SCAN);
+    // a "verify you are human" page: the person passes it, and the real form loads in its place
+    if (BLOCK_TITLE.test(scan.title || "")) {
+      await person("The employer's site asked for a human check.");
+      scan = await afterCheck(page);
+    }
     const system0 = rules.detect(job.url);
     let sys = system0.key === "generic" ? rules.detect(job.url, (await page.ev("__im.html()")) || "") : system0;
     provider = sys.key;
-    if (BLOCK_TITLE.test(scan.title || "")) await person("The employer's site asked for a human check.");
     if (!scan.controls.length) {
       throw out("failed", CLOSED.test(scan.text) ? "This job is no longer open." : "No application form was found on that page.", { provider });
     }
@@ -57,8 +61,10 @@ async function runJob({ page, job, say, command, authorize, intervene, now = Dat
 
     const seen = new Set();
     for (;;) {
-      if (scan.captcha) await person("The form asks for a human check (CAPTCHA).");
-      if (scan.captcha) scan = await page.fnValue(SCAN);
+      if (scan.captcha) {
+        await person("The form asks for a human check (CAPTCHA).");
+        scan = await afterCheck(page);
+      }
       const controls = rules.controlsFrom(scan);
       const digest = crypto.createHash("sha256").update(JSON.stringify(controls.map((c) => [c.name, c.kind, c.required, c.options]))).digest("hex").slice(0, 16);
       if (seen.has(digest)) throw out("failed", "The form did not move on to its next step.", { provider });
@@ -122,6 +128,22 @@ async function runJob({ page, job, say, command, authorize, intervene, now = Dat
     const answer = await intervene(reason);
     if (answer !== "continue") throw out(answer === "stop" ? "interrupted" : "handed_over", reason, { command: answer === "stop" ? "stop" : undefined, provider });
   }
+}
+
+/** After the person passed a check: the page may reload or move on. Wait for it to settle, then read
+ *  the form again (up to ~20 seconds). */
+async function afterCheck(page) {
+  let scan = null;
+  for (let i = 0; i < 40; i++) {
+    await page.sleep(500);
+    try {
+      scan = await page.fnValue(SCAN);
+      if (!BLOCK_TITLE.test(scan.title || "") && scan.controls.length) break;
+    } catch { /* the page is reloading: look again */ }
+  }
+  if (!scan) throw out("failed", "The page did not come back after the check.");
+  await page.sleep(500);
+  return scan;
 }
 
 async function wantsNext(page, sys) {

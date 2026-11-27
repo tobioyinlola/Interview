@@ -34,7 +34,7 @@ async function open(path) {
   const page = await ctx.newPage();
   await page.goto(server.origin + path);
   const cdp = await ctx.newCDPSession(page);
-  const driver = makeDriver((m, p) => cdp.send(m, p));
+  const driver = makeDriver((m, p) => cdp.send(m, p), { pace: 20 });
   return { page, driver, close: () => ctx.close() };
 }
 function run(driver, path, over = {}) {
@@ -156,5 +156,25 @@ test("pressing submit with no confirmation is ambiguous, never success", { skip:
   const r = run(driver, "/jobs/silent");
   const out = await r.done;
   assert.equal(out.status, "ambiguous");
+  await close();
+});
+
+test("after the person passes a 'verify you are human' page, the real form is filled in", { skip: SKIP }, async () => {
+  server.received.length = 0;
+  const { driver, close } = await open("/jobs/interstitial");
+  const r = run(driver, "/jobs/1", { answer: "continue" });
+  const out = await r.done;
+  assert.equal(r.ctl.asked.length, 1, "the person was asked once");
+  assert.equal(out.status, "confirmed", out.message);
+  assert.equal(server.received.at(-1).first_name, "Ada");
+  await close();
+});
+
+test("a cursor is drawn on the page and follows the control being filled", { skip: SKIP }, async () => {
+  const { driver, close, page } = await open("/jobs/1");
+  await driver.type("#first_name", "Ada");
+  const at = await page.evaluate(() => ({ has: !!document.getElementById("__im_cursor"), t: document.getElementById("__im_cursor")?.style.transform }));
+  assert.equal(at.has, true);
+  assert.match(at.t, /translate\(/);
   await close();
 });

@@ -16,6 +16,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 function makeDriver(send, opts = {}) {
   let contextId = null;
   let libReady = false;
+  const pace = opts.pace == null ? 280 : opts.pace; // so a person can follow what is happening
   const tmp = opts.tmpDir || fs.mkdtempSync(path.join(os.tmpdir(), "im-docs-"));
 
   async function world() {
@@ -57,6 +58,15 @@ function makeDriver(send, opts = {}) {
   const call = (fn, ...args) => ev(`__im.${fn}(${args.map((a) => JSON.stringify(a === undefined ? null : a)).join(",")})`);
   const fnValue = (src) => ev(`(${src})()`);
 
+  /** Move the visible cursor to the control and outline it, then give the eye time to follow. */
+  async function show(sel, which, at) {
+    try {
+      await call("mark", at.x, at.y);
+      await call("outline", sel, which == null ? "first" : which);
+    } catch { /* decoration only */ }
+    await sleep(pace);
+  }
+
   async function clickAt(x, y) {
     await send("Input.dispatchMouseEvent", { type: "mouseMoved", x, y });
     await send("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", clickCount: 1 });
@@ -75,7 +85,7 @@ function makeDriver(send, opts = {}) {
     async click(sel, which, text) {
       const at = await call("locate", sel, which == null ? "first" : which, text || null);
       if (!at) throw new Error("not found");
-      await sleep(40);
+      await show(sel, which, at);
       if (!at.w || !at.h) return d.clickScript(sel, which === "last" ? (await call("count", sel)) - 1 : which == null || which === "first" ? 0 : which);
       await clickAt(at.x, at.y);
     },
@@ -86,6 +96,7 @@ function makeDriver(send, opts = {}) {
     async type(sel, text) {
       const at = await call("locate", sel, "first", null);
       if (!at) throw new Error("not found");
+      await show(sel, "first", at);
       await call("clear", sel);
       await send("Input.insertText", { text });
     },
