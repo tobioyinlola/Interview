@@ -1,0 +1,13 @@
+{
+  "name": "interviewmeet-desktop-tauri",
+  "private": true,
+  "version": "0.1.0",
+  "description": "InterviewMeet desktop on Tauri: a prototype beside the Electron app in ../desktop",
+  "scripts": {
+    "ui": "node ../scripts/build-app-ui.js app-dist",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "test": "cargo test --manifest-path src-tauri/Cargo.toml"
+  },
+  "devDependencies": { "@tauri-apps/cli": "^2" }
+}
