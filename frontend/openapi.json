@@ -3297,7 +3297,7 @@
           },
           "versions": {
             "items": {
-              "$ref": "#/components/schemas/VersionRow"
+              "$ref": "#/components/schemas/app__schemas__engagement__VersionRow"
             },
             "title": "Versions",
             "type": "array"
@@ -3611,6 +3611,150 @@
           "value"
         ],
         "title": "FeedbackIn",
+        "type": "object"
+      },
+      "FitBand": {
+        "properties": {
+          "band": {
+            "title": "Band",
+            "type": "string"
+          },
+          "positive": {
+            "title": "Positive",
+            "type": "integer"
+          },
+          "replied": {
+            "title": "Replied",
+            "type": "integer"
+          },
+          "sent": {
+            "title": "Sent",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "band",
+          "sent",
+          "replied",
+          "positive"
+        ],
+        "title": "FitBand",
+        "type": "object"
+      },
+      "FunnelOut": {
+        "properties": {
+          "approved": {
+            "title": "Approved",
+            "type": "integer"
+          },
+          "asked_to_stop": {
+            "title": "Asked To Stop",
+            "type": "integer"
+          },
+          "bounce_rate": {
+            "title": "Bounce Rate",
+            "type": "number"
+          },
+          "bounced": {
+            "title": "Bounced",
+            "type": "integer"
+          },
+          "by_fit": {
+            "items": {
+              "$ref": "#/components/schemas/FitBand"
+            },
+            "title": "By Fit",
+            "type": "array"
+          },
+          "by_version": {
+            "items": {
+              "$ref": "#/components/schemas/app__routers__hunt__VersionRow"
+            },
+            "title": "By Version",
+            "type": "array"
+          },
+          "daily_limit": {
+            "title": "Daily Limit",
+            "type": "integer"
+          },
+          "follow_ups_sent": {
+            "title": "Follow Ups Sent",
+            "type": "integer"
+          },
+          "health_sent": {
+            "title": "Health Sent",
+            "type": "integer"
+          },
+          "negative": {
+            "title": "Negative",
+            "type": "integer"
+          },
+          "paused_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paused Reason"
+          },
+          "positive": {
+            "title": "Positive",
+            "type": "integer"
+          },
+          "replied": {
+            "title": "Replied",
+            "type": "integer"
+          },
+          "sent": {
+            "title": "Sent",
+            "type": "integer"
+          },
+          "sent_today": {
+            "title": "Sent Today",
+            "type": "integer"
+          },
+          "stop_rate": {
+            "title": "Stop Rate",
+            "type": "number"
+          },
+          "waiting_review": {
+            "title": "Waiting Review",
+            "type": "integer"
+          },
+          "with_contact": {
+            "title": "With Contact",
+            "type": "integer"
+          },
+          "written": {
+            "title": "Written",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "with_contact",
+          "written",
+          "waiting_review",
+          "approved",
+          "sent",
+          "follow_ups_sent",
+          "replied",
+          "positive",
+          "negative",
+          "asked_to_stop",
+          "bounced",
+          "by_fit",
+          "by_version",
+          "sent_today",
+          "daily_limit",
+          "health_sent",
+          "bounce_rate",
+          "stop_rate",
+          "paused_reason"
+        ],
+        "title": "FunnelOut",
         "type": "object"
       },
       "FunnelStep": {
@@ -7529,6 +7673,12 @@
             "title": "Postal Address",
             "type": "string"
           },
+          "reach": {
+            "default": "most",
+            "pattern": "^(best|most|everyone)$",
+            "title": "Reach",
+            "type": "string"
+          },
           "regions": {
             "items": {
               "type": "string"
@@ -7608,6 +7758,12 @@
             "default": false,
             "title": "Prefilled",
             "type": "boolean"
+          },
+          "reach": {
+            "default": "most",
+            "pattern": "^(best|most|everyone)$",
+            "title": "Reach",
+            "type": "string"
           },
           "ready": {
             "items": {
@@ -8256,6 +8412,29 @@
           "region": {
             "title": "Region",
             "type": "string"
+          },
+          "replied_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replied At"
+          },
+          "reply_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reply Kind"
           },
           "sent_at": {
             "anyOf": [
@@ -9469,29 +9648,6 @@
         "title": "VerifyIn",
         "type": "object"
       },
-      "VersionRow": {
-        "properties": {
-          "app_version": {
-            "title": "App Version",
-            "type": "string"
-          },
-          "devices": {
-            "title": "Devices",
-            "type": "integer"
-          },
-          "platform": {
-            "title": "Platform",
-            "type": "string"
-          }
-        },
-        "required": [
-          "platform",
-          "app_version",
-          "devices"
-        ],
-        "title": "VersionRow",
-        "type": "object"
-      },
       "WorkerDeadOut": {
         "properties": {
           "attempts": {
@@ -9650,6 +9806,34 @@
         "title": "StatusOut",
         "type": "object"
       },
+      "app__routers__hunt__VersionRow": {
+        "properties": {
+          "positive": {
+            "title": "Positive",
+            "type": "integer"
+          },
+          "replied": {
+            "title": "Replied",
+            "type": "integer"
+          },
+          "sent": {
+            "title": "Sent",
+            "type": "integer"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "sent",
+          "replied",
+          "positive"
+        ],
+        "title": "VersionRow",
+        "type": "object"
+      },
       "app__schemas__api__StatusOut": {
         "properties": {
           "status": {
@@ -9661,6 +9845,29 @@
           "status"
         ],
         "title": "StatusOut",
+        "type": "object"
+      },
+      "app__schemas__engagement__VersionRow": {
+        "properties": {
+          "app_version": {
+            "title": "App Version",
+            "type": "string"
+          },
+          "devices": {
+            "title": "Devices",
+            "type": "integer"
+          },
+          "platform": {
+            "title": "Platform",
+            "type": "string"
+          }
+        },
+        "required": [
+          "platform",
+          "app_version",
+          "devices"
+        ],
+        "title": "VersionRow",
         "type": "object"
       }
     }
@@ -15021,6 +15228,27 @@
         ]
       }
     },
+    "/api/hunt/funnel": {
+      "get": {
+        "operationId": "funnel_api_hunt_funnel_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunnelOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Funnel",
+        "tags": [
+          "hunt"
+        ]
+      }
+    },
     "/api/hunt/reach": {
       "get": {
         "description": "How many startups outreach can write to, so the page can say so truthfully. Open to anyone\nsigned in, invited or not.",
@@ -15038,6 +15266,32 @@
           }
         },
         "summary": "Reach",
+        "tags": [
+          "hunt"
+        ]
+      }
+    },
+    "/api/hunt/resume": {
+      "post": {
+        "description": "Turn sending back on after it stopped by itself. What happened before now stops counting.",
+        "operationId": "resume_sending_api_hunt_resume_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "title": "Response Resume Sending Api Hunt Resume Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Resume Sending",
         "tags": [
           "hunt"
         ]

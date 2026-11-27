@@ -2240,6 +2240,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/hunt/funnel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Funnel */
+        get: operations["funnel_api_hunt_funnel_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/hunt/reach": {
         parameters: {
             query?: never;
@@ -2255,6 +2272,26 @@ export interface paths {
         get: operations["reach_api_hunt_reach_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hunt/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resume Sending
+         * @description Turn sending back on after it stopped by itself. What happened before now stops counting.
+         */
+        post: operations["resume_sending_api_hunt_resume_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4077,7 +4114,7 @@ export interface components {
             /** Stickiness Pct */
             stickiness_pct: number | null;
             /** Versions */
-            versions: components["schemas"]["VersionRow"][];
+            versions: components["schemas"]["app__schemas__engagement__VersionRow"][];
             /** Wau */
             wau: number;
         };
@@ -4194,6 +4231,58 @@ export interface components {
         FeedbackIn: {
             /** Value */
             value: string;
+        };
+        /** FitBand */
+        FitBand: {
+            /** Band */
+            band: string;
+            /** Positive */
+            positive: number;
+            /** Replied */
+            replied: number;
+            /** Sent */
+            sent: number;
+        };
+        /** FunnelOut */
+        FunnelOut: {
+            /** Approved */
+            approved: number;
+            /** Asked To Stop */
+            asked_to_stop: number;
+            /** Bounce Rate */
+            bounce_rate: number;
+            /** Bounced */
+            bounced: number;
+            /** By Fit */
+            by_fit: components["schemas"]["FitBand"][];
+            /** By Version */
+            by_version: components["schemas"]["app__routers__hunt__VersionRow"][];
+            /** Daily Limit */
+            daily_limit: number;
+            /** Follow Ups Sent */
+            follow_ups_sent: number;
+            /** Health Sent */
+            health_sent: number;
+            /** Negative */
+            negative: number;
+            /** Paused Reason */
+            paused_reason: string | null;
+            /** Positive */
+            positive: number;
+            /** Replied */
+            replied: number;
+            /** Sent */
+            sent: number;
+            /** Sent Today */
+            sent_today: number;
+            /** Stop Rate */
+            stop_rate: number;
+            /** Waiting Review */
+            waiting_review: number;
+            /** With Contact */
+            with_contact: number;
+            /** Written */
+            written: number;
         };
         /** FunnelStep */
         FunnelStep: {
@@ -5548,6 +5637,11 @@ export interface components {
              * @default
              */
             postal_address: string;
+            /**
+             * Reach
+             * @default most
+             */
+            reach: string;
             /** Regions */
             regions?: string[];
             /** Roles */
@@ -5594,6 +5688,11 @@ export interface components {
              * @default false
              */
             prefilled: boolean;
+            /**
+             * Reach
+             * @default most
+             */
+            reach: string;
             /** Ready */
             ready: string[];
             /** Regions */
@@ -5844,6 +5943,10 @@ export interface components {
             reason: string | null;
             /** Region */
             region: string;
+            /** Replied At */
+            replied_at?: string | null;
+            /** Reply Kind */
+            reply_kind?: string | null;
             /** Sent At */
             sent_at: string | null;
             /** Startup */
@@ -6346,15 +6449,6 @@ export interface components {
             /** Token */
             token: string;
         };
-        /** VersionRow */
-        VersionRow: {
-            /** App Version */
-            app_version: string;
-            /** Devices */
-            devices: number;
-            /** Platform */
-            platform: string;
-        };
         /** WorkerDeadOut */
         WorkerDeadOut: {
             /** Attempts */
@@ -6412,10 +6506,30 @@ export interface components {
             /** Enabled */
             enabled: boolean;
         };
+        /** VersionRow */
+        app__routers__hunt__VersionRow: {
+            /** Positive */
+            positive: number;
+            /** Replied */
+            replied: number;
+            /** Sent */
+            sent: number;
+            /** Version */
+            version: string;
+        };
         /** StatusOut */
         app__schemas__api__StatusOut: {
             /** Status */
             status: string;
+        };
+        /** VersionRow */
+        app__schemas__engagement__VersionRow: {
+            /** App Version */
+            app_version: string;
+            /** Devices */
+            devices: number;
+            /** Platform */
+            platform: string;
         };
     };
     responses: never;
@@ -10046,6 +10160,26 @@ export interface operations {
             };
         };
     };
+    funnel_api_hunt_funnel_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FunnelOut"];
+                };
+            };
+        };
+    };
     reach_api_hunt_reach_get: {
         parameters: {
             query?: never;
@@ -10062,6 +10196,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReachOut"];
+                };
+            };
+        };
+    };
+    resume_sending_api_hunt_resume_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: boolean;
+                    };
                 };
             };
         };

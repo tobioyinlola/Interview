@@ -101,3 +101,36 @@ and honoured, and nobody who asked to stop, bounced or declined is written to ag
 wants the block back for everyone sets `STARTUP_OUTREACH_FOOTER=true`; the postal address is then
 required before anything is sent. Commercial-email rules (CAN-SPAM, GDPR and PECR) can require an
 opt-out and an address, so that choice, and who bears it, is the operator's.
+
+## Reaching more startups without hurting the sender's mailbox
+
+Every note goes from the person's own address, so a bad run hurts their ordinary email too. The
+rules live in `backend/app/hunt/health.py`.
+
+* **How far to reach** (Set up → Sending): *Best matches* (fit 50+ or a matching opening), *Most*
+  (fit 25+ or a matching opening, the default) or *Everyone* (any startup with an address). It
+  ranks rather than cuts: the best fits are always written first, and lower fits follow as the
+  daily limit and the 30-note review backlog allow. A note to a startup with no matching opening is
+  written as an introduction, not as an answer to an opening.
+* **The ramp.** The daily limit is the person's own limit, held down to 10 a day in the first week,
+  15 in the second, 20 in the third and 25 after that (measured from the first note sent). If more
+  than 1.5 in 100 of the last 30 days' notes bounced, it drops back to 10.
+* **Stops by itself.** With at least 10 sent in the window (30 days, or since the person last turned
+  sending back on), sending stops if more than 3 in 100 bounced or more than 1 in 10 got a reply
+  asking us to stop. The reason is shown with a *Turn sending back on* button; from then on only
+  what happens after that counts. Spam complaints are not visible to us, so "asked to stop" stands
+  in for them.
+* **Mail check.** Before a note is written, the address's domain must publish a mail server (or at
+  least an address record). A domain that does not exist is skipped (its answer is kept for 30
+  days); a lookup that fails or times out is never held against a startup. A named person is chosen
+  before a hiring address, and a hiring address before a general one.
+* **Results** (Sent tab): companies with an address, written, sent, replied; interested / not
+  hiring / asked to stop / bounced; replies by fit band and by email version (written for each
+  startup vs the person's own template); today's limit.
+* **Replies.** A reply is read from its words only (interested, not hiring, or neither) and nothing
+  of it is kept; it shows as a badge with its time on the outreach, and "Practice for the interview"
+  links to interview setup when someone is interested. This is a keyword read, not a judgement: a
+  mixed reply can be misread.
+
+Endpoints: `GET /api/hunt/funnel`, `POST /api/hunt/resume`; `reach` is part of
+`GET/PUT /api/hunt/settings`.

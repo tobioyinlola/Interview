@@ -15,6 +15,7 @@ import {
   useRequestOutreachAccess,
 } from "./api";
 import { OutreachRow, StartupCard } from "./Cards";
+import { Results } from "./Results";
 import { StartupHero } from "./Connect";
 import { Setup } from "./Setup";
 import { Emails } from "./Emails";
@@ -210,6 +211,8 @@ function StartupsBoard() {
             ))}
           </ul>
         ))}
+
+      {tab === "sent" && <Results />}
 
       {tab === "sent" &&
         (done.length === 0 ? (

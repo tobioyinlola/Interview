@@ -84,6 +84,35 @@ const template = {
   unknown: [],
 };
 
+const funnel = {
+  with_contact: 120,
+  written: 30,
+  waiting_review: 4,
+  approved: 0,
+  sent: 20,
+  follow_ups_sent: 6,
+  replied: 5,
+  positive: 2,
+  negative: 3,
+  asked_to_stop: 1,
+  bounced: 1,
+  by_fit: [
+    { band: "best", sent: 8, replied: 4, positive: 2 },
+    { band: "good", sent: 8, replied: 1, positive: 0 },
+    { band: "low", sent: 4, replied: 0, positive: 0 },
+  ],
+  by_version: [
+    { version: "written", sent: 12, replied: 2, positive: 1 },
+    { version: "template", sent: 8, replied: 3, positive: 1 },
+  ],
+  sent_today: 3,
+  daily_limit: 10,
+  health_sent: 20,
+  bounce_rate: 0.05,
+  stop_rate: 0.05,
+  paused_reason: null,
+};
+
 const routes = (extra: Record<string, () => object> = {}) =>
   mockApi({
     "GET /api/me": () => ({ json: me }),
@@ -99,6 +128,7 @@ const routes = (extra: Record<string, () => object> = {}) =>
     }),
     "GET /api/hunt/settings": () => ({ json: settings }),
     "GET /api/hunt/template": () => ({ json: template }),
+    "GET /api/hunt/funnel": () => ({ json: funnel }),
     "GET /api/hunt/targets": () => ({ json: [target] }),
     "GET /api/hunt/delivery": () => ({ json: { approved: 0, blockers: [] } }),
     ...extra,
@@ -261,6 +291,92 @@ describe("Startups inside Auto-Apply", () => {
     expect(within(beta).getByText(/Due about/)).toBeVisible(); // second email expected
     const gamma = rows.find((r) => within(r).queryByText("Gamma"))!;
     expect(within(gamma).getByText("Not needed: they replied")).toBeVisible();
+  });
+
+  it("shows how it is going, with results by fit and by email", async () => {
+    routes({
+      "GET /api/hunt/settings": () => ({
+        json: { ...settings, enabled: true, ready: [] },
+      }),
+    });
+    renderApp(<App />, "/startups");
+    await userEvent.click(await screen.findByRole("radio", { name: "Sent" }));
+    const card = await screen.findByRole("region", { name: "How it is going" });
+    expect(within(card).getByText(/Today: 3 of 10/)).toBeVisible();
+    const path = within(card).getByRole("list", {
+      name: "From startup to reply",
+    });
+    expect(within(path).getByText("120")).toBeVisible();
+    const byFit = within(card).getByRole("table", { name: "Replies by fit" });
+    expect(within(byFit).getByText("4 (50%)")).toBeVisible();
+    expect(
+      within(card).getByRole("table", { name: "Replies by email" }),
+    ).toBeVisible();
+    expect(
+      within(card).getByRole("link", { name: "Practice for the interview" }),
+    ).toHaveAttribute("href", "/session/new");
+  });
+
+  it("says when sending stopped by itself and lets you turn it back on", async () => {
+    const resume = vi.fn(() => ({ json: { resumed: true } }));
+    routes({
+      "GET /api/hunt/settings": () => ({
+        json: { ...settings, enabled: true, ready: [] },
+      }),
+      "GET /api/hunt/funnel": () => ({
+        json: {
+          ...funnel,
+          paused_reason: "3 of your last 40 emails bounced (8%).",
+        },
+      }),
+      "POST /api/hunt/resume": resume,
+    });
+    renderApp(<App />, "/startups");
+    await userEvent.click(await screen.findByRole("radio", { name: "Sent" }));
+    expect(await screen.findByText("Sending stopped by itself")).toBeVisible();
+    expect(screen.getByText(/3 of your last 40 emails bounced/)).toBeVisible();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Turn sending back on" }),
+    );
+    await waitFor(() => expect(resume).toHaveBeenCalled());
+  });
+
+  it("shows what each reply said, and when it came", async () => {
+    routes({
+      "GET /api/hunt/settings": () => ({
+        json: { ...settings, enabled: true, ready: [] },
+      }),
+      "GET /api/hunt/targets": () => ({
+        json: [
+          {
+            ...target,
+            id: "r1",
+            status: "replied",
+            step: 1,
+            sent_at: "2026-11-02T09:15:00Z",
+            replied_at: "2026-11-03T10:00:00Z",
+            reply_kind: "positive",
+          },
+        ],
+      }),
+    });
+    renderApp(<App />, "/startups");
+    await userEvent.click(await screen.findByRole("radio", { name: "Sent" }));
+    expect(await screen.findByText("Interested")).toBeVisible();
+  });
+
+  it("lets you choose how far to reach in set up", async () => {
+    routes();
+    renderApp(<App />, "/startups");
+    await userEvent.click(await screen.findByRole("button", { name: "Next" }));
+    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(
+      screen.getByRole("radiogroup", { name: "How far to reach" }),
+    ).toBeVisible();
+    await userEvent.click(screen.getByRole("radio", { name: "Everyone" }));
+    expect(
+      screen.getByText(/Every startup we have an address for/),
+    ).toBeVisible();
   });
 
   it("makes every link in a note waiting for review clickable", async () => {

@@ -5,6 +5,7 @@ import asyncio
 import logging
 import re
 import uuid
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
 from email.utils import parseaddr
 from typing import Any
@@ -17,7 +18,7 @@ from app.autoapply import clock, cvfile, mailbox, outbox, switches
 from app.autoapply import facts as facts_mod
 from app.autoapply.adapters import AdapterError, InboundMessage, MailAttachment, MailboxAdapter
 from app.config import Settings
-from app.hunt import draft, fit, policy, template
+from app.hunt import draft, fit, health, policy, template
 from app.models import (
     HuntSettings,
     HuntTarget,
@@ -36,6 +37,8 @@ MAX_DAILY = 25
 MAX_BACKLOG = 30
 MIN_GAP = timedelta(seconds=90)
 STALE_CLAIM = timedelta(minutes=10)
+# Does this address's domain receive mail? Replaced in tests, so none of them goes to the network.
+RESOLVER: Callable[[str], Awaitable[bool | None]] = health.mail_domain_works
 _KIND_RANK = {"person": 0, "role": 1, "general": 2}
 
 
@@ -203,8 +206,13 @@ async def plan(
         if not usable:
             continue
         pts, why = fit.score(st.roles, facts, s)
-        if pts >= fit.MIN_FIT or fit.openings_for(st.roles, s):
-            best = min(usable, key=lambda c: _KIND_RANK[c.kind])
+        floor = health.reach_floor(st.reach)
+        if pts >= floor or fit.openings_for(st.roles, s):
+            best = await _deliverable(db, usable, now)
+            if best is None:
+                continue  # none of its addresses can receive mail
+            if pts < fit.MIN_FIT and not fit.openings_for(st.roles, s):
+                why = [*why, "No matching opening yet: this note introduces you and asks."]
             ranked.append((pts, why, s, best))
     ranked.sort(key=lambda r: -r[0])
     made = 0
@@ -235,6 +243,7 @@ async def plan(
                 openings=found,
                 subject=subject,
                 body=body,
+                source="template" if _uses_template(st, "first") else "written",
                 status="approved" if st.auto_send and not held else "drafted",
                 reason=("Fill in: " + ", ".join(held))[:300] if held else None,
                 created_at=now,
@@ -243,6 +252,21 @@ async def plan(
         made += 1
     await db.commit()
     return made
+
+
+async def _deliverable(
+    db: AsyncSession, usable: list[StartupContact], now: datetime
+) -> StartupContact | None:
+    """The best address of a startup that can receive mail: a named person first, then a hiring
+    address, then a general one. A domain's answer is kept for 30 days."""
+    for c in sorted(usable, key=lambda c: _KIND_RANK[c.kind]):
+        fresh = c.mx_checked_at is not None and now - c.mx_checked_at < timedelta(days=30)
+        if not fresh:
+            c.mx_ok = await RESOLVER(policy.domain_of(c.email))
+            c.mx_checked_at = now
+        if c.mx_ok is not False:
+            return c
+    return None
 
 
 async def redraft(
@@ -419,6 +443,64 @@ async def sent_today(db: AsyncSession, user_id: uuid.UUID, now: datetime, tz: st
     ).scalar_one()
 
 
+async def stats(
+    db: AsyncSession, user_id: uuid.UUID, st: HuntSettings, now: datetime
+) -> dict[str, Any]:
+    """How sending has gone lately: what counts is the last 30 days, and only what happened after
+    the person last turned sending back on."""
+    since = now - health.WINDOW
+    if st.health_since is not None and st.health_since > since:
+        since = st.health_since
+    rows = (
+        await db.execute(
+            select(HuntTarget.sent_at, HuntTarget.reply_kind, HuntTarget.status).where(
+                HuntTarget.user_id == user_id, HuntTarget.sent_at.is_not(None)
+            )
+        )
+    ).all()
+    sent_at = [(r[0], r[1]) for r in rows if r[0] is not None]
+    first = min((a for a, _ in sent_at), default=None)
+    recent = [(a, k) for a, k in sent_at if a >= since]
+    return {
+        "sent": len(recent),
+        "bounced": sum(1 for _, k in recent if k == "bounce"),
+        "optouts": sum(1 for _, k in recent if k == "optout"),
+        "first_sent": first,
+    }
+
+
+async def effective_cap(
+    db: AsyncSession, user_id: uuid.UUID, st: HuntSettings, now: datetime
+) -> int:
+    h = await stats(db, user_id, st, now)
+    return health.daily_cap(st, h["first_sent"], now, h["sent"], h["bounced"], MAX_DAILY)
+
+
+async def evaluate_pause(db: AsyncSession, user_id: uuid.UUID, now: datetime) -> str | None:
+    """Stop sending when bounces or "please stop" replies pass the line. Returns the reason."""
+    st = await get_settings(db, user_id)
+    if st is None or not st.enabled or st.auto_paused_at is not None:
+        return None
+    h = await stats(db, user_id, st, now)
+    why = health.pause_reason(h["sent"], h["bounced"], h["optouts"])
+    if why is None:
+        return None
+    st.auto_paused_at, st.auto_pause_reason = now, why[:300]
+    await db.commit()
+    log.warning("startup sending paused", extra={"user_id": str(user_id), "why": health.explain(h)})
+    return why
+
+
+async def resume(db: AsyncSession, user_id: uuid.UUID, now: datetime) -> bool:
+    """The person turns sending back on: what happened before now no longer counts against it."""
+    st = await get_settings(db, user_id)
+    if st is None or st.auto_paused_at is None:
+        return False
+    st.auto_paused_at, st.auto_pause_reason, st.health_since = None, None, now
+    await db.commit()
+    return True
+
+
 def cv_filename(name: str) -> str:
     """'Ada Lovelace - CV.pdf': a name a hiring manager can file, with nothing odd in it."""
     clean = re.sub(r"[^A-Za-z0-9 .'-]", "", name or "").strip()
@@ -496,6 +578,8 @@ async def delivery_blockers(
                 "(AUTOAPPLY_ALLOWED_RECIPIENTS). To let it write to real startups, the operator "
                 "sets STARTUP_OUTREACH_ANY_RECIPIENT=true.",
             )
+        if st is not None and st.auto_paused_at is not None:
+            add("auto_paused", st.auto_pause_reason or "Sending stopped by itself.", "sent")
         if st is not None and st.enabled and too_early(st, now):
             add("not_yet", "You asked for nothing to go out before the start time you set.")
         a, b = window_of(st) if st is not None else (8, 18)
@@ -505,10 +589,14 @@ async def delivery_blockers(
                 f"Notes go out on weekdays between {a:02d}:00 and {b:02d}:00 ({tz}). It is "
                 "outside that now, so the next one goes in the next window.",
             )
-        if st is not None and await sent_today(db, user_id, now, tz) >= min(
-            st.daily_cap, MAX_DAILY
-        ):
-            add("cap", "Today's limit is reached. The next note goes tomorrow.")
+        if st is not None:
+            cap = await effective_cap(db, user_id, st, now)
+            if await sent_today(db, user_id, now, tz) >= cap:
+                add(
+                    "cap",
+                    f"Today's limit of {cap} is reached. It starts low and rises over your "
+                    "first three weeks. The next note goes tomorrow.",
+                )
         last = (
             await db.execute(
                 select(func.max(HuntTarget.claimed_at)).where(HuntTarget.user_id == user_id)
@@ -561,11 +649,13 @@ async def send_next(
             gate = "mailbox_not_connected"
         elif prof and prof.paused:
             gate = "paused"
+        elif st.auto_paused_at is not None:
+            gate = "auto_paused"
         elif too_early(st, now):
             gate = "not_yet"
         elif not in_window(now, tz, *window_of(st)):
             gate = "outside_send_hours"
-        elif await sent_today(db, user_id, now, tz) >= min(st.daily_cap, MAX_DAILY):
+        elif await sent_today(db, user_id, now, tz) >= await effective_cap(db, user_id, st, now):
             gate = "daily_cap_reached"
         if gate is not None:
             if await _has_approved(db, user_id):
@@ -743,6 +833,7 @@ async def on_inbound(
         hit = [(t, c) for t, c in targets if c.email in addrs or t.message_id == msg.in_reply_to]
         for t, c in hit:
             t.status, t.reason = "failed", "The address bounced."
+            t.reply_kind, t.replied_at = "bounce", now
             await suppress(db, user_id=None, email=c.email, reason="bounce", now=now)
         return "bounced" if hit else None
     mine = [
@@ -753,8 +844,10 @@ async def on_inbound(
     if not mine:
         return None
     optout = policy.is_opt_out(f"{msg.subject} {msg.snippet}")
+    kind = "optout" if optout else health.reply_kind(f"{msg.subject} {msg.snippet}")
     for t, c in mine:
         t.status = "declined" if optout else "replied"
+        t.reply_kind, t.replied_at = kind, now
         if optout:
             await suppress(
                 db, user_id=user_id, email=c.email, domain=policy.domain_of(c.email),
@@ -790,5 +883,6 @@ async def tick_user(
         footer = settings.startup_outreach_footer
         drafted = await plan(db, user_id, now, llm, footer=footer)
         followups = await plan_followups(db, user_id, now, footer=footer)
+        await evaluate_pause(db, user_id, now)
     sent = await send_next(maker, user_id, adapter, settings, now)
     return {"drafted": drafted, "followups": followups, "sent": sent}

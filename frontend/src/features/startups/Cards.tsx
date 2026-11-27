@@ -360,6 +360,9 @@ export function OutreachRow({
               <dd>{followLine(first, follow, days, followOn)}</dd>
             </div>
           </dl>
+          {(follow ?? first).reply_kind && (
+            <ReplyBadge t={follow?.reply_kind ? follow : first} />
+          )}
         </span>
         <StatusPill
           t={latest}
@@ -375,5 +378,29 @@ export function OutreachRow({
         </div>
       )}
     </li>
+  );
+}
+
+const REPLY: Record<string, { text: string; tone: string }> = {
+  positive: { text: "Interested", tone: "bg-emerald-100 text-emerald-900" },
+  neutral: { text: "Replied", tone: "bg-accent-soft text-accent-dark" },
+  negative: { text: "Not hiring", tone: "bg-slate-100 text-slate-700" },
+  optout: { text: "Asked you to stop", tone: "bg-red-100 text-red-900" },
+  bounce: { text: "Bounced", tone: "bg-red-100 text-red-900" },
+};
+
+/** What a reply said, in a word, and when it came. */
+function ReplyBadge({ t }: { t: HuntTarget }) {
+  const r = t.reply_kind ? REPLY[t.reply_kind] : null;
+  if (!r) return null;
+  return (
+    <span className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+      <span className={`rounded-full px-2 py-0.5 font-medium ${r.tone}`}>
+        {r.text}
+      </span>
+      {t.replied_at && (
+        <span className="text-muted">{stamp(t.replied_at)}</span>
+      )}
+    </span>
   );
 }
