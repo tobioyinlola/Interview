@@ -1544,6 +1544,14 @@
             "title": "Events Needing Review",
             "type": "integer"
           },
+          "executors": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ExecutorRow"
+            },
+            "title": "Executors",
+            "type": "array"
+          },
           "hours_to_first_application": {
             "anyOf": [
               {
@@ -3444,6 +3452,62 @@
           "name"
         ],
         "title": "EventIn",
+        "type": "object"
+      },
+      "ExecutorRow": {
+        "description": "What each place that carries out applications did in the last 7 days. The desktop costs the\nplatform nothing; the cloud row is the one worker's browser time.",
+        "properties": {
+          "ambiguous": {
+            "title": "Ambiguous",
+            "type": "integer"
+          },
+          "attempts": {
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "avg_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Seconds"
+          },
+          "channel": {
+            "title": "Channel",
+            "type": "string"
+          },
+          "confirmed": {
+            "title": "Confirmed",
+            "type": "integer"
+          },
+          "executor": {
+            "title": "Executor",
+            "type": "string"
+          },
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "total_minutes": {
+            "title": "Total Minutes",
+            "type": "number"
+          }
+        },
+        "required": [
+          "executor",
+          "channel",
+          "attempts",
+          "confirmed",
+          "ambiguous",
+          "failed",
+          "avg_seconds",
+          "total_minutes"
+        ],
+        "title": "ExecutorRow",
         "type": "object"
       },
       "FactsIn": {

@@ -19,7 +19,7 @@ from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.autoapply.adapters import AdapterError
@@ -317,3 +317,18 @@ async def latest(db: AsyncSession, user_id: uuid.UUID, limit: int = 40) -> list[
         .all()
     )
     return list(reversed(rows))
+
+
+async def purge(maker: async_sessionmaker[AsyncSession], days: int) -> int:
+    """The run history is for following and auditing a run, not an archive: old events go, and so
+    do computers that have not checked in for a month."""
+    now = datetime.now().astimezone()
+    try:
+        async with maker() as db:
+            gone = await db.execute(delete(RunEvent).where(RunEvent.at < now - timedelta(days=days)))
+            await db.execute(delete(Executor).where(Executor.last_seen < now - timedelta(days=30)))
+            await db.commit()
+            return int(gone.rowcount or 0)  # type: ignore[attr-defined]
+    except Exception as exc:  # noqa: BLE001 - clean-up never stops the rest
+        log.warning("run history purge failed", extra={"fields": {"error": type(exc).__name__}})
+        return 0

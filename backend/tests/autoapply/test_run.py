@@ -546,3 +546,23 @@ async def test_run_state_rows_are_one_per_person(ada, maker):
     await view(ada)
     async with maker() as db:
         assert len((await db.execute(select(RunState))).scalars().all()) == 1
+
+
+async def test_old_run_history_and_silent_computers_are_cleared(ada, maker):
+    from datetime import datetime
+
+    from app.models import Executor, RunEvent
+
+    uid = await user_id(maker)
+    now = datetime.now().astimezone()
+    async with maker() as db:
+        await runlog.add(db, uid, "run_started", now=now - timedelta(days=200))
+        await runlog.add(db, uid, "run_paused", now=now)
+        db.add(Executor(user_id=uid, executor_id="old-pc-0001", last_seen=now - timedelta(days=40)))
+        db.add(Executor(user_id=uid, executor_id="new-pc-0001", last_seen=now))
+        await db.commit()
+    assert await runlog.purge(maker, 90) == 1
+    async with maker() as db:
+        assert [e.kind for e in (await db.execute(select(RunEvent))).scalars().all()] == ["run_paused"]
+        names = {e.executor_id for e in (await db.execute(select(Executor))).scalars().all()}
+        assert names == {"new-pc-0001"}

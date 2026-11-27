@@ -92,6 +92,62 @@ export function AutoApplyAdminPage() {
         />
       </dl>
 
+      {d.executors && d.executors.length > 0 && (
+        <section aria-labelledby="ex-h" className="space-y-3">
+          <h2 id="ex-h" className="text-base font-semibold tracking-tight">
+            Where applications were carried out (7 days)
+          </h2>
+          <p className="text-sm text-muted">
+            The candidate&apos;s own computer costs us nothing. Cloud time is
+            the one background worker&apos;s browser.
+          </p>
+          <div className="overflow-x-auto">
+            <table
+              aria-label="Where applications ran"
+              className="w-full text-left text-sm"
+            >
+              <thead className="text-muted">
+                <tr>
+                  <th className="py-1 pr-3">Where</th>
+                  <th className="py-1 pr-3">How</th>
+                  <th className="py-1 pr-3">Attempts</th>
+                  <th className="py-1 pr-3">Confirmed</th>
+                  <th className="py-1 pr-3">Unknown</th>
+                  <th className="py-1 pr-3">Failed</th>
+                  <th className="py-1 pr-3">Average</th>
+                  <th className="py-1 pr-3">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {d.executors.map((x) => (
+                  <tr
+                    key={`${x.executor}-${x.channel}`}
+                    className="border-t border-line"
+                  >
+                    <td className="py-1 pr-3">
+                      {x.executor === "desktop"
+                        ? "Their computer"
+                        : "Our server"}
+                    </td>
+                    <td className="py-1 pr-3">
+                      {x.channel === "form" ? "Browser form" : "Email"}
+                    </td>
+                    <td className="py-1 pr-3">{num(x.attempts)}</td>
+                    <td className="py-1 pr-3">{num(x.confirmed)}</td>
+                    <td className="py-1 pr-3">{num(x.ambiguous)}</td>
+                    <td className="py-1 pr-3">{num(x.failed)}</td>
+                    <td className="py-1 pr-3">
+                      {x.avg_seconds === null ? "–" : `${x.avg_seconds} s`}
+                    </td>
+                    <td className="py-1 pr-3">{x.total_minutes} min</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
       <section aria-labelledby="sw-h" className="space-y-3">
         <h2 id="sw-h" className="text-base font-semibold tracking-tight">
           Switches

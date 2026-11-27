@@ -3432,6 +3432,11 @@ export interface components {
             enabled: boolean;
             /** Events Needing Review */
             events_needing_review: number;
+            /**
+             * Executors
+             * @default []
+             */
+            executors: components["schemas"]["ExecutorRow"][];
             /** Hours To First Application */
             hours_to_first_application: number | null;
             /** Interviews */
@@ -4078,6 +4083,29 @@ export interface components {
             route?: string | null;
             /** Ts */
             ts?: number | null;
+        };
+        /**
+         * ExecutorRow
+         * @description What each place that carries out applications did in the last 7 days. The desktop costs the
+         *     platform nothing; the cloud row is the one worker's browser time.
+         */
+        ExecutorRow: {
+            /** Ambiguous */
+            ambiguous: number;
+            /** Attempts */
+            attempts: number;
+            /** Avg Seconds */
+            avg_seconds: number | null;
+            /** Channel */
+            channel: string;
+            /** Confirmed */
+            confirmed: number;
+            /** Executor */
+            executor: string;
+            /** Failed */
+            failed: number;
+            /** Total Minutes */
+            total_minutes: number;
         };
         /** FactsIn */
         FactsIn: {

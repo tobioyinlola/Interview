@@ -14,7 +14,8 @@ def build(settings: Settings, manager: object = None) -> FormAdapter:
     """The fixture (which touches nobody) unless AUTOAPPLY_FORM_ADAPTER=browser. Submissions to real
     employers also need AUTOAPPLY_FORM_DISPATCH, like every real channel."""
     if settings.autoapply_form_adapter == "browser":
-        from app.autoapply.browserform import DEFAULT_HOSTS, BrowserForm
+        from app.autoapply import ats
+        from app.autoapply.browserform import BrowserForm
 
         if importlib.util.find_spec("playwright") is None:
             log.warning(
@@ -24,7 +25,8 @@ def build(settings: Settings, manager: object = None) -> FormAdapter:
             h.strip().lower() for h in settings.autoapply_form_hosts.split(",") if h.strip()
         )
         return BrowserForm(
-            hosts=hosts or DEFAULT_HOSTS,
+            hosts=hosts or None,
+            enabled_ats=ats.enabled(settings.autoapply_ats_enabled),
             executable_path=settings.autoapply_browser_path or None,
             manager=manager,  # the unified worker shares one browser across tasks
         )

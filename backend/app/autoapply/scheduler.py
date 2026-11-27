@@ -299,6 +299,9 @@ async def housekeeping(maker: async_sessionmaker[AsyncSession], settings: Settin
         log.exception("expired sign-in clean-up failed")
     await purge_old_events(maker, settings.event_retention_days)
     await purge_old_client_events(maker, settings.analytics_retention_days)
+    from app.autoapply import runlog
+
+    await runlog.purge(maker, max(settings.event_retention_days, 30))
     try:  # listings stored before apply-by-email sentences were read: a batch each hour
         from app.autoapply.postings import backfill_apply_emails
 

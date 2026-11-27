@@ -893,6 +893,18 @@ describe("admin console: Auto-Apply", () => {
     hours_to_first_application: 3.4,
     attempts_unresolved: 1,
     attempts_failed: 2,
+    executors: [
+      {
+        executor: "desktop",
+        channel: "form",
+        attempts: 5,
+        confirmed: 4,
+        ambiguous: 0,
+        failed: 1,
+        avg_seconds: 41.5,
+        total_minutes: 3.5,
+      },
+    ],
     unresolved: [
       {
         application_id: "a1",
@@ -931,6 +943,11 @@ describe("admin console: Auto-Apply", () => {
     expect(stuck.getByText("ada@example.com")).toBeInTheDocument();
     expect(stuck.getByText("7.5 h")).toBeInTheDocument();
     expect(screen.getByText(/1 reauth needed/)).toBeInTheDocument();
+    const ran = within(
+      screen.getByRole("table", { name: "Where applications ran" }),
+    );
+    expect(ran.getByText("Their computer")).toBeInTheDocument();
+    expect(ran.getByText("41.5 s")).toBeInTheDocument();
   });
 
   it("turns a switch on or off with a reason", async () => {
