@@ -471,32 +471,6 @@ export function endSessionApi(sessionId: string) {
   });
 }
 
-export interface SessionPinInfo {
-  session_id: string;
-  pin: string;
-  formatted_pin: string;
-  connected_clients: number;
-}
-
-export function useSessionPin(sessionId: string, enabled = true) {
-  return useQuery<SessionPinInfo>({
-    queryKey: ["session-pin", sessionId],
-    queryFn: () => apiFetch<SessionPinInfo>(`/api/sessions/${sessionId}/pin`),
-    enabled: !!sessionId && enabled,
-    refetchInterval: 3000,
-  });
-}
-
-export function useTestDesktop(sessionId: string) {
-  return useMutation({
-    mutationFn: () =>
-      apiFetch<{ status: string; delivered_to: number }>(
-        `/api/sessions/${sessionId}/test-desktop`,
-        { method: "POST" },
-      ),
-  });
-}
-
 export function useSessionDetail(id: string) {
   return useQuery<SessionDetail>({
     queryKey: ["session", id],

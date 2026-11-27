@@ -152,6 +152,7 @@ export function SessionSetupPage() {
   const [authorizedBy, setAuthorizedBy] = useState("");
   const authOk =
     mode !== "assisted" || (authorized && authorizedBy.trim() !== "");
+  const [audioMode, setAudioMode] = useState<"dual" | "device" | "mic">("dual");
   // One idempotency key per attempt, so a double click cannot start two sessions.
   const key = useRef(crypto.randomUUID());
 
@@ -184,6 +185,7 @@ export function SessionSetupPage() {
             state: {
               sampleRate: res.sample_rate,
               mode,
+              audioMode,
               authorizedBy: mode === "assisted" ? authorizedBy.trim() : null,
             },
           }),
@@ -201,9 +203,72 @@ export function SessionSetupPage() {
       </h1>
       <p className="text-sm text-muted">
         {isMobileApp()
-          ? "Run a mock interview with a friend, mentor or peer who knows the assistant is on. On the next screen the phone listens through its microphone, so put it near the speaker of your call. You can also type a question."
+          ? "Run a mock interview with a friend, mentor or peer who knows the assistant is on. On the next screen the assistant listens through its microphone or internal device audio. You can also type a question."
           : "Run a mock interview with a friend, mentor or peer who knows the assistant is on. Join them on Google Meet, then share the Meet tab with its audio on the next screen."}
       </p>
+
+      {isMobileApp() && (
+        <section aria-labelledby="audio-mode-h" className="card space-y-3">
+          <h2 id="audio-mode-h" className="text-lg font-semibold">
+            Audio recording
+          </h2>
+          <p className="text-sm text-muted">
+            Choose what to record during your interview:
+          </p>
+          <div className="space-y-3">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="radio"
+                name="audioMode"
+                value="dual"
+                checked={audioMode === "dual"}
+                onChange={() => setAudioMode("dual")}
+                className="mt-1"
+              />
+              <div>
+                <span className="text-sm font-medium">Device audio and microphone</span>
+                <p className="text-xs text-muted">
+                  Captures internal meeting audio (interviewer) and your microphone (you) as separate streams.
+                </p>
+              </div>
+            </label>
+
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="radio"
+                name="audioMode"
+                value="device"
+                checked={audioMode === "device"}
+                onChange={() => setAudioMode("device")}
+                className="mt-1"
+              />
+              <div>
+                <span className="text-sm font-medium">Device audio</span>
+                <p className="text-xs text-muted">
+                  Captures only the interviewer voice directly from your meeting app (Zoom, Google Meet, Teams).
+                </p>
+              </div>
+            </label>
+
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="radio"
+                name="audioMode"
+                value="mic"
+                checked={audioMode === "mic"}
+                onChange={() => setAudioMode("mic")}
+                className="mt-1"
+              />
+              <div>
+                <span className="text-sm font-medium">Microphone only (Speakerphone)</span>
+                <p className="text-xs text-muted">
+                  Single microphone fallback for cellular phone calls or when meeting apps restrict audio capture.
+                </p>
+              </div>
+            </label>
+          </div>
+        </section>
+      )}
 
       {interviewId ? (
         <section aria-labelledby="co-h" className="card space-y-2">

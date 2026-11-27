@@ -1,4 +1,5 @@
 import "@testing-library/jest-dom/vitest";
+import { afterEach } from "vitest";
 
 // The live session waits for the interviewer to finish before answering (see features/session/
 // timing.ts). Tests run at the old, quick timings unless they say otherwise.
@@ -10,4 +11,9 @@ Object.assign(timing, {
   announcedMs: 1200,
   quietGuardMs: 0,
   guardCapMs: 0,
+});
+
+afterEach(() => {
+  delete (window as unknown as { interviewMeetDesktop?: unknown }).interviewMeetDesktop;
+  delete (window as unknown as { interviewDesktop?: unknown }).interviewDesktop;
 });

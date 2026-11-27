@@ -85,3 +85,12 @@ test("live interviews on the phone can use the microphone, and nothing riskier i
   assert.doesNotMatch(m, /android.permission.CAMERA|READ_CONTACTS|READ_SMS|ACCESS_FINE_LOCATION/);
   assert.match(read("ios/App/App/Info.plist"), /<key>NSMicrophoneUsageDescription<\/key>\s*<string>[^<]{20,}<\/string>/);
 });
+
+test("mobile apps strictly enforce screen capture and proctoring protection", () => {
+  const mainJava = read("android/app/src/main/java/com/interviewmeet/app/MainActivity.java");
+  assert.match(mainJava, /FLAG_SECURE/);
+
+  const appDelegate = read("ios/App/App/AppDelegate.swift");
+  assert.match(appDelegate, /capturedDidChangeNotification/);
+  assert.match(appDelegate, /showPrivacyShield/);
+});

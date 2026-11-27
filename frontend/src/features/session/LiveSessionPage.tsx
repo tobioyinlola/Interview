@@ -1,4 +1,4 @@
-import { isDesktopApp } from "../../app/desktop";
+import { exitStealth, isDesktopApp, setDesktopStealthMode } from "../../app/desktop";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useParams } from "react-router-dom";
@@ -10,7 +10,8 @@ import { answerOf } from "./answerText";
 import { LiveSessionController } from "./controller";
 import { privacy } from "../../app/privacy";
 import { AnswersOff, AssistantStatus, useSessionMode } from "./modes";
-import { DesktopSyncPanel } from "./DesktopSyncPanel";
+import { StealthTerminalHud } from "./StealthTerminalHud";
+import { useStealthHud } from "./useStealthHud";
 import { type Line, type Outline, useLiveStore } from "./store";
 import { useFloatingPanel } from "./useFloatingPanel";
 
@@ -438,6 +439,7 @@ export function LiveSessionPage() {
     (location.state as { sampleRate?: number } | null)?.sampleRate ?? 24000;
   const status = useLiveStore((s) => s.status);
   const float = useFloatingPanel();
+  const stealth = useStealthHud();
 
   const session = useSessionMode(id);
   const controller = useMemo(
@@ -459,11 +461,48 @@ export function LiveSessionPage() {
     return () => privacy.setLive(false);
   }, []);
   useEffect(() => {
+    void setDesktopStealthMode(true);
+    return () => {
+      void setDesktopStealthMode(false);
+    };
+  }, []);
+
+  useEffect(() => {
     useLiveStore.getState().reset();
-    return () => controller.dispose(); // leaving the page stops capture; the session is ended explicitly
+    return () => {
+      controller.dispose(); // leaving the page stops capture; the session is ended explicitly
+      if (isDesktopApp()) {
+        void exitStealth();
+      }
+    };
   }, [controller]);
 
   const off = session.mode === "standard";
+
+  // Toggle body styling for true frameless transparency when in stealth mode
+  useEffect(() => {
+    if (stealth.state.active) {
+      document.body.classList.add("stealth-active");
+    } else {
+      document.body.classList.remove("stealth-active");
+    }
+    return () => {
+      document.body.classList.remove("stealth-active");
+    };
+  }, [stealth.state.active]);
+
+  // Dynamic Single-Window Morphing:
+  // If in desktop app and stealth mode is active, render ONLY the floating Terminal HUD
+  if (isDesktopApp() && stealth.state.active) {
+    return (
+      <StealthTerminalHud
+        controller={controller}
+        onEnd={() => void controller.end()}
+        onExitStealth={() => void stealth.exit()}
+      />
+    );
+  }
+
   const answer = <AnswerPanel onDone={() => controller.markDone()} />;
 
   return (
@@ -475,15 +514,38 @@ export function LiveSessionPage() {
         />
       </div>
       <div className="space-y-4">
+        {/* Stealth HUD launcher: only visible in the Electron desktop app */}
+        {isDesktopApp() && (
+          <FeatureBoundary name="stealth hud">
+            <div className="flex items-center justify-between gap-4 rounded-xl border border-accent/25 bg-accent-soft p-4 shadow-sm">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
+                  <h3 className="text-sm font-semibold text-accent-dark">
+                    Stealth Mode Ready
+                  </h3>
+                </div>
+                <p className="text-xs text-muted">
+                  Morph into a compact floating terminal HUD, completely hidden from screen sharing, Meet, Zoom, Teams, and proctoring tools.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn-primary whitespace-nowrap shadow-sm"
+                onClick={() => void setDesktopStealthMode(true)}
+                disabled={status === "ended"}
+              >
+                Launch Stealth HUD
+              </button>
+            </div>
+          </FeatureBoundary>
+        )}
         <FeatureBoundary name="capture panel">
           <CapturePanel
             onShare={() => void controller.share()}
             onEnd={() => void controller.end()}
             onMic={(on) => void controller.setMic(on)}
           />
-        </FeatureBoundary>
-        <FeatureBoundary name="desktop sync">
-          <DesktopSyncPanel sessionId={id} ended={status === "ended"} />
         </FeatureBoundary>
         <FeatureBoundary name="answer panel">
           {off ? (

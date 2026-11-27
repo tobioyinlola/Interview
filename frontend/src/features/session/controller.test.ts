@@ -683,4 +683,42 @@ describe("LiveSessionController: listening through the phone's microphone", () =
     expect(mic).toHaveBeenCalledTimes(1);
     vi.doUnmock("../../audio/captureTab");
   });
+
+  it("starts native dual capture with partner and you sockets when source is dual", async () => {
+    useLiveStore.getState().reset();
+    const nativeCap = vi.fn().mockImplementation(async (_mode, _rate, cb) => {
+      cb.onInterviewerFrame(loud(0.2));
+      cb.onCandidateFrame(loud(0.3));
+      return { stop: vi.fn() };
+    });
+
+    const partnerSock = new FakeSocket();
+    const youSock = new FakeSocket();
+    const c = new LiveSessionController({
+      sessionId: "s",
+      sampleRate: 24000,
+      source: "dual",
+      fetchToken: async () => "tok",
+      endSession: async () => ({}),
+      nativeCapture: nativeCap,
+      makeSocket: (o, ev) => {
+        if (o.speaker === "you") {
+          youSock.ev = ev;
+          return youSock as unknown as AudioSocket;
+        }
+        partnerSock.ev = ev;
+        return partnerSock as unknown as AudioSocket;
+      },
+    });
+
+    await c.share();
+    expect(nativeCap).toHaveBeenCalledWith("dual", 24000, expect.any(Object));
+    expect(partnerSock.started).toBe(true);
+    expect(youSock.started).toBe(true);
+    expect(partnerSock.frames.length).toBe(1);
+    expect(youSock.frames.length).toBe(1);
+    expect(useLiveStore.getState().mic).toBe("starting");
+    youSock.ev.onReady(24000);
+    expect(useLiveStore.getState().mic).toBe("on");
+  });
 });

@@ -9,6 +9,10 @@ import {
   startMicCapture,
   startTabCapture,
 } from "../../audio/captureTab";
+import {
+  type MobileAudioMode,
+  startNativeCapture,
+} from "../../audio/captureNative";
 import { ApiError } from "../../api/client";
 import { SegmentRecorder } from "../../audio/segments";
 import { postSegment } from "../../audio/segmentApi";
@@ -33,9 +37,10 @@ export interface ControllerDeps {
   store?: Store;
   capture?: typeof startTabCapture;
   micCapture?: typeof startMicCapture;
-  /** Where the interviewer is heard: a shared tab or computer sound (default), or the phone's own
-   *  microphone, near the speaker the call is playing through. */
-  source?: "tab" | "mic";
+  /** Where the interviewer is heard: a shared tab or computer sound (default), the phone's own
+   *  microphone near the speaker, or native device audio / dual-stream on mobile. */
+  source?: "tab" | "mic" | "dual" | "device";
+  nativeCapture?: typeof startNativeCapture;
   postSegment?: typeof postSegment;
   makeSocket?: (
     o: SocketOptions,
@@ -84,7 +89,9 @@ export class LiveSessionController {
     if (this.ended || this.capture) return;
     this.state.set({ status: "starting", problem: null, notice: null });
     const makeSocket = this.d.makeSocket ?? ((o, ev) => new AudioSocket(o, ev));
-    const mic = this.d.source === "mic";
+    const isNative = this.d.source === "dual" || this.d.source === "device";
+    const isDual = this.d.source === "dual";
+    const mic = this.d.source === "mic" || isNative;
     this.socket = makeSocket(
       { sessionId: this.d.sessionId, getToken: this.d.fetchToken },
       {
@@ -129,21 +136,72 @@ export class LiveSessionController {
         },
       },
     );
+
+    if (isDual) {
+      this.state.set({ mic: "starting", micProblem: null });
+      this.micSocket = makeSocket(
+        {
+          sessionId: this.d.sessionId,
+          speaker: "you",
+          getToken: this.d.fetchToken,
+        },
+        {
+          onState: () => undefined,
+          onReady: () => this.state.set({ mic: "on" }),
+          onPartial: () => undefined,
+          onFinal: (f) => this.onFinal(f),
+          onError: (e) =>
+            this.state.set({
+              mic: "error",
+              micProblem: e.message || "Microphone transcription failed.",
+            }),
+          onCap: () => undefined,
+          onResumed: () => undefined,
+          onLost: () =>
+            this.state.set({
+              mic: "error",
+              micProblem: "The microphone connection was lost.",
+            }),
+        },
+      );
+    }
+
     try {
-      this.capture = await (
-        this.d.capture ?? (mic ? startMicCapture : startTabCapture)
-      )(this.d.sampleRate, {
-        onFrame: (pcm) => this.onFrame(pcm),
-        onEnded: () => this.onShareEnded(),
-      });
+      if (isNative) {
+        const nativeMode: MobileAudioMode = isDual ? "dual" : "device";
+        this.capture = await (this.d.nativeCapture ?? startNativeCapture)(
+          nativeMode,
+          this.d.sampleRate,
+          {
+            onInterviewerFrame: (pcm) => this.onFrame(pcm),
+            onCandidateFrame: (pcm) => this.onMicFrame(pcm),
+            onWarning: (msg) => this.state.set({ notice: msg }),
+            onEnded: () => this.onShareEnded(),
+          },
+        );
+      } else {
+        this.capture = await (
+          this.d.capture ?? (this.d.source === "mic" ? startMicCapture : startTabCapture)
+        )(this.d.sampleRate, {
+          onFrame: (pcm) => this.onFrame(pcm),
+          onEnded: () => this.onShareEnded(),
+        });
+      }
     } catch (e) {
       this.socket = null;
+      if (this.micSocket) {
+        this.micSocket.stop();
+        this.micSocket = null;
+      }
       const msg =
         e instanceof CaptureError ? e.message : "Couldn't start capture.";
       this.state.set({ status: "error", problem: msg });
       return;
     }
     this.socket.start();
+    if (isDual && this.micSocket) {
+      this.micSocket.start();
+    }
   }
 
   private onFrame(pcm: Int16Array): void {
@@ -155,13 +213,16 @@ export class LiveSessionController {
     const hidden =
       typeof document !== "undefined" && document.visibilityState === "hidden";
     const mic = this.d.source === "mic";
+    const native = this.d.source === "dual" || this.d.source === "device";
     const notice = silent
-      ? mic
-        ? "No sound heard for 10 s. Move the phone closer to the speaker, or type the question instead."
-        : "No sound from the Meet tab for 10 s. Check Meet is unmuted, you are wearing headphones, and the tab was shared with audio."
+      ? native
+        ? "No sound heard from device audio for 10 s. If your call app or phone call blocks capture, switch to Speakerphone and Microphone mode."
+        : mic
+          ? "No sound heard for 10 s. Move the phone closer to the speaker, or type the question instead."
+          : "No sound from the Meet tab for 10 s. Check Meet is unmuted, you are wearing headphones, and the tab was shared with audio."
       : hidden
-        ? mic
-          ? "Keep InterviewMeet open on screen while it listens: the phone stops the microphone in the background."
+        ? (mic || native)
+          ? "Keep InterviewMeet open on screen while it listens: the phone stops background capture."
           : "This tab is in the background and Chrome may slow it down. Bring it forward or keep it visible."
         : null;
     if (notice !== this.state.notice && this.state.status !== "reconnecting")
@@ -313,7 +374,9 @@ export class LiveSessionController {
       partial: "",
       notice: null,
       problem:
-        this.d.source === "mic" ? "Listening stopped." : "Sharing stopped.",
+        (this.d.source === "mic" || this.d.source === "dual" || this.d.source === "device")
+          ? "Listening stopped."
+          : "Sharing stopped.",
     });
   }
 

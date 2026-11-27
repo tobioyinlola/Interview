@@ -128,4 +128,26 @@ describe("a live interview on the phone", () => {
       "/sessions/s1",
     );
   });
+
+  it("supports switching audio mode and shows dual sound meters in dual mode", async () => {
+    render(
+      <MemoryRouter initialEntries={[{ pathname: "/session/s1", state: { audioMode: "dual" } }]}>
+        <Routes>
+          <Route path="/session/:id" element={<PhoneSessionPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect((ctl.made[0] as { source: string }).source).toBe("dual");
+
+    // Check dual meters when listening
+    set({ status: "listening", level: 0.15, micLevel: 0.25 });
+    expect(screen.getByRole("meter", { name: "Interviewer sound level" })).toHaveAttribute(
+      "aria-valuenow",
+      "60",
+    );
+    expect(screen.getByRole("meter", { name: "Microphone sound level" })).toHaveAttribute(
+      "aria-valuenow",
+      "100",
+    );
+  });
 });

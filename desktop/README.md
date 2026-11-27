@@ -21,6 +21,10 @@ INTERVIEWMEET_DEV_URL=http://localhost:5173 npm start   # develop the interface 
 
 ## How it is kept safe
 
+* **Screen capture protection (MANDATORY)**: `win.setContentProtection(true)` is strictly enforced on the
+  window at all times. On Windows, this sets `WDA_EXCLUDEFROMCAPTURE` / `WDA_MONITOR`, and on macOS it sets
+  `NSWindowSharingNone`. Screen sharing (Google Meet, Zoom, Microsoft Teams, Discord), screen recorders
+  (OBS, QuickTime), and proctoring/monitoring software cannot capture or inspect the app window.
 * The window only shows the app's own address. Any other https link opens in the person's normal
   browser; everything else (file:, javascript:, other schemes) is refused (`src/policy.js`, tested).
 * `contextIsolation`, `sandbox`, no Node in the page. The page sees only
