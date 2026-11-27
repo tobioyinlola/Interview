@@ -28,8 +28,14 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from app.autoapply import cvfile
-from app.autoapply.adapters import AdapterError, FormField, FormReceipt, FormSchema
+from app.autoapply import ats, cvfile
+from app.autoapply.adapters import (
+    AdapterError,
+    FormField,
+    FormReceipt,
+    FormSchema,
+    Progress,
+)
 from app.services.url_guard import UrlRejected, validate_public_url, validate_url_syntax
 
 # The sites whose forms are filled in. Greenhouse's own job boards were read in a real browser.
@@ -37,7 +43,7 @@ from app.services.url_guard import UrlRejected, validate_public_url, validate_ur
 # not yet seen in a real browser; both need a first supervised submission before anyone relies on
 # them. Others are added in AUTOAPPLY_FORM_HOSTS only after they have been checked the same way.
 # AUTOAPPLY_FORM_HOSTS="*" lets the app try ANY public https application link (see ANY_SITE below).
-DEFAULT_HOSTS = ("boards.greenhouse.io", "job-boards.greenhouse.io", "jobs.ashbyhq.com")
+DEFAULT_HOSTS = tuple(h for p in ats.PROVIDERS if p.default_on for h in p.hosts)
 
 # The setting that means "any public site". The form is still read first and filled only as far as
 # the app can honestly answer it; a human check (CAPTCHA), a sign-in wall, an unknown required
@@ -45,6 +51,8 @@ DEFAULT_HOSTS = ("boards.greenhouse.io", "job-boards.greenhouse.io", "jobs.ashby
 # own checks.
 ANY_SITE = "*"
 
+MAX_STEPS = 8  # screens a multi-step form may have
+MAX_DOCUMENT_BYTES = 5 * 1024 * 1024  # most forms refuse more; the CV is a page or two
 LOAD_MS = 45_000
 SUBMIT_MS = 40_000
 MAX_OPTIONS = 80
@@ -101,6 +109,9 @@ STATE = (
     "() => ({ url: location.href, text: (document.body.innerText || '').slice(0, 3000), "
     "bad: document.querySelectorAll('[aria-invalid=true]').length })"
 )
+# Required controls on screen that are still empty (checked before the submit button is pressed).
+VALIDATE = (Path(__file__).with_name("validate_form.js")).read_text()
+
 # Reads every control of the application form. The form is the one with a file input (the CV), or
 # the whole page for forms drawn without a <form> tag.
 # Reads every control of the application form (the one with a file input, else the whole page).
@@ -120,6 +131,7 @@ class Control:
     options: list[str] = field(default_factory=list)
     multi: bool = False
     one: str = ""
+    itype: str = ""  # the input's own type for a text box: email, tel, number, date, url...
 
 
 def canonical(label: str, key: str) -> str:
@@ -186,6 +198,7 @@ def controls_from(raw: dict[str, Any]) -> list[Control]:
                     c["required"],
                     c["selector"],
                     ctl,
+                    itype=str(c.get("type") or ""),
                 )
             )
     return out
@@ -229,13 +242,17 @@ class BrowserForm:
     def __init__(
         self,
         *,
-        hosts: tuple[str, ...] = DEFAULT_HOSTS,
+        hosts: tuple[str, ...] | None = None,
+        enabled_ats: set[str] | None = None,
         executable_path: str | None = None,
         proxy: dict[str, str] | None = None,
         launcher: Callable[[], Any] | None = None,
         manager: Any = None,
     ) -> None:
-        self.hosts = tuple(h.lower() for h in hosts)
+        # Explicit hosts (AUTOAPPLY_FORM_HOSTS) are the whole list. Without them, a form is
+        # filled in when it belongs to an applicant-tracking system that is switched on (ats.py).
+        self.hosts = tuple(h.lower() for h in hosts) if hosts else ()
+        self.enabled_ats = enabled_ats if enabled_ats is not None else ats.enabled("")
         self.any_site = ANY_SITE in self.hosts
         self.executable_path = executable_path
         self.proxy = proxy
@@ -251,7 +268,12 @@ class BrowserForm:
         parts = urlsplit(url)
         if self.any_site:
             return self._public_syntax(url)
-        return parts.scheme in ("https", "http") and (parts.hostname or "").lower() in self.hosts
+        if parts.scheme not in ("https", "http"):
+            return False
+        if self.hosts:
+            return (parts.hostname or "").lower() in self.hosts
+        system = ats.detect(url)
+        return system.key in self.enabled_ats and not system.needs_account
 
     @staticmethod
     def _public_syntax(url: str) -> bool:
@@ -285,8 +307,9 @@ class BrowserForm:
             opts["proxy"] = self.proxy
         return await pw.chromium.launch(**opts)
 
-    async def _session(self, url: str) -> tuple[Any, Any, Callable[[], Awaitable[None]]]:
-        """(page, scan, close) with the form on screen. Raises AdapterError, having closed it."""
+    async def _session(self, url: str) -> tuple[Any, Any, Callable[[], Awaitable[None]], ats.Ats]:
+        """(page, scan, close, system) with the form on screen. Raises AdapterError, having closed
+        it."""
         if not self.supports(url) or (self.any_site and not await self._public(url)):
             raise AdapterError("rejected", "That form is not one we are approved to fill in.")
         try:
@@ -338,6 +361,9 @@ class BrowserForm:
                 await page.wait_for_selector("input, select, textarea", timeout=15_000)
             await page.wait_for_timeout(1500)  # forms drawn by script finish filling in
             scan = await page.evaluate(SCAN)
+            system = ats.detect(url)
+            if system.key == "generic":  # a company's own domain: the page may say which system
+                system = ats.detect(url, (await page.content())[:200_000])
         except AdapterError:
             await close()
             raise
@@ -354,16 +380,16 @@ class BrowserForm:
             if CLOSED_TEXT.search(scan["text"]):
                 raise AdapterError("rejected", "This job is no longer open.")
             raise AdapterError("rejected", "No application form was found on that page.")
-        if LOGIN_TEXT.search(scan["text"]):
+        if LOGIN_TEXT.search(scan["text"]) or system.needs_account:
             await close()
             raise AdapterError("rejected", "The employer asks you to sign in to apply.")
-        return page, scan, close
+        return page, scan, close, system
 
     # ------------------------------------------------------------------ read, submit, receipts
 
     async def read_form(self, application_url: str) -> FormSchema:
         async with self._busy:
-            page, scan, close = await self._session(application_url)
+            page, scan, close, _ = await self._session(application_url)
             try:
                 controls = controls_from(scan)
                 for c in controls:  # a dropdown drawn by script shows its choices only when opened
@@ -381,23 +407,103 @@ class BrowserForm:
         values: dict[str, str],
         cv_text: str,
         cv_filename: str,
+        progress: Progress | None = None,
     ) -> FormReceipt:
         if idempotency_key in self.receipts:
             return self.receipts[idempotency_key]  # the same intent again changes nothing
         async with self._busy:
-            page, scan, close = await self._session(application_url)
+            page, scan, close, system = await self._session(application_url)
             try:
-                if scan["captcha"]:
-                    raise AdapterError("rejected", "The form asks for a human check (CAPTCHA).")
-                controls = controls_from(scan)
-                cover = values.get("cover_letter", "")
-                for c in controls:
-                    await _fill(page, c, values, cv_text, cv_filename, cover)
-                receipt = await self._press_and_wait(page, idempotency_key)
+                receipt = await self._complete(
+                    page, scan, system, idempotency_key, values, cv_text, cv_filename, progress
+                )
                 self.receipts[idempotency_key] = receipt
                 return receipt
             finally:
                 await close()
+
+    async def _complete(
+        self,
+        page: Any,
+        scan: dict[str, Any],
+        system: ats.Ats,
+        key: str,
+        values: dict[str, str],
+        cv_text: str,
+        cv_filename: str,
+        progress: Progress | None,
+    ) -> FormReceipt:
+        """Fill the form screen by screen, check it, press the button, and wait for proof."""
+
+        async def say(kind: str, **data: Any) -> None:
+            if progress is not None:
+                await progress(kind, **data)
+
+        cover = values.get("cover_letter", "")
+        documents: list[dict[str, Any]] = []
+        step, seen = 1, set()
+        while True:
+            if scan["captcha"]:
+                raise AdapterError("rejected", "The form asks for a human check (CAPTCHA).")
+            controls = controls_from(scan)
+            digest = schema_from(controls, False).version
+            if digest in seen:
+                raise AdapterError("rejected", "The form did not move on to its next step.")
+            seen.add(digest)
+            if step == 1:
+                await say("form_discovered", fields=len(controls), steps=1, provider=system.key)
+            # a question nobody has answered is the candidate's, found before anything is typed
+            need = _unanswered(controls, values)
+            if need:
+                raise AdapterError(
+                    "needs_input", "The form asks something that has not been answered.", need=need
+                )
+            for c in controls:
+                done = await _fill(page, c, values, cv_text, cv_filename, cover)
+                if done is None:
+                    continue
+                if done.get("document"):
+                    documents.append(done["document"])
+                    await say("document_uploaded", name=done["document"]["name"], role=c.name)
+                else:
+                    await say("field_completed", field=c.name, label=c.label, field_kind=c.kind)
+            missing = await _required_left_empty(page)
+            if missing:
+                raise AdapterError(
+                    "rejected", f"The form still needs '{missing[0]}', which cannot be filled."
+                )
+            if step < MAX_STEPS and await self._wants_next(page, system):
+                await say("step_completed", step=step)
+                await self._go_next(page, system)
+                scan = await page.evaluate(SCAN)
+                step += 1
+                continue
+            break
+        await say("validated", steps=step)
+        receipt = await self._press_and_wait(page, key, system, say)
+        receipt.provider, receipt.steps, receipt.documents = system.key, step, documents
+        return receipt
+
+    async def _wants_next(self, page: Any, system: ats.Ats) -> bool:
+        """A "Next" button with no submit button on this screen: the form has more screens."""
+        if await _visible(page, _submit_selector(system)):
+            return False
+        return await _visible(page, _next_selector(system))
+
+    async def _go_next(self, page: Any, system: ats.Ats) -> None:
+        before = await page.evaluate("() => document.body.innerText.length")
+        try:
+            await page.locator(_next_selector(system)).first.click(timeout=8000)
+        except Exception:  # noqa: BLE001 - nothing was sent: the step could not be taken
+            raise AdapterError("rejected", "The form's next step could not be opened.") from None
+        for _ in range(20):  # up to ~6 seconds for the next screen to be drawn
+            await page.wait_for_timeout(300)
+            try:
+                if await page.evaluate("() => document.body.innerText.length") != before:
+                    break
+            except Exception:  # noqa: BLE001, S112 - the page is navigating: look again
+                continue
+        await page.wait_for_timeout(500)
 
     async def find_receipt(
         self, application_url: str, *, idempotency_key: str
@@ -406,12 +512,12 @@ class BrowserForm:
         succeed is known; otherwise None, and the candidate is asked what happened."""
         return self.receipts.get(idempotency_key)
 
-    async def _press_and_wait(self, page: Any, key: str) -> FormReceipt:
-        button = page.locator(
-            ".ashby-application-form-submit-button, button[type=submit], input[type=submit], "
-            "button:has-text('Submit'), button:has-text('Apply')"
-        ).last
+    async def _press_and_wait(
+        self, page: Any, key: str, system: ats.Ats, say: Callable[..., Awaitable[None]]
+    ) -> FormReceipt:
+        button = page.locator(_submit_selector(system)).last
         before = page.url
+        await say("submitting")  # from here on it can no longer be stopped: the page may have it
         try:
             await button.click(timeout=10_000)
         except Exception:  # noqa: BLE001 - the press itself did not happen: nothing was sent
@@ -427,10 +533,18 @@ class BrowserForm:
                 state = await page.evaluate(STATE)
             except Exception:  # noqa: BLE001, S112 - the page is navigating: look again
                 continue
-            if (state["url"] != before and SUCCESS_URL.search(state["url"])) or SUCCESS_TEXT.search(
-                state["text"]
-            ):
-                m = SUCCESS_TEXT.search(state["text"])
+            url_ok = SUCCESS_URL.search(state["url"]) or (
+                system.success_url and re.search(system.success_url, state["url"], re.I)
+            )
+            text_ok = SUCCESS_TEXT.search(state["text"]) or (
+                system.success_text and re.search(system.success_text, state["text"], re.I)
+            )
+            if (state["url"] != before and url_ok) or text_ok:
+                m = SUCCESS_TEXT.search(state["text"]) or (
+                    re.search(system.success_text, state["text"], re.I)
+                    if system.success_text
+                    else None
+                )
                 ref = hashlib.sha256(key.encode()).hexdigest()[:12]
                 return FormReceipt(
                     reference=f"browser-{ref}",
@@ -450,6 +564,71 @@ def _read_error(exc: Exception) -> AdapterError:
     if "timeout" in text:
         return AdapterError("unavailable", "The form took too long to load.", transient=True)
     return AdapterError("unavailable", "The form could not be opened.", transient=True)
+
+
+GENERIC_SUBMIT = (
+    "button[type=submit], input[type=submit], button:has-text('Submit'), button:has-text('Apply')"
+)
+GENERIC_NEXT = (
+    "button:has-text('Next'), button:has-text('Continue'), input[type=button][value=Next], "
+    "[role=button]:has-text('Next')"
+)
+
+
+def _submit_selector(system: ats.Ats) -> str:
+    return ", ".join(x for x in (system.submit, GENERIC_SUBMIT) if x)
+
+
+def _next_selector(system: ats.Ats) -> str:
+    return ", ".join(x for x in (system.next, GENERIC_NEXT) if x)
+
+
+async def _visible(page: Any, selector: str) -> bool:
+    try:
+        loc = page.locator(selector)
+        return bool(await loc.count() > 0 and await loc.last.is_visible())
+    except Exception:  # noqa: BLE001 - a selector this site does not support: not visible
+        return False
+
+
+def _unanswered(controls: list[Control], values: dict[str, str]) -> list[dict[str, Any]]:
+    """Required questions on this screen with no answer: what only the candidate can supply."""
+    need: list[dict[str, Any]] = []
+    for c in controls:
+        if not c.required or c.kind in ("file", "captcha") or values.get(c.name):
+            continue
+        item: dict[str, Any] = {
+            "kind": "declaration" if c.kind == "declaration" else "answer",
+            "field": c.name,
+            "question": c.label,
+            "reason": "The form asks this and you have not answered it yet.",
+        }
+        if c.options:
+            item["options"] = list(c.options)
+        need.append(item)
+    return need
+
+
+async def _required_left_empty(page: Any) -> list[str]:
+    try:
+        return [str(x) for x in await page.evaluate(VALIDATE)]
+    except Exception:  # noqa: BLE001 - a page we cannot check says nothing; the site's own checks do
+        return []
+
+
+def _iso_date(value: str) -> str:
+    """A date as the browser's date box wants it (yyyy-mm-dd), from the usual written forms."""
+    v = value.strip()
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", v):
+        return v
+    from datetime import datetime
+
+    for fmt in ("%d/%m/%Y", "%d-%m-%Y", "%d %B %Y", "%B %d, %Y", "%d %b %Y", "%b %d, %Y"):
+        try:
+            return datetime.strptime(v, fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    return v
 
 
 async def _open_choices(page: Any, c: Control) -> list[str]:
@@ -473,25 +652,38 @@ async def _fill(
     cv_text: str,
     cv_filename: str,
     cover: str,
-) -> None:
-    """Put the answer for one control on the form. A control with no answer is left alone."""
+) -> dict[str, Any] | None:
+    """Put the answer for one control on the form. A control with no answer is left alone (None);
+    a document gives its name, size and checksum back for the receipt."""
     if c.kind == "file":
         if c.name == "resume" or c.name == "cv":
             data, name = cvfile.render_pdf(cv_text), cv_filename
         elif c.name == "cover_letter" and cover:
             data, name = cvfile.render_letter(cover), "Cover letter.pdf"
         else:
-            return
+            return None
+        if len(data) > MAX_DOCUMENT_BYTES:
+            raise AdapterError("rejected", f"'{name}' is too large to upload.")
         await page.locator(c.selector).first.set_input_files(
             {"name": name, "mimeType": "application/pdf", "buffer": data}
         )
-        return
+        return {
+            "document": {
+                "name": name,
+                "bytes": len(data),
+                "sha256": hashlib.sha256(data).hexdigest(),
+            }
+        }
     value = values.get(c.name)
     if value is None or value == "":
-        return
+        return None
     where = page.locator(c.selector)
     try:
         if c.ctl == "text":
+            if c.itype == "date":
+                value = _iso_date(value)
+            elif c.itype == "number":
+                value = re.sub(r"[^0-9.\-]", "", value)
             await where.first.fill(value, timeout=8000)
         elif c.ctl == "select":
             i = pick(c.options, value)
@@ -522,6 +714,7 @@ async def _fill(
         raise
     except Exception:  # noqa: BLE001 - the page did not take the answer: nothing was sent
         raise AdapterError("rejected", f"'{c.label}' could not be filled in.") from None
+    return {}
 
 
 async def _choose_in_combo(page: Any, box: Any, c: Control, value: str) -> None:

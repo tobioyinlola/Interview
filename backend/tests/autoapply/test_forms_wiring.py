@@ -90,7 +90,7 @@ def test_any_public_application_link_can_be_tried_when_the_operator_allows_it():
     ):
         assert not f.supports(bad), bad
     # the default and a named list are as strict as before
-    assert not BrowserForm().supports("https://jobs.lever.co/acme/1")
+    assert not BrowserForm().supports("https://jobs.smartrecruiters.com/acme/1")
     assert not forms.build(
         Settings(autoapply_form_adapter="browser", autoapply_form_hosts="x.io")
     ).supports("https://jobs.lever.co/acme/1")

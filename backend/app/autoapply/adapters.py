@@ -2,6 +2,7 @@
 separate adapter that returns normalised results or raises an explicit error. Every adapter has a
 deterministic fixture version, so the whole journey runs with no outside effects."""
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Protocol
@@ -11,9 +12,18 @@ class AdapterError(Exception):
     """An adapter could not do what was asked. `code` is stable; `transient` says whether trying
     again later can help; `message` never contains CV text, credentials or email bodies."""
 
-    def __init__(self, code: str, message: str, *, transient: bool = False) -> None:
+    def __init__(
+        self,
+        code: str,
+        message: str,
+        *,
+        transient: bool = False,
+        need: list[dict[str, Any]] | None = None,
+    ) -> None:
         super().__init__(message)
         self.code, self.message, self.transient = code, message, transient
+        # code "needs_input": the questions only the candidate can answer, found while filling in
+        self.need = need or []
 
 
 @dataclass
@@ -79,6 +89,14 @@ class FormSchema:
 class FormReceipt:
     reference: str  # the employer's confirmation or application id
     evidence: str = ""  # the confirmation text or page, short
+    provider: str = ""  # which applicant-tracking system took it
+    steps: int = 1  # screens the form was drawn over
+    documents: list[dict[str, Any]] = field(default_factory=list)  # [{name, bytes, sha256}]
+
+
+# Called at checkpoints while a form is filled: ("field_completed", label=..., kind=...). It may
+# raise to stop the run (skip or stop pressed) at any point before the submit button is pressed.
+Progress = Callable[..., Awaitable[None]]
 
 
 class FormAdapter(Protocol):
@@ -99,6 +117,7 @@ class FormAdapter(Protocol):
         values: dict[str, str],
         cv_text: str,
         cv_filename: str,
+        progress: Progress | None = None,
     ) -> FormReceipt:
         """Submit. Must be safe to call twice with the same idempotency key, or raise
         AdapterError(code='ambiguous') when the outcome is unknown."""
