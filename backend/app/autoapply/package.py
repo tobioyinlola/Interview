@@ -165,7 +165,9 @@ async def build(
     # what the candidate answered for this application, including questions only the live form asked
     for field, value in (app.answers or {}).items():
         answers.setdefault(field, {"value": str(value), "source": "this application"})
-    cv_out, note = await tailor.tailor_cv(llm, facts, cv_text, posting)
+    # The CV is sent as the candidate uploaded and confirmed it: no rewording, no reordering. (Only
+    # the cover note is written for the role.)
+    cv_out, note = cv_text, {"mode": "as_uploaded", "reverted": []}
     cover = await tailor.cover_note(llm, facts, cv_text, posting)
     if channel == "form":
         destination = {"channel": "form", "url": posting.application_url}

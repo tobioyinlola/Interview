@@ -372,11 +372,7 @@ export function ApplicationPage() {
                 ? "What is ready for you"
                 : "What will be sent"
           }
-          hint={
-            pkg.cv.tailoring.mode === "model"
-              ? "Your CV was reworded for this role using only your confirmed details."
-              : "Your CV is in your own words, ordered to put the best fit first."
-          }
+          hint="Your CV is sent exactly as you uploaded it, in our standard layout."
         >
           <p className="text-sm">
             {pkg.destination.channel === "form"

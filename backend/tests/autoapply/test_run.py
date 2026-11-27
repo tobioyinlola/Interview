@@ -600,3 +600,15 @@ async def test_a_waiting_job_goes_to_the_candidate_when_the_desktop_never_opens(
     await tick()
     a = (await apps(ada))[0]
     assert a["status"] == "apply_yourself" and form.calls == 0
+
+
+async def test_the_cv_that_goes_out_is_the_one_that_was_uploaded_not_a_tailored_copy(
+    ada, discovery_source, tick
+):
+    discovery_source.postings = [job(1)]
+    await start(ada)
+    await tick()
+    (a,) = await apps(ada)
+    pkg = (await ada.get(f"/api/autoapply/applications/{a['id']}")).json()["package"]
+    assert pkg["cv"]["submitted_text"] == pkg["cv"]["original_text"]
+    assert pkg["cv"]["tailoring"]["mode"] == "as_uploaded"

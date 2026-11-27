@@ -117,7 +117,7 @@ def authorization_summary(prof: SearchProfile, mailbox: str | None) -> dict[str,
     return {
         "shared": [
             "your name, email address and phone number",
-            "your CV, and a version tailored to each role using only facts you verified",
+            "your CV, exactly as you uploaded it",
             "your verified work history, skills and links",
             "answers you approved, for questions employers ask",
         ],
