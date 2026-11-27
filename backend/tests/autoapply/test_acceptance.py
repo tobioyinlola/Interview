@@ -423,7 +423,7 @@ async def test_11_a_30_day_campaign_with_a_test_clock_closes_on_day_31_and_repli
     assert len(mailbox.sent) == 60  # and still no new application after the end
 
 
-async def test_12_a_tailored_cv_keeps_the_candidates_facts_and_outreach_is_recorded_capped_and_not_duplicated(
+async def test_12_the_uploaded_cv_goes_out_unchanged_and_outreach_is_recorded_capped_and_not_duplicated(
     ada, discovery_source, tick, mailbox, clock, maker
 ):
     contacts = [
@@ -468,9 +468,10 @@ async def test_12_a_tailored_cv_keeps_the_candidates_facts_and_outreach_is_recor
     for a in await apps(ada):
         pkg = (await ada.get(f"/api/autoapply/applications/{a['id']}")).json()["package"]
         cv = pkg["cv"]["submitted_text"]
+        assert cv == pkg["cv"]["original_text"]  # the CV as uploaded, not a reworded copy
         for fact in (
-            "Senior Product Manager, Northwind (2021 - 2025)",
-            "Product Manager, Contoso (2018 - 2021)",
+            "Senior Product Manager at Northwind (2021-2025)",
+            "Product Manager at Contoso (2018-2021)",
             "grew revenue 30%",
         ):
             assert fact in cv
