@@ -568,3 +568,35 @@ async def test_old_run_history_and_silent_computers_are_cleared(ada, maker):
         ]
         names = {e.executor_id for e in (await db.execute(select(Executor))).scalars().all()}
         assert names == {"new-pc-0001"}
+
+
+async def test_a_job_with_a_human_check_is_given_to_the_desktop_and_not_the_server(
+    ada, discovery_source, form, tick, live_forms
+):
+    discovery_source.postings = [job(1)]
+    await start(ada)
+    form.mode = "captcha"
+    await tick()
+    assert (await apps(ada))[0]["status"] == "queued"
+    form.mode = "ok"  # the server could now do it, but it must not: it is the desktop's
+    await tick()
+    assert (await apps(ada))[0]["status"] == "queued" and form.calls == 0
+    await register(ada)
+    handed = await claim(ada)
+    assert handed is not None and handed["company"]
+    assert (await view(ada))["current"]["executor"] == "desktop"
+
+
+async def test_a_waiting_job_goes_to_the_candidate_when_the_desktop_never_opens(
+    ada, discovery_source, form, tick, clock
+):
+    discovery_source.postings = [job(1)]
+    await start(ada)
+    form.mode = "captcha"
+    await tick()
+    assert (await apps(ada))[0]["status"] == "queued"
+    clock.now += timedelta(hours=25)
+    form.mode = "ok"
+    await tick()
+    a = (await apps(ada))[0]
+    assert a["status"] == "apply_yourself" and form.calls == 0

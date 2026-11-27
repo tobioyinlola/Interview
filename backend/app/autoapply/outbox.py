@@ -221,7 +221,8 @@ async def claim_next(
         if state.stopped:  # the candidate pressed stop: nothing starts until they start again
             await db.rollback()
             return None
-        runner = runlog.who_runs_forms(state, await runlog.desktop_ready(db, user_id, now))
+        desk_open = await runlog.desktop_ready(db, user_id, now)
+        runner = runlog.who_runs_forms(state, desk_open)
         # spacing between browser applications: the speed they chose, never faster than that
         last_form = (
             await db.execute(
@@ -254,7 +255,20 @@ async def claim_next(
             is_form = (app.channel or "form") == "form"
             if executor == "desktop" and not is_form:
                 continue  # only browser forms are carried out on a computer
-            if is_form and (runner != executor or too_soon):
+            if is_form and waiting_for_desktop(app):
+                if now - _desktop_wait_since(app) > DESKTOP_WAIT:
+                    await _give_up_waiting(db, app)  # their computer was not open in time
+                    moved = True
+                    continue
+            wants = runner
+            if is_form and state.execution_mode != "cloud":
+                # a human check was met (or this system nearly always has one): only a person at
+                # their own computer can pass it, so it waits for the desktop, which carries it out
+                if waiting_for_desktop(app) or (
+                    desk_open and ats.detect(posting.application_url or "").captcha_likely
+                ):
+                    wants = "desktop"
+            if is_form and (wants != executor or too_soon):
                 continue  # another executor's, or not yet (speed)
             blocked = await _precheck(
                 db, adapters.settings, app, posting, camp, prof, adapters, now, off
@@ -375,6 +389,7 @@ async def execute(
             await db.commit()
             return "cancelled"
         pkg = app.package or {}
+        state_mode = (await runlog.state_for(db, app.user_id)).execution_mode
         user = await db.get(User, app.user_id)
         assert user is not None
         sender_conn = await mailbox.get(db, app.user_id) if claim.channel == "email" else None
@@ -385,11 +400,15 @@ async def execute(
                 schema = await adapters.form.read_form(posting.application_url or "")
             except AdapterError as exc:
                 if exc.code == "rejected" and not exc.transient:
-                    # no form, a sign-in wall or a human check: not a failure, and nothing was
-                    # sent. The application is already prepared, so it goes to the person.
+                    if "human check" in exc.message.lower():
+                        return await _to_desktop(db, attempt, app, state_mode, now)
+                    # no form, a sign-in wall: not a failure, and nothing was sent. The
+                    # application is already prepared, so it goes to the person.
                     return await _hand_over(db, attempt, app, exc.message, now)
                 return await _transient(db, attempt, app, exc, now)
             problem = form_problem(schema, pkg)
+            if any(f.kind == "captcha" for f in schema.fields):
+                return await _to_desktop(db, attempt, app, state_mode, now)
             if problem is not None and all(p["kind"] == "unsupported" for p in problem):
                 why = problem[0][
                     "reason"
@@ -475,6 +494,49 @@ def form_problem(schema: Any, pkg: dict[str, Any]) -> list[dict[str, Any]] | Non
                 need["options"] = list(f.options)
             missing.append(need)
     return missing or None
+
+
+DESKTOP_WAIT = timedelta(hours=24)  # how long a job waits for the candidate's computer to be open
+
+
+def waiting_for_desktop(app: Application) -> bool:
+    return bool((app.match or {}).get("needs_desktop"))
+
+
+def _desktop_wait_since(app: Application) -> datetime:
+    raw = (app.match or {}).get("needs_desktop_at")
+    try:
+        return datetime.fromisoformat(str(raw))
+    except ValueError:
+        return datetime.now().astimezone()
+
+
+async def _to_desktop(
+    db: AsyncSession, attempt: SubmissionAttempt, app: Application, mode: str, now: datetime
+) -> str:
+    """The form asks for a human check. The server never passes one, but the candidate can at their
+    own computer: the application goes back in the queue marked for the desktop, which fills the
+    form in and waits for them to tick the box. Nothing was sent, so this costs no quota. Someone
+    who chose "our servers only" has no desktop to send it to: it goes to them as before."""
+    if mode == "cloud":
+        return await _hand_over(db, attempt, app, "The form asks for a human check.", now)
+    attempt.state, attempt.finished_at = "cancelled", now
+    attempt.failure_class, attempt.failure_message = "needs_desktop", "human check"
+    app.status = "queued"
+    app.match = {**(app.match or {}), "needs_desktop": True, "needs_desktop_at": now.isoformat()}
+    await pipeline.log(
+        db, app, "waiting_for_desktop", reason="The form asks for a human check: waiting for you."
+    )
+    await db.commit()
+    return "cancelled"
+
+
+async def _give_up_waiting(db: AsyncSession, app: Application) -> None:
+    app.match = {**(app.match or {}), "needs_desktop": False}
+    app.status, app.channel, app.needs_input = "apply_yourself", "manual", []
+    await pipeline.log(
+        db, app, "handed_over", reason="Your computer was not open to pass the check."
+    )
 
 
 async def _hand_over(
