@@ -283,3 +283,97 @@ export function HistoryRow({ t }: { t: HuntTarget }) {
     </li>
   );
 }
+
+const stamp = (iso: string) =>
+  new Date(iso).toLocaleString(undefined, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+/** When the second email is expected, said plainly, for the first one that went. */
+function followLine(
+  first: HuntTarget,
+  follow: HuntTarget | undefined,
+  days: number,
+  on: boolean,
+): string {
+  if (follow) {
+    if (follow.sent_at) return `Sent ${stamp(follow.sent_at)}`;
+    if (follow.status === "drafted") return "Written, waiting for your review";
+    if (follow.status === "approved")
+      return "Approved, goes out in the next sending window";
+    if (follow.status === "skipped") return "Skipped";
+    return "Not sent";
+  }
+  if (first.status === "replied") return "Not needed: they replied";
+  if (first.status === "declined") return "Not sent: they asked you to stop";
+  if (!first.sent_at) return "After the first email goes";
+  if (!on) return "Follow-ups are switched off";
+  const due = new Date(first.sent_at);
+  due.setDate(due.getDate() + days);
+  return `Due about ${stamp(due.toISOString())}, if they have not replied`;
+}
+
+/** One outreach: who it went to, when the first email was sent and when the second was, side by
+ *  side, with the notes themselves a tap away. */
+export function OutreachRow({
+  first,
+  follow,
+  days,
+  followOn,
+}: {
+  first: HuntTarget;
+  follow?: HuntTarget;
+  days: number;
+  followOn: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const latest = follow ?? first;
+  return (
+    <li className="list-card">
+      <button
+        type="button"
+        className="flex min-h-[56px] w-full items-start justify-between gap-3 px-4 py-3 text-left"
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+      >
+        <span className="min-w-0 space-y-1">
+          <span className="block truncate font-medium">{first.startup}</span>
+          <span className="block truncate text-sm text-muted">
+            {first.contact}
+          </span>
+          <dl className="space-y-0.5 text-sm">
+            <div className="flex flex-wrap gap-x-2">
+              <dt className="text-muted">First email</dt>
+              <dd>
+                {first.sent_at
+                  ? `Sent ${stamp(first.sent_at)}`
+                  : "Not sent yet"}
+              </dd>
+            </div>
+            <div className="flex flex-wrap gap-x-2">
+              <dt className="text-muted">Second email</dt>
+              <dd>{followLine(first, follow, days, followOn)}</dd>
+            </div>
+          </dl>
+        </span>
+        <StatusPill
+          t={latest}
+          className="shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium"
+        />
+      </button>
+      {open && (
+        <div className="space-y-3 px-4 pb-4">
+          {first.reason && <p className="text-sm text-muted">{first.reason}</p>}
+          <Careers t={first} />
+          <Pitch t={first} />
+          {follow && <Pitch t={follow} />}
+        </div>
+      )}
+    </li>
+  );
+}
