@@ -106,6 +106,9 @@ QUESTIONS = (
         r"(legally|authori[sz]ed|eligible|right) .*work|work authori[sz]ation"
         r"|work (in|within) the (us|u\.s\.|united states|uk|country)",
     ),
+    ("citizenship", r"citizen|nationality|permanent resident|green card"),
+    ("security_clearance", r"clearance"),
+    ("criminal_record", r"criminal|convicted|conviction|felony|misdemeanou?r"),
     ("relocate", r"relocat"),
     (
         "salary_expectation",
@@ -154,6 +157,21 @@ STATE = """() => ({
     .filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; })
     .map(e => (e.innerText || '').trim().replace(/\\s+/g, ' '))
     .filter(t => t && t.length < 220))].slice(0, 4),
+  // a picture puzzle that came up on the press (the same rule as scan_form.js)
+  challenge: [...document.querySelectorAll('iframe')].some(f => {
+    const src = f.getAttribute('src') || '';
+    const re = /recaptcha|hcaptcha|turnstile|challenges\\.cloudflare\\.com|arkoselabs|funcaptcha/i;
+    if (!re.test(src) && !re.test(f.getAttribute('title') || '')) return false;
+    if (/[?&#]size=invisible\\b/i.test(src)
+        || f.closest('[data-size=invisible], [data-badge], .grecaptcha-badge')) return false;
+    for (let e = f; e && e !== document.documentElement; e = e.parentElement) {
+      const s = getComputedStyle(e);
+      if (s.display === 'none' || s.visibility === 'hidden') return false;
+      if (Number(s.opacity) === 0) return false;
+    }
+    const r = f.getBoundingClientRect();
+    return r.width >= 30 && r.height >= 30 && r.bottom > -50 && r.top > -2000 && r.left > -2000;
+  }),
 })"""
 # Required controls on screen that are still empty (checked before the submit button is pressed).
 VALIDATE = (Path(__file__).with_name("validate_form.js")).read_text()
@@ -204,6 +222,12 @@ def semantic(label: str) -> str | None:
     return None
 
 
+def _consent(label: str) -> bool:
+    from app.autoapply.answers import consent
+
+    return consent(label)
+
+
 def decline_index(options: list[str]) -> int | None:
     """The option that declines a voluntary question, if the form offers one."""
     for i, o in enumerate(options):
@@ -226,6 +250,9 @@ def resolve_values(controls: list["Control"], values: dict[str, str]) -> dict[st
     where the job was found. Never overrides an answer the candidate has."""
     out: dict[str, str] = {}
     for c in controls:
+        if not values.get(c.name) and c.kind == "declaration" and _consent(c.label):
+            out[c.name] = "yes"  # an agreement box the candidate gave by turning Auto-Apply on
+            continue
         if values.get(c.name) or not c.options or c.kind != "choice":
             continue
         i = None
@@ -331,8 +358,8 @@ def pick(options: list[str], wanted: str) -> int | None:
             return i
     for i, o in enumerate(options):
         n = norm(o)
-        if n and (w in n or n in w) and min(len(n), len(w)) >= 2:
-            return i
+        if n and min(len(n), len(w)) >= 2 and (f" {w} " in f" {n} " or f" {n} " in f" {w} "):
+            return i  # whole words only: "No" is not found inside "Nigeria"
     return None
 
 
@@ -647,6 +674,11 @@ class BrowserForm:
             if proof:
                 ref = hashlib.sha256(key.encode()).hexdigest()[:12]
                 return FormReceipt(reference=f"browser-{ref}", evidence=proof)
+            if state.get("challenge"):
+                # the form stopped for a picture puzzle and has not sent anything
+                raise AdapterError(
+                    "rejected", "The form asks for a human check (CAPTCHA) before it sends."
+                )
             if SPAM_TEXT.search(state["text"]):
                 raise AdapterError(
                     "rejected", "The employer's site flagged the submission as automated."

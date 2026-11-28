@@ -72,6 +72,13 @@ SHA-256 of every document uploaded (the exact CV, `cv_version`).
 
 ## Intervention, never a workaround
 
+**What counts as a CAPTCHA.** Only a check a person has to do: a visible checkbox or picture puzzle
+(reCAPTCHA, hCaptcha, Cloudflare Turnstile, Arkose) on screen. Invisible reCAPTCHA, which Ashby and
+many others load on every form (the small badge in the corner and a hidden challenge frame), asks
+nothing of anyone and is ignored, so those forms are filled and sent with nobody there. If a puzzle
+appears only when Submit is pressed, nothing has been sent: on the desktop the person is asked to do
+it and the confirmation is then waited for; on the server the application stops as not sent.
+
 CAPTCHA, a sign-in wall, a closed job, a question that has no stored answer, a required declaration
 (work authorisation, clearance, sponsorship…): the application stops. On the desktop the person is
 looking at the form, so the panel asks them to deal with it and continue, or skip. On the server, a CAPTCHA no longer sends the job to the "apply yourself" list: it goes back in the
@@ -84,24 +91,30 @@ Answers come only from the candidate's saved facts and the frozen package; nothi
 
 ## How answers are chosen
 
-Layers, in order; the first that has a real answer wins, and a required question that none can answer
-stops the application before anything is typed (`package.resolve_answers`, and again on the page by
-`unanswered`):
+An application should go through with nobody there. Layers, in order; the first with a real answer
+wins (`app/autoapply/answers.py`, used when the package is prepared and again, fresh, each time a
+form is filled on the desktop or the server):
 
 1. an answer the candidate gave for this application;
-2. a saved answer the candidate approved for reuse (`CandidateAnswer.reusable`), so the same
-   question is not asked twice;
-3. the candidate's verified CV facts (name, email, phone, location, links, current company);
-4. otherwise the question goes to the candidate: **never guessed, never defaulted**. A declaration
-   (work authorisation, sponsorship, clearance, demographic and similar) is only ever the candidate's
-   own, given for that application.
+2. the candidate's saved answers (setup, "your quick answers"), under every name forms use for the
+   same question: a saved `sponsorship` answers `requires_sponsorship`, `relocation` answers
+   `relocate`, and so on. Answers saved after an application was prepared are used too;
+3. what the search preferences already say (visa sponsorship needed or not, the salary floor) and
+   the verified CV facts (contact details, years of experience from the earliest start date);
+4. agreement boxes (privacy policy, terms, "the information is accurate") are ticked: the candidate
+   gave that agreement by turning Auto-Apply on;
+5. any other required question (why this company, a yes/no about a skill, a dropdown) is written by
+   a model from the CV facts and the job. A choice must be one of the form's own options; free text
+   may not bring in a number, link or contact the CV does not have; anything failing those checks
+   is left out. On the desktop the questions found on the live page are sent to
+   `POST /api/autoapply/desktop/attempts/{id}/answers`; a question the page only names after Submit
+   is answered once and Submit pressed again.
 
-A model writes the cover letter and tailors the CV while the package is prepared; the candidate can
-read the frozen package before it goes, and what was sent is stored exactly. Multiple choices are
-matched to the form's own options by the same words (`pick`, identical in Python and JavaScript); no
-match is a stop, not a nearest guess. Each field event records which field was filled, not the typed text (the
-package records where each answer came from). A model is never asked to answer a question while a form is open,
-and nothing a page says is ever treated as an instruction.
+**Never written by a model:** legal statements, meaning right to work, visa sponsorship, citizenship,
+clearance, criminal record, non-compete. They come only from the candidate's saved answers or
+preferences. Without one, the application asks once, and the answer is saved for every later form.
+Voluntary self-identification (gender, race, veteran, disability) is declined where the form offers
+that; "how did you hear" picks "Job board" or "Other".
 
 ## Real-time record
 

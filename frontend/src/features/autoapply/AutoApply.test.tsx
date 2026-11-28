@@ -1293,8 +1293,16 @@ describe("setting up: the guided flow", () => {
         "United Kingdom",
       ]),
     );
+    // "All countries" is one choice; picking a country afterwards narrows the search
+    const all = screen.getByRole("button", { name: /All countries/ });
+    await userEvent.click(all);
+    expect(all).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByRole("button", { name: "Remove All countries" }),
+    ).toBeTruthy();
     await userEvent.type(places, "Nigeria");
     await userEvent.click(screen.getByRole("button", { name: "Add place" }));
+    expect(all).toHaveAttribute("aria-pressed", "false");
     // the work style tiles, and choosing how strict it is
     await userEvent.click(screen.getByRole("button", { name: /Remote/ }));
     await userEvent.click(

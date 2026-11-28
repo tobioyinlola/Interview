@@ -204,7 +204,11 @@ export const COUNTRIES: string[] = [
 ].sort((a, b) => a.localeCompare(b));
 
 /** Larger areas a job can be open to. The matcher understands these. */
+/** Means the person can work in any country: no place is held against a job. */
+export const ALL_COUNTRIES = "All countries";
+
 export const REGIONS: string[] = [
+  ALL_COUNTRIES,
   "Worldwide",
   "Africa",
   "Europe",

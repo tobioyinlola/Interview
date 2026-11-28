@@ -202,6 +202,37 @@ test("a modern Ashby form: custom radios, Yes/No buttons and EEO questions are a
   await close();
 });
 
+test("invisible reCAPTCHA (the corner badge) asks nothing: the form is filled and sent with nobody there", { skip: SKIP }, async () => {
+  server.received.length = 0;
+  const { driver, close } = await open("/ashby/recaptcha");
+  const scan = await driver.fnValue(require("node:fs").readFileSync(require.resolve("../src/auto/scan_form.js"), "utf8"));
+  assert.equal(scan.captcha, false, "an invisible check is not a human check");
+  const r = run(driver, "/ashby/recaptcha", { job: { ats: "ashby", values: ASHBY_VALUES }, answer: "stop" });
+  const out = await r.done;
+  assert.equal(out.status, "confirmed", out.message);
+  assert.deepEqual(r.ctl.asked, [], "the person was never asked for anything");
+  assert.equal(server.received.at(-1).visa, "No");
+  await close();
+});
+
+test("a picture puzzle that appears only on the press asks the person, then the confirmation is waited for", { skip: SKIP }, async () => {
+  server.received.length = 0;
+  const { driver, close, page } = await open("/ashby/puzzle");
+  const events = [];
+  const out = await runJob({
+    page: driver,
+    job: { url: server.origin + "/ashby/puzzle", ats: "ashby", values: ASHBY_VALUES, documents: { resume: doc("CV.pdf") } },
+    say: async (kind) => { events.push(kind); return null; },
+    authorize: async () => ({ ok: true }),
+    intervene: async (reason) => { events.push("asked:" + reason); await page.evaluate(() => window.passPuzzle()); return "continue"; },
+    limits: { submitMs: 3000 },
+  });
+  assert.equal(out.status, "confirmed", out.message);
+  assert.ok(events.some((e) => /^asked:.*CAPTCHA/.test(e)), "the person was asked once the puzzle showed");
+  assert.equal(server.received.length, 1);
+  await close();
+});
+
 test("a required question that only the candidate can answer is asked for before anything is pressed", { skip: SKIP }, async () => {
   server.received.length = 0;
   const { driver, close } = await open("/ashby/modern");
@@ -213,6 +244,56 @@ test("a required question that only the candidate can answer is asked for before
   assert.match(out.need[0].question, /visa sponsorship/i);
   assert.equal(r.ctl.authorized, 0, "submit was never pressed");
   await close();
+});
+
+test("a question nothing on file answers is written by the server, and the form goes through", { skip: SKIP }, async () => {
+  server.received.length = 0;
+  const { driver, close } = await open("/ashby/modern");
+  const values = { ...ASHBY_VALUES };
+  delete values.requires_sponsorship;
+  const asked = [];
+  const out = await runJob({
+    page: driver,
+    job: { url: server.origin + "/ashby/modern", ats: "ashby", values, documents: { resume: doc("CV.pdf") } },
+    say: async () => null,
+    authorize: async () => ({ ok: true }),
+    intervene: async () => "skip",
+    draft: async (qs) => { asked.push(...qs.map((q) => q.field)); return { requires_sponsorship: "No" }; },
+    limits: { submitMs: 3000 },
+  });
+  assert.equal(out.status, "confirmed", out.message);
+  assert.deepEqual(asked, ["requires_sponsorship"]);
+  assert.equal(server.received.at(-1).visa, "No");
+  await close();
+});
+
+test("a saved answer worded differently from the form's choices is put into its words, not guessed", { skip: SKIP }, async () => {
+  server.received.length = 0;
+  const { driver, close } = await open("/ashby/modern");
+  const values = { ...ASHBY_VALUES, requires_sponsorship: "Not needed" }; // not "Yes" or "No"
+  const asked = [];
+  const out = await runJob({
+    page: driver,
+    job: { url: server.origin + "/ashby/modern", ats: "ashby", values, documents: { resume: doc("CV.pdf") } },
+    say: async () => null,
+    authorize: async () => ({ ok: true }),
+    intervene: async () => "skip",
+    draft: async (qs) => { asked.push(...qs.map((q) => q.field)); return { requires_sponsorship: "No" }; },
+    limits: { submitMs: 3000 },
+  });
+  assert.equal(out.status, "confirmed", out.message);
+  assert.deepEqual(asked, ["requires_sponsorship"]);
+  assert.equal(server.received.at(-1).visa, "No");
+  await close();
+});
+
+test("an agreement box is ticked without asking", () => {
+  const rules = require("../src/auto/rules");
+  const c = [{ name: "privacy", label: "I agree to the privacy policy", kind: "declaration", options: [], required: true },
+    { name: "auth", label: "I certify I am legally authorized to work", kind: "declaration", options: [], required: true }];
+  const got = rules.resolve(c, {});
+  assert.equal(got.privacy, "yes");
+  assert.equal(got.auth, undefined, "a legal statement is never ticked by itself");
 });
 
 test("when the page says something is missing after submit, it is reported as not sent, never as unknown", { skip: SKIP }, async () => {

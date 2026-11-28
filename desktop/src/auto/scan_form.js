@@ -91,8 +91,28 @@
     out.push({ ctl: 'buttons', type: 'buttons', key, selector: `[data-im-key="${key}"] button`,
       label: clean(label), required: mark(label), options: texts, multi: false, one: '' });
   }
-  const captcha = !!document.querySelector(
-    'iframe[src*=recaptcha], iframe[src*=hcaptcha], iframe[src*=turnstile], .g-recaptcha, .h-captcha, [data-sitekey]');
+  // A human check only counts when a person would have to do something: a visible checkbox or
+  // picture puzzle. Invisible reCAPTCHA (Ashby, many others: the small badge in the corner, and a
+  // hidden challenge frame) and score-only checks ask nothing of anyone, so the form goes on.
+  const CHECK = /recaptcha|hcaptcha|turnstile|challenges\.cloudflare\.com|arkoselabs|funcaptcha/i;
+  const onScreen = el => {
+    for (let e = el; e && e !== document.documentElement; e = e.parentElement) {
+      const s = getComputedStyle(e);
+      if (s.display === 'none' || s.visibility === 'hidden' || Number(s.opacity) === 0) return false;
+    }
+    const r = el.getBoundingClientRect();
+    return r.width >= 30 && r.height >= 30 && r.bottom > -50 && r.top > -2000 && r.left > -2000;
+  };
+  const silent = el => /[?&#]size=invisible\b/i.test(el.getAttribute('src') || '')
+    || el.closest('[data-size=invisible], [data-badge], .grecaptcha-badge') !== null;
+  const frames = [...document.querySelectorAll('iframe')]
+    .filter(f => CHECK.test(f.getAttribute('src') || '') || CHECK.test(f.getAttribute('title') || ''));
+  const widgets = [...document.querySelectorAll('.g-recaptcha, .h-captcha, .cf-turnstile, [data-sitekey]')]
+    .filter(w => !silent(w) && !w.querySelector('iframe'));
+  const captcha = frames.some(f => !silent(f) && onScreen(f)) || widgets.some(w => {
+    const s = getComputedStyle(w);
+    return s.display !== 'none' && s.visibility !== 'hidden';
+  });
   return { url: location.href, title: document.title, text: (document.body.innerText || '').slice(0, 4000),
            controls: out, captcha };
 }

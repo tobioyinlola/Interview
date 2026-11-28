@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.adapters.interfaces import LlmProvider
 from app.autoapply import ats, campaign, desktop, outbox, runlog
 from app.autoapply.adapters import FormAdapter, MailboxAdapter
 from app.config import Settings, get_settings
@@ -22,7 +23,7 @@ from app.db import get_db, get_sessionmaker
 from app.deps import current_user
 from app.errors import ApiError
 from app.models import Application, Executor, SubmissionAttempt, User
-from app.routers.autoapply import feature_on, get_form, get_mailbox_adapter, get_now
+from app.routers.autoapply import feature_on, get_form, get_llm, get_mailbox_adapter, get_now
 
 router = APIRouter(
     prefix="/api/autoapply", tags=["autoapply-run"], dependencies=[Depends(feature_on)]
@@ -429,6 +430,43 @@ async def desktop_events(
     if out is None:
         raise ApiError(409, "not_yours", "This application is no longer yours to carry out.")
     return out
+
+
+class DraftQuestion(BaseModel):
+    field: str = Field(min_length=1, max_length=120)
+    question: str = Field(default="", max_length=400)
+    kind: str = Field(default="answer", max_length=20)
+    options: list[str] = Field(default_factory=list, max_length=200)
+
+
+class DraftIn(BaseModel):
+    executor_id: str = Field(min_length=8, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+    questions: list[DraftQuestion] = Field(default_factory=list, max_length=20)
+
+
+@router.post("/desktop/attempts/{attempt_id}/answers")
+async def desktop_answers(
+    attempt_id: str,
+    body: DraftIn,
+    user: User = Depends(current_user),  # noqa: B008
+    maker: async_sessionmaker[AsyncSession] = Depends(get_sessionmaker),  # noqa: B008
+    now: datetime = Depends(get_now),  # noqa: B008
+    llm: LlmProvider = Depends(get_llm),  # noqa: B008
+) -> dict[str, Any]:
+    """Answers for required questions only the live form asks, written from the CV and the job.
+    Legal statements (right to work, sponsorship...) are never written here."""
+    out = await desktop.draft_answers(
+        maker,
+        user.id,
+        _attempt_key(attempt_id),
+        body.executor_id,
+        [q.model_dump() for q in body.questions],
+        llm,
+        now,
+    )
+    if out is None:
+        raise ApiError(409, "not_yours", "This application is no longer yours to carry out.")
+    return {"answers": out}
 
 
 @router.post("/desktop/attempts/{attempt_id}/dispatch")

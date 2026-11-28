@@ -19,8 +19,22 @@
         } else out.push(...document.querySelectorAll(p));
       } catch (e) { /* a selector this page cannot take */ }
     }
-    return [...new Set(out)];
+    // in the order they appear on the page, as Playwright gives them on the server
+    return [...new Set(out)].sort((a, b) => (a === b ? 0 : a.compareDocumentPosition(b) & 4 ? -1 : 1));
   };
+  // a human check someone has to do (the same rule as scan_form.js; invisible reCAPTCHA is not one)
+  const CHECK = /recaptcha|hcaptcha|turnstile|challenges\.cloudflare\.com|arkoselabs|funcaptcha/i;
+  const challenge = () => [...document.querySelectorAll('iframe')].some((f) => {
+    const src = f.getAttribute('src') || '';
+    if (!CHECK.test(src) && !CHECK.test(f.getAttribute('title') || '')) return false;
+    if (/[?&#]size=invisible\b/i.test(src) || f.closest('[data-size=invisible], [data-badge], .grecaptcha-badge')) return false;
+    for (let e = f; e && e !== document.documentElement; e = e.parentElement) {
+      const s = getComputedStyle(e);
+      if (s.display === 'none' || s.visibility === 'hidden' || Number(s.opacity) === 0) return false;
+    }
+    const r = f.getBoundingClientRect();
+    return r.width >= 30 && r.height >= 30 && r.bottom > -50 && r.top > -2000 && r.left > -2000;
+  });
   globalThis.__im = {
     count: (sel) => find(sel).length,
     visible: (sel) => { const a = find(sel); return a.length > 0 && shown(a[a.length - 1]); },
@@ -43,12 +57,12 @@
       el.setAttribute('data-im-on', el.style.outline || '');
       el.style.outline = '2px solid #5b3fd6';
     },
-    locate: (sel, which, text) => {
+    locate: (sel, which, text, smooth) => {
       let a = find(sel);
       if (text) { const re = new RegExp('^\\s*' + text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*$'); a = a.filter((e) => re.test(e.innerText || '')); }
       const el = which === 'last' ? a[a.length - 1] : a[which === 'first' || which == null ? 0 : which];
       if (!el) return null;
-      el.scrollIntoView({ block: 'center', inline: 'center' });
+      el.scrollIntoView({ block: 'center', inline: 'center', behavior: smooth ? 'smooth' : 'auto' });
       const r = el.getBoundingClientRect();
       return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, tag: el.tagName.toLowerCase(), type: (el.type || '') };
     },
@@ -71,7 +85,7 @@
         .map((e) => (e.innerText || '').trim().replace(/\s+/g, ' '));
       return { url: location.href, text: (document.body.innerText || '').slice(0, 3000),
         bad: document.querySelectorAll('[aria-invalid=true]').length, errors: [...new Set(errors)].slice(0, 4),
-        len: (document.body.innerText || '').length };
+        len: (document.body.innerText || '').length, challenge: challenge() };
     },
     optionTexts: (sel) => find(sel).map((e) => (e.innerText || '').trim()).filter(Boolean),
     html: () => document.documentElement.outerHTML.slice(0, 200000),

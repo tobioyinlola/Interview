@@ -148,6 +148,17 @@ async def ashby_apply(request: Request):
     return JSONResponse({"ok": True})
 
 
+# Invisible reCAPTCHA as Ashby and many others load it: a corner badge and a hidden challenge frame.
+INVISIBLE_RECAPTCHA = (
+    '<div class="grecaptcha-badge" data-style="bottomright" '
+    'style="width:256px;height:60px;position:fixed;bottom:14px;right:-186px">'
+    '<iframe title="reCAPTCHA" width="256" height="60" '
+    'src="/recaptcha/enterprise/anchor?k=x&amp;size=invisible"></iframe></div>'
+    '<div style="visibility:hidden;position:absolute;top:-10000px">'
+    '<iframe title="recaptcha challenge" width="400" height="580" '
+    'src="/recaptcha/enterprise/bframe?k=x"></iframe></div>'
+)
+
 ROUTES = [
     Route("/ashby/jobs/1", lambda r: HTMLResponse(ASHBY)),
     Route("/ashby/apply", ashby_apply, methods=["POST"]),
@@ -157,6 +168,10 @@ ROUTES = [
         lambda r: HTMLResponse(
             FORM.format(action="/apply", extra='<div class="g-recaptcha" data-sitekey="x"></div>')
         ),
+    ),
+    Route(
+        "/jobs/invisible-recaptcha",
+        lambda r: HTMLResponse(FORM.format(action="/apply", extra=INVISIBLE_RECAPTCHA)),
     ),
     Route(
         "/jobs/closed",
@@ -360,6 +375,12 @@ def test_a_captcha_is_handed_back_not_worked_around(form, site):
             )
         )
     assert e.value.code == "rejected" and "CAPTCHA" in e.value.message and not RECEIVED
+
+
+def test_invisible_recaptcha_is_not_a_human_check(form, site):
+    schema = asyncio.run(form.read_form(f"{site}/jobs/invisible-recaptcha"))
+    assert not any(f.kind == "captcha" for f in schema.fields)
+    assert any(f.name == "email" for f in schema.fields)
 
 
 def test_a_closed_job_says_so(form, site):

@@ -5,7 +5,9 @@ from datetime import datetime
 from typing import Any
 
 from app.adapters.interfaces import LlmProvider
+from app.autoapply import answers as answers_mod
 from app.autoapply import tailor
+from app.autoapply.browserform import pick
 from app.autoapply.postings import apply_to
 from app.models import Application, CandidateAnswer, CandidateFacts, JobPosting
 
@@ -73,6 +75,7 @@ def resolve_answers(
     facts: dict[str, Any],
     per_application: dict[str, Any],
     saved: dict[str, CandidateAnswer],
+    extra: dict[str, dict[str, str]] | None = None,
 ) -> tuple[dict[str, dict[str, str]], list[dict[str, Any]]]:
     """Fill in the form's questions from what is known, and list exactly what is still missing.
 
@@ -99,7 +102,26 @@ def resolve_answers(
         if field in per_application:
             answers[field] = {"value": str(per_application[field]), "source": "this application"}
             continue
-        if kind == "declaration":
+        opts = [str(o) for o in q.get("options") or []]
+        if extra and field in extra and (not opts or pick(opts, extra[field]["value"]) is not None):
+            # a saved answer (under any of its names), a search preference or a CV fact
+            answers[field] = dict(extra[field])
+            continue
+        if kind == "declaration" and answers_mod.consent(label):
+            answers[field] = {"value": "Yes", "source": "you turned on Auto-Apply"}
+            continue
+        if extra and field in extra and kind != "declaration":
+            # on file, but not in the form's own words: put into them below (never guessed)
+            missing.append(
+                {
+                    "kind": "answer",
+                    "field": field,
+                    "question": label,
+                    "reason": "Your saved answer does not match the form's choices.",
+                }
+            )
+            continue
+        if kind == "declaration" and answers_mod.is_legal(field, label):
             if required:
                 missing.append(
                     {
@@ -107,6 +129,17 @@ def resolve_answers(
                         "field": field,
                         "question": label,
                         "reason": "Only you can make this declaration.",
+                    }
+                )
+            continue
+        if kind == "declaration":
+            if required:
+                missing.append(
+                    {
+                        "kind": "declaration",
+                        "field": field,
+                        "question": label,
+                        "reason": "The form needs this and it could not be answered from your CV.",
                     }
                 )
             continue
@@ -141,6 +174,7 @@ async def build(
     match: dict[str, Any],
     profile_version: int,
     now: datetime,
+    criteria: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
     """(package, missing). `missing` empty means the package is complete; the caller freezes it."""
     if app.status in FROZEN:
@@ -155,9 +189,37 @@ async def build(
             }
         ]
     facts = facts_row.data
-    answers, missing = resolve_answers(posting.questions or [], facts, app.answers or {}, saved)
+    extra = answers_mod.known(saved, criteria, facts, now)
+    answers, missing = resolve_answers(
+        posting.questions or [], facts, app.answers or {}, saved, extra
+    )
+    if missing:
+        # what nothing on file answers is written from the CV and the job (never a legal statement)
+        options = {str(q.get("field")): q.get("options") or [] for q in posting.questions or []}
+        drafted = await answers_mod.draft(
+            llm,
+            [
+                {**m, "options": options.get(m["field"], [])}
+                for m in missing
+                if m["kind"] != "unsupported"
+            ],
+            facts=facts,
+            cv_text=cv_text,
+            saved=extra,
+            job={
+                "title": posting.title,
+                "company": posting.company,
+                "description": posting.description,
+            },
+        )
+        for field, value in drafted.items():
+            answers[field] = {"value": value, "source": "written from your CV"}
+        missing = [m for m in missing if m["field"] not in drafted]
     if missing:
         return None, missing
+    # everything else already known travels too, for questions only the live form asks
+    for field, a in extra.items():
+        answers.setdefault(field, dict(a))
     # The contact details every form asks for always travel with the package, taken from the
     # facts the candidate verified, so a form that asks for them later can be filled honestly.
     for field, value in contact_values(facts).items():

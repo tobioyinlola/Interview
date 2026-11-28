@@ -27,6 +27,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.autoapply import answers as answers_mod
 from app.autoapply import ats, campaign, cvfile, outbox, runlog, switches
 from app.autoapply.adapters import AdapterError, FormReceipt, FormSchema
 from app.models import Application, Executor, JobPosting, SubmissionAttempt
@@ -156,6 +157,11 @@ async def claim(
         assert posting is not None
         pkg = app.package or {}
         values = {k: str(v["value"]) for k, v in (pkg.get("answers") or {}).items()}
+        # everything on file now (answers saved after this was prepared too), under every name
+        # forms use for it; what this application's package says comes first
+        on_file, _ = await answers_mod.on_file(db, app.user_id, now)
+        for k, v in on_file.items():
+            values.setdefault(k, str(v["value"]))
         cover = str(pkg.get("cover_text") or "").strip()
         if cover:
             values.setdefault("cover_letter", cover)  # for a cover-letter box that takes text
@@ -386,3 +392,51 @@ async def stale_leases(maker: async_sessionmaker[AsyncSession], now: datetime) -
             )
         ).all()
         return len(rows)
+
+
+async def draft_answers(
+    maker: async_sessionmaker[AsyncSession],
+    user_id: uuid.UUID,
+    attempt_id: uuid.UUID,
+    executor_id: str,
+    questions: list[dict[str, Any]],
+    llm: Any,
+    now: datetime,
+) -> dict[str, str] | None:
+    """Answers for required questions the live form asks that nothing on file answers, written from
+    the CV and the job (never a legal statement). None when the attempt is not this desktop's."""
+    async with maker() as db:
+        held = await _mine(db, user_id, attempt_id, executor_id, ("claimed",))
+        if held is None:
+            return None
+        attempt, app = held
+        attempt.lease_until = now + runlog.LEASE
+        posting = await db.get(JobPosting, app.posting_id)
+        known, facts = await answers_mod.on_file(db, user_id, now)
+        cv_text = str(((app.package or {}).get("cv") or {}).get("submitted_text") or "")
+        job = (
+            {"title": posting.title, "company": posting.company, "description": posting.description}
+            if posting is not None
+            else {}
+        )
+        await db.commit()
+    out = await answers_mod.draft(
+        llm, questions, facts=facts, cv_text=cv_text, saved=known, job=job
+    )
+    if out:
+        async with maker() as db:
+            for field in out:
+                await runlog.add(
+                    db,
+                    user_id,
+                    "answer_resolved",
+                    application_id=app.id,
+                    attempt_id=attempt_id,
+                    executor="desktop",
+                    now=now,
+                    field=field,
+                    label=field,
+                    source="written from your CV",
+                )
+            await db.commit()
+    return out

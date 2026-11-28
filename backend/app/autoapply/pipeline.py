@@ -149,6 +149,42 @@ def overrides(app: Application) -> set[str]:
     return {k[len("approve:") :] for k in (app.answers or {}) if k.startswith("approve:")}
 
 
+ANSWERABLE = ("answer", "declaration", "unsupported")
+WAITING_PER_PASS = 25
+
+
+async def reevaluate_waiting(
+    db: AsyncSession,
+    ctx: Context,
+    limit: int = WAITING_PER_PASS,
+    fields: set[str] | None = None,
+) -> int:
+    """Applications waiting for an answer are prepared again, so an answer saved since (or one
+    that can now be written from the CV) lets them go on without anyone pressing anything."""
+    rows = (
+        await db.execute(
+            select(Application, JobPosting)
+            .join(JobPosting, JobPosting.id == Application.posting_id)
+            .where(Application.user_id == ctx.user_id, Application.status == "needs_input")
+            .order_by(Application.updated_at)
+        )
+    ).all()
+    done = 0
+    for app, posting in rows:
+        if done >= limit:
+            break
+        kinds = {str(n.get("kind")) for n in app.needs_input or [] if isinstance(n, dict)}
+        if not kinds or not kinds <= set(ANSWERABLE):
+            continue  # a fit or duplicate question is the candidate's decision
+        asked = {str(n.get("field")) for n in app.needs_input or [] if isinstance(n, dict)}
+        if fields is not None and not asked & fields:
+            continue  # only the ones waiting on the answer just saved
+        await process(db, ctx, posting)
+        done += 1
+    await db.commit()
+    return done
+
+
 async def process(
     db: AsyncSession,
     ctx: Context,
@@ -273,6 +309,7 @@ async def process(
         match=app.match,
         profile_version=ctx.profile.version,
         now=ctx.now,
+        criteria=ctx.profile.criteria,
     )
     app.channel = channel
     if built is None:
