@@ -458,9 +458,11 @@ async def execute(
         attempt.lease_until = now + DISPATCH_GRACE  # progress reports renew it while it is alive
         key = attempt.idempotency_key
         claim_user = app.user_id
+        cv_text = pkg["cv"]["submitted_text"]
+        # the CV the candidate uploaded, exactly as it is, under its own name
+        cv_data, cv_name, cv_mime = await cvfile.sent_cv(db, app.user_id, cv_text)
         await db.commit()
     # --- the outside call (no database transaction is open)
-    cv_text = pkg["cv"]["submitted_text"]
     result: Any = None
     error: AdapterError | None = None
     try:
@@ -479,7 +481,8 @@ async def execute(
                 idempotency_key=key,
                 values=values,
                 cv_text=cv_text,
-                cv_filename="CV.pdf",
+                cv_filename=cv_name,
+                cv_file=cv_data,
                 progress=progress,
             )
         else:
@@ -489,7 +492,7 @@ async def execute(
                 to=pkg["destination"]["to"],
                 subject=email_subject(posting),
                 body=pkg.get("cover_text", ""),
-                attachments=[MailAttachment("CV.pdf", cvfile.render_pdf(cv_text))],
+                attachments=[MailAttachment(cv_name, cv_data, cv_mime)],
                 message_id=message_id(key),
             )
     except AdapterError as exc:

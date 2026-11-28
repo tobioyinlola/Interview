@@ -36,6 +36,9 @@
  #log .dot { flex:none; width:9px; height:9px; margin-top:5px; border-radius:50%; background:var(--acc) } #log .ok .dot { background:var(--ok) } #log .bad .dot { background:var(--bad) } #log .warn .dot { background:var(--warn) } #log .mute .dot { background:var(--mute) }
  #log .t { color:var(--mute); font-size:11.5px; white-space:nowrap; margin-left:auto; padding-left:8px } #log .x { min-width:0; overflow-wrap:anywhere }
  .empty { color:var(--mute); padding:6px 0 }
+ .hint { margin-top:10px; color:var(--mute); font-size:12px } .msg { margin-top:8px; font-size:12.5px; min-height:0 } .msg:empty { display:none }
+ .msg.ok { color:var(--ok) } .msg.bad { color:var(--bad) }
+ button.wide { width:100%; margin-top:10px } button.busy { opacity:.7; cursor:progress }
 </style></head>
 <body>
 <div id="idle"><b>Watch it work</b><span id="idleText">The employer's page appears here while an application is carried out, so you can see it fill in.</span></div>
@@ -52,12 +55,16 @@
  <div class="card" id="need"><h2>Needs you</h2><div id="needText"></div>
   <div class="row"><button class="p grow" id="cont">I have done it, continue</button><button id="leave">Skip this one</button></div></div>
  <div class="card"><h2>Controls</h2>
-  <div class="ctl"><button class="p" id="toggle">Pause</button><button id="skip">Skip</button><button class="d" id="stop">Stop</button></div>
-  <div class="seg" role="radiogroup" aria-label="Speed"><button data-s="slow">Slow</button><button data-s="normal">Normal</button><button data-s="fast">Fast</button></div>
+  <div class="ctl"><button class="p" id="toggle" title="Pause: this application finishes, then nothing new starts until you resume">Pause</button><button id="skip" title="Skip: leave this job now and go on to the next one. Nothing is sent for it.">Skip</button><button class="d" id="stop" title="Stop: end this application before it is submitted and start nothing new">Stop</button></div>
+  <div class="seg" role="radiogroup" aria-label="Speed"><button data-s="slow" title="About 3 minutes between applications">Slow</button><button data-s="normal" title="About 75 seconds between applications">Normal</button><button data-s="fast" title="About 30 seconds between applications">Fast</button></div>
+  <div class="hint" id="hint"></div>
+  <div class="msg" id="msg" role="status" aria-live="polite"></div>
  </div>
  <div class="card"><h2>Today</h2><div class="n">
   <div class="g"><b id="c-verified">0</b><span>sent</span></div><div><b id="c-queued">0</b><span>queued</span></div><div class="y"><b id="c-needs">0</b><span>need you</span></div>
-  <div class="r"><b id="c-failed">0</b><span>failed</span></div><div><b id="c-skipped">0</b><span>skipped</span></div><div class="g"><b id="c-today">0</b><span>today</span></div></div></div>
+  <div class="r"><b id="c-failed">0</b><span>failed</span></div><div><b id="c-skipped">0</b><span>skipped</span></div><div class="g"><b id="c-today">0</b><span>today</span></div></div>
+  <button class="wide" id="retry" hidden title="Ones that certainly never reached the employer are prepared again and go back in the queue">Try failed ones again</button>
+  <div class="msg" id="retryMsg" role="status" aria-live="polite"></div></div>
  <div class="card"><h2>Activity</h2><ul id="log"></ul><div class="empty" id="logEmpty">Nothing yet.</div></div>
 </div>
 <script src="workspace-panel.js"></script>

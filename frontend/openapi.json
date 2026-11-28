@@ -2527,6 +2527,11 @@
             "title": "Content",
             "type": "string"
           },
+          "cv_file_kept": {
+            "default": false,
+            "title": "Cv File Kept",
+            "type": "boolean"
+          },
           "cv_filename": {
             "anyOf": [
               {
@@ -4975,6 +4980,11 @@
             "title": "Content",
             "type": "string"
           },
+          "cv_file_kept": {
+            "default": false,
+            "title": "Cv File Kept",
+            "type": "boolean"
+          },
           "cv_filename": {
             "anyOf": [
               {
@@ -6590,6 +6600,48 @@
           "pct"
         ],
         "title": "RetentionRow",
+        "type": "object"
+      },
+      "RetryFailedIn": {
+        "properties": {
+          "ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 200,
+            "title": "Ids",
+            "type": "array"
+          }
+        },
+        "title": "RetryFailedIn",
+        "type": "object"
+      },
+      "RetryFailedOut": {
+        "properties": {
+          "left_alone": {
+            "title": "Left Alone",
+            "type": "integer"
+          },
+          "need_you": {
+            "title": "Need You",
+            "type": "integer"
+          },
+          "queued": {
+            "title": "Queued",
+            "type": "integer"
+          },
+          "retried": {
+            "title": "Retried",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "retried",
+          "queued",
+          "need_you",
+          "left_alone"
+        ],
+        "title": "RetryFailedOut",
         "type": "object"
       },
       "RunCountersOut": {
@@ -13012,6 +13064,48 @@
         ]
       }
     },
+    "/api/autoapply/applications/retry-failed": {
+      "post": {
+        "description": "Try failed applications again (the ones named, or all of them). One that may have reached\nthe employer is never repeated.",
+        "operationId": "retry_failed_api_autoapply_applications_retry_failed_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetryFailedIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetryFailedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Retry Failed",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
     "/api/autoapply/applications/{application_id}": {
       "get": {
         "operationId": "application_detail_api_autoapply_applications__application_id__get",
@@ -13205,7 +13299,7 @@
     },
     "/api/autoapply/applications/{application_id}/cv.pdf": {
       "get": {
-        "description": "The CV prepared for this role as a PDF, in the house layout.",
+        "description": "The CV that goes with this application: the file the candidate uploaded, exactly as it is.",
         "operationId": "tailored_cv_pdf_api_autoapply_applications__application_id__cv_pdf_get",
         "parameters": [
           {
@@ -15384,6 +15478,32 @@
         ]
       }
     },
+    "/api/hunt/pause": {
+      "post": {
+        "description": "Pause outreach: startup notes and notes to hiring managers. Applications carry on.",
+        "operationId": "pause_outreach_api_hunt_pause_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "title": "Response Pause Outreach Api Hunt Pause Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Pause Outreach",
+        "tags": [
+          "hunt"
+        ]
+      }
+    },
     "/api/hunt/reach": {
       "get": {
         "description": "How many startups outreach can write to, so the page can say so truthfully. Open to anyone\nsigned in, invited or not.",
@@ -15812,6 +15932,32 @@
         ]
       }
     },
+    "/api/hunt/unpause": {
+      "post": {
+        "description": "Carry on with outreach after pausing it.",
+        "operationId": "unpause_outreach_api_hunt_unpause_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "title": "Response Unpause Outreach Api Hunt Unpause Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Unpause Outreach",
+        "tags": [
+          "hunt"
+        ]
+      }
+    },
     "/api/me": {
       "get": {
         "operationId": "me_api_me_get",
@@ -15915,7 +16061,7 @@
         ]
       },
       "post": {
-        "description": "Upload a CV as the raw request body (PDF, Word .docx or text), with its name in the\n`x-filename` header. Only the text it holds is kept, never the file. Replaces any earlier CV.",
+        "description": "Upload a CV as the raw request body (PDF, Word .docx or text), with its name in the\n`x-filename` header. The file is kept exactly as uploaded (it is what employers receive) with\nthe text read from it. Replaces any earlier CV.",
         "operationId": "upload_cv_api_notes_cv_post",
         "responses": {
           "200": {

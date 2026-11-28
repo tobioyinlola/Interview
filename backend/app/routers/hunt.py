@@ -388,6 +388,26 @@ async def funnel(
     )
 
 
+@router.post("/pause")
+async def pause_outreach(
+    user: User = Depends(active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    now: datetime = Depends(get_now),  # noqa: B008
+) -> dict[str, bool]:
+    """Pause outreach: startup notes and notes to hiring managers. Applications carry on."""
+    return {"paused": await engine.set_paused(db, user.id, True, now)}
+
+
+@router.post("/unpause")
+async def unpause_outreach(
+    user: User = Depends(active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    now: datetime = Depends(get_now),  # noqa: B008
+) -> dict[str, bool]:
+    """Carry on with outreach after pausing it."""
+    return {"paused": await engine.set_paused(db, user.id, False, now)}
+
+
 @router.post("/resume")
 async def resume_sending(
     user: User = Depends(active_user),  # noqa: B008

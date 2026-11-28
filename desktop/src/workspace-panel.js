@@ -67,12 +67,26 @@ function render(snap) {
 
   const paused = v.state === "paused" || v.state === "stopped";
   const toggle = $("toggle");
-  toggle.textContent = v.state === "stopped" || v.state === "idle" ? "Start" : paused ? "Resume" : "Pause";
+  if (!toggle.classList.contains("busy")) toggle.textContent = v.state === "stopped" || v.state === "idle" ? "Start" : paused ? "Resume" : "Pause";
   toggle.dataset.action = v.state === "stopped" || v.state === "idle" ? "start" : paused ? "resume" : "pause";
   toggle.className = paused || v.state === "idle" ? "p" : "";
-  $("stop").disabled = v.state === "stopped" || v.state === "idle" || v.state === "ended";
-  $("skip").disabled = !cur || ["Done", "Failed", "Skipped", "Cancelled"].includes(cur.stage);
+  if (!$("stop").classList.contains("busy")) $("stop").disabled = v.state === "stopped" || v.state === "idle" || v.state === "ended";
+  if (!$("skip").classList.contains("busy")) {
+    $("skip").disabled = !!v.waiting || !cur || ["Done", "Failed", "Skipped", "Cancelled", "Waiting for you", "Sent? Check it"].includes(cur.stage);
+  }
   for (const b of document.querySelectorAll("[data-s]")) b.className = b.dataset.s === v.speed ? "on" : "";
+
+  // what each control will do right now, in plain words
+  set("hint", v.state === "stopped" ? "Stopped. Press Start to carry on from your queue."
+    : v.state === "paused" ? "Paused. Press Resume to carry on."
+    : cur && !["Done", "Failed", "Skipped", "Cancelled", "Waiting for you", "Sent? Check it"].includes(cur.stage)
+      ? "Skip moves on to the next job. Stop ends this one before Submit. Pause lets it finish first."
+      : "Pause holds the queue. Skip works while an application is running.");
+  const retry = $("retry");
+  if (!retry.classList.contains("busy")) {
+    retry.hidden = !(c.failed > 0);
+    retry.textContent = `Try failed ones again (${c.failed})`;
+  }
 
   const need = $("need");
   need.style.display = snap.person ? "block" : "none";
@@ -95,13 +109,68 @@ function render(snap) {
   $("idle").style.display = "flex";
 }
 
+let last = null;
 async function tick() {
-  try { render(await bridge.snapshot()); } catch { /* offline: try again */ }
+  try { last = await bridge.snapshot(); render(last); } catch { /* offline: try again */ }
 }
-$("toggle").addEventListener("click", async (e) => { await bridge.control(e.currentTarget.dataset.action || "pause"); tick(); });
-$("skip").addEventListener("click", async () => { await bridge.control("skip"); tick(); });
-$("stop").addEventListener("click", async () => { await bridge.control("stop"); tick(); });
-for (const b of document.querySelectorAll("[data-s]")) b.addEventListener("click", async () => { await bridge.speed(b.dataset.s); tick(); });
+
+/** Say what a button did, for a few seconds. */
+let msgTimer = null;
+function say(id, text, ok) {
+  const m = $(id); m.textContent = text; m.className = `msg ${ok ? "ok" : "bad"}`;
+  clearTimeout(msgTimer); msgTimer = setTimeout(() => { m.textContent = ""; }, 6000);
+}
+
+/** Press a control: show it working, say what happened, refresh the picture. */
+async function press(btn, busyText, run, done) {
+  if (btn.disabled) return;
+  const label = btn.textContent;
+  btn.disabled = true; btn.classList.add("busy"); btn.textContent = busyText;
+  try {
+    const r = await run();
+    if (r && r.ok === false) say("msg", r.message, false);
+    else if (done) say("msg", done, true);
+  } catch { say("msg", "That did not work. Check your connection and try again.", false); }
+  btn.classList.remove("busy"); btn.textContent = label; btn.disabled = false;
+  await tick();
+}
+
+const ACTIONS = {
+  pause: ["Pausing…", "Paused. The one running finishes; nothing new starts until you resume."],
+  resume: ["Resuming…", "Running again."],
+  start: ["Starting…", "Started. The next application begins shortly."],
+};
+$("toggle").addEventListener("click", (e) => {
+  const a = e.currentTarget.dataset.action || "pause";
+  press(e.currentTarget, ACTIONS[a][0], () => bridge.control(a), ACTIONS[a][1]);
+});
+$("skip").addEventListener("click", (e) => press(e.currentTarget, "Skipping…", () => bridge.control("skip"),
+  "Skipped. Nothing was sent for it; the next one starts shortly."));
+$("stop").addEventListener("click", (e) => press(e.currentTarget, "Stopping…", () => bridge.control("stop"),
+  "Stopped. The application was ended before Submit and is back in your queue. Press Start to carry on."));
+for (const b of document.querySelectorAll("[data-s]")) {
+  b.addEventListener("click", () => press(b, b.textContent, () => bridge.speed(b.dataset.s), `Speed: ${b.textContent}.`));
+}
+$("retry").addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  if (btn.disabled) return;
+  const label = btn.textContent;
+  btn.disabled = true; btn.classList.add("busy"); btn.textContent = "Trying again…";
+  try {
+    const r = await bridge.retryFailed();
+    if (!r || r.ok === false) say("retryMsg", (r && r.message) || "That did not work. Try again.", false);
+    else {
+      const x = r.result;
+      const parts = [];
+      if (x.queued) parts.push(`${x.queued} back in the queue`);
+      if (x.need_you) parts.push(`${x.need_you} need an answer from you`);
+      if (x.left_alone) parts.push(`${x.left_alone} may already have reached the employer, so left alone`);
+      say("retryMsg", parts.length ? parts.join(" · ") + "." : "Nothing to try again.", true);
+    }
+  } catch { say("retryMsg", "That did not work. Check your connection and try again.", false); }
+  btn.classList.remove("busy"); btn.textContent = label; btn.disabled = false;
+  await tick();
+});
 $("cont").addEventListener("click", () => bridge.answer("continue"));
 $("leave").addEventListener("click", () => bridge.answer("skip"));
 tick();

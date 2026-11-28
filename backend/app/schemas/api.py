@@ -155,6 +155,7 @@ class NotesOut(BaseModel):
     updated_at: datetime | None
     cv_filename: str | None = None
     cv_uploaded_at: datetime | None = None
+    cv_file_kept: bool = False  # the file itself is kept and is what employers receive
 
 
 class CvUploadOut(NotesOut):

@@ -299,3 +299,32 @@ def pdf_text(data: bytes) -> str:
 
     reader = PdfReader(io.BytesIO(data))
     return "\n".join((page.extract_text() or "") for page in reader.pages).strip()
+
+
+# --------------------------------------------------------------- the CV that is actually sent
+
+MIME = {
+    "pdf": "application/pdf",
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
+
+
+async def sent_cv(db: object, user_id: object, cv_text: str) -> tuple[bytes, str, str]:
+    """(bytes, file name, media type) of the CV that goes to employers: the file the candidate
+    uploaded, exactly as it is, under its own name. Only when no file was kept (a CV uploaded
+    before files were kept, or pasted as text) is a PDF made from the CV text instead."""
+    from sqlalchemy import select
+
+    from app.models import Note
+
+    row = (
+        await db.execute(  # type: ignore[attr-defined]
+            select(Note.cv_file, Note.cv_kind, Note.cv_filename).where(Note.user_id == user_id)
+        )
+    ).first()
+    if row is not None and row.cv_file and row.cv_kind in MIME:
+        name = (row.cv_filename or "").strip() or f"CV.{row.cv_kind}"
+        if not name.lower().endswith("." + row.cv_kind):
+            name = f"{name}.{row.cv_kind}"
+        return bytes(row.cv_file), name, MIME[row.cv_kind]
+    return render_pdf(cv_text), "CV.pdf", MIME["pdf"]

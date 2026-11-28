@@ -12,6 +12,7 @@ import {
   type HuntSettings,
   type HuntTarget,
   useHuntTargets,
+  useOutreachPause,
   useRequestOutreachAccess,
 } from "./api";
 import { OutreachRow, StartupCard } from "./Cards";
@@ -100,6 +101,7 @@ function WhyWaiting({ onSetup }: { onSetup: () => void }) {
 
 function StartupsBoard() {
   const settings = useHuntSettings();
+  const pause = useOutreachPause();
   const template = useHuntTemplate();
   const targets = useHuntTargets();
   const [params] = useSearchParams();
@@ -140,12 +142,45 @@ function StartupsBoard() {
 
       <WhyWaiting onSetup={() => setPicked("setup")} />
 
-      {s.paused && (
-        <p role="status" className="notice-info">
-          Auto-Apply is paused, so startup pitches are paused too. Resume it on
-          the Jobs tab.
-        </p>
-      )}
+      <section
+        aria-label="Outreach on or paused"
+        className="card flex flex-wrap items-center gap-3"
+      >
+        <span
+          role="status"
+          className={`inline-flex rounded-full px-3 py-1 text-sm font-medium ${
+            s.paused
+              ? "bg-amber-100 text-amber-900"
+              : "bg-emerald-100 text-emerald-900"
+          }`}
+        >
+          {s.paused ? "Outreach paused" : "Outreach on"}
+        </span>
+        <span className="min-w-0 flex-1 text-sm text-muted">
+          {s.paused
+            ? "No pitches or notes to hiring managers go out until you carry on. Job applications are not affected."
+            : "Pausing stops pitches and notes to hiring managers only. Job applications carry on; pause those on the Auto-Apply page."}
+        </span>
+        <button
+          type="button"
+          className={s.paused ? "btn-primary" : "btn-secondary"}
+          disabled={pause.isPending}
+          onClick={() => pause.mutate(!s.paused)}
+        >
+          {pause.isPending
+            ? s.paused
+              ? "Carrying on…"
+              : "Pausing…"
+            : s.paused
+              ? "Carry on with outreach"
+              : "Pause outreach"}
+        </button>
+        {pause.isError && (
+          <p role="alert" className="notice-error w-full">
+            {pause.error.message}
+          </p>
+        )}
+      </section>
 
       <dl className="grid grid-cols-3 gap-2 sm:gap-3" aria-label="At a glance">
         <Stat label="Waiting for you" value={waiting.length} />

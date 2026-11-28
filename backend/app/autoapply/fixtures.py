@@ -79,6 +79,7 @@ class FixtureForm:
         values: dict[str, str],
         cv_text: str,
         cv_filename: str,
+        cv_file: bytes | None = None,  # the CV as uploaded; else a PDF of the text
         progress: Any = None,
     ) -> FormReceipt:
         self.calls += 1

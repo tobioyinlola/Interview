@@ -131,10 +131,33 @@ describe("the application run panel", () => {
     expect(
       await screen.findByRole("button", { name: "Resume" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("Paused");
+    const said = screen.getAllByRole("status").map((e) => e.textContent);
+    expect(said).toContain("Paused");
+    // and it says what pausing does, in words
+    expect(
+      said.some((t) => /nothing new starts until you resume/.test(t ?? "")),
+    ).toBe(true);
     expect(calls.some((c) => c.key === "POST /api/autoapply/run/pause")).toBe(
       true,
     );
+  });
+
+  it("tries failed ones again and says what happened", async () => {
+    const calls = base({
+      "POST /api/autoapply/applications/retry-failed": () => ({
+        json: { retried: 1, queued: 1, need_you: 0, left_alone: 0 },
+      }),
+    });
+    renderApp(<App />, "/auto-apply/run");
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Try failed ones again (1)" }),
+    );
+    expect(await screen.findByText("1 back in the queue.")).toBeInTheDocument();
+    expect(
+      calls.some(
+        (c) => c.key === "POST /api/autoapply/applications/retry-failed",
+      ),
+    ).toBe(true);
   });
 
   it("skips only what is running, and stops", async () => {

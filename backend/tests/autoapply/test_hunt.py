@@ -621,28 +621,30 @@ async def test_notes_carry_the_matching_opening_and_stay_short(
     assert len(t["body"].split("--")[0].split()) < 100
 
 
-async def test_one_pause_covers_both(ada, maker, mailbox, settings, write_llm):
+async def test_pausing_auto_apply_pauses_applications_only_and_outreach_has_its_own_pause(
+    ada, maker, mailbox, settings, write_llm
+):
     from tests.autoapply.conftest import PROFILE
 
     uid = await setup(ada, maker, mailbox, auto_send=True)
     await ada.put("/api/autoapply/profile", json=PROFILE)
-    await seed(maker, 1)
+    await seed(maker, 2)
     async with maker() as db:
         await engine.plan(db, uid, NOW, write_llm)
         prof = (
             await db.execute(select(SearchProfile).where(SearchProfile.user_id == uid))
         ).scalar_one()
-        prof.paused = True
+        prof.paused = True  # Auto-Apply paused: applications stop, pitches carry on
         await db.commit()
+    assert (await ada.get("/api/hunt/settings")).json()["paused"] is False
+    assert await engine.send_next(maker, uid, mailbox, settings, NOW) == "sent"
+    # outreach's own pause stops the next one, and carrying on lets it go
+    assert (await ada.post("/api/hunt/pause")).json() == {"paused": True}
     assert (await ada.get("/api/hunt/settings")).json()["paused"] is True
     assert await engine.send_next(maker, uid, mailbox, settings, NOW) is None
-    async with maker() as db:
-        prof = (
-            await db.execute(select(SearchProfile).where(SearchProfile.user_id == uid))
-        ).scalar_one()
-        prof.paused = False
-        await db.commit()
-    assert await engine.send_next(maker, uid, mailbox, settings, NOW) == "sent"
+    assert (await ada.post("/api/hunt/unpause")).json() == {"paused": False}
+    later = NOW + timedelta(minutes=2)  # past the short gap kept between notes
+    assert await engine.send_next(maker, uid, mailbox, settings, later) == "sent"
 
 
 async def test_settings_start_from_the_auto_apply_search(ada, maker):

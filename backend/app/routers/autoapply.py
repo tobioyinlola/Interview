@@ -69,6 +69,8 @@ from app.autoapply.schemas import (
     RecheckOut,
     RecruitingOut,
     ResolveIn,
+    RetryFailedIn,
+    RetryFailedOut,
     RunOut,
     SearchProfileIn,
     SmtpProviderOut,
@@ -847,17 +849,18 @@ async def tailored_cv_pdf(
     user: User = Depends(current_user),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008
 ) -> Response:
-    """The CV prepared for this role as a PDF, in the house layout."""
+    """The CV that goes with this application: the file the candidate uploaded, exactly as it is."""
     a, _ = await _owned(db, user.id, application_id)
     cv = (a.package or {}).get("cv") or {}
     text = cv.get("submitted_text") or ""
-    if not text.strip():
+    data, name, mime = await cvfile.sent_cv(db, user.id, text)
+    if not text.strip() and name == "CV.pdf":
         raise ApiError(404, "no_cv", "No CV has been prepared for this role yet.")
-    data = cvfile.render_pdf(text)
+    safe = "".join(ch for ch in name if 32 <= ord(ch) < 127 and ch not in '"\\') or "CV.pdf"
     return Response(
         data,
-        media_type="application/pdf",
-        headers={"content-disposition": 'attachment; filename="Tailored CV.pdf"'},
+        media_type=mime,
+        headers={"content-disposition": f'attachment; filename="{safe}"'},
     )
 
 
@@ -912,6 +915,48 @@ async def recheck_skipped(
     )
 
 
+@router.post("/applications/retry-failed")
+async def retry_failed(
+    body: RetryFailedIn,
+    user: User = Depends(current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    now: datetime = Depends(get_now),  # noqa: B008
+    llm: LlmProvider = Depends(get_llm),  # noqa: B008
+    form: FormAdapter = Depends(get_form),  # noqa: B008
+) -> RetryFailedOut:
+    """Try failed applications again (the ones named, or all of them). One that may have reached
+    the employer is never repeated."""
+    c = await camp.current(db, user.id)
+    prof = await camp.get_profile(db, user.id)
+    if c is None or prof is None or c.status != "active" or c.ends_at <= now:
+        raise ApiError(409, "not_active", "Auto-Apply is not running.")
+    q = (
+        select(Application, JobPosting)
+        .join(JobPosting, JobPosting.id == Application.posting_id)
+        .where(Application.user_id == user.id, Application.status == "failed")
+    )
+    if body.ids:
+        keys = []
+        for raw in dict.fromkeys(body.ids):
+            try:
+                keys.append(uuid.UUID(raw))
+            except ValueError:
+                continue
+        q = q.where(Application.id.in_(keys))
+    rows = (await db.execute(q.limit(200))).all()
+    ctx = await pipeline.load_context(db, user.id, c, prof, llm=llm, form=form, now=now)
+    retried = queued = need = left = 0
+    for a, p in rows:
+        if not await pipeline.retry_failed(db, ctx, a, p):
+            left += 1
+            continue
+        retried += 1
+        queued += a.status in ("queued", "eligible")
+        need += a.status in ("needs_input", "apply_yourself")
+    await db.commit()
+    return RetryFailedOut(retried=retried, queued=queued, need_you=need, left_alone=left)
+
+
 @router.post("/applications/{application_id}/applied")
 async def applied_by_you(
     application_id: str,
@@ -944,6 +989,20 @@ async def retry_application(
         raise ApiError(409, "already_sent", "This application has already gone out.")
     if a.status == "skipped" and a.skip_reason == pipeline.USER_SKIPPED:
         a.skip_reason = None
+    if a.status == "failed":
+        c = await camp.current(db, user.id)
+        prof = await camp.get_profile(db, user.id)
+        if c is None or prof is None or c.status != "active" or c.ends_at <= now:
+            raise ApiError(409, "not_active", "Auto-Apply is not running.")
+        ctx = await pipeline.load_context(db, user.id, c, prof, llm=llm, form=form, now=now)
+        if not await pipeline.retry_failed(db, ctx, a, p):
+            raise ApiError(
+                409,
+                "may_have_gone",
+                "This one may have reached the employer, so it is not repeated.",
+            )
+        await db.commit()
+        return _app_out(a, p)
     return await _rerun(db, user.id, a, p, llm, form, now)
 
 

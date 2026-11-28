@@ -81,11 +81,21 @@ async def suppress(
 
 
 async def paused(db: AsyncSession, user_id: uuid.UUID) -> bool:
-    """One pause for everything: pausing Auto-Apply pauses startup outreach too."""
-    prof = (
-        await db.execute(select(SearchProfile).where(SearchProfile.user_id == user_id))
-    ).scalar_one_or_none()
-    return bool(prof and prof.paused)
+    """Outreach has its own pause (startup notes and notes to hiring managers). Pausing Auto-Apply
+    pauses applications only."""
+    st = await get_settings(db, user_id)
+    return bool(st and st.outreach_paused_at)
+
+
+async def set_paused(db: AsyncSession, user_id: uuid.UUID, on: bool, now: datetime) -> bool:
+    """Pause or resume outreach. Returns whether it is paused now."""
+    st = await get_settings(db, user_id)
+    if st is None:
+        st = HuntSettings(user_id=user_id, enabled=False)
+        db.add(st)
+    st.outreach_paused_at = now if on else None
+    await db.commit()
+    return on
 
 
 async def counts(db: AsyncSession, user_id: uuid.UUID) -> dict[str, int]:
@@ -560,8 +570,8 @@ async def delivery_blockers(
             add("reauth", "Your email needs to be connected again, in Settings.", "email")
         if (why := switches.blocked(off, "hunt", adapter.name)) is not None:
             add("switch", f"Sending is paused by the operator ({why}).")
-        if bool(prof and prof.paused):
-            add("paused", "Auto-Apply is paused, which pauses startup notes too. Resume it.")
+        if st is not None and st.outreach_paused_at is not None:
+            add("paused", "Outreach is paused. Resume it on the Startups page.")
         if not settings.startup_outreach_dispatch and adapter.real:
             add(
                 "server",
@@ -647,7 +657,7 @@ async def send_next(
             gate = "switched_off"
         elif conn is None or conn.status != "connected" or not conn.token_encrypted:
             gate = "mailbox_not_connected"
-        elif prof and prof.paused:
+        elif st.outreach_paused_at is not None:
             gate = "paused"
         elif st.auto_paused_at is not None:
             gate = "auto_paused"
@@ -716,13 +726,16 @@ async def send_next(
         sender, body, mid = conn.address, chosen.body, chosen.message_id
         subject = " ".join(chosen.subject.split())  # never a line break in a header
         tid = chosen.id
-        cv_text = ((await NotesRepo(db, user_id).get()) or Note()).content or ""
-        sign = st.sender_name
+        note = (await NotesRepo(db, user_id).get()) or Note()
+        cv_text = note.content or ""
+        # the candidate's CV goes with every note: the file they uploaded, exactly as it is
+        attachments = []
+        if note.cv_kind or cv_text.strip():
+            data, name, mime = await cvfile.sent_cv(db, user_id, cv_text)
+            if not note.cv_kind:
+                name = cv_filename(st.sender_name)  # made from the text: a name they can file
+            attachments = [MailAttachment(name, data, mime)]
         await db.commit()
-    # the candidate's CV goes with every note, as a PDF made from the CV text they confirmed
-    attachments = (
-        [MailAttachment(cv_filename(sign), cvfile.render_pdf(cv_text))] if cv_text.strip() else []
-    )
     error: AdapterError | None = None
     thread = None
     try:

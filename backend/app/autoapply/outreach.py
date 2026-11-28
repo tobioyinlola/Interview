@@ -12,8 +12,9 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.autoapply import campaign, clock, mailbox, outbox, switches
-from app.autoapply.adapters import AdapterError
+from app.autoapply import campaign, clock, cvfile, mailbox, outbox, switches
+from app.autoapply.adapters import AdapterError, MailAttachment
+from app.hunt import engine as hunt_engine
 from app.models import (
     Application,
     Campaign,
@@ -183,7 +184,8 @@ async def send_next(
             switches.blocked(off, "outreach", adapters.mailbox.name) is not None
             or camp is None
             or prof is None
-            or not campaign.outbound_open(camp, prof, now)
+            or not campaign.outreach_open(camp, prof, now)
+            or await hunt_engine.paused(db, user_id)
             or not (prof.channels or {}).get("outreach")
             or not clock.within_active_hours(now, camp.timezone, prof.active_hours)
             or conn is None
@@ -239,6 +241,14 @@ async def send_next(
         token = mailbox.token(settings, conn)
         sender, to, subject, body = conn.address, chosen.recipient, chosen.subject, chosen.body
         key, attempt_id, outreach_id = attempt.idempotency_key, attempt.id, chosen.id
+        # the CV the candidate uploaded goes with the note, exactly as it is
+        app_row = await db.get(Application, chosen.application_id)
+        cv_text = str(
+            (((app_row.package if app_row else None) or {}).get("cv") or {}).get("submitted_text")
+            or ""
+        )
+        data, name, mime = await cvfile.sent_cv(db, user_id, cv_text)
+        attach = [MailAttachment(name, data, mime)] if cv_text.strip() or name != "CV.pdf" else []
         await db.commit()
     error: AdapterError | None = None
     try:
@@ -248,7 +258,7 @@ async def send_next(
             to=to,
             subject=subject,
             body=body,
-            attachments=[],
+            attachments=attach,
             message_id=outbox.message_id(key),
         )
     except AdapterError as exc:

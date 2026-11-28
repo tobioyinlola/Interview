@@ -234,6 +234,17 @@ export const useFunnel = () =>
     refetchInterval: 60_000,
   });
 
+/** Pause or carry on with outreach (startup pitches and notes to hiring managers). Pausing
+ *  Auto-Apply pauses applications only. */
+export function useOutreachPause() {
+  const refresh = useRefresh();
+  return useMutation({
+    mutationFn: (pause: boolean) =>
+      post<{ paused: boolean }>(pause ? "/pause" : "/unpause"),
+    onSuccess: refresh,
+  });
+}
+
 /** Sending stopped by itself (too many bounces or requests to stop): turn it back on. */
 export function useResumeSending() {
   const refresh = useRefresh();

@@ -13,6 +13,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     String,
     Text,
     UniqueConstraint,
@@ -185,6 +186,10 @@ class Note(Base):
     content: Mapped[str] = mapped_column(Text, default="")  # the CV's text, up to 16,000 characters
     cv_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)  # name only
     cv_uploaded_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    # the file exactly as uploaded (PDF or Word): this is what employers receive. Loaded only when
+    # asked for, so reading the text never pulls the file.
+    cv_file: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True, deferred=True)
+    cv_kind: Mapped[str | None] = mapped_column(String(8), nullable=True)  # pdf | docx
     updated_at: Mapped[datetime] = mapped_column(_TS, default=_now, onupdate=_now)
 
 
@@ -1015,6 +1020,9 @@ class HuntSettings(Base):
     # Sending stops by itself when too many addresses bounce or people ask to stop; the person
     # starts it again, and only what happens after that counts (health_since).
     auto_paused_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    # The person's own pause for outreach (startup notes and notes to hiring managers). Pausing
+    # Auto-Apply pauses applications only.
+    outreach_paused_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
     auto_pause_reason: Mapped[str | None] = mapped_column(String(300), nullable=True)
     health_since: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(_TS, default=_now)

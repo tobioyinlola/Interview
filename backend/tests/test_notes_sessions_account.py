@@ -23,6 +23,7 @@ async def test_notes_round_trip_and_default_empty(new_client, sign_in):
             "updated_at": None,
             "cv_filename": None,
             "cv_uploaded_at": None,
+            "cv_file_kept": False,
         }
         put = await c.put("/api/notes", json={"role": "PM", "content": "Led a launch."})
         got = (await c.get("/api/notes")).json()

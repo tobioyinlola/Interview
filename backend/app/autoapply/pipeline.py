@@ -25,6 +25,7 @@ from app.models import (
     JobPosting,
     Note,
     SearchProfile,
+    SubmissionAttempt,
 )
 
 USER_SKIPPED = "You skipped this role."
@@ -147,6 +148,30 @@ def fit_settings() -> Any:
 
 def overrides(app: Application) -> set[str]:
     return {k[len("approve:") :] for k in (app.answers or {}) if k.startswith("approve:")}
+
+
+async def retry_failed(
+    db: AsyncSession, ctx: Context, app: Application, posting: JobPosting
+) -> bool:
+    """Give a failed application another go: it is judged and prepared again and goes back in the
+    queue. Only one that certainly never reached the employer: an attempt that went out, or might
+    have, is never repeated. Returns whether it was retried."""
+    if app.status != "failed":
+        return False
+    went = (
+        await db.execute(
+            select(SubmissionAttempt.id).where(
+                SubmissionAttempt.application_id == app.id,
+                SubmissionAttempt.state.in_(("confirmed", "dispatched", "ambiguous", "claimed")),
+            )
+        )
+    ).first()
+    if went is not None:
+        return False
+    app.status, app.skip_reason, app.needs_input, app.not_before = "discovered", None, [], None
+    await log(db, app, "retry", reason="you asked to try again")
+    await process(db, ctx, posting)
+    return True
 
 
 ANSWERABLE = ("answer", "declaration", "unsupported")

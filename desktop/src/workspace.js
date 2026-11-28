@@ -136,15 +136,26 @@ function create({ electron, appVersion, log = () => {}, guardOpts = {} }) {
       const view = await api.get("/autoapply/run");
       return { view, person: person ? person.reason : null };
     });
+    // every control answers { ok, message } so the panel can say what happened (or why not)
+    const said = (e) => ({ ok: false, message: (e && e.body && e.body.error && e.body.error.message) || (e && e.message) || "That did not work. Try again." });
     ipcMain.handle("ws:control", async (e, action) => {
       if (!mine(e) || !api || !["pause", "resume", "skip", "stop", "start"].includes(action)) return null;
-      await api.post(`/autoapply/run/${action}`);
-      return true;
+      try {
+        await api.post(`/autoapply/run/${action}`);
+        // a skip or stop while the person is being asked takes effect at once
+        if (person && (action === "skip" || action === "stop")) person.resolve(action);
+        return { ok: true };
+      } catch (err) { return said(err); }
+    });
+    ipcMain.handle("ws:retryFailed", async (e) => {
+      if (!mine(e) || !api) return null;
+      try { return { ok: true, result: await api.post("/autoapply/applications/retry-failed", {}) }; }
+      catch (err) { return said(err); }
     });
     ipcMain.handle("ws:speed", async (e, speed) => {
       if (!mine(e) || !api || !["slow", "normal", "fast"].includes(speed)) return null;
-      await api.put("/autoapply/run/settings", { speed });
-      return true;
+      try { await api.put("/autoapply/run/settings", { speed }); return { ok: true }; }
+      catch (err) { return said(err); }
     });
     ipcMain.handle("ws:answer", (e, what) => { if (mine(e) && person) person.resolve(what === "continue" ? "continue" : "skip"); });
   }
