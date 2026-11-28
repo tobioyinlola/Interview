@@ -116,11 +116,14 @@ async def register(
 # ---------------------------------------------------------------------------------- claim
 
 
-def _documents(pkg: dict[str, Any]) -> dict[str, Any]:
-    cv = cvfile.render_pdf(str((pkg.get("cv") or {}).get("submitted_text") or ""))
+async def _documents(db: AsyncSession, user_id: uuid.UUID, pkg: dict[str, Any]) -> dict[str, Any]:
+    # the CV the candidate uploaded, exactly as it is, under its own name
+    cv, name, _ = await cvfile.sent_cv(
+        db, user_id, str((pkg.get("cv") or {}).get("submitted_text") or "")
+    )
     out: dict[str, Any] = {
         "resume": {
-            "name": "CV.pdf",
+            "name": name,
             "b64": base64.b64encode(cv).decode(),
             "sha256": hashlib.sha256(cv).hexdigest(),
         }
@@ -178,7 +181,7 @@ async def claim(
                 {"field": k, "source": v.get("source")}
                 for k, v in (pkg.get("answers") or {}).items()
             ],
-            "documents": _documents(pkg),
+            "documents": await _documents(db, app.user_id, pkg),
             "cv_version": outbox.cv_version(pkg),
             "lease_seconds": int(runlog.LEASE.total_seconds()),
         }

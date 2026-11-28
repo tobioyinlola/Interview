@@ -102,8 +102,9 @@ export function CvPanel() {
       <p className="text-sm text-muted">
         Upload your CV. Your own stories and numbers come only from it (and any
         company brief), and each is labelled with where it came from. Everything
-        else is general interview knowledge. We keep the text we read, not the
-        file.
+        else is general interview knowledge. We keep your file exactly as you
+        uploaded it: that file is what employers receive with every application
+        and email.
       </p>
 
       <div>
@@ -194,10 +195,17 @@ export function CvPanel() {
               These are notes you typed earlier. Upload your CV to replace them.
             </p>
           )}
-          {fromFile && (
+          {fromFile && data.cv_file_kept && (
             <p className="text-sm text-muted">
-              The CV we make for each role is a PDF in our standard layout,
-              built from the details you confirmed.
+              This exact file goes with every application, email and startup
+              pitch. Nothing is rewritten.
+            </p>
+          )}
+          {fromFile && !data.cv_file_kept && (
+            <p role="status" className="notice-warn">
+              Upload this CV again so employers get your own file. It was
+              uploaded before we kept files, so until then we send a PDF made
+              from its text.
             </p>
           )}
 

@@ -428,13 +428,19 @@ class NotesRepo:
         await self.db.refresh(note)
         return note
 
-    async def set_cv(self, *, text: str, filename: str) -> Note:
+    async def set_cv(
+        self, *, text: str, filename: str, data: bytes | None = None, kind: str | None = None
+    ) -> Note:
         note = await self.get()
         if note is None:
             note = Note(user_id=self.user_id, role="", content=text)
             self.db.add(note)
         else:
             note.content = text
+        # the file itself is kept (PDF or Word) so it is sent exactly as uploaded
+        keep = data is not None and kind in ("pdf", "docx")
+        note.cv_file = data if keep else None
+        note.cv_kind = kind if keep else None
         note.cv_filename = filename
         note.cv_uploaded_at = _now()
         note.updated_at = _now()
@@ -446,6 +452,7 @@ class NotesRepo:
         note = await self.get()
         if note is not None:
             note.content = ""
+            note.cv_file, note.cv_kind = None, None
             note.cv_filename = None
             note.cv_uploaded_at = None
             note.updated_at = _now()

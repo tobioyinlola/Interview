@@ -389,7 +389,7 @@ export function ApplicationPage() {
                 ? "What is ready for you"
                 : "What will be sent"
           }
-          hint="Your CV is sent exactly as you uploaded it, in our standard layout."
+          hint="Your CV is sent exactly as you uploaded it: the same file."
         >
           <p className="text-sm">
             {pkg.destination.channel === "form"

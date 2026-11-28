@@ -106,7 +106,7 @@ async def test_an_email_only_listing_is_sent_from_the_connected_account_with_the
     assert att["state"] == "confirmed" and att["provider_ref"].endswith("@interviewmeet.app")
 
 
-async def test_the_cv_sent_and_downloaded_is_a_pdf_in_the_house_layout(
+async def test_without_a_kept_file_the_cv_sent_is_a_pdf_made_from_its_text(
     ada, discovery_source, mailbox, tick
 ):
     discovery_source.postings = [email_job(1)]
@@ -716,7 +716,9 @@ async def test_a_note_to_the_listed_contact_goes_once_after_the_application(
     await tick()
     assert form.calls == 1 and len(mailbox.sent) == 1
     m = mailbox.sent[0]
-    assert m["to"] == "recruiter@acme.test" and m["attachments"] == []
+    assert m["to"] == "recruiter@acme.test"
+    # the CV goes with the note too (the candidate's own file when one was uploaded)
+    assert [a.filename for a in m["attachments"]] == ["CV.pdf"]
     assert "Senior Product Manager" in m["subject"] and "Ada Okoye" in m["body"]
     o = (await ada.get("/api/autoapply/outreach")).json()
     assert len(o) == 1 and o[0]["status"] == "sent" and o[0]["recipient_source"] == "listing"
@@ -928,3 +930,35 @@ async def test_one_failed_application_can_be_tried_again_from_its_page(
     r = await ada.post(f"/api/autoapply/applications/{a['id']}/retry")
     assert r.status_code == 200, r.text
     assert r.json()["status"] == "queued"
+
+
+async def test_the_cv_file_as_uploaded_is_what_every_email_carries(
+    ada, discovery_source, mailbox, tick
+):
+    from app.autoapply import cvfile
+
+    original = (
+        cvfile.render_pdf(
+            "Ada Okoye\nSenior Product Manager\n\nEXPERIENCE\nProduct Manager, Paystack, 2020 - Present\n"
+            "- Led payments onboarding for 40,000 merchants\n"
+        )
+        + b"\n% the candidate's own file\n"
+    )
+    await start(ada)
+    r = await ada.post(
+        "/api/notes/cv",
+        content=original,
+        headers={"x-filename": "Ada_Okoye_CV.pdf", "content-type": "application/pdf"},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["cv_file_kept"] is True
+    discovery_source.postings = [email_job(1)]
+    await connect_mailbox(ada)
+    await tick()
+    m = mailbox.sent[0]
+    cv = m["attachments"][0]
+    assert cv.filename == "Ada_Okoye_CV.pdf"
+    assert cv.content == original  # byte for byte: nothing rewritten
+    a = (await apps(ada))[0]
+    d = await ada.get(f"/api/autoapply/applications/{a['id']}/cv.pdf")
+    assert d.status_code == 200 and d.content == original

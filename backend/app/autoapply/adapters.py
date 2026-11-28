@@ -117,6 +117,7 @@ class FormAdapter(Protocol):
         values: dict[str, str],
         cv_text: str,
         cv_filename: str,
+        cv_file: bytes | None = None,  # the CV as uploaded; else a PDF of the text
         progress: Progress | None = None,
     ) -> FormReceipt:
         """Submit. Must be safe to call twice with the same idempotency key, or raise

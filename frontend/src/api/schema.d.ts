@@ -1311,7 +1311,7 @@ export interface paths {
         };
         /**
          * Tailored Cv Pdf
-         * @description The CV prepared for this role as a PDF, in the house layout.
+         * @description The CV that goes with this application: the file the candidate uploaded, exactly as it is.
          */
         get: operations["tailored_cv_pdf_api_autoapply_applications__application_id__cv_pdf_get"];
         put?: never;
@@ -2299,6 +2299,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/hunt/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pause Outreach
+         * @description Pause outreach: startup notes and notes to hiring managers. Applications carry on.
+         */
+        post: operations["pause_outreach_api_hunt_pause_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/hunt/reach": {
         parameters: {
             query?: never;
@@ -2482,6 +2502,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/hunt/unpause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unpause Outreach
+         * @description Carry on with outreach after pausing it.
+         */
+        post: operations["unpause_outreach_api_hunt_unpause_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/me": {
         parameters: {
             query?: never;
@@ -2529,7 +2569,8 @@ export interface paths {
         /**
          * Upload Cv
          * @description Upload a CV as the raw request body (PDF, Word .docx or text), with its name in the
-         *     `x-filename` header. Only the text it holds is kept, never the file. Replaces any earlier CV.
+         *     `x-filename` header. The file is kept exactly as uploaded (it is what employers receive) with
+         *     the text read from it. Replaces any earlier CV.
          */
         post: operations["upload_cv_api_notes_cv_post"];
         /**
@@ -3912,6 +3953,11 @@ export interface components {
         CvUploadOut: {
             /** Content */
             content: string;
+            /**
+             * Cv File Kept
+             * @default false
+             */
+            cv_file_kept: boolean;
             /** Cv Filename */
             cv_filename?: string | null;
             /** Cv Uploaded At */
@@ -4765,6 +4811,11 @@ export interface components {
         NotesOut: {
             /** Content */
             content: string;
+            /**
+             * Cv File Kept
+             * @default false
+             */
+            cv_file_kept: boolean;
             /** Cv Filename */
             cv_filename?: string | null;
             /** Cv Uploaded At */
@@ -10344,6 +10395,28 @@ export interface operations {
             };
         };
     };
+    pause_outreach_api_hunt_pause_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: boolean;
+                    };
+                };
+            };
+        };
+    };
     reach_api_hunt_reach_get: {
         parameters: {
             query?: never;
@@ -10671,6 +10744,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unpause_outreach_api_hunt_unpause_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: boolean;
+                    };
                 };
             };
         };

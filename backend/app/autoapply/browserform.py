@@ -537,6 +537,7 @@ class BrowserForm:
         values: dict[str, str],
         cv_text: str,
         cv_filename: str,
+        cv_file: bytes | None = None,  # the CV as uploaded; else a PDF of the text
         progress: Progress | None = None,
     ) -> FormReceipt:
         if idempotency_key in self.receipts:
@@ -545,7 +546,15 @@ class BrowserForm:
             page, scan, close, system = await self._session(application_url)
             try:
                 receipt = await self._complete(
-                    page, scan, system, idempotency_key, values, cv_text, cv_filename, progress
+                    page,
+                    scan,
+                    system,
+                    idempotency_key,
+                    values,
+                    cv_text,
+                    cv_filename,
+                    progress,
+                    cv_file,
                 )
                 self.receipts[idempotency_key] = receipt
                 return receipt
@@ -562,6 +571,7 @@ class BrowserForm:
         cv_text: str,
         cv_filename: str,
         progress: Progress | None,
+        cv_file: bytes | None = None,
     ) -> FormReceipt:
         """Fill the form screen by screen, check it, press the button, and wait for proof."""
 
@@ -592,7 +602,7 @@ class BrowserForm:
                     "needs_input", "The form asks something that has not been answered.", need=need
                 )
             for c in controls:
-                done = await _fill(page, c, values, cv_text, cv_filename, cover)
+                done = await _fill(page, c, values, cv_text, cv_filename, cover, cv_file)
                 if done is None:
                     continue
                 if done.get("document"):
@@ -788,12 +798,14 @@ async def _fill(
     cv_text: str,
     cv_filename: str,
     cover: str,
+    cv_file: bytes | None = None,
 ) -> dict[str, Any] | None:
     """Put the answer for one control on the form. A control with no answer is left alone (None);
     a document gives its name, size and checksum back for the receipt."""
     if c.kind == "file":
         if c.name == "resume" or c.name == "cv":
-            data, name = cvfile.render_pdf(cv_text), cv_filename
+            # the file the candidate uploaded, exactly as it is
+            data, name = cv_file or cvfile.render_pdf(cv_text), cv_filename
         elif c.name == "cover_letter" and cover:
             data, name = cvfile.render_letter(cover), "Cover letter.pdf"
         else:

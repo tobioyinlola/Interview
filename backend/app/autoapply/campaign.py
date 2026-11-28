@@ -225,6 +225,12 @@ def progress(camp: Campaign | None, prof: SearchProfile | None, now: datetime) -
     }
 
 
+def outreach_open(camp: Campaign | None, prof: SearchProfile | None, now: datetime) -> bool:
+    """May a note to a hiring manager go out? Like applications, except that pausing Auto-Apply
+    does not stop it: outreach has its own pause (see hunt.engine.paused)."""
+    return camp is not None and camp.status == "active" and now < camp.ends_at and prof is not None
+
+
 def outbound_open(camp: Campaign | None, prof: SearchProfile | None, now: datetime) -> bool:
     """May anything new be sent for this candidate right now?"""
     return (

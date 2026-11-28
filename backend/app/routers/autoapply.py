@@ -849,17 +849,18 @@ async def tailored_cv_pdf(
     user: User = Depends(current_user),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008
 ) -> Response:
-    """The CV prepared for this role as a PDF, in the house layout."""
+    """The CV that goes with this application: the file the candidate uploaded, exactly as it is."""
     a, _ = await _owned(db, user.id, application_id)
     cv = (a.package or {}).get("cv") or {}
     text = cv.get("submitted_text") or ""
-    if not text.strip():
+    data, name, mime = await cvfile.sent_cv(db, user.id, text)
+    if not text.strip() and name == "CV.pdf":
         raise ApiError(404, "no_cv", "No CV has been prepared for this role yet.")
-    data = cvfile.render_pdf(text)
+    safe = "".join(ch for ch in name if 32 <= ord(ch) < 127 and ch not in '"\\') or "CV.pdf"
     return Response(
         data,
-        media_type="application/pdf",
-        headers={"content-disposition": 'attachment; filename="Tailored CV.pdf"'},
+        media_type=mime,
+        headers={"content-disposition": f'attachment; filename="{safe}"'},
     )
 
 

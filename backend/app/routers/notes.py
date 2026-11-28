@@ -25,6 +25,7 @@ def _out(note: Note | None) -> NotesOut:
         updated_at=note.updated_at,
         cv_filename=note.cv_filename,
         cv_uploaded_at=note.cv_uploaded_at,
+        cv_file_kept=note.cv_kind is not None,
     )
 
 
@@ -52,7 +53,8 @@ async def upload_cv(
     db: AsyncSession = Depends(get_db),  # noqa: B008
 ) -> CvUploadOut:
     """Upload a CV as the raw request body (PDF, Word .docx or text), with its name in the
-    `x-filename` header. Only the text it holds is kept, never the file. Replaces any earlier CV."""
+    `x-filename` header. The file is kept exactly as uploaded (it is what employers receive) with
+    the text read from it. Replaces any earlier CV."""
     data = await request.body()  # capped by the body-size limit before it gets here
     try:
         result = await asyncio.wait_for(asyncio.to_thread(extract_text, data), timeout=20)
@@ -63,7 +65,9 @@ async def upload_cv(
             422, "cv_unreadable", "That file took too long to read. Try exporting it again."
         ) from None
     name = safe_filename(unquote(request.headers.get("x-filename", "")))
-    note = await NotesRepo(db, user.id).set_cv(text=result.text, filename=name)
+    note = await NotesRepo(db, user.id).set_cv(
+        text=result.text, filename=name, data=data, kind=result.kind
+    )
     await record_from(
         db, "cv.uploaded", user_id=user.id, characters=len(result.text), truncated=result.truncated
     )
