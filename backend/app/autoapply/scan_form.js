@@ -38,7 +38,11 @@
     if (['hidden', 'submit', 'button', 'image', 'reset', 'search'].includes(type) || el.disabled) continue;
     if (!el.id && !el.name) continue;                       // a control we could not point at again
     const isFile = type === 'file';
-    if (!isFile && !shown(el)) continue;                    // hidden fields and honeypots
+    // hidden fields and honeypots are skipped; but a radio or checkbox drawn as a styled circle has its
+    // real input hidden, and is shown by its label or its box
+    const styled = (type === 'radio' || type === 'checkbox') &&
+      ((el.labels && el.labels[0] && shown(el.labels[0])) || (el.parentElement && shown(el.parentElement)));
+    if (!isFile && !styled && !shown(el)) continue;
     const tag = el.tagName.toLowerCase();
     if (type === 'radio' || type === 'checkbox') {
       const key = el.name || el.id;
@@ -66,21 +70,26 @@
       selector: sel(el, tag), label: clean(raw), required: el.required || el.getAttribute('aria-required') === 'true' || mark(raw),
       options, multi: false, one: '' });
   }
-  // Yes/No and other choices drawn as a row of buttons (no radio inputs behind them), each question
-  // in its own entry or group with a title.
+  // Yes/No and other choices drawn as a row of buttons (no radio inputs behind them): any box that
+  // holds two or more short buttons and no input, with a question above them.
+  const NOT_CHOICE = /^(upload|submit|next|continue|back|apply|add|remove|delete|replace|cancel|save|close|autofill)/i;
   let bi = 0;
-  for (const box of root.querySelectorAll('[class*="field-entry"], [class*="fieldEntry"], [role=group], [role=radiogroup]')) {
-    if (box.querySelector('input:not([type=hidden]):not([type=file]), select, textarea')) continue;
-    const btns = [...box.querySelectorAll('button')].filter(b => (b.getAttribute('type') || 'button') !== 'submit'
-      && shown(b) && (b.innerText || '').trim().length > 0 && (b.innerText || '').trim().length <= 40);
+  const claimed = [];
+  for (const box of root.querySelectorAll('div, fieldset, section, ul, [role=group], [role=radiogroup]')) {
+    if (box.querySelector('input:not([type=hidden]), select, textarea')) continue;
+    if (claimed.some(c => c.contains(box) || box.contains(c))) continue;
+    const btns = [...box.querySelectorAll(':scope > button, :scope > * > button')].filter(b => (b.getAttribute('type') || 'button') !== 'submit'
+      && shown(b) && (b.innerText || '').trim().length > 0 && (b.innerText || '').trim().length <= 40 && !NOT_CHOICE.test((b.innerText || '').trim()));
     if (btns.length < 2 || btns.length > 12) continue;
+    const texts = btns.map(b => clean(b.innerText));
     const found = box.querySelector('label, legend, [class*=question], [class*=title]');
-    const label = (found && found.innerText) || groupLabel(btns[0], btns.map(b => clean(b.innerText)));
+    const label = (found && !texts.includes(clean(found.innerText)) && found.innerText) || groupLabel(btns[0], texts);
     if (!clean(label)) continue;
     const key = 'buttons-' + (bi++);
     box.setAttribute('data-im-key', key);
+    claimed.push(box);
     out.push({ ctl: 'buttons', type: 'buttons', key, selector: `[data-im-key="${key}"] button`,
-      label: clean(label), required: mark(label), options: btns.map(b => clean(b.innerText)), multi: false, one: '' });
+      label: clean(label), required: mark(label), options: texts, multi: false, one: '' });
   }
   const captcha = !!document.querySelector(
     'iframe[src*=recaptcha], iframe[src*=hcaptcha], iframe[src*=turnstile], .g-recaptcha, .h-captcha, [data-sitekey]');

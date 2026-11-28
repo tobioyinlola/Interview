@@ -72,6 +72,12 @@ SPAM_TEXT = re.compile(
     r"|are you a (human|robot)",
     re.I,
 )
+COMPLAINT = re.compile(
+    r"(is|are) required|required field|missing entry|please (enter|select|choose|fill|provide|"
+    r"complete|answer)|must (be|select|choose)|invalid|cannot be (blank|empty)"
+    r"|can'?t be (blank|empty)|this field",
+    re.IGNORECASE,
+)
 ERROR_TEXT = re.compile(
     r"(is|are) required|required field|please (enter|select|choose|fill|provide)|invalid", re.I
 )
@@ -91,16 +97,64 @@ CANON = (
     ("name", r"^(legal |full |your )?name$"),
 )
 # Ashby's own names for its built-in questions
+# Questions forms ask in their own words, under one name each, so one saved answer fits every form.
+# Kept identical to desktop/src/auto/rules.js (a parity test compares them).
+QUESTIONS = (
+    ("requires_sponsorship", r"sponsor"),
+    (
+        "work_authorization",
+        r"(legally|authori[sz]ed|eligible|right) .*work|work authori[sz]ation"
+        r"|work (in|within) the (us|u\.s\.|united states|uk|country)",
+    ),
+    ("relocate", r"relocat"),
+    (
+        "salary_expectation",
+        r"(salary|compensation|pay) (expectation|requirement|range)|expected (salary|compensation)"
+        r"|desired (salary|compensation)",
+    ),
+    (
+        "notice_period",
+        r"notice period|how soon can you start|available to start|earliest .*start|start date",
+    ),
+    ("years_experience", r"years of .*experience|how many years"),
+    (
+        "how_heard",
+        r"how did you (hear|find|learn)|where did you (hear|find|learn)|how .*hear about",
+    ),
+    ("cover_letter", r"cover letter"),
+    ("eeo_gender", r"\bgender\b"),
+    ("eeo_race", r"\brace\b|ethnic|hispanic|latino"),
+    ("eeo_veteran", r"veteran"),
+    ("eeo_disability", r"disabilit"),
+    ("eeo_orientation", r"sexual orientation|lgbt"),
+    ("eeo_transgender", r"transgender"),
+)
+DECLINE = re.compile(
+    r"decline|prefer not|do not wish|don'?t wish|do not want to (answer|say|disclose)|rather not"
+    r"|not to (say|answer|disclose|identify)|choose not|no answer"
+)
+HEARD = (
+    re.compile(r"job board"),
+    re.compile(r"\bother\b"),
+    re.compile(r"internet|online|search|website"),
+)
+
 SYSTEM_FIELDS = {
     "_systemfield_name": "name",
     "_systemfield_email": "email",
     "_systemfield_location": "location",
 }
 
-STATE = (
-    "() => ({ url: location.href, text: (document.body.innerText || '').slice(0, 3000), "
-    "bad: document.querySelectorAll('[aria-invalid=true]').length })"
-)
+STATE = """() => ({
+  url: location.href,
+  text: (document.body.innerText || '').slice(0, 3000),
+  bad: document.querySelectorAll('[aria-invalid=true]').length,
+  errors: [...new Set([...document.querySelectorAll(
+    '[role=alert], [class*=error i], [class*=invalid i]')]
+    .filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; })
+    .map(e => (e.innerText || '').trim().replace(/\\s+/g, ' '))
+    .filter(t => t && t.length < 220))].slice(0, 4),
+})"""
 # Required controls on screen that are still empty (checked before the submit button is pressed).
 VALIDATE = (Path(__file__).with_name("validate_form.js")).read_text()
 
@@ -141,6 +195,49 @@ def canonical(label: str, key: str) -> str:
     return key
 
 
+def semantic(label: str) -> str | None:
+    """The name a question goes by, when it is one of the usual ones."""
+    low = (label or "").lower()
+    for name, pattern in QUESTIONS:
+        if re.search(pattern, low):
+            return name
+    return None
+
+
+def decline_index(options: list[str]) -> int | None:
+    """The option that declines a voluntary question, if the form offers one."""
+    for i, o in enumerate(options):
+        if DECLINE.search(o.lower()):
+            return i
+    return None
+
+
+def heard_index(options: list[str]) -> int | None:
+    """How the candidate heard about the job: the app found it on a job board."""
+    for rx in HEARD:
+        for i, o in enumerate(options):
+            if rx.search(o.lower()):
+                return i
+    return None
+
+
+def resolve_values(controls: list["Control"], values: dict[str, str]) -> dict[str, str]:
+    """Answers the app can honestly give itself: declining a voluntary self-identification, and
+    where the job was found. Never overrides an answer the candidate has."""
+    out: dict[str, str] = {}
+    for c in controls:
+        if values.get(c.name) or not c.options or c.kind != "choice":
+            continue
+        i = None
+        if c.name.startswith("eeo_"):
+            i = decline_index(c.options)
+        elif c.name == "how_heard":
+            i = heard_index(c.options)
+        if i is not None:
+            out[c.name] = c.options[i]
+    return out
+
+
 def controls_from(raw: dict[str, Any]) -> list[Control]:
     """The scan turned into controls: kind, canonical name, options."""
     out: list[Control] = []
@@ -165,10 +262,19 @@ def controls_from(raw: dict[str, Any]) -> list[Control]:
         elif ctl == "buttons":
             slug = "q_" + re.sub(r"[^a-z0-9]+", "_", label.lower()).strip("_")[:50]
             out.append(
-                Control(slug, label or slug, "choice", c["required"], c["selector"], ctl, options)
+                Control(
+                    semantic(label) or slug,
+                    label or slug,
+                    "choice",
+                    c["required"],
+                    c["selector"],
+                    ctl,
+                    options,
+                )
             )
         elif ctl in ("group", "select", "combo"):
-            name = canonical(label, c["key"]) if ctl != "group" else c["key"]
+            std = canonical(label, c["key"]) if ctl != "group" else c["key"]
+            name = (semantic(label) or std) if std == c["key"] else std
             out.append(
                 Control(
                     name,
@@ -184,7 +290,7 @@ def controls_from(raw: dict[str, Any]) -> list[Control]:
         else:
             out.append(
                 Control(
-                    canonical(label, c["key"]),
+                    _text_name(label, c["key"]),
                     label or c["key"],
                     "text",
                     c["required"],
@@ -194,6 +300,11 @@ def controls_from(raw: dict[str, Any]) -> list[Control]:
                 )
             )
     return out
+
+
+def _text_name(label: str, key: str) -> str:
+    std = canonical(label, key)
+    return (semantic(label) or std) if std == key else std
 
 
 def schema_from(controls: list[Control], captcha: bool) -> FormSchema:
@@ -445,6 +556,9 @@ class BrowserForm:
             if step == 1:
                 await say("form_discovered", fields=len(controls), steps=1, provider=system.key)
             # a question nobody has answered is the candidate's, found before anything is typed
+            values.update(
+                resolve_values(controls, values)
+            )  # what can honestly be answered for them
             need = _unanswered(controls, values)
             if need:
                 raise AdapterError(
@@ -533,8 +647,15 @@ class BrowserForm:
                 raise AdapterError(
                     "rejected", "The employer's site flagged the submission as automated."
                 )
-            if state["bad"] and waited >= 2000:
-                raise AdapterError("rejected", "The form refused the application as filled in.")
+            complaint = next((e for e in state.get("errors", []) if COMPLAINT.search(e)), "")
+            if (complaint or state["bad"]) and state["url"] == before and waited >= 1500:
+                # the page says something is missing or wrong and has not moved on: nothing was sent
+                raise AdapterError(
+                    "rejected",
+                    f"The form did not accept it: {complaint[:160]}"
+                    if complaint
+                    else "The form refused the application as filled in.",
+                )
         raise AdapterError("ambiguous", "The form did not show a confirmation in time.")
 
 

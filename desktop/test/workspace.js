@@ -13,7 +13,7 @@ const site = require("./site");
 const PDF = Buffer.from("%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n");
 const sha = crypto.createHash("sha256").update(PDF).digest("hex");
 const VALUES = { first_name: "Ada", last_name: "Obi", email: "ada@example.com", country: "Nigeria", question_1: "I love the product.",
-  auth: "Yes", veteran: "I am not a veteran", consent: "yes" };
+  work_authorization: "Yes", veteran: "I am not a veteran", consent: "yes" };
 
 async function main() {
   const employer = await site.start();

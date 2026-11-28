@@ -64,8 +64,15 @@
       const o = [...el.options].find((x) => x.text.trim() === label); if (!o) return false;
       el.value = o.value; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); return true; },
     checked: (sel, i) => { const a = find(sel); const el = a[i || 0]; return el ? !!el.checked : null; },
-    state: () => ({ url: location.href, text: (document.body.innerText || '').slice(0, 3000),
-      bad: document.querySelectorAll('[aria-invalid=true]').length, len: (document.body.innerText || '').length }),
+    state: () => {
+      // messages the page shows about a field or the form being wrong (a validation error), as text
+      const errors = [...document.querySelectorAll('[role=alert], [class*=error i], [class*=invalid i], [class*=Error]')]
+        .filter((e) => shown(e) && (e.innerText || '').trim() && (e.innerText || '').trim().length < 220)
+        .map((e) => (e.innerText || '').trim().replace(/\s+/g, ' '));
+      return { url: location.href, text: (document.body.innerText || '').slice(0, 3000),
+        bad: document.querySelectorAll('[aria-invalid=true]').length, errors: [...new Set(errors)].slice(0, 4),
+        len: (document.body.innerText || '').length };
+    },
     optionTexts: (sel) => find(sel).map((e) => (e.innerText || '').trim()).filter(Boolean),
     html: () => document.documentElement.outerHTML.slice(0, 200000),
   };

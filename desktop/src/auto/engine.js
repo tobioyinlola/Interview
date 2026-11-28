@@ -20,6 +20,7 @@ const LOGIN = /\b(sign in|log in|create an account) to (apply|continue)\b/i;
 const SPAM = /flagged|possible spam|suspicious|unusual activity|automated (request|submission)|are you a (human|robot)/i;
 const OPTIONS = "[role=option], [class*=select__option], [id*='-option-']";
 const SUBMIT_MS = 40_000;
+const ERROR_TEXT = /(is|are) required|required field|missing entry|please (enter|select|choose|fill|provide|complete|answer)|must (be|select|choose)|invalid|cannot be (blank|empty)|can'?t be (blank|empty)|this field/i;
 
 class Stop extends Error {
   constructor(outcome) { super(outcome.message || outcome.status); this.outcome = outcome; }
@@ -31,6 +32,7 @@ async function runJob({ page, job, say, command, authorize, intervene, now = Dat
   const submitMs = limits.submitMs || SUBMIT_MS;
   const values = job.values || {};
   const documents = [];
+  const filled = new Set(); // what was actually put on the form, by name
   let steps = 1;
   let provider = system.key;
 
@@ -70,11 +72,13 @@ async function runJob({ page, job, say, command, authorize, intervene, now = Dat
       if (seen.has(digest)) throw out("failed", "The form did not move on to its next step.", { provider });
       seen.add(digest);
       if (steps === 1) await checkpoint("form_discovered", { fields: controls.length, steps: 1, provider });
+      Object.assign(values, rules.resolve(controls, values)); // what can honestly be answered for them
       const need = rules.unanswered(controls, values);
       if (need.length) throw out("needs_input", "The form asks something that has not been answered.", { need, provider });
       for (const c of controls) {
         const done = await fill(page, c, job, values);
         if (!done) continue;
+        filled.add(c.name);
         if (done.document) {
           documents.push(done.document);
           await checkpoint("document_uploaded", { name: done.document.name, role: c.name });
@@ -116,6 +120,15 @@ async function runJob({ page, job, say, command, authorize, intervene, now = Dat
       const proof = rules.confirmation(sys, st.url, st.text, before);
       if (proof) return { status: "confirmed", provider, evidence: st.text.slice(0, 3000), url: st.url, before_url: before, steps, documents, message: proof };
       if (SPAM.test(st.text)) throw out("failed", "The employer's site flagged the submission as automated.", { provider, sent_unknown: true });
+      // the page says something is missing or wrong and has not moved on: nothing was sent
+      const complaint = st.errors.find((e) => ERROR_TEXT.test(e)) || (st.bad ? "A field is marked as wrong." : "");
+      if (complaint && st.url === before && now() - t0 >= 1500) {
+        const left = await missingNow(page, filled);
+        if (left.length) {
+          throw out("needs_input", "The form still asks for something that has not been answered.", { need: left, provider, steps });
+        }
+        throw out("failed", `The form did not accept it: ${complaint.slice(0, 160)}`, { provider, steps, documents });
+      }
       if (st.bad && now() - t0 >= 2000) throw out("failed", "The form refused the application as filled in.", { provider, sent_unknown: true });
     }
   } catch (e) {
@@ -144,6 +157,17 @@ async function afterCheck(page) {
   if (!scan) throw out("failed", "The page did not come back after the check.");
   await page.sleep(500);
   return scan;
+}
+
+/** After the page complained: read the form again and name what is required and was never filled in. */
+async function missingNow(page, filled) {
+  let scan;
+  try { scan = await page.fnValue(SCAN); } catch { return []; }
+  const controls = rules.controlsFrom(scan);
+  return controls
+    .filter((c) => c.required && c.kind !== "captcha" && !filled.has(c.name) && c.kind !== "file")
+    .map((c) => ({ kind: c.kind === "declaration" ? "declaration" : "answer", field: c.name, question: c.label,
+      reason: "The form asked for this and it could not be filled in.", ...(c.options.length ? { options: c.options } : {}) }));
 }
 
 async function wantsNext(page, sys) {

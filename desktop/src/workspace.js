@@ -14,7 +14,7 @@ const { makeDriver } = require("./auto/driver");
 const executorLib = require("./auto/executor");
 const guard = require("./auto/guard");
 
-const PANEL_W = 340;
+const PANEL_W = 360;
 const LOAD_MS = 30_000;
 const PERSON_MS = 10 * 60_000; // how long a check waits for the person before being handed back
 

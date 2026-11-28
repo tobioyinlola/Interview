@@ -8,7 +8,7 @@ const path = require("node:path");
 const page = (n) => fs.readFileSync(path.join(__dirname, "fixtures", n), "utf8");
 const ROUTES = {
   "/jobs/1": "greenhouse.html", "/jobs/captcha": "captcha.html", "/jobs/silent": "silent.html",
-  "/ashby/jobs/1": "ashby.html", "/jobs/probe": "probe.html", "/jobs/interstitial": "interstitial.html", "/jobs/steps": "steps.html", "/jobs/clearance": "declaration.html",
+  "/ashby/jobs/1": "ashby.html", "/jobs/probe": "probe.html", "/ashby/modern": "ashby-modern.html", "/jobs/invisible": "invisible-required.html", "/jobs/interstitial": "interstitial.html", "/jobs/steps": "steps.html", "/jobs/clearance": "declaration.html",
 };
 
 function parseMultipart(buf, type) {

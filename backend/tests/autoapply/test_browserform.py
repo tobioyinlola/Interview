@@ -221,10 +221,10 @@ GOOD = {
     "phone": "+234 801 234 5678",
     "country": "Nigeria",
     "question_1": "I like payments.",
-    "auth": "Yes",
+    "work_authorization": "Yes",
     "linkedin": "https://linkedin.com/in/adaokoye",
     "consent": "yes",
-    "veteran": "Prefer not to say",
+    "eeo_veteran": "Prefer not to say",
 }
 
 
@@ -270,11 +270,14 @@ def test_reads_the_form_as_it_is_right_now(form, site):
     assert not by["phone"].required and not by["linkedin"].required
     assert by["resume"].kind == "file" and by["resume"].required
     assert by["cover_letter"].kind == "file" and not by["cover_letter"].required
-    assert by["auth"].kind == "choice" and by["auth"].options == ["Yes", "No"]
+    assert by["work_authorization"].kind == "choice" and by["work_authorization"].options == [
+        "Yes",
+        "No",
+    ]
     assert by["country"].kind == "choice" and by["country"].options == [
         "Nigeria", "United Kingdom", "United States"
     ]  # fmt: skip
-    assert by["veteran"].kind == "choice" and len(by["veteran"].options) == 3
+    assert by["eeo_veteran"].kind == "choice" and len(by["eeo_veteran"].options) == 3
     assert by["consent"].kind == "declaration" and by["consent"].required
     assert "trap" not in by and not any(f.kind == "captcha" for f in schema.fields)
     assert schema.version == asyncio.run(form.read_form(f"{site}/jobs/1")).version  # steady
@@ -328,7 +331,7 @@ def test_a_form_that_refuses_the_answers_means_nothing_was_sent(form, site):
 
 
 def test_an_answer_with_no_matching_choice_is_not_guessed(form, site):
-    values = {**GOOD, "auth": "Perhaps"}
+    values = {**GOOD, "work_authorization": "Perhaps"}
     with pytest.raises(AdapterError) as e:
         asyncio.run(
             form.submit(
@@ -391,7 +394,7 @@ ASHBY_VALUES = {
     "email": "ada@example.com",
     "phone": "+234 801 234 5678",
     "linkedin": "https://linkedin.com/in/adaokoye",
-    "q_do_you_have_5_years_of_experience": "Yes",
+    "years_experience": "Yes",
     "long1": "I rebuilt a payments reconciliation job.",
 }
 
@@ -402,7 +405,7 @@ def test_reads_an_ashby_shaped_page_without_a_form_tag(form, site):
     assert {"name", "email", "phone", "resume", "linkedin"} <= set(by)  # _systemfield_* are named
     assert by["name"].label == "Legal Name" and by["name"].required
     assert by["resume"].kind == "file" and by["linkedin"].required is False
-    yes_no = by["q_do_you_have_5_years_of_experience"]
+    yes_no = by["years_experience"]
     assert yes_no.kind == "choice" and yes_no.options == ["Yes", "No"] and yes_no.required
     assert by["long1"].kind == "text" and by["long1"].required
 
@@ -426,7 +429,7 @@ def test_fills_an_ashby_shaped_page_including_yes_no_buttons(form, site):
 
 
 def test_an_answer_that_is_not_one_of_the_buttons_is_not_guessed(form, site):
-    values = {**ASHBY_VALUES, "q_do_you_have_5_years_of_experience": "Sometimes"}
+    values = {**ASHBY_VALUES, "years_experience": "Sometimes"}
     with pytest.raises(AdapterError) as e:
         asyncio.run(
             form.submit(
