@@ -6978,6 +6978,11 @@
               }
             ]
           },
+          "daily_limit": {
+            "default": 0,
+            "title": "Daily Limit",
+            "type": "integer"
+          },
           "desktop_open": {
             "title": "Desktop Open",
             "type": "boolean"
@@ -7026,6 +7031,22 @@
             ],
             "title": "State",
             "type": "string"
+          },
+          "used_today": {
+            "default": 0,
+            "title": "Used Today",
+            "type": "integer"
+          },
+          "waiting": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waiting"
           }
         },
         "required": [

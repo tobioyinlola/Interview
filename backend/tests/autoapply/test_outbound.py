@@ -191,7 +191,7 @@ async def test_the_best_matches_go_first(ada, discovery_source, form, tick):
     assert sent["url"].endswith("/acme/2")
 
 
-async def test_unknown_outcomes_keep_counting_against_the_limit(
+async def test_an_unknown_outcome_counts_on_its_own_day_only_and_is_never_sent_again(
     ada, discovery_source, form, tick, clock
 ):
     discovery_source.postings = [job(1), job(2)]
@@ -199,9 +199,13 @@ async def test_unknown_outcomes_keep_counting_against_the_limit(
     form.mode = "timeout_before"
     await tick()
     form.mode = "ok"
-    clock.now += timedelta(days=1)  # a new day, but the first outcome is still unknown
     await tick()
-    assert form.calls == 1  # the unresolved attempt still uses the limit
+    assert form.calls == 1  # the same day: the unclear one uses today's limit
+    clock.now += timedelta(days=1)  # a new day, and the first outcome is still unknown
+    await tick()
+    # it no longer holds the limit, so the next one goes; the unclear one is never sent again
+    assert form.calls == 2
+    assert len({v["url"] for v in form.submitted.values()}) == len(form.submitted)
 
 
 # ------------------------------------------------------------------ concurrency and safety

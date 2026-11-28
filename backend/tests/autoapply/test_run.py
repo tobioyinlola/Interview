@@ -612,3 +612,19 @@ async def test_the_cv_that_goes_out_is_the_one_that_was_uploaded_not_a_tailored_
     pkg = (await ada.get(f"/api/autoapply/applications/{a['id']}")).json()["package"]
     assert pkg["cv"]["submitted_text"] == pkg["cv"]["original_text"]
     assert pkg["cv"]["tailoring"]["mode"] == "as_uploaded"
+
+
+async def test_a_quiet_run_says_why_and_an_unclear_one_does_not_stay_on_screen(ada, maker):
+    from app.autoapply import runlog as rl
+    from tests.autoapply.conftest import start as begin
+
+    await begin(ada, daily_application_cap=1)
+    uid = await user_id(maker)
+    async with maker() as db:
+        await rl.add(db, uid, "application_started", company="Stack", title="PM", ats="ashby")
+        await rl.add(db, uid, "submission_started")
+        await rl.add(db, uid, "application_paused", reason="waiting to confirm it")
+        await db.commit()
+    v = await view(ada)
+    assert v["current"]["stage"] == "Sent? Check it"
+    assert v["waiting"] and v["daily_limit"] == 1

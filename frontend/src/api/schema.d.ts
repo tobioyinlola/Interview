@@ -5399,6 +5399,11 @@ export interface components {
         RunViewOut: {
             counters: components["schemas"]["RunCountersOut"];
             current: components["schemas"]["RunCurrentOut"] | null;
+            /**
+             * Daily Limit
+             * @default 0
+             */
+            daily_limit: number;
             /** Desktop Open */
             desktop_open: boolean;
             /** Events */
@@ -5421,6 +5426,13 @@ export interface components {
              * @enum {string}
              */
             state: "idle" | "running" | "paused" | "stopped" | "ended";
+            /**
+             * Used Today
+             * @default 0
+             */
+            used_today: number;
+            /** Waiting */
+            waiting?: string | null;
         };
         /** ScoreOut */
         ScoreOut: {
