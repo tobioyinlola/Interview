@@ -105,12 +105,15 @@ async function runJob({ page, job, say, command, authorize, intervene, now = Dat
     const beforeState = await page.state().catch(() => ({ url: "", text: "" }));
     const before = beforeState.url || (await page.url());
     try {
-      await page.click(rules.submitSelector(sys), "last");
+      // the system's own submit button when it is on screen; the general rule only otherwise
+      const own = sys.submit && (await page.visible(sys.submit)) ? sys.submit : rules.submitSelector(sys);
+      await page.click(own, "last");
     } catch {
       throw out("failed", "The form's submit button could not be pressed.", { provider, sent: false });
     }
     // from here the employer may have it: an unclear end is "ambiguous", never a plain failure
-    const t0 = now();
+    let t0 = now();
+    let checked = false;
     for (;;) {
       await page.sleep(500);
       if (now() - t0 >= submitMs) {
@@ -119,6 +122,14 @@ async function runJob({ page, job, say, command, authorize, intervene, now = Dat
       let st;
       try { st = await page.state(); } catch { continue; }
       const proof = rules.confirmation(sys, st.url, st.text, before, beforeState.text || "");
+      if (!proof && st.challenge && !checked) {
+        // a picture puzzle came up only on the press (invisible reCAPTCHA unsure of the score):
+        // the form is not sent until it is passed. The person does it, then it is waited for again.
+        checked = true;
+        await person("The form asks for a human check (CAPTCHA) before it sends.");
+        t0 = now();
+        continue;
+      }
       if (proof) return { status: "confirmed", provider, evidence: st.text.slice(0, 3000), url: st.url, before_url: before, steps, documents, message: proof };
       if (SPAM.test(st.text)) throw out("failed", "The employer's site flagged the submission as automated.", { provider, sent_unknown: true });
       // the page says something is missing or wrong and has not moved on: nothing was sent

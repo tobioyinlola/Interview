@@ -73,6 +73,27 @@ function makeDriver(send, opts = {}) {
     await send("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", clickCount: 1 });
   }
 
+  /** Scroll the control into view (smoothly, when a person is watching) and say where it is now. */
+  async function reach(sel, which, text) {
+    if (!pace) return call("locate", sel, which, text, false);
+    const first = await call("locate", sel, which, text, true);
+    if (!first) return null;
+    await sleep(Math.min(450, pace + 150)); // let the smooth scroll finish
+    return call("locate", sel, which, text, false);
+  }
+
+  /** Type as a person would be seen to: a few letters at a time, about 1.5 seconds at most per box. */
+  async function typeOut(text) {
+    if (!pace || text.length <= 1) { await send("Input.insertText", { text }); return; }
+    const each = Math.max(12, Math.round(pace / 8)); // ~35 ms a letter at normal speed
+    const steps = Math.min(text.length, Math.max(1, Math.floor(1500 / each)));
+    const size = Math.ceil(text.length / steps);
+    for (let i = 0; i < text.length; i += size) {
+      await send("Input.insertText", { text: text.slice(i, i + size) });
+      await sleep(each);
+    }
+  }
+
   const d = {
     ev, call, fnValue,
     sleep,
@@ -83,7 +104,7 @@ function makeDriver(send, opts = {}) {
     visible: async (sel) => { try { return !!(await call("visible", sel)); } catch { return false; } },
     /** a real click on a control, found by selector (and exact text, for rows of buttons) */
     async click(sel, which, text) {
-      const at = await call("locate", sel, which == null ? "first" : which, text || null);
+      const at = await reach(sel, which == null ? "first" : which, text || null);
       if (!at) throw new Error("not found");
       await show(sel, which, at);
       if (!at.w || !at.h) return d.clickScript(sel, which === "last" ? (await call("count", sel)) - 1 : which == null || which === "first" ? 0 : which);
@@ -94,14 +115,23 @@ function makeDriver(send, opts = {}) {
     },
     /** type into a text box: focus it, empty it, insert the text as typed input */
     async type(sel, text) {
-      const at = await call("locate", sel, "first", null);
+      const at = await reach(sel, "first", null);
       if (!at) throw new Error("not found");
       await show(sel, "first", at);
+      await clickAt(at.x, at.y).catch(() => {});
       await call("clear", sel);
-      await send("Input.insertText", { text });
+      await typeOut(String(text));
     },
-    async setDate(sel, v) { if (!(await call("setDate", sel, v))) throw new Error("not found"); },
-    async select(sel, label) { if (!(await call("select", sel, label))) throw new Error("not found"); },
+    async setDate(sel, v) {
+      const at = await reach(sel, "first", null);
+      if (at) await show(sel, "first", at);
+      if (!(await call("setDate", sel, v))) throw new Error("not found");
+    },
+    async select(sel, label) {
+      const at = await reach(sel, "first", null);
+      if (at) await show(sel, "first", at);
+      if (!(await call("select", sel, label))) throw new Error("not found");
+    },
     async press(key) {
       const code = { Escape: 27, Enter: 13 }[key] || 0;
       await send("Input.dispatchKeyEvent", { type: "keyDown", key, windowsVirtualKeyCode: code });

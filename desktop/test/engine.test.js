@@ -202,6 +202,37 @@ test("a modern Ashby form: custom radios, Yes/No buttons and EEO questions are a
   await close();
 });
 
+test("invisible reCAPTCHA (the corner badge) asks nothing: the form is filled and sent with nobody there", { skip: SKIP }, async () => {
+  server.received.length = 0;
+  const { driver, close } = await open("/ashby/recaptcha");
+  const scan = await driver.fnValue(require("node:fs").readFileSync(require.resolve("../src/auto/scan_form.js"), "utf8"));
+  assert.equal(scan.captcha, false, "an invisible check is not a human check");
+  const r = run(driver, "/ashby/recaptcha", { job: { ats: "ashby", values: ASHBY_VALUES }, answer: "stop" });
+  const out = await r.done;
+  assert.equal(out.status, "confirmed", out.message);
+  assert.deepEqual(r.ctl.asked, [], "the person was never asked for anything");
+  assert.equal(server.received.at(-1).visa, "No");
+  await close();
+});
+
+test("a picture puzzle that appears only on the press asks the person, then the confirmation is waited for", { skip: SKIP }, async () => {
+  server.received.length = 0;
+  const { driver, close, page } = await open("/ashby/puzzle");
+  const events = [];
+  const out = await runJob({
+    page: driver,
+    job: { url: server.origin + "/ashby/puzzle", ats: "ashby", values: ASHBY_VALUES, documents: { resume: doc("CV.pdf") } },
+    say: async (kind) => { events.push(kind); return null; },
+    authorize: async () => ({ ok: true }),
+    intervene: async (reason) => { events.push("asked:" + reason); await page.evaluate(() => window.passPuzzle()); return "continue"; },
+    limits: { submitMs: 3000 },
+  });
+  assert.equal(out.status, "confirmed", out.message);
+  assert.ok(events.some((e) => /^asked:.*CAPTCHA/.test(e)), "the person was asked once the puzzle showed");
+  assert.equal(server.received.length, 1);
+  await close();
+});
+
 test("a required question that only the candidate can answer is asked for before anything is pressed", { skip: SKIP }, async () => {
   server.received.length = 0;
   const { driver, close } = await open("/ashby/modern");

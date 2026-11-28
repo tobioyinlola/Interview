@@ -11,6 +11,24 @@ const ROUTES = {
   "/ashby/jobs/1": "ashby.html", "/jobs/probe": "probe.html", "/ashby/modern": "ashby-modern.html", "/jobs/invisible": "invisible-required.html", "/jobs/submitted": "submitted-text.html", "/jobs/interstitial": "interstitial.html", "/jobs/steps": "steps.html", "/jobs/clearance": "declaration.html",
 };
 
+// Invisible reCAPTCHA as Ashby and many others load it: a small badge in the corner and a hidden
+// challenge frame. It asks nothing of a person, so the form must go on as if it were not there.
+const INVISIBLE = `
+ <div class="grecaptcha-badge" data-style="bottomright" style="width:256px;height:60px;position:fixed;bottom:14px;right:-186px;box-shadow:0 0 5px gray">
+  <div class="grecaptcha-logo"><iframe title="reCAPTCHA" width="256" height="60" src="/recaptcha/enterprise/anchor?ar=1&k=x&size=invisible"></iframe></div>
+  <textarea id="g-recaptcha-response" name="g-recaptcha-response" class="g-recaptcha-response" style="display:none"></textarea>
+ </div>
+ <div style="visibility:hidden;position:absolute;top:-10000px"><div><iframe title="recaptcha challenge expires in two minutes" width="400" height="580" src="/recaptcha/enterprise/bframe?k=x"></iframe></div></div>`;
+// The same, except the first press brings up a visible picture puzzle (a low score) and sends nothing.
+const PUZZLE = INVISIBLE + `
+ <div id="puzzle" style="display:none;position:fixed;top:40px;left:40px;z-index:9"><iframe title="recaptcha challenge" width="400" height="580" src="/recaptcha/api2/bframe?k=x"></iframe></div>
+ <script>
+  const realSend = send; let passed = false;
+  send = function () { if (!passed && !missing().length) { document.getElementById("puzzle").style.display = "block"; return; } return realSend(); };
+  window.passPuzzle = () => { passed = true; document.getElementById("puzzle").style.display = "none"; send(); };
+ </script>`;
+const VARIANTS = { "/ashby/recaptcha": INVISIBLE, "/ashby/puzzle": PUZZLE };
+
 function parseMultipart(buf, type) {
   const m = /boundary=(.+)$/.exec(type || "");
   const fields = {};
@@ -28,6 +46,7 @@ function start() {
     const url = new URL(req.url, "http://x");
     const html = (b, code = 200) => { res.writeHead(code, { "content-type": "text/html" }); res.end(b); };
     if (req.method === "GET" && ROUTES[url.pathname]) return html(page(ROUTES[url.pathname]));
+    if (req.method === "GET" && VARIANTS[url.pathname]) return html(page("ashby-modern.html").replace("</body>", VARIANTS[url.pathname] + "</body>"));
     if (req.method === "GET" && url.pathname === "/confirmation") return html("<html><body><h2>Thank you for applying!</h2></body></html>");
     if (req.method === "POST" && url.pathname === "/probe-report") {
       const chunks = [];

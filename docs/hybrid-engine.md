@@ -72,6 +72,13 @@ SHA-256 of every document uploaded (the exact CV, `cv_version`).
 
 ## Intervention, never a workaround
 
+**What counts as a CAPTCHA.** Only a check a person has to do: a visible checkbox or picture puzzle
+(reCAPTCHA, hCaptcha, Cloudflare Turnstile, Arkose) on screen. Invisible reCAPTCHA, which Ashby and
+many others load on every form (the small badge in the corner and a hidden challenge frame), asks
+nothing of anyone and is ignored, so those forms are filled and sent with nobody there. If a puzzle
+appears only when Submit is pressed, nothing has been sent: on the desktop the person is asked to do
+it and the confirmation is then waited for; on the server the application stops as not sent.
+
 CAPTCHA, a sign-in wall, a closed job, a question that has no stored answer, a required declaration
 (work authorisation, clearance, sponsorship…): the application stops. On the desktop the person is
 looking at the form, so the panel asks them to deal with it and continue, or skip. On the server, a CAPTCHA no longer sends the job to the "apply yourself" list: it goes back in the
