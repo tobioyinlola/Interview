@@ -241,8 +241,14 @@ def _restricts(posting: JobPosting, places: set[str]) -> str | None:
     return None
 
 
+# "All countries" in the search: the candidate can work anywhere, so no place is held against a job
+ANYWHERE = {"all countries", "all available countries", "worldwide", "anywhere", "global"}
+
+
 def _where(posting: JobPosting) -> Any:
     def judge(target: str) -> tuple[str, str]:
+        if target.strip().lower() in ANYWHERE:
+            return PASS, "you can work in any country"
         region = posting.region
         if not region:
             why = (

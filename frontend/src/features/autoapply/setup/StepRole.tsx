@@ -1,4 +1,4 @@
-import { COUNTRIES, REGIONS } from "../../../data/countries";
+import { ALL_COUNTRIES, COUNTRIES, REGIONS } from "../../../data/countries";
 import { ROLES } from "../../../data/roles";
 import { MultiPick } from "../../../ui/Pickers";
 import { Block, OptionTile, Priority } from "./controls";
@@ -28,6 +28,7 @@ export function StepRole({
   d: Draft;
   set: (p: Partial<Draft>) => void;
 }) {
+  const everywhere = d.locations.includes(ALL_COUNTRIES);
   const toggle = (id: string) =>
     set({
       arrangement: d.arrangement.includes(id)
@@ -67,14 +68,31 @@ export function StepRole({
           />
         }
       >
-        <MultiPick
-          id="s-locs"
-          label="Where you can work: a country or region"
-          values={d.locations}
-          onChange={(v) => set({ locations: v })}
-          suggestions={[...REGIONS, ...COUNTRIES]}
-          addLabel="Add place"
-        />
+        <div className="space-y-3">
+          <OptionTile
+            selected={everywhere}
+            onClick={() =>
+              set({ locations: everywhere ? [] : [ALL_COUNTRIES] })
+            }
+            icon="🌍"
+            title="All countries"
+            hint="Apply wherever I can be hired: no country is held against a job"
+          />
+          <MultiPick
+            id="s-locs"
+            label="Where you can work: a country or region"
+            values={d.locations}
+            onChange={(v) =>
+              set({
+                // picking a country after "All countries" means a narrower search
+                locations:
+                  v.length > 1 ? v.filter((x) => x !== ALL_COUNTRIES) : v,
+              })
+            }
+            suggestions={[...REGIONS, ...COUNTRIES]}
+            addLabel="Add place"
+          />
+        </div>
       </Block>
       <Block
         title="How do you want to work?"

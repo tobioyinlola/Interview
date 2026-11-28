@@ -130,6 +130,13 @@ def test_a_region_that_contains_the_country_or_is_worldwide_passes():
         assert decide(CRITERIA, posting(region=region)).decision == "eligible", region
 
 
+def test_all_countries_holds_no_place_against_a_job():
+    crit = {**CRITERIA, "locations": [{"value": "All countries", "required": True}]}
+    for region in ("Kenya", "United States", "Germany", None):
+        p = posting(region=region, description="Remote, United States only.")
+        assert decide(crit, p).decision == "eligible", region
+
+
 def test_a_required_rule_that_fails_means_skip_and_names_why():
     m = decide(CRITERIA, posting(arrangement="onsite"))
     assert m.decision == "skip" and "onsite" in m.reason
