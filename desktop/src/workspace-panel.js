@@ -38,7 +38,17 @@ function render(snap) {
     return e && e.data && e.data.reason ? e.data.reason : "";
   };
   const reason = cur && cur.stage === "Failed" ? why(["application_failed"]) : cur && cur.stage === "Waiting for you" ? why(["review_required"]) : "";
-  set("sub", reason || (cur ? cur.stage || "" : v.state === "paused" ? "Paused. Press Resume to carry on." : v.state === "stopped" ? "Stopped. Press Start to carry on." : "It starts the next one by itself."));
+  // nothing in progress: say why it is quiet (today's limit, nothing ready, the pause between them)
+  const ended = !cur || ["Done", "Failed", "Skipped", "Cancelled", "Waiting for you", "Sent? Check it"].includes(cur.stage);
+  if (ended && v.waiting && !snap.person) {
+    set("who", cur ? `Last: ${cur.company || ""}${cur.title ? " · " + cur.title : ""}` : "Waiting for the next application");
+  }
+  set("sub", ended && v.waiting && !snap.person ? v.waiting
+    : reason || (cur ? cur.stage || "" : v.state === "paused" ? "Paused. Press Resume to carry on." : v.state === "stopped" ? "Stopped. Press Start to carry on." : "It starts the next one by itself."));
+  if (ended && v.waiting && !snap.person && /limit/i.test(v.waiting)) {
+    $("state").className = "pill warn"; set("stateText", `Today's limit: ${v.used_today} of ${v.daily_limit}`);
+  }
+  set("idleText", ended && v.waiting ? v.waiting : "The employer's page appears here while an application is carried out, so you can see it fill in.");
   const chips = $("chips"); chips.replaceChildren();
   for (const t of cur ? [cur.ats_label, cur.score != null ? `${Math.round(cur.score * 100)}% fit` : "", cur.cv_version ? `CV ${cur.cv_version}` : ""] : []) {
     if (!t) continue; const s = document.createElement("span"); s.className = "chip"; s.textContent = t; chips.appendChild(s);

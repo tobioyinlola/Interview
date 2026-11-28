@@ -85,6 +85,11 @@ class RunViewOut(BaseModel):
     executors: list[RunExecutorOut]
     counters: RunCountersOut
     current: RunCurrentOut | None
+    # why nothing is being worked on while the run is on (daily limit, nothing ready, the pause
+    # between applications), so a quiet screen is never a mystery
+    waiting: str | None = None
+    daily_limit: int = 0
+    used_today: int = 0
     events: list[RunEventOut]
     last_seq: int
 
@@ -202,6 +207,24 @@ async def _snapshot(db: AsyncSession, user_id: uuid.UUID, now: datetime) -> RunV
         .all()
     )
     events = await runlog.latest(db, user_id, 40)
+    counters = await _counters(db, user_id, today)
+    used = await outbox.used_today(db, user_id, ("form", "email"), today)
+    cap = prof.daily_application_cap if prof is not None else 0
+    busy = state.current_attempt_id is not None
+    cur = state.current
+    if not busy and cur and str(cur.get("stage") or "") not in runlog.ENDED:
+        cur = None  # left over from an application that ended without saying so
+    waiting = None
+    if label == "running" and not busy:
+        if cap and used >= cap:
+            waiting = (
+                f"Today's limit of {cap} applications is reached. It starts again tomorrow, "
+                "or raise the limit in your Auto-Apply settings."
+            )
+        elif counters.queued == 0:
+            waiting = "Nothing is ready to send yet. New matches are prepared through the day."
+        else:
+            waiting = "Waiting a moment before the next application (your speed setting)."
     await db.commit()  # the row created for a first-time user
     return RunViewOut(
         state=label,
@@ -217,8 +240,11 @@ async def _snapshot(db: AsyncSession, user_id: uuid.UUID, now: datetime) -> RunV
             )
             for e in seen
         ],
-        counters=await _counters(db, user_id, today),
-        current=_current(state.current),
+        counters=counters,
+        current=_current(cur),
+        waiting=waiting,
+        daily_limit=cap,
+        used_today=used,
         events=[_event(e) for e in events],
         last_seq=events[-1].id if events else 0,
     )

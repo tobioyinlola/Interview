@@ -242,7 +242,7 @@ export function RunPage() {
         {!cur ? (
           <p className="text-sm text-muted">
             {r.state === "running"
-              ? "Waiting for the next application."
+              ? (r.waiting ?? "Waiting for the next application.")
               : "Nothing is being applied for."}
           </p>
         ) : (

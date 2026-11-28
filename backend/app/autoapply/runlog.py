@@ -49,6 +49,8 @@ KINDS: dict[str, str] = {
     "run_stopped": "Stopped",
     "run_settings": "Settings changed",
 }
+# the stages after which an application is no longer in progress
+ENDED = {"Done", "Failed", "Skipped", "Cancelled", "Waiting for you", "Sent? Check it"}
 STAGE = {
     "application_started": "Starting",
     "form_discovered": "Reading the form",
@@ -119,13 +121,16 @@ def _picture(state: RunState, kind: str, data: dict[str, Any]) -> None:
         } | {"stage": STAGE[kind], "fields_done": 0, "fields_total": 0, "step": 1, "question": None}
         state.current_attempt_id = data.get("attempt_id")
     elif kind in ("submission_verified", "application_failed", "application_skipped",
-                  "application_cancelled", "review_required"):  # fmt: skip
+                  "application_cancelled", "review_required",
+                  "application_paused"):  # fmt: skip
         cur["stage"] = {
             "submission_verified": "Done",
             "application_failed": "Failed",
             "application_skipped": "Skipped",
             "application_cancelled": "Cancelled",
             "review_required": "Waiting for you",
+            # it may have gone: the candidate is asked to confirm, and the run moves on
+            "application_paused": "Sent? Check it",
         }[kind]
         state.current_attempt_id = None
         state.command = None

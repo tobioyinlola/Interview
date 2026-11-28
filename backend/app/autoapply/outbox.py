@@ -85,8 +85,9 @@ def dispatch_allowed(settings: Settings, channel: str, real: bool, recipient: st
 async def used_today(
     db: AsyncSession, user_id: uuid.UUID, channels: tuple[str, ...], day: Any
 ) -> int:
-    """Attempts that count against today's limit: anything unresolved (whatever day it began),
-    and what was confirmed today. Definite failures and cancelled claims are released."""
+    """Attempts that count against today's limit: what is in progress now, and what was confirmed
+    or may have gone (unclear) today. Definite failures and cancelled claims are released, and an
+    unclear one from an earlier day no longer holds today's limit (it is still never sent again)."""
     rows = (
         await db.execute(
             select(SubmissionAttempt.state, SubmissionAttempt.local_day).where(
@@ -94,7 +95,11 @@ async def used_today(
             )
         )
     ).all()
-    return sum(1 for st, d in rows if st in UNRESOLVED or (st == "confirmed" and d == day))
+    return sum(
+        1
+        for st, d in rows
+        if st in ("claimed", "dispatched") or (st in ("confirmed", "ambiguous") and d == day)
+    )
 
 
 def email_subject(posting: JobPosting) -> str:
