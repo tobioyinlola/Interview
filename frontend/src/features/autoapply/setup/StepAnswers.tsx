@@ -26,6 +26,11 @@ export const QUICK: { field: string; question: string; placeholder: string }[] =
       placeholder: "e.g. 90,000 USD a year",
     },
     {
+      field: "years_experience",
+      question: "How many years of experience do you have?",
+      placeholder: "e.g. 6",
+    },
+    {
       field: "relocation",
       question: "Are you willing to relocate?",
       placeholder: "e.g. Within Nigeria only",

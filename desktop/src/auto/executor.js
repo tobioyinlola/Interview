@@ -75,6 +75,14 @@ function create({ api, workspace, version, platform, name, log = () => {}, guard
             catch (e) { return { ok: false, reason: e.status === 409 ? "stop" : "unavailable" }; }
           },
           intervene: (reason) => workspace.askPerson(reason, () => command),
+          // answers for questions only the live form asks, written from the CV on the server
+          draft: async (questions) => {
+            await flush();
+            try {
+              const r = await api.post(`${base}/answers`, { executor_id: executorId, questions: questions.slice(0, 20) });
+              return (r && r.answers) || {};
+            } catch (e) { log("answers not written", e && e.status); return {}; }
+          },
         });
       }
     } catch (e) {

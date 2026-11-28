@@ -137,6 +137,7 @@ async def prepare_user(
                 db, user_id, camp, prof, llm=llm, form=adapters.form, now=now
             )
             await _recheck_stale(db, ctx)
+            await pipeline.reevaluate_waiting(db, ctx)  # answers saved since let them go on
             await pipeline.prepare_waiting(db, ctx)  # the best waiting matches, as room frees
         await plan_outreach(db, user_id, now)
 
@@ -222,7 +223,7 @@ async def tick(
     llm: LlmProvider,
 ) -> dict[str, Any]:
     """One pass over everything that is due. Returns counts, for logs and tests."""
-    adapters = outbox.Adapters(form=form, mailbox=mailbox_adapter, settings=settings)
+    adapters = outbox.Adapters(form=form, mailbox=mailbox_adapter, settings=settings, llm=llm)
     async with maker() as db:
         closed = await campaign.close_expired(db, now)
         users = (

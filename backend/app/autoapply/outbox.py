@@ -23,6 +23,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app import metrics
+from app.autoapply import answers as answers_mod
 from app.autoapply import ats, campaign, clock, cvfile, mailbox, pipeline, runlog, switches
 from app.autoapply.adapters import (
     AdapterError,
@@ -54,6 +55,7 @@ class Adapters:
     form: FormAdapter
     mailbox: MailboxAdapter
     settings: Settings
+    llm: Any = None  # writes answers to questions only the live form asks (optional)
 
 
 def dispatch_allowed(settings: Settings, channel: str, real: bool, recipient: str | None) -> bool:
@@ -397,6 +399,7 @@ async def execute(
         sender_conn = await mailbox.get(db, app.user_id) if claim.channel == "email" else None
         token = mailbox.token(settings, sender_conn) if sender_conn else ""
         sender_addr = sender_conn.address if sender_conn else ""
+        extra: dict[str, Any] = {}
         if claim.channel == "form":
             try:
                 schema = await adapters.form.read_form(posting.application_url or "")
@@ -408,7 +411,27 @@ async def execute(
                     # application is already prepared, so it goes to the person.
                     return await _hand_over(db, attempt, app, exc.message, now)
                 return await _transient(db, attempt, app, exc, now)
-            problem = form_problem(schema, pkg)
+            # everything on file now, and answers written from the CV for the rest (never a legal
+            # statement), so a question the live form adds does not stop the application
+            known, facts = await answers_mod.on_file(db, app.user_id, now)
+            extra = {k: v for k, v in known.items() if k not in (pkg.get("answers") or {})}
+            problem = form_problem(schema, pkg, extra)
+            if problem is not None and adapters.llm is not None:
+                drafted = await answers_mod.draft(
+                    adapters.llm,
+                    [p for p in problem if p["kind"] != "unsupported"],
+                    facts=facts,
+                    cv_text=str((pkg.get("cv") or {}).get("submitted_text") or ""),
+                    saved=known,
+                    job={
+                        "title": posting.title,
+                        "company": posting.company,
+                        "description": posting.description,
+                    },
+                )
+                for field, value in drafted.items():
+                    extra[field] = {"value": value, "source": "written from your CV"}
+                problem = form_problem(schema, pkg, extra)
             if any(f.kind == "captcha" for f in schema.fields):
                 return await _to_desktop(db, attempt, app, state_mode, now)
             if problem is not None and all(p["kind"] == "unsupported" for p in problem):
@@ -437,6 +460,8 @@ async def execute(
     try:
         if claim.channel == "form":
             values = {k: v["value"] for k, v in pkg.get("answers", {}).items()}
+            for k, v in extra.items():
+                values.setdefault(k, v["value"])
             values.setdefault("cover_letter", pkg.get("cover_text", ""))
             progress = runlog.progress_for(
                 maker, claim_user, claim.application_id, claim.attempt_id, "cloud"
@@ -469,9 +494,12 @@ async def execute(
     return await _record(maker, claim, result, error, now)
 
 
-def form_problem(schema: Any, pkg: dict[str, Any]) -> list[dict[str, Any]] | None:
-    """Questions the live form asks that the package cannot answer, or None if all is well."""
-    answers = pkg.get("answers", {})
+def form_problem(
+    schema: Any, pkg: dict[str, Any], extra: dict[str, Any] | None = None
+) -> list[dict[str, Any]] | None:
+    """Questions the live form asks that the package (and what else is on file) cannot answer, or
+    None if all is well."""
+    answers = {**(extra or {}), **pkg.get("answers", {})}
     missing: list[dict[str, Any]] = []
     for f in schema.fields:
         if f.kind == "captcha" or (

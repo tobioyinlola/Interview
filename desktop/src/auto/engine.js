@@ -27,7 +27,7 @@ class Stop extends Error {
 }
 const out = (status, message, extra = {}) => new Stop({ status, message, ...extra });
 
-async function runJob({ page, job, say, command, authorize, intervene, now = Date.now, limits = {} }) {
+async function runJob({ page, job, say, command, authorize, intervene, draft = null, now = Date.now, limits = {} }) {
   const system = rules.BY_KEY[job.ats] || rules.GENERIC;
   const submitMs = limits.submitMs || SUBMIT_MS;
   const values = job.values || {};
@@ -73,7 +73,8 @@ async function runJob({ page, job, say, command, authorize, intervene, now = Dat
       seen.add(digest);
       if (steps === 1) await checkpoint("form_discovered", { fields: controls.length, steps: 1, provider });
       Object.assign(values, rules.resolve(controls, values)); // what can honestly be answered for them
-      const need = rules.unanswered(controls, values);
+      let need = rules.unanswered(controls, values);
+      if (need.length) need = await written(need);
       if (need.length) throw out("needs_input", "The form asks something that has not been answered.", { need, provider });
       for (const c of controls) {
         const done = await fill(page, c, job, values);
@@ -104,9 +105,9 @@ async function runJob({ page, job, say, command, authorize, intervene, now = Dat
     if (!go.ok) throw out("interrupted", go.reason || "Not allowed now", { command: go.reason === "stop" ? "stop" : "skip", released: true });
     const beforeState = await page.state().catch(() => ({ url: "", text: "" }));
     const before = beforeState.url || (await page.url());
+    // the system's own submit button when it is on screen; the general rule only otherwise
+    const own = sys.submit && (await page.visible(sys.submit)) ? sys.submit : rules.submitSelector(sys);
     try {
-      // the system's own submit button when it is on screen; the general rule only otherwise
-      const own = sys.submit && (await page.visible(sys.submit)) ? sys.submit : rules.submitSelector(sys);
       await page.click(own, "last");
     } catch {
       throw out("failed", "The form's submit button could not be pressed.", { provider, sent: false });
@@ -114,6 +115,7 @@ async function runJob({ page, job, say, command, authorize, intervene, now = Dat
     // from here the employer may have it: an unclear end is "ambiguous", never a plain failure
     let t0 = now();
     let checked = false;
+    let retried = false;
     for (;;) {
       await page.sleep(500);
       if (now() - t0 >= submitMs) {
@@ -135,7 +137,22 @@ async function runJob({ page, job, say, command, authorize, intervene, now = Dat
       // the page says something is missing or wrong and has not moved on: nothing was sent
       const complaint = st.errors.find((e) => ERROR_TEXT.test(e)) || (st.bad ? "A field is marked as wrong." : "");
       if (complaint && st.url === before && now() - t0 >= 1500) {
-        const left = await missingNow(page, filled);
+        let left = await missingNow(page, filled);
+        if (left.length && !retried) {
+          // the page names questions it did not mark as required: answer them once and press again
+          retried = true;
+          left = await written(left);
+          if (!left.length) {
+            const scanNow = await page.fnValue(SCAN);
+            for (const c of rules.controlsFrom(scanNow)) {
+              if (filled.has(c.name) || c.kind === "file" || !values[c.name]) continue;
+              if (await fill(page, c, job, values)) filled.add(c.name);
+            }
+            await page.click(own, "last").catch(() => {});
+            t0 = now();
+            continue;
+          }
+        }
         if (left.length) {
           throw out("needs_input", "The form still asks for something that has not been answered.", { need: left, provider, steps });
         }
@@ -146,6 +163,22 @@ async function runJob({ page, job, say, command, authorize, intervene, now = Dat
   } catch (e) {
     if (e instanceof Stop) return { provider, steps, documents, ...e.outcome };
     return { status: "failed", provider, steps, documents, message: "The form could not be carried out here." };
+  }
+
+  /** Ask the server to write answers for these questions (from the CV and the job; never a legal
+   *  statement). Returns the questions still without an answer. */
+  async function written(need) {
+    if (!draft) return need;
+    let got = {};
+    try { got = (await draft(need.map((n) => ({ field: n.field, question: n.question, kind: n.kind, options: n.options || [] })))) || {}; }
+    catch { got = {}; }
+    for (const n of need) {
+      const v = got[n.field];
+      if (typeof v === "string" && v.trim()) values[n.field] = v;
+    }
+    const left = need.filter((n) => !values[n.field]);
+    if (left.length < need.length) await checkpoint("answers_written", { count: need.length - left.length });
+    return left;
   }
 
   async function person(reason) {

@@ -13,7 +13,12 @@ from app.workers.registry import Permanent, task
 def adapters(ctx: WorkerContext) -> outbox.Adapters:
     made = ctx.extra.get("adapters")
     if made is None:
-        made = outbox.Adapters(form=ctx.form, mailbox=ctx.mailbox, settings=ctx.settings)  # type: ignore[arg-type]
+        made = outbox.Adapters(
+            form=ctx.form,  # type: ignore[arg-type]
+            mailbox=ctx.mailbox,  # type: ignore[arg-type]
+            settings=ctx.settings,
+            llm=ctx.llm,
+        )
         ctx.extra["adapters"] = made
     return made
 

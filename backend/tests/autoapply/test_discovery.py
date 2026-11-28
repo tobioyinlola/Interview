@@ -443,16 +443,23 @@ async def test_an_answer_is_saved_for_reuse_only_when_the_candidate_ticks_it(ada
     assert saved[0]["field"] == "notice_period" and saved[0]["reusable"] is True
 
 
-async def test_a_saved_answer_fills_later_questions_but_never_a_declaration(ada, discovery_source):
+async def test_saved_answers_fill_later_questions_and_a_legal_one_only_from_the_candidate(
+    ada, discovery_source
+):
     await start(ada)
     await ada.put(
         "/api/autoapply/answers/notice_period", json={"value": "Two weeks", "reusable": True}
     )
-    await ada.put("/api/autoapply/answers/right_to_work", json={"value": "Yes", "reusable": True})
     discovery_source.postings = [job(1, questions=QUESTIONS)]
     await run(ada)
     a = (await apps(ada, "needs_input"))[0]
-    assert [n["field"] for n in a["needs_input"]] == ["right_to_work"]  # declarations stay personal
+    # a legal statement is never written for them: without their own answer it is asked
+    assert [n["field"] for n in a["needs_input"]] == ["right_to_work"]
+    # with their own saved answer it is used, and the application goes through
+    await ada.put("/api/autoapply/answers/right_to_work", json={"value": "Yes", "reusable": True})
+    await run(ada)
+    left = await apps(ada, "needs_input")
+    assert not left, left[0]["needs_input"]
 
 
 async def test_unsupported_steps_and_captchas_go_to_the_candidate(ada, discovery_source):

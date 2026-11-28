@@ -219,6 +219,12 @@ def semantic(label: str) -> str | None:
     return None
 
 
+def _consent(label: str) -> bool:
+    from app.autoapply.answers import consent
+
+    return consent(label)
+
+
 def decline_index(options: list[str]) -> int | None:
     """The option that declines a voluntary question, if the form offers one."""
     for i, o in enumerate(options):
@@ -241,6 +247,9 @@ def resolve_values(controls: list["Control"], values: dict[str, str]) -> dict[st
     where the job was found. Never overrides an answer the candidate has."""
     out: dict[str, str] = {}
     for c in controls:
+        if not values.get(c.name) and c.kind == "declaration" and _consent(c.label):
+            out[c.name] = "yes"  # an agreement box the candidate gave by turning Auto-Apply on
+            continue
         if values.get(c.name) or not c.options or c.kind != "choice":
             continue
         i = None

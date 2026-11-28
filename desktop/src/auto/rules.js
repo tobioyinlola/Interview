@@ -86,9 +86,16 @@ function heardIndex(options) {
 /** Answers the app can give by itself, for the questions it can honestly answer: declining a
  *  voluntary self-identification, and where the job was found. Everything else is the candidate's
  *  (their own saved answer) or is asked of them. Never overrides an answer the candidate has. */
+// an agreement box (privacy policy, terms, "the information is accurate") the candidate already gave
+// by turning Auto-Apply on; never a legal statement such as the right to work
+const CONSENT = /\b(i )?(agree|consent|acknowledge|accept|certify|confirm|attest|understand|have read)\b|privacy|terms|data (processing|protection)|accurate|true and (complete|correct)/i;
+const LEGAL = /sponsor|visa|legally|authori[sz]|eligib|right to work|citizen|permanent resident|green card|clearance|criminal|convict|felony|background check|non-?compete|work permit/i;
+const isConsent = (label) => CONSENT.test(label || "") && !LEGAL.test(label || "");
+
 function resolve(controls, values) {
   const out = {};
   for (const c of controls) {
+    if (!values[c.name] && c.kind === "declaration" && isConsent(c.label)) { out[c.name] = "yes"; continue; }
     if (values[c.name] || !c.options.length || c.kind !== "choice") continue;
     let i = null;
     if (c.name.startsWith("eeo_")) i = declineIndex(c.options);
@@ -253,6 +260,7 @@ const submitSelector = (s) => [s.submit, GENERIC_SUBMIT].filter(Boolean).join(",
 const nextSelector = (s) => [s.next, GENERIC_NEXT].filter(Boolean).join(", ");
 
 module.exports = {
+  isConsent, LEGAL,
   MAX_OPTIONS, MAX_STEPS, MAX_DOCUMENT_BYTES, canonical, semantic, declineIndex, heardIndex, resolve, norm, pick, controlsFrom, unanswered, isoDate,
   PROVIDERS, GENERIC, BY_KEY, detect, confirmation, submitSelector, nextSelector,
 };

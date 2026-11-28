@@ -1469,6 +1469,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/autoapply/desktop/attempts/{attempt_id}/answers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Desktop Answers
+         * @description Answers for required questions only the live form asks, written from the CV and the job.
+         *     Legal statements (right to work, sponsorship...) are never written here.
+         */
+        post: operations["desktop_answers_api_autoapply_desktop_attempts__attempt_id__answers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/autoapply/desktop/attempts/{attempt_id}/dispatch": {
         parameters: {
             query?: never;
@@ -4013,6 +4034,30 @@ export interface components {
         DispatchIn: {
             /** Executor Id */
             executor_id: string;
+        };
+        /** DraftIn */
+        DraftIn: {
+            /** Executor Id */
+            executor_id: string;
+            /** Questions */
+            questions?: components["schemas"]["DraftQuestion"][];
+        };
+        /** DraftQuestion */
+        DraftQuestion: {
+            /** Field */
+            field: string;
+            /**
+             * Kind
+             * @default answer
+             */
+            kind: string;
+            /** Options */
+            options?: string[];
+            /**
+             * Question
+             * @default
+             */
+            question: string;
         };
         /** EditIn */
         EditIn: {
@@ -8875,6 +8920,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DashboardOut"];
+                };
+            };
+        };
+    };
+    desktop_answers_api_autoapply_desktop_attempts__attempt_id__answers_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attempt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DraftIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

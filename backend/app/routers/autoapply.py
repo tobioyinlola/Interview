@@ -13,6 +13,7 @@ from sqlalchemy import func, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.interfaces import LlmProvider
+from app.autoapply import answers as answers_mod
 from app.autoapply import campaign as camp
 from app.autoapply import (
     clock,
@@ -395,6 +396,8 @@ async def save_answer(
     user: User = Depends(current_user),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008
     now: datetime = Depends(get_now),  # noqa: B008
+    llm: LlmProvider = Depends(get_llm),  # noqa: B008
+    form: FormAdapter = Depends(get_form),  # noqa: B008
 ) -> AnswerOut:
     key = FIELD.sub("_", field.lower()).strip("_")[:60]
     if not key:
@@ -419,7 +422,15 @@ async def save_answer(
     row.confirmed_at = now
     row.reusable = body.reusable  # only ever true because the person said so
     await db.commit()
-    return _answer_out(row)
+    out = _answer_out(row)
+    if row.reusable and value:
+        # applications waiting on this question go on now
+        c = await camp.current(db, user.id)
+        prof = await camp.get_profile(db, user.id)
+        if c is not None and prof is not None and c.status == "active" and c.ends_at > now:
+            ctx = await pipeline.load_context(db, user.id, c, prof, llm=llm, form=form, now=now)
+            await pipeline.reevaluate_waiting(db, ctx, fields={key, answers_mod.canonical(key)})
+    return out
 
 
 @router.delete("/answers/{field}")

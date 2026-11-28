@@ -246,6 +246,36 @@ test("a required question that only the candidate can answer is asked for before
   await close();
 });
 
+test("a question nothing on file answers is written by the server, and the form goes through", { skip: SKIP }, async () => {
+  server.received.length = 0;
+  const { driver, close } = await open("/ashby/modern");
+  const values = { ...ASHBY_VALUES };
+  delete values.requires_sponsorship;
+  const asked = [];
+  const out = await runJob({
+    page: driver,
+    job: { url: server.origin + "/ashby/modern", ats: "ashby", values, documents: { resume: doc("CV.pdf") } },
+    say: async () => null,
+    authorize: async () => ({ ok: true }),
+    intervene: async () => "skip",
+    draft: async (qs) => { asked.push(...qs.map((q) => q.field)); return { requires_sponsorship: "No" }; },
+    limits: { submitMs: 3000 },
+  });
+  assert.equal(out.status, "confirmed", out.message);
+  assert.deepEqual(asked, ["requires_sponsorship"]);
+  assert.equal(server.received.at(-1).visa, "No");
+  await close();
+});
+
+test("an agreement box is ticked without asking", () => {
+  const rules = require("../src/auto/rules");
+  const c = [{ name: "privacy", label: "I agree to the privacy policy", kind: "declaration", options: [], required: true },
+    { name: "auth", label: "I certify I am legally authorized to work", kind: "declaration", options: [], required: true }];
+  const got = rules.resolve(c, {});
+  assert.equal(got.privacy, "yes");
+  assert.equal(got.auth, undefined, "a legal statement is never ticked by itself");
+});
+
 test("when the page says something is missing after submit, it is reported as not sent, never as unknown", { skip: SKIP }, async () => {
   server.received.length = 0;
   const { driver, close } = await open("/jobs/invisible");
