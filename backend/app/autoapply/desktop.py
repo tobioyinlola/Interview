@@ -156,6 +156,9 @@ async def claim(
         assert posting is not None
         pkg = app.package or {}
         values = {k: str(v["value"]) for k, v in (pkg.get("answers") or {}).items()}
+        cover = str(pkg.get("cover_text") or "").strip()
+        if cover:
+            values.setdefault("cover_letter", cover)  # for a cover-letter box that takes text
         return {
             "attempt_id": str(attempt.id),
             "application_id": str(app.id),

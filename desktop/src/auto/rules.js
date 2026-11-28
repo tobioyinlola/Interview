@@ -38,6 +38,66 @@ function canonical(label, key) {
   return key;
 }
 
+// Questions forms ask in their own words, under one name each, so one saved answer fits every form.
+const QUESTIONS = [
+  ["requires_sponsorship", /sponsor/],
+  ["work_authorization", /(legally|authori[sz]ed|eligible|right) .*work|work authori[sz]ation|work (in|within) the (us|u\.s\.|united states|uk|country)/],
+  ["relocate", /relocat/],
+  ["salary_expectation", /(salary|compensation|pay) (expectation|requirement|range)|expected (salary|compensation)|desired (salary|compensation)/],
+  ["notice_period", /notice period|how soon can you start|available to start|earliest .*start|start date/],
+  ["years_experience", /years of .*experience|how many years/],
+  ["how_heard", /how did you (hear|find|learn)|where did you (hear|find|learn)|how .*hear about/],
+  ["cover_letter", /cover letter/],
+  ["eeo_gender", /\bgender\b/],
+  ["eeo_race", /\brace\b|ethnic|hispanic|latino/],
+  ["eeo_veteran", /veteran/],
+  ["eeo_disability", /disabilit/],
+  ["eeo_orientation", /sexual orientation|lgbt/],
+  ["eeo_transgender", /transgender/],
+];
+
+/** The name a question goes by, when it is one of the usual ones: null otherwise. */
+function semantic(label) {
+  const low = String(label || "").toLowerCase();
+  for (const [name, re] of QUESTIONS) if (re.test(low)) return name;
+  return null;
+}
+
+// A voluntary self-identification question always has a way to decline; choosing it is honest and
+// is what the form offers for exactly this.
+const DECLINE = /decline|prefer not|do not wish|don'?t wish|do not want to (answer|say|disclose)|rather not|not to (say|answer|disclose|identify)|choose not|no answer/;
+const HEARD = [/job board/, /\bother\b/, /internet|online|search|website/];
+
+/** The option that declines a voluntary question: its index, or null when there is none. */
+function declineIndex(options) {
+  for (let i = 0; i < options.length; i++) if (DECLINE.test(String(options[i]).toLowerCase())) return i;
+  return null;
+}
+
+/** How the candidate heard about the job: the app found it on a job board. Never a named person
+ *  or a company. */
+function heardIndex(options) {
+  for (const re of HEARD) {
+    for (let i = 0; i < options.length; i++) if (re.test(String(options[i]).toLowerCase())) return i;
+  }
+  return null;
+}
+
+/** Answers the app can give by itself, for the questions it can honestly answer: declining a
+ *  voluntary self-identification, and where the job was found. Everything else is the candidate's
+ *  (their own saved answer) or is asked of them. Never overrides an answer the candidate has. */
+function resolve(controls, values) {
+  const out = {};
+  for (const c of controls) {
+    if (values[c.name] || !c.options.length || c.kind !== "choice") continue;
+    let i = null;
+    if (c.name.startsWith("eeo_")) i = declineIndex(c.options);
+    else if (c.name === "how_heard") i = heardIndex(c.options);
+    if (i != null) out[c.name] = c.options[i];
+  }
+  return out;
+}
+
 function norm(text) {
   return String(text || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
@@ -71,12 +131,14 @@ function controlsFrom(raw) {
       out.push(mk(c.key, c.one || label, "declaration"));
     } else if (ctl === "buttons") {
       const slug = "q_" + label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 50);
-      out.push(mk(slug, label || slug, "choice", { options }));
+      out.push(mk(semantic(label) || slug, label || slug, "choice", { options }));
     } else if (ctl === "group" || ctl === "select" || ctl === "combo") {
-      const name = ctl !== "group" ? canonical(label, c.key) : c.key;
+      const std = ctl !== "group" ? canonical(label, c.key) : c.key;
+      const name = std === c.key ? semantic(label) || std : std;
       out.push(mk(name, label || c.key, "choice", { options, multi: !!c.multi }));
     } else {
-      out.push(mk(canonical(label, c.key), label || c.key, "text", { itype: String(c.type || "") }));
+      const std = canonical(label, c.key);
+      out.push(mk(std === c.key ? semantic(label) || std : std, label || c.key, "text", { itype: String(c.type || "") }));
     }
   }
   return out;
@@ -153,7 +215,7 @@ const GENERIC = { key: "generic", hosts: [], markers: [], submit: "", next: "", 
 const BY_KEY = Object.fromEntries([...PROVIDERS, GENERIC].map((p) => [p.key, p]));
 
 const SUCCESS_URL = /\/(confirmation|thank|submitted|success|applied)/i;
-const SUCCESS_TEXT = /thank you for (applying|your application|your interest|submitting)|application (has been )?(submitted|received|sent|complete)|we(?:'ve| have) received your application|successfully submitted/i;
+const SUCCESS_TEXT = /thank you for (applying|your application|your interest|submitting)|thanks for (applying|your application|submitting)|(your )?application (was |has been |is )?(successfully )?(submitted|received|sent|complete|completed)|(successfully )?submitted (your )?application|we(?:'ve| have)? (received|got) your application|you(?:'ve| have) (successfully )?applied|successfully submitted/i;
 
 function hostMatches(p, url) {
   let u;
@@ -172,9 +234,15 @@ function detect(url, html = "") {
   return GENERIC;
 }
 
-function confirmation(system, url, text, beforeUrl = "") {
-  let m = text.match(SUCCESS_TEXT) || (system.successText ? text.match(new RegExp(system.successText, "i")) : null);
-  if (m) return m[0].slice(0, 200);
+function confirmation(system, url, text, beforeUrl = "", beforeText = "") {
+  // words already on the page before the button was pressed (a note on what happens once you apply)
+  // are not proof
+  const fresh = (rx) => {
+    for (const m of text.matchAll(rx)) if (!beforeText.toLowerCase().includes(m[0].toLowerCase())) return m[0].slice(0, 200);
+    return null;
+  };
+  const got = fresh(new RegExp(SUCCESS_TEXT.source, "gi")) || (system.successText ? fresh(new RegExp(system.successText, "gi")) : null);
+  if (got) return got;
   if (url !== beforeUrl && (SUCCESS_URL.test(url) || (system.successUrl && new RegExp(system.successUrl, "i").test(url)))) return url.slice(0, 200);
   return null;
 }
@@ -185,6 +253,6 @@ const submitSelector = (s) => [s.submit, GENERIC_SUBMIT].filter(Boolean).join(",
 const nextSelector = (s) => [s.next, GENERIC_NEXT].filter(Boolean).join(", ");
 
 module.exports = {
-  MAX_OPTIONS, MAX_STEPS, MAX_DOCUMENT_BYTES, canonical, norm, pick, controlsFrom, unanswered, isoDate,
+  MAX_OPTIONS, MAX_STEPS, MAX_DOCUMENT_BYTES, canonical, semantic, declineIndex, heardIndex, resolve, norm, pick, controlsFrom, unanswered, isoDate,
   PROVIDERS, GENERIC, BY_KEY, detect, confirmation, submitSelector, nextSelector,
 };

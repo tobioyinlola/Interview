@@ -2,7 +2,12 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { ApiError } from "../../api/client";
-import { Block, StepHeader, Switch } from "../autoapply/setup/controls";
+import {
+  Block,
+  Segmented,
+  StepHeader,
+  Switch,
+} from "../autoapply/setup/controls";
 import { useSaveHuntSettings, type HuntSettings } from "./api";
 
 const REGIONS = [
@@ -26,6 +31,7 @@ export function Setup({ s, onDone }: { s: HuntSettings; onDone: () => void }) {
     auto_send: s.auto_send,
     sender_name: s.sender_name,
     postal_address: s.postal_address,
+    reach: s.reach ?? "most",
   });
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -197,8 +203,29 @@ export function Setup({ s, onDone }: { s: HuntSettings; onDone: () => void }) {
             <span />
           </Block>
           <Block
+            title="How far to reach"
+            hint={
+              form.reach === "best"
+                ? "Only startups that are a strong fit, or have a matching opening."
+                : form.reach === "everyone"
+                  ? "Every startup we have an address for, best fits first. Fewer will reply."
+                  : "Startups with a fair fit or a matching opening, best fits first."
+            }
+          >
+            <Segmented<"best" | "most" | "everyone">
+              label="How far to reach"
+              value={form.reach}
+              onChange={(v) => set("reach", v)}
+              options={[
+                { value: "best", label: "Best matches" },
+                { value: "most", label: "Most" },
+                { value: "everyone", label: "Everyone" },
+              ]}
+            />
+          </Block>
+          <Block
             title={`Most pitches a day: ${form.daily_cap}`}
-            hint="Weekdays only. A few well-chosen notes beat a blast."
+            hint="Weekdays only. It starts at about 10 a day and rises over your first three weeks, so your mailbox is not flagged."
           >
             <input
               type="range"

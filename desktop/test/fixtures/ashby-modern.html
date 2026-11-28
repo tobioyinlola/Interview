@@ -1,0 +1,100 @@
+<!doctype html><html><head><title>IT Staff Product Manager @ OpenLoop</title>
+<style>
+ .radio input { position:absolute; opacity:0; width:0; height:0 }
+ .radio .dot { display:inline-block; width:16px; height:16px; border:1px solid #888; border-radius:50% }
+ .submit.invalid { background: crimson }
+</style></head><body>
+<div id="app">
+ <div class="_entry_1">
+  <label class="_title_1" for="_systemfield_name">Name<span>*</span></label>
+  <input id="_systemfield_name" name="_systemfield_name" type="text"></div>
+ <div class="_entry_1">
+  <label class="_title_1" for="_systemfield_email">Email<span>*</span></label>
+  <input id="_systemfield_email" name="_systemfield_email" type="email"></div>
+ <div class="_entry_1">
+  <label class="_title_1" for="_systemfield_resume">Resume<span>*</span></label>
+  <button type="button">Upload File</button>
+  <input id="_systemfield_resume" type="file" style="display:none"></div>
+ <div class="_entry_1">
+  <label class="_title_1" for="cover">Cover Letter</label>
+  <textarea id="cover" placeholder="Type here..."></textarea></div>
+ <div class="_entry_1">
+  <label class="_title_1" for="li">LinkedIn Profile URL<span>*</span></label>
+  <input id="li" type="text"></div>
+
+ <div class="_entry_1" id="visa">
+  <label class="_title_1">Will you now or in the future require visa sponsorship?<span>*</span></label>
+  <div class="_yn_9"><button type="button" class="_b_1" onclick="pick(this,'visa')">Yes</button><button type="button" class="_b_1" onclick="pick(this,'visa')">No</button></div></div>
+
+ <div class="_entry_1" id="hear">
+  <label class="_title_1">How did you hear about this job opportunity?<span>*</span></label>
+  <div>
+   <label class="radio"><input type="radio" name="hear" value="1"><span class="dot"></span> LinkedIn</label>
+   <label class="radio"><input type="radio" name="hear" value="2"><span class="dot"></span> Indeed</label>
+   <label class="radio"><input type="radio" name="hear" value="3"><span class="dot"></span> OpenLoop Careers Page</label>
+   <label class="radio"><input type="radio" name="hear" value="4"><span class="dot"></span> Employee Referral</label>
+   <label class="radio"><input type="radio" name="hear" value="5"><span class="dot"></span> Other</label>
+  </div></div>
+ <div class="_entry_1">
+  <label class="_title_1" for="ref">If you were referred by one of our employees, please specify the name of the person who referred you.</label>
+  <input id="ref" type="text"></div>
+
+ <h3>U.S. EQUAL EMPLOYMENT OPPORTUNITY INFORMATION</h3>
+ <div class="_entry_1" id="gender">
+  <label class="_title_1">Gender<span>*</span></label>
+  <div>
+   <label class="radio"><input type="radio" name="gender" value="m"><span class="dot"></span> Male</label>
+   <label class="radio"><input type="radio" name="gender" value="f"><span class="dot"></span> Female</label>
+   <label class="radio"><input type="radio" name="gender" value="d"><span class="dot"></span> Decline to self-identify</label>
+  </div></div>
+ <div class="_entry_1" id="veteran">
+  <label class="_title_1">Veteran Status<span>*</span></label>
+  <div>
+   <label class="radio"><input type="radio" name="veteran" value="y"><span class="dot"></span> I identify as one or more of the classifications of protected veteran listed above</label>
+   <label class="radio"><input type="radio" name="veteran" value="n"><span class="dot"></span> I am not a protected veteran</label>
+   <label class="radio"><input type="radio" name="veteran" value="d"><span class="dot"></span> I decline to self-identify for protected veteran status</label>
+  </div></div>
+ <div class="_entry_1" id="disability">
+  <label class="_title_1">Disability Status<span>*</span></label>
+  <div>
+   <label class="radio"><input type="radio" name="disability" value="y"><span class="dot"></span> Yes, I have a disability, or have had one in the past</label>
+   <label class="radio"><input type="radio" name="disability" value="n"><span class="dot"></span> No, I do not have a disability</label>
+   <label class="radio"><input type="radio" name="disability" value="d"><span class="dot"></span> I do not want to answer</label>
+  </div></div>
+
+ <p id="err" role="alert" class="error" hidden></p>
+ <button type="button" class="submit" id="go" onclick="send()">Submit Application</button>
+</div>
+<script>
+ const chosen = {};
+ function pick(b, k) { chosen[k] = b.textContent; b.dataset.on = "1"; }
+ function missing() {
+  const m = [];
+  if (!document.getElementById("_systemfield_name").value.trim()) m.push("Name");
+  if (!document.getElementById("_systemfield_email").value.trim()) m.push("Email");
+  if (!document.getElementById("_systemfield_resume").files.length) m.push("Resume");
+  if (!document.getElementById("li").value.trim()) m.push("LinkedIn Profile URL");
+  if (!chosen.visa) m.push("Will you now or in the future require visa sponsorship?");
+  for (const [n, l] of [["hear", "How did you hear about this job opportunity?"], ["gender", "Gender"], ["veteran", "Veteran Status"], ["disability", "Disability Status"]])
+    if (!document.querySelector(`input[name=${n}]:checked`)) m.push(l);
+  return m;
+ }
+ async function send() {
+  const m = missing();
+  const go = document.getElementById("go"), err = document.getElementById("err");
+  if (m.length) {
+   go.classList.add("invalid"); err.hidden = false;
+   err.textContent = "Missing entry for required field: " + m[0];
+   return;
+  }
+  const f = new FormData();
+  f.append("name", document.getElementById("_systemfield_name").value);
+  f.append("email", document.getElementById("_systemfield_email").value);
+  f.append("cover", document.getElementById("cover").value);
+  f.append("visa", chosen.visa);
+  for (const n of ["hear", "gender", "veteran", "disability"]) f.append(n, document.querySelector(`input[name=${n}]:checked`).value);
+  f.append("resume", document.getElementById("_systemfield_resume").files[0]);
+  await fetch("/ashby/apply", { method: "POST", body: f });
+  document.body.innerHTML = "<p>Your application was successfully submitted.</p>";
+ }
+</script></body></html>

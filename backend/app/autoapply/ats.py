@@ -53,21 +53,36 @@ class Ats:
 SUCCESS_URL = re.compile(r"/(confirmation|thank|submitted|success|applied)", re.I)
 SUCCESS_TEXT = re.compile(
     r"thank you for (applying|your application|your interest|submitting)"
-    r"|application (has been )?(submitted|received|sent|complete)"
-    r"|we(?:'ve| have) received your application"
+    r"|thanks for (applying|your application|submitting)"
+    r"|(your )?application (was |has been |is )?(successfully )?"
+    r"(submitted|received|sent|complete|completed)"
+    r"|(successfully )?submitted (your )?application"
+    r"|we(?:'ve| have)? (received|got) your application"
+    r"|you(?:'ve| have) (successfully )?applied"
     r"|successfully submitted",
     re.I,
 )
 
 
-def confirmation(system: "Ats", url: str, text: str, before_url: str = "") -> str | None:
+def confirmation(
+    system: "Ats", url: str, text: str, before_url: str = "", before_text: str = ""
+) -> str | None:
     """The proof the employer took an application: its own words on the page, or a new address that
-    says so. None when there is none (pressing the button is never proof)."""
-    m = SUCCESS_TEXT.search(text) or (
-        re.search(system.success_text, text, re.I) if system.success_text else None
+    says so. None when there is none (pressing the button is never proof). Words that were already
+    on the page before the button was pressed (a note saying what happens once you apply) are not
+    proof."""
+
+    def new(rx: re.Pattern[str]) -> str | None:
+        for m in rx.finditer(text):
+            if m.group(0).lower() not in before_text.lower():
+                return m.group(0)[:200]
+        return None
+
+    got = new(SUCCESS_TEXT) or (
+        new(re.compile(system.success_text, re.I)) if system.success_text else None
     )
-    if m:
-        return m.group(0)[:200]
+    if got:
+        return got
     moved = url != before_url
     if moved and (
         SUCCESS_URL.search(url) or (system.success_url and re.search(system.success_url, url, re.I))

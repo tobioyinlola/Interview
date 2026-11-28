@@ -243,9 +243,9 @@ STEP_VALUES = {
     "last_name": "Okoye",
     "email": "ada@example.com",
     "phone": "+234 801 234 5678",
-    "start": "01/02/2027",  # written the usual way; a date box wants yyyy-mm-dd
-    "years": "7 years",
-    "visa": "No",
+    "notice_period": "01/02/2027",  # a start date, written the usual way; a date box wants yyyy-mm-dd
+    "years_experience": "7 years",
+    "requires_sponsorship": "No",
 }
 
 
@@ -287,7 +287,7 @@ def test_a_two_screen_form_is_walked_through_and_typed_fields_are_formatted(form
 
 
 def test_a_question_on_a_later_screen_is_handed_to_the_candidate_before_sending(form, site):
-    values = {k: v for k, v in STEP_VALUES.items() if k != "visa"}
+    values = {k: v for k, v in STEP_VALUES.items() if k != "requires_sponsorship"}
     with pytest.raises(AdapterError) as e:
         run(form, f"{site}/workable/late", values)
     assert e.value.code == "needs_input" and not RECEIVED
@@ -326,3 +326,31 @@ def test_stopping_between_screens_means_nothing_was_sent(form, site):
             )
         )
     assert e.value.code == "interrupted" and not RECEIVED
+
+
+def test_the_usual_ways_a_page_says_the_application_went_all_count_as_proof():
+    g = ats.GENERIC
+    for text in (
+        "Application submitted",
+        "Your application has been submitted!",
+        "Your application was successfully submitted.",
+        "Thanks for applying to Acme",
+        "Thank you for applying",
+        "You've applied",
+        "We got your application",
+        "Submitted application",
+        "We have received your application",
+    ):
+        assert ats.confirmation(g, "https://x/apply", text, "https://x/apply"), text
+    assert (
+        ats.confirmation(g, "https://x/apply", "Please fill in every field", "https://x/apply")
+        is None
+    )
+
+
+def test_words_that_were_on_the_page_before_the_button_are_not_proof():
+    g = ats.GENERIC
+    note = "Once your application is submitted you will hear from us"
+    assert ats.confirmation(g, "https://x", note, "https://x", note) is None  # nothing new
+    both = f"{note}. Your application was successfully submitted."
+    assert ats.confirmation(g, "https://x", both, "https://x", note)  # something new appeared

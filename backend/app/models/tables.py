@@ -975,6 +975,10 @@ class StartupContact(Base):
     kind: Mapped[str] = mapped_column(String(8))  # person | role (jobs@, careers@) | general
     source_url: Mapped[str] = mapped_column(String(500))
     found_at: Mapped[datetime] = mapped_column(_TS, default=_now)
+    # Whether the address's domain can receive mail (a mail server is published): checked before a
+    # note is written, so an address that cannot work is never tried. None: not known.
+    mx_ok: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    mx_checked_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
 
 
 class HuntSettings(Base):
@@ -1005,6 +1009,14 @@ class HuntSettings(Base):
     send_not_before: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
     window_start: Mapped[int] = mapped_column(Integer, default=8, server_default="8")
     window_end: Mapped[int] = mapped_column(Integer, default=18, server_default="18")
+    # How far down the ranking to go: best (strong fits only), most (the usual bar), everyone (any
+    # startup with a contact, best fits first).
+    reach: Mapped[str] = mapped_column(String(10), default="most", server_default="most")
+    # Sending stops by itself when too many addresses bounce or people ask to stop; the person
+    # starts it again, and only what happens after that counts (health_since).
+    auto_paused_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    auto_pause_reason: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    health_since: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(_TS, default=_now)
 
 
@@ -1033,6 +1045,10 @@ class HuntTarget(Base):
     thread_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
     claimed_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
     sent_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    source: Mapped[str] = mapped_column(String(10), default="written", server_default="written")
+    replied_at: Mapped[datetime | None] = mapped_column(_TS, nullable=True)
+    reply_kind: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    # positive | neutral | negative | optout | bounce: read from the words, which are not kept
     created_at: Mapped[datetime] = mapped_column(_TS, default=_now)
 
 

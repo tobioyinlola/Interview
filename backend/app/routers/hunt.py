@@ -18,6 +18,8 @@ from app.db import get_db
 from app.deps import current_user, get_notifier, require_admin
 from app.errors import ApiError
 from app.hunt import directory, engine, policy, research, template
+from app.hunt import fit as fit_mod
+from app.hunt import health as health_mod
 from app.models import (
     Directory,
     HuntSettings,
@@ -115,6 +117,7 @@ class SettingsIn(BaseModel):
     auto_send: bool = False
     sender_name: str = Field("", max_length=120)
     postal_address: str = Field("", max_length=300)
+    reach: str = Field("most", pattern="^(best|most|everyone)$")
 
 
 class SettingsOut(SettingsIn):
@@ -153,6 +156,8 @@ class TargetOut(BaseModel):
     status: str
     reason: str | None
     sent_at: datetime | None
+    replied_at: datetime | None = None
+    reply_kind: str | None = None  # positive | neutral | negative | optout | bounce
 
 
 class StartupIn(BaseModel):
@@ -214,6 +219,7 @@ async def _out(db: AsyncSession, user_id: uuid.UUID, footer: bool = False) -> Se
         auto_send=bool(st and st.auto_send),
         sender_name=name,
         postal_address=st.postal_address if st else "",
+        reach=st.reach if st else "most",
         mailbox=await mailbox.connected_address(db, user_id),
         ready=await _ready(db, st, user_id, footer),
         prefilled=prefilled,
@@ -257,9 +263,139 @@ async def save_settings(
     st.enabled, st.regions, st.roles = body.enabled, body.regions, roles
     st.pitch, st.daily_cap, st.auto_send = body.pitch.strip(), body.daily_cap, body.auto_send
     st.sender_name, st.postal_address = body.sender_name.strip(), body.postal_address.strip()
+    st.reach = body.reach
     st.updated_at = now
     await db.commit()
     return await _out(db, user.id, footer)
+
+
+# ----------------------------------------------------------------- how it is going
+
+
+class FitBand(BaseModel):
+    band: str  # best | good | low
+    sent: int
+    replied: int
+    positive: int
+
+
+class VersionRow(BaseModel):
+    version: str  # written | template
+    sent: int
+    replied: int
+    positive: int
+
+
+class FunnelOut(BaseModel):
+    with_contact: int  # researched startups in your regions with a published address
+    written: int
+    waiting_review: int
+    approved: int
+    sent: int  # first emails that went
+    follow_ups_sent: int
+    replied: int  # any real reply (positive, neutral or negative)
+    positive: int
+    negative: int
+    asked_to_stop: int
+    bounced: int
+    by_fit: list[FitBand]
+    by_version: list[VersionRow]
+    sent_today: int
+    daily_limit: int  # today's limit: your own, held down by the ramp
+    health_sent: int  # sent in the window that counts (30 days, or since you last resumed)
+    bounce_rate: float
+    stop_rate: float
+    paused_reason: str | None
+
+
+def _band(fit: int) -> str:
+    return "best" if fit >= 50 else "good" if fit >= fit_mod.MIN_FIT else "low"
+
+
+@router.get("/funnel")
+async def funnel(
+    user: User = Depends(active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    now: datetime = Depends(get_now),  # noqa: B008
+) -> FunnelOut:
+    st = await engine.get_settings(db, user.id) or HuntSettings(user_id=user.id)
+    rows = (
+        (await db.execute(select(HuntTarget).where(HuntTarget.user_id == user.id))).scalars().all()
+    )
+    real = ("positive", "neutral", "negative")
+    first = [t for t in rows if t.step == 1]
+    first_sent = [t for t in first if t.sent_at is not None]
+
+    def tally(items: list[HuntTarget]) -> tuple[int, int, int]:
+        return (
+            len(items),
+            sum(1 for t in items if t.reply_kind in real),
+            sum(1 for t in items if t.reply_kind == "positive"),
+        )
+
+    bands = {b: [t for t in first_sent if _band(t.fit) == b] for b in ("best", "good", "low")}
+    versions = {v: [t for t in first_sent if t.source == v] for v in ("written", "template")}
+    contacted = (
+        select(StartupContact.startup_id).where(StartupContact.startup_id == Startup.id).exists()
+    )
+    with_contact = 0
+    if st.regions:
+        with_contact = int(
+            (
+                await db.execute(
+                    select(func.count())
+                    .select_from(Startup)
+                    .where(
+                        Startup.status == "researched", Startup.region.in_(st.regions), contacted
+                    )
+                )
+            ).scalar_one()
+        )
+    prof = (
+        await db.execute(select(SearchProfile).where(SearchProfile.user_id == user.id))
+    ).scalar_one_or_none()
+    tz = prof.timezone if prof else "UTC"
+    h = await engine.stats(db, user.id, st, now)
+    rate = health_mod.rates(h["sent"], h["bounced"], h["optouts"])
+    return FunnelOut(
+        with_contact=with_contact,
+        written=len(first),
+        waiting_review=sum(1 for t in rows if t.status == "drafted"),
+        approved=sum(1 for t in rows if t.status == "approved"),
+        sent=len(first_sent),
+        follow_ups_sent=sum(1 for t in rows if t.step == 2 and t.sent_at is not None),
+        replied=sum(1 for t in rows if t.reply_kind in real),
+        positive=sum(1 for t in rows if t.reply_kind == "positive"),
+        negative=sum(1 for t in rows if t.reply_kind == "negative"),
+        asked_to_stop=sum(1 for t in rows if t.reply_kind == "optout"),
+        bounced=sum(1 for t in rows if t.reply_kind == "bounce"),
+        by_fit=[
+            FitBand(band=b, **dict(zip(("sent", "replied", "positive"), tally(v), strict=True)))
+            for b, v in bands.items()
+        ],
+        by_version=[
+            VersionRow(
+                version=v, **dict(zip(("sent", "replied", "positive"), tally(items), strict=True))
+            )
+            for v, items in versions.items()
+        ],
+        sent_today=await engine.sent_today(db, user.id, now, tz),
+        daily_limit=await engine.effective_cap(db, user.id, st, now),
+        health_sent=h["sent"],
+        bounce_rate=round(rate["bounce"], 3),
+        stop_rate=round(rate["optout"], 3),
+        paused_reason=st.auto_pause_reason if st.auto_paused_at else None,
+    )
+
+
+@router.post("/resume")
+async def resume_sending(
+    user: User = Depends(active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    now: datetime = Depends(get_now),  # noqa: B008
+) -> dict[str, bool]:
+    """Turn sending back on after it stopped by itself. What happened before now stops counting."""
+    return {"resumed": await engine.resume(db, user.id, now)}
 
 
 # ------------------------------------------------------------------ the candidate's own emails
@@ -436,6 +572,8 @@ async def _target_out(db: AsyncSession, t: HuntTarget) -> TargetOut:
         status=t.status,
         reason=t.reason,
         sent_at=t.sent_at,
+        replied_at=t.replied_at,
+        reply_kind=t.reply_kind,
     )
 
 

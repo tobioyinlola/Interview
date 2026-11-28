@@ -12,6 +12,7 @@ export type HuntSettings = {
   auto_send: boolean;
   sender_name: string;
   postal_address: string;
+  reach?: "best" | "most" | "everyone";
   mailbox: string | null;
   ready: string[];
   prefilled: boolean;
@@ -39,6 +40,8 @@ export type HuntTarget = {
   status: string;
   reason: string | null;
   sent_at: string | null;
+  replied_at?: string | null;
+  reply_kind?: "positive" | "neutral" | "negative" | "optout" | "bounce" | null;
 };
 
 const P = "/api/hunt";
@@ -194,3 +197,48 @@ export const usePreviewTemplate = () =>
       variables: Record<string, string>;
     }) => post<TemplatePreview>("/template/preview", v),
   });
+
+// ------------------------------------------------------------ how it is going
+
+export type Funnel = {
+  with_contact: number;
+  written: number;
+  waiting_review: number;
+  approved: number;
+  sent: number;
+  follow_ups_sent: number;
+  replied: number;
+  positive: number;
+  negative: number;
+  asked_to_stop: number;
+  bounced: number;
+  by_fit: { band: string; sent: number; replied: number; positive: number }[];
+  by_version: {
+    version: string;
+    sent: number;
+    replied: number;
+    positive: number;
+  }[];
+  sent_today: number;
+  daily_limit: number;
+  health_sent: number;
+  bounce_rate: number;
+  stop_rate: number;
+  paused_reason: string | null;
+};
+
+export const useFunnel = () =>
+  useQuery<Funnel>({
+    queryKey: ["hunt", "funnel"],
+    queryFn: () => apiFetch(`${P}/funnel`),
+    refetchInterval: 60_000,
+  });
+
+/** Sending stopped by itself (too many bounces or requests to stop): turn it back on. */
+export function useResumeSending() {
+  const refresh = useRefresh();
+  return useMutation({
+    mutationFn: () => post<{ resumed: boolean }>("/resume"),
+    onSuccess: refresh,
+  });
+}

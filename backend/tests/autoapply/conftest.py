@@ -233,3 +233,14 @@ async def user_id(maker):
 
     async with maker() as db:
         return (await db.execute(select(User.id))).scalars().first()
+
+
+@pytest.fixture(autouse=True)
+def mail_domains_work(monkeypatch):
+    """No test asks the real DNS whether a startup's domain receives mail."""
+    from app.hunt import engine
+
+    async def works(domain: str) -> bool | None:
+        return True
+
+    monkeypatch.setattr(engine, "RESOLVER", works)

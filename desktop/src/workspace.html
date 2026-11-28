@@ -3,39 +3,62 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'self'">
 <title>InterviewMeet Auto-Apply</title>
 <style>
- :root { color-scheme: light dark; --b:#d6d3e6; --m:#6b6880; --a:#5b3fd6; --bad:#b3261e; --ok:#1c7c3c; }
- * { box-sizing: border-box } body { margin:0; font:13px/1.4 system-ui,sans-serif; background:#f6f5fb; color:#1c1b2e; height:100vh; display:flex; flex-direction:column }
- @media (prefers-color-scheme: dark) { body { background:#1c1b2e; color:#eceaf7 } .card { background:#26243d !important } }
- #panel { width:340px; margin-left:auto; height:100%; overflow:auto; padding:12px; display:flex; flex-direction:column; gap:10px; border-left:1px solid var(--b) }
- .card { background:#fff; border:1px solid var(--b); border-radius:10px; padding:10px }
- h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--m); margin:0 0 6px }
- .row { display:flex; gap:6px; flex-wrap:wrap } button { font:inherit; padding:6px 10px; border-radius:8px; border:1px solid var(--b); background:transparent; color:inherit; cursor:pointer }
- button.p { background:var(--a); color:#fff; border-color:var(--a) } button:disabled { opacity:.45; cursor:default }
- .bar { height:6px; border-radius:3px; background:var(--b); overflow:hidden } .bar > i { display:block; height:100%; background:var(--a) }
- .n { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; text-align:center } .n b { display:block; font-size:18px }
- #log { list-style:none; margin:0; padding:0; max-height:200px; overflow:auto } #log li { padding:3px 0; border-bottom:1px solid var(--b); color:var(--m) }
- #need { display:none; border-color:var(--a) } .m { color:var(--m) } .t { font-weight:600 }
+ :root { color-scheme: light dark; --bg:#f4f3fb; --card:#fff; --ink:#1c1b2e; --mute:#6b6880; --line:#e4e1f2; --acc:#5b3fd6; --acc-soft:#ece8ff;
+   --ok:#13803f; --ok-soft:#e3f6ea; --bad:#b3261e; --bad-soft:#fdeceb; --warn:#9a5b00; --warn-soft:#fff3dc; }
+ @media (prefers-color-scheme: dark) { :root { --bg:#17162a; --card:#222039; --ink:#eeecf9; --mute:#a19fbb; --line:#34314f; --acc:#9b87ff; --acc-soft:#2f2a57;
+   --ok:#5fd28a; --ok-soft:#173a27; --bad:#ff8f87; --bad-soft:#3d1d1c; --warn:#ffc266; --warn-soft:#3b2d10; } }
+ * { box-sizing: border-box }
+ body { margin:0; height:100vh; display:flex; font:13px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif; background:var(--bg); color:var(--ink) }
+ #idle { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:32px; text-align:center; color:var(--mute) }
+ #idle b { color:var(--ink); font-size:15px }
+ #panel { width:360px; height:100%; overflow:auto; padding:14px; display:flex; flex-direction:column; gap:12px; border-left:1px solid var(--line); background:var(--bg) }
+ .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px }
+ h2 { margin:0 0 8px; font-size:11px; font-weight:600; letter-spacing:.07em; text-transform:uppercase; color:var(--mute) }
+ .row { display:flex; gap:8px; align-items:center } .grow { flex:1; min-width:0 }
+ .pill { display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:600; background:var(--acc-soft); color:var(--acc) }
+ .pill i { width:7px; height:7px; border-radius:50%; background:currentColor }
+ .pill.running i { animation:pulse 1.4s ease-in-out infinite } @keyframes pulse { 50% { opacity:.25 } }
+ .pill.ok { background:var(--ok-soft); color:var(--ok) } .pill.bad { background:var(--bad-soft); color:var(--bad) } .pill.warn { background:var(--warn-soft); color:var(--warn) }
+ #who { font-size:16px; font-weight:650; line-height:1.25; margin:10px 0 2px; overflow-wrap:anywhere } #sub { color:var(--mute); overflow-wrap:anywhere }
+ .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px } .chip { padding:2px 9px; border-radius:8px; background:var(--bg); border:1px solid var(--line); color:var(--mute); font-size:11.5px }
+ .bar { height:8px; border-radius:6px; background:var(--line); overflow:hidden; margin:12px 0 6px } .bar > i { display:block; height:100%; width:0; border-radius:6px; background:linear-gradient(90deg,var(--acc),#8f7bff); transition:width .4s ease }
+ .meta { display:flex; justify-content:space-between; color:var(--mute); font-size:12px } #q { margin-top:8px; padding:8px 10px; border-radius:10px; background:var(--acc-soft); color:var(--ink); font-size:12.5px; overflow-wrap:anywhere }
+ #need { display:none; border-color:var(--warn); background:var(--warn-soft) } #need h2 { color:var(--warn) } #needText { font-weight:600; margin-bottom:10px }
+ button { font:inherit; font-weight:600; padding:8px 12px; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer }
+ button:hover:not(:disabled) { border-color:var(--acc) } button:disabled { opacity:.45; cursor:default }
+ button.p { background:var(--acc); color:#fff; border-color:var(--acc) } button.d { color:var(--bad) } button.d:hover:not(:disabled) { border-color:var(--bad) }
+ .ctl { display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:8px } .seg { display:flex; background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:3px; margin-top:10px }
+ .seg button { flex:1; border:0; background:transparent; padding:6px 0; font-weight:500; color:var(--mute) } .seg button.on { background:var(--card); color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.12); font-weight:650 }
+ .n { display:grid; grid-template-columns:repeat(3,1fr); gap:8px } .n div { padding:10px 6px; border-radius:12px; background:var(--bg); text-align:center }
+ .n b { display:block; font-size:20px; line-height:1.1 } .n span { font-size:11.5px; color:var(--mute) }
+ .n .g b { color:var(--ok) } .n .r b { color:var(--bad) } .n .y b { color:var(--warn) }
+ #log { list-style:none; margin:0; padding:0; max-height:260px; overflow:auto } #log li { display:flex; gap:10px; padding:7px 0; border-bottom:1px solid var(--line) } #log li:last-child { border:0 }
+ #log .dot { flex:none; width:9px; height:9px; margin-top:5px; border-radius:50%; background:var(--acc) } #log .ok .dot { background:var(--ok) } #log .bad .dot { background:var(--bad) } #log .warn .dot { background:var(--warn) } #log .mute .dot { background:var(--mute) }
+ #log .t { color:var(--mute); font-size:11.5px; white-space:nowrap; margin-left:auto; padding-left:8px } #log .x { min-width:0; overflow-wrap:anywhere }
+ .empty { color:var(--mute); padding:6px 0 }
 </style></head>
 <body>
-<div id="idle" style="position:fixed;left:0;top:0;bottom:0;right:340px;display:flex;align-items:center;justify-content:center;color:var(--m);text-align:center;padding:24px">The employer's page appears here while an application is carried out, so you can watch it fill in.</div>
+<div id="idle"><b>Watch it work</b><span>The employer's page appears here while an application is carried out, so you can see it fill in.</span></div>
 <div id="panel" role="complementary" aria-label="Auto-Apply controls">
- <div class="card"><h2>Now</h2>
-  <div class="t" id="who">Waiting for the next application</div>
-  <div class="m" id="stage"></div>
-  <div class="bar" style="margin:8px 0"><i id="prog" style="width:0"></i></div>
-  <div class="m" id="q"></div>
-  <div class="m" id="meta"></div></div>
+ <div class="card" id="now">
+  <div class="row"><span class="pill" id="state"><i></i><span id="stateText">Waiting</span></span><span class="grow"></span><span class="meta" id="step"></span></div>
+  <div id="who">Waiting for the next application</div>
+  <div id="sub"></div>
+  <div class="chips" id="chips"></div>
+  <div class="bar"><i id="prog"></i></div>
+  <div class="meta"><span id="stage"></span><span id="pct"></span></div>
+  <div id="q" hidden></div>
+ </div>
  <div class="card" id="need"><h2>Needs you</h2><div id="needText"></div>
-  <div class="row" style="margin-top:8px"><button class="p" id="cont">I have done it, continue</button><button id="leave">Skip this one</button></div></div>
+  <div class="row"><button class="p grow" id="cont">I have done it, continue</button><button id="leave">Skip this one</button></div></div>
  <div class="card"><h2>Controls</h2>
-  <div class="row"><button id="pause">Pause</button><button id="resume" class="p">Resume</button><button id="skip">Skip</button><button id="stop">Stop</button></div>
-  <div class="row" style="margin-top:8px"><label class="m" for="speed">Speed</label>
-   <select id="speed"><option value="slow">Slow</option><option value="normal">Normal</option><option value="fast">Fast</option></select></div></div>
+  <div class="ctl"><button class="p" id="toggle">Pause</button><button id="skip">Skip</button><button class="d" id="stop">Stop</button></div>
+  <div class="seg" role="radiogroup" aria-label="Speed"><button data-s="slow">Slow</button><button data-s="normal">Normal</button><button data-s="fast">Fast</button></div>
+ </div>
  <div class="card"><h2>Today</h2><div class="n">
-  <div><b id="c-queued">0</b><span class="m">queued</span></div><div><b id="c-verified">0</b><span class="m">verified</span></div>
-  <div><b id="c-needs">0</b><span class="m">need you</span></div><div><b id="c-failed">0</b><span class="m">failed</span></div>
-  <div><b id="c-skipped">0</b><span class="m">skipped</span></div><div><b id="c-today">0</b><span class="m">today</span></div></div></div>
- <div class="card"><h2>Activity</h2><ul id="log"></ul></div>
+  <div class="g"><b id="c-verified">0</b><span>sent</span></div><div><b id="c-queued">0</b><span>queued</span></div><div class="y"><b id="c-needs">0</b><span>need you</span></div>
+  <div class="r"><b id="c-failed">0</b><span>failed</span></div><div><b id="c-skipped">0</b><span>skipped</span></div><div class="g"><b id="c-today">0</b><span>today</span></div></div></div>
+ <div class="card"><h2>Activity</h2><ul id="log"></ul><div class="empty" id="logEmpty">Nothing yet.</div></div>
 </div>
 <script src="workspace-panel.js"></script>
 </body></html>

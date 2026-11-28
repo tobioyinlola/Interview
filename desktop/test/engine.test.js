@@ -13,7 +13,7 @@ const PDF = Buffer.from("%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n");
 const doc = (name) => ({ name, b64: PDF.toString("base64"), sha256: crypto.createHash("sha256").update(PDF).digest("hex") });
 const VALUES = {
   first_name: "Ada", last_name: "Obi", email: "ada@example.com", phone: "+234 801", linkedin: "https://linkedin.com/in/ada",
-  country: "Nigeria", question_1: "I love the product.", auth: "Yes", veteran: "I am not a veteran", consent: "yes",
+  country: "Nigeria", question_1: "I love the product.", work_authorization: "Yes", veteran: "I am not a veteran", consent: "yes",
 };
 
 const fs = require("node:fs");
@@ -75,7 +75,7 @@ test("fills a Greenhouse-style form, uploads the exact CV and ends on the employ
 test("an Ashby-style form drawn by script: button choices, hidden file input", { skip: SKIP }, async () => {
   server.received.length = 0;
   const { driver, close } = await open("/ashby/jobs/1");
-  const r = run(driver, "/ashby/jobs/1", { job: { ats: "ashby", values: { name: "Ada Obi", email: "ada@example.com", phone: "+234 801", linkedin: "https://x", q_do_you_have_5_years_of_experience: "Yes", long1: "A hard problem." } } });
+  const r = run(driver, "/ashby/jobs/1", { job: { ats: "ashby", values: { name: "Ada Obi", email: "ada@example.com", phone: "+234 801", linkedin: "https://x", years_experience: "Yes", long1: "A hard problem." } } });
   const out = await r.done;
   assert.equal(out.status, "confirmed", out.message);
   const got = server.received.at(-1);
@@ -176,5 +176,71 @@ test("a cursor is drawn on the page and follows the control being filled", { ski
   const at = await page.evaluate(() => ({ has: !!document.getElementById("__im_cursor"), t: document.getElementById("__im_cursor")?.style.transform }));
   assert.equal(at.has, true);
   assert.match(at.t, /translate\(/);
+  await close();
+});
+
+// ------------------------------------------------------------- a modern Ashby form (from a real run)
+
+const ASHBY_VALUES = {
+  name: "Justus Oyinlola", email: "j@example.com", linkedin: "https://linkedin.com/in/j",
+  requires_sponsorship: "No",
+};
+
+test("a modern Ashby form: custom radios, Yes/No buttons and EEO questions are all answered, then submitted", { skip: SKIP }, async () => {
+  server.received.length = 0;
+  const { driver, close } = await open("/ashby/modern");
+  const r = run(driver, "/ashby/modern", { job: { ats: "ashby", values: ASHBY_VALUES } });
+  const out = await r.done;
+  assert.equal(out.status, "confirmed", out.message);
+  const got = server.received.at(-1);
+  assert.equal(got.visa, "No");
+  assert.equal(got.gender, "d", "the voluntary self-identification was declined");
+  assert.equal(got.veteran, "d");
+  assert.equal(got.disability, "d");
+  assert.equal(got.hear, "5", "how they heard: Other");
+  assert.equal(got.resume.filename, "CV.pdf");
+  await close();
+});
+
+test("a required question that only the candidate can answer is asked for before anything is pressed", { skip: SKIP }, async () => {
+  server.received.length = 0;
+  const { driver, close } = await open("/ashby/modern");
+  const values = { ...ASHBY_VALUES };
+  delete values.requires_sponsorship;
+  const r = run(driver, "/ashby/modern", { job: { ats: "ashby", values } });
+  const out = await r.done;
+  assert.equal(out.status, "needs_input");
+  assert.match(out.need[0].question, /visa sponsorship/i);
+  assert.equal(r.ctl.authorized, 0, "submit was never pressed");
+  await close();
+});
+
+test("when the page says something is missing after submit, it is reported as not sent, never as unknown", { skip: SKIP }, async () => {
+  server.received.length = 0;
+  const { driver, close } = await open("/jobs/invisible");
+  const r = run(driver, "/jobs/invisible", { job: { values: { first_name: "Ada", email: "a@b.co" } } });
+  const t0 = Date.now();
+  const out = await r.done;
+  assert.notEqual(out.status, "ambiguous");
+  assert.equal(out.status, "failed");
+  assert.match(out.message, /did not accept it.*Missing entry/i);
+  assert.ok(!out.sent_unknown, "nothing was sent");
+  assert.ok(Date.now() - t0 < 6000, "it did not wait out the full confirmation time");
+  assert.equal(server.received.length, 0);
+  await close();
+});
+
+test("'Application submitted' appearing on the page counts as success", { skip: SKIP }, async () => {
+  const { driver, close } = await open("/jobs/submitted");
+  const out = await run(driver, "/jobs/submitted", { job: { values: { first_name: "Ada", email: "a@b.co" } } }).done;
+  assert.equal(out.status, "confirmed", out.message);
+  assert.match(out.message, /application submitted/i);
+  await close();
+});
+
+test("words about what happens after applying, already on the page, are not taken for success", { skip: SKIP }, async () => {
+  const { driver, close } = await open("/jobs/submitted?fail=1");
+  const out = await run(driver, "/jobs/submitted?fail=1", { job: { values: { first_name: "Ada", email: "a@b.co" } } }).done;
+  assert.equal(out.status, "ambiguous", "nothing new appeared: unknown, never success");
   await close();
 });
