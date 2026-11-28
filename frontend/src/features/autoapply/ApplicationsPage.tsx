@@ -2,7 +2,12 @@ import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { LoadingRows } from "../../ui/Loading";
-import { useApplications, useRecheckSkipped } from "./api";
+import {
+  retrySummary,
+  useApplications,
+  useRecheckSkipped,
+  useRetryFailed,
+} from "./api";
 import { Pill, STAGE, day } from "./ui";
 
 const TABS: [string, string][] = [
@@ -23,6 +28,8 @@ const SHOW: Record<string, string> = {
   skipped: "skipped",
   expired: "expired",
   apply: "apply_yourself,applied_by_you",
+  failed: "failed",
+  needs: "needs_input",
 };
 
 export function ApplicationsPage() {
@@ -30,6 +37,7 @@ export function ApplicationsPage() {
   const [tab, setTab] = useState(SHOW[params.get("show") ?? ""] ?? "");
   const q = useApplications(tab);
   const recheck = useRecheckSkipped();
+  const retry = useRetryFailed();
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [loadingAll, setLoadingAll] = useState(false);
   const items = q.data?.pages.flatMap((p) => p.items) ?? [];
@@ -84,6 +92,7 @@ export function ApplicationsPage() {
               setTab(value);
               setPicked(new Set());
               recheck.reset();
+              retry.reset();
             }}
             className={`inline-flex min-h-[44px] items-center rounded-full px-4 text-sm ${
               tab === value
@@ -136,6 +145,33 @@ export function ApplicationsPage() {
             Pick the roles to judge again against your search as it is now.
           </span>
         </div>
+      )}
+      {tab === "failed" && items.length > 0 && (
+        <div className="card flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            className="btn-primary"
+            disabled={retry.isPending}
+            onClick={() => retry.mutate([])}
+          >
+            {retry.isPending ? "Trying again…" : "Try all failed ones again"}
+          </button>
+          <span className="text-sm text-muted">
+            Each is prepared again with your latest answers and goes back in the
+            queue. One that may already have reached the employer is never sent
+            twice.
+          </span>
+        </div>
+      )}
+      {retry.data && (
+        <p role="status" className="rounded-2xl bg-accent-soft p-3 text-sm">
+          {retrySummary(retry.data)}
+        </p>
+      )}
+      {retry.isError && (
+        <p role="alert" className="notice-error">
+          {retry.error.message}
+        </p>
       )}
       {recheck.data && (
         <p role="status" className="rounded-2xl bg-accent-soft p-3 text-sm">

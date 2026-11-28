@@ -1203,6 +1203,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/autoapply/applications/retry-failed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry Failed
+         * @description Try failed applications again (the ones named, or all of them). One that may have reached
+         *     the employer is never repeated.
+         */
+        post: operations["retry_failed_api_autoapply_applications_retry_failed_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/autoapply/applications/{application_id}": {
         parameters: {
             query?: never;
@@ -5268,6 +5289,22 @@ export interface components {
             /** Returned */
             returned: number;
         };
+        /** RetryFailedIn */
+        RetryFailedIn: {
+            /** Ids */
+            ids?: string[];
+        };
+        /** RetryFailedOut */
+        RetryFailedOut: {
+            /** Left Alone */
+            left_alone: number;
+            /** Need You */
+            need_you: number;
+            /** Queued */
+            queued: number;
+            /** Retried */
+            retried: number;
+        };
         /** RunCountersOut */
         RunCountersOut: {
             /** Failed */
@@ -8515,6 +8552,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RecheckOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retry_failed_api_autoapply_applications_retry_failed_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RetryFailedIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetryFailedOut"];
                 };
             };
             /** @description Validation Error */

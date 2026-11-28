@@ -145,6 +145,17 @@ class RecheckOut(BaseModel):
     left_alone: int  # already sent, not skipped, or not yours
 
 
+class RetryFailedIn(BaseModel):
+    ids: list[str] = Field(default_factory=list, max_length=200)  # empty: every failed one
+
+
+class RetryFailedOut(BaseModel):
+    retried: int  # given another go
+    queued: int  # of those, ready to go out again
+    need_you: int  # of those, now waiting for an answer or a decision
+    left_alone: int  # it may have reached the employer, so it is never repeated
+
+
 class ApproveIn(BaseModel):
     rule: str = Field(min_length=1, max_length=60)
 

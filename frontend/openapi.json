@@ -6592,6 +6592,48 @@
         "title": "RetentionRow",
         "type": "object"
       },
+      "RetryFailedIn": {
+        "properties": {
+          "ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 200,
+            "title": "Ids",
+            "type": "array"
+          }
+        },
+        "title": "RetryFailedIn",
+        "type": "object"
+      },
+      "RetryFailedOut": {
+        "properties": {
+          "left_alone": {
+            "title": "Left Alone",
+            "type": "integer"
+          },
+          "need_you": {
+            "title": "Need You",
+            "type": "integer"
+          },
+          "queued": {
+            "title": "Queued",
+            "type": "integer"
+          },
+          "retried": {
+            "title": "Retried",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "retried",
+          "queued",
+          "need_you",
+          "left_alone"
+        ],
+        "title": "RetryFailedOut",
+        "type": "object"
+      },
       "RunCountersOut": {
         "properties": {
           "failed": {
@@ -13007,6 +13049,48 @@
           }
         },
         "summary": "Recheck Skipped",
+        "tags": [
+          "autoapply"
+        ]
+      }
+    },
+    "/api/autoapply/applications/retry-failed": {
+      "post": {
+        "description": "Try failed applications again (the ones named, or all of them). One that may have reached\nthe employer is never repeated.",
+        "operationId": "retry_failed_api_autoapply_applications_retry_failed_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetryFailedIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetryFailedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Retry Failed",
         "tags": [
           "autoapply"
         ]

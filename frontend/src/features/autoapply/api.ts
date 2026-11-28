@@ -257,6 +257,40 @@ export function useRecheckSkipped() {
   });
 }
 
+export type RetryFailedResult = {
+  retried: number;
+  queued: number;
+  need_you: number;
+  left_alone: number;
+};
+
+/** Try failed applications again: the ones named, or every failed one. One that may already have
+ *  reached the employer is never repeated (it is counted as left alone). */
+export function useRetryFailed() {
+  const refresh = useRefresh();
+  return useMutation({
+    mutationFn: (ids: string[] = []) =>
+      post<RetryFailedResult>("/applications/retry-failed", { ids }),
+    onSuccess: () => refresh(),
+  });
+}
+
+/** One plain sentence for what a retry did. */
+export function retrySummary(r: RetryFailedResult): string {
+  if (r.retried === 0 && r.left_alone === 0)
+    return "There was nothing to try again.";
+  const parts: string[] = [];
+  if (r.queued) parts.push(`${r.queued} back in the queue`);
+  if (r.need_you) parts.push(`${r.need_you} need an answer from you first`);
+  const rest = r.retried - r.queued - r.need_you;
+  if (rest > 0) parts.push(`${rest} checked again (see each one for why)`);
+  if (r.left_alone)
+    parts.push(
+      `${r.left_alone} may already have reached the employer, so left alone`,
+    );
+  return parts.join(" · ") + ".";
+}
+
 export const useApplication = (id: string) =>
   useQuery<AAApplicationDetail>({
     queryKey: ["aa", "application", id],

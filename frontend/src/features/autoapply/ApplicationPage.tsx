@@ -334,6 +334,23 @@ export function ApplicationPage() {
           Check this role again
         </button>
       )}
+      {a.status === "failed" && (
+        <div className="space-y-2">
+          <button
+            type="button"
+            className="btn-primary"
+            disabled={act.retry.isPending}
+            onClick={() => act.retry.mutate()}
+          >
+            {act.retry.isPending ? "Trying again…" : "Try again"}
+          </button>
+          <p className="text-sm text-muted">
+            It is prepared again with your latest answers and goes back in the
+            queue.
+          </p>
+          <Fail error={act.retry.error} />
+        </div>
+      )}
 
       <Section
         id="why-h"

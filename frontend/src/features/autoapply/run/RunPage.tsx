@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { Loading } from "../../../ui/Loading";
@@ -5,7 +6,18 @@ import { API_BASE_URL } from "../../../api/client";
 import { currentSessionToken } from "../../../api/session";
 import { isDesktopApp } from "../../../app/desktop";
 import type { AutoRun } from "../../../api/types";
+import { retrySummary, useRetryFailed } from "../api";
 import { useRun, useRunControl, useRunLive, useRunSettings } from "./api";
+
+// what each control did, in plain words, once the server has done it
+const DONE: Record<string, string> = {
+  start: "Started. The next application begins shortly.",
+  resume: "Running again.",
+  pause:
+    "Paused. The application running now finishes; nothing new starts until you resume.",
+  skip: "Skipped. Nothing was sent for it, and the next one starts shortly.",
+  stop: "Stopped before Submit. It is back in your queue; press Start to carry on.",
+};
 
 const STATE: Record<AutoRun["state"], { label: string; tone: string }> = {
   idle: { label: "Not set up", tone: "bg-line text-muted" },
@@ -67,6 +79,10 @@ export function RunPage() {
   const q = useRun();
   const control = useRunControl();
   const settings = useRunSettings();
+  const retry = useRetryFailed();
+  const [did, setDid] = useState<string | null>(null);
+  const act = (a: "start" | "pause" | "resume" | "skip" | "stop") =>
+    control.mutate(a, { onSuccess: () => setDid(DONE[a]) });
   useRunLive(q.data?.last_seq, Boolean(q.data));
 
   if (q.isPending) return <Loading label="Loading the run" />;
@@ -84,9 +100,14 @@ export function RunPage() {
   const live = r.state === "running" || r.state === "paused";
   const running = Boolean(
     cur &&
-    !["Done", "Failed", "Skipped", "Cancelled", "Waiting for you"].includes(
-      cur.stage ?? "",
-    ),
+    ![
+      "Done",
+      "Failed",
+      "Skipped",
+      "Cancelled",
+      "Waiting for you",
+      "Sent? Check it",
+    ].includes(cur.stage ?? ""),
   );
   const history = [...r.events].reverse();
   const canWatch =
@@ -134,7 +155,7 @@ export function RunPage() {
               type="button"
               className="btn-primary"
               disabled={busy || r.state === "idle"}
-              onClick={() => control.mutate("start")}
+              onClick={() => act("start")}
             >
               Start
             </button>
@@ -153,7 +174,7 @@ export function RunPage() {
               type="button"
               className="btn-secondary"
               disabled={busy}
-              onClick={() => control.mutate("pause")}
+              onClick={() => act("pause")}
             >
               Pause
             </button>
@@ -163,7 +184,7 @@ export function RunPage() {
               type="button"
               className="btn-primary"
               disabled={busy}
-              onClick={() => control.mutate("resume")}
+              onClick={() => act("resume")}
             >
               Resume
             </button>
@@ -172,7 +193,7 @@ export function RunPage() {
             type="button"
             className="btn-secondary"
             disabled={busy || !running}
-            onClick={() => control.mutate("skip")}
+            onClick={() => act("skip")}
           >
             Skip this one
           </button>
@@ -180,7 +201,7 @@ export function RunPage() {
             type="button"
             className="btn-danger-outline"
             disabled={busy || !live}
-            onClick={() => control.mutate("stop")}
+            onClick={() => act("stop")}
           >
             Stop
           </button>
@@ -230,6 +251,16 @@ export function RunPage() {
             ? ` Your computer${r.executors[0] ? ` (${r.executors[0].name})` : ""} is open.`
             : " Your computer is not open."}
         </p>
+        <p className="text-xs text-muted">
+          Skip leaves the job running now and moves on; nothing is sent for it.
+          Stop ends it before Submit and starts nothing new. Pause lets it
+          finish first.
+        </p>
+        {did && !control.isError && (
+          <p role="status" className="text-sm text-emerald-800">
+            {did}
+          </p>
+        )}
         {(control.isError || settings.isError) && (
           <p role="alert" className="notice-error">
             {(control.error ?? settings.error)?.message}
@@ -314,7 +345,7 @@ export function RunPage() {
         <Count
           label="Failed"
           value={r.counters.failed}
-          to="/auto-apply/applications"
+          to="/auto-apply/applications?show=failed"
         />
         <Count
           label="Skipped"
@@ -325,9 +356,41 @@ export function RunPage() {
           label="Needs you"
           value={r.counters.needs_you}
           hint="questions, checks, sign-ins"
-          to="/auto-apply/applications"
+          to="/auto-apply/applications?show=needs"
         />
       </dl>
+
+      {r.counters.failed > 0 && (
+        <section
+          aria-label="Failed applications"
+          className="card flex flex-wrap items-center gap-3"
+        >
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={retry.isPending}
+            onClick={() => retry.mutate([])}
+          >
+            {retry.isPending
+              ? "Trying again…"
+              : `Try failed ones again (${r.counters.failed})`}
+          </button>
+          <span className="text-sm text-muted">
+            They are prepared again with your latest answers. One that may
+            already have reached the employer is never sent twice.
+          </span>
+          {retry.data && (
+            <p role="status" className="w-full text-sm">
+              {retrySummary(retry.data)}
+            </p>
+          )}
+          {retry.isError && (
+            <p role="alert" className="notice-error w-full">
+              {retry.error.message}
+            </p>
+          )}
+        </section>
+      )}
 
       <section aria-label="Activity" className="card space-y-2">
         <h2 className="font-semibold">Activity</h2>

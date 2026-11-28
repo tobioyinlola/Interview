@@ -896,3 +896,35 @@ async def test_a_form_that_cannot_be_filled_is_handed_to_the_person_not_failed(
     handed = [h for h in detail["history"] if h["kind"] == "handed_over"]
     assert handed and "sign in" in handed[0]["detail"]["reason"]
     assert detail["package"]["cv"]["submitted_text"]  # already prepared: ready for the person
+
+
+async def test_failed_ones_can_be_tried_again_but_one_that_may_have_gone_never_is(
+    ada, discovery_source, form, tick, clock
+):
+    discovery_source.postings = [job(1), job(2)]
+    await start(ada, daily_application_cap=5)
+    form.mode = "fail"
+    await tick()
+    assert (await states(ada)).count("failed") == 2
+    form.mode = "ok"
+    r = await ada.post("/api/autoapply/applications/retry-failed", json={})
+    assert r.status_code == 200, r.text
+    assert r.json() == {"retried": 2, "queued": 2, "need_you": 0, "left_alone": 0}
+    await tick()
+    assert (await states(ada)).count("submitted") == 2
+    # nothing failed is left, and a sent one is never touched
+    r = await ada.post("/api/autoapply/applications/retry-failed", json={})
+    assert r.json()["retried"] == 0
+
+
+async def test_one_failed_application_can_be_tried_again_from_its_page(
+    ada, discovery_source, form, tick
+):
+    discovery_source.postings = [job(1)]
+    await start(ada)
+    form.mode = "fail"
+    await tick()
+    a = (await apps(ada, "failed"))[0]
+    r = await ada.post(f"/api/autoapply/applications/{a['id']}/retry")
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "queued"
