@@ -623,6 +623,10 @@ class BrowserForm:
     ) -> FormReceipt:
         button = page.locator(_submit_selector(system)).last
         before = page.url
+        try:
+            before_text = str((await page.evaluate(STATE))["text"])
+        except Exception:  # noqa: BLE001 - the page is busy: nothing to compare with
+            before_text = ""
         await say("submitting")  # from here on it can no longer be stopped: the page may have it
         try:
             await button.click(timeout=10_000)
@@ -639,7 +643,7 @@ class BrowserForm:
                 state = await page.evaluate(STATE)
             except Exception:  # noqa: BLE001, S112 - the page is navigating: look again
                 continue
-            proof = ats.confirmation(system, state["url"], state["text"], before)
+            proof = ats.confirmation(system, state["url"], state["text"], before, before_text)
             if proof:
                 ref = hashlib.sha256(key.encode()).hexdigest()[:12]
                 return FormReceipt(reference=f"browser-{ref}", evidence=proof)

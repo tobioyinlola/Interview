@@ -102,7 +102,8 @@ async function runJob({ page, job, say, command, authorize, intervene, now = Dat
     // the server decides, once more, that this application may go
     const go = await authorize();
     if (!go.ok) throw out("interrupted", go.reason || "Not allowed now", { command: go.reason === "stop" ? "stop" : "skip", released: true });
-    const before = await page.url();
+    const beforeState = await page.state().catch(() => ({ url: "", text: "" }));
+    const before = beforeState.url || (await page.url());
     try {
       await page.click(rules.submitSelector(sys), "last");
     } catch {
@@ -117,7 +118,7 @@ async function runJob({ page, job, say, command, authorize, intervene, now = Dat
       }
       let st;
       try { st = await page.state(); } catch { continue; }
-      const proof = rules.confirmation(sys, st.url, st.text, before);
+      const proof = rules.confirmation(sys, st.url, st.text, before, beforeState.text || "");
       if (proof) return { status: "confirmed", provider, evidence: st.text.slice(0, 3000), url: st.url, before_url: before, steps, documents, message: proof };
       if (SPAM.test(st.text)) throw out("failed", "The employer's site flagged the submission as automated.", { provider, sent_unknown: true });
       // the page says something is missing or wrong and has not moved on: nothing was sent

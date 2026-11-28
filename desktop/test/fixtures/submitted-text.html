@@ -1,0 +1,9 @@
+<!doctype html><html><head><title>Apply</title></head><body>
+<p>Once your application is submitted you will hear from us.</p>
+<form onsubmit="return false">
+ <label for="first_name">First Name*</label><input id="first_name" name="first_name">
+ <label for="email">Email*</label><input id="email" name="email" type="email">
+ <label for="resume">Resume/CV*</label><input id="resume" name="resume" type="file">
+ <button type="submit" id="go" onclick="setTimeout(() => { if (location.search.includes('fail')) return; document.getElementById('msg').textContent = 'Application submitted'; }, 400)">Submit application</button>
+ <div id="msg"></div>
+</form></body></html>

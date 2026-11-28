@@ -229,3 +229,18 @@ test("when the page says something is missing after submit, it is reported as no
   assert.equal(server.received.length, 0);
   await close();
 });
+
+test("'Application submitted' appearing on the page counts as success", { skip: SKIP }, async () => {
+  const { driver, close } = await open("/jobs/submitted");
+  const out = await run(driver, "/jobs/submitted", { job: { values: { first_name: "Ada", email: "a@b.co" } } }).done;
+  assert.equal(out.status, "confirmed", out.message);
+  assert.match(out.message, /application submitted/i);
+  await close();
+});
+
+test("words about what happens after applying, already on the page, are not taken for success", { skip: SKIP }, async () => {
+  const { driver, close } = await open("/jobs/submitted?fail=1");
+  const out = await run(driver, "/jobs/submitted?fail=1", { job: { values: { first_name: "Ada", email: "a@b.co" } } }).done;
+  assert.equal(out.status, "ambiguous", "nothing new appeared: unknown, never success");
+  await close();
+});

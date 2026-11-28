@@ -215,7 +215,7 @@ const GENERIC = { key: "generic", hosts: [], markers: [], submit: "", next: "", 
 const BY_KEY = Object.fromEntries([...PROVIDERS, GENERIC].map((p) => [p.key, p]));
 
 const SUCCESS_URL = /\/(confirmation|thank|submitted|success|applied)/i;
-const SUCCESS_TEXT = /thank you for (applying|your application|your interest|submitting)|application (has been )?(submitted|received|sent|complete)|we(?:'ve| have) received your application|successfully submitted/i;
+const SUCCESS_TEXT = /thank you for (applying|your application|your interest|submitting)|thanks for (applying|your application|submitting)|(your )?application (was |has been |is )?(successfully )?(submitted|received|sent|complete|completed)|(successfully )?submitted (your )?application|we(?:'ve| have)? (received|got) your application|you(?:'ve| have) (successfully )?applied|successfully submitted/i;
 
 function hostMatches(p, url) {
   let u;
@@ -234,9 +234,15 @@ function detect(url, html = "") {
   return GENERIC;
 }
 
-function confirmation(system, url, text, beforeUrl = "") {
-  let m = text.match(SUCCESS_TEXT) || (system.successText ? text.match(new RegExp(system.successText, "i")) : null);
-  if (m) return m[0].slice(0, 200);
+function confirmation(system, url, text, beforeUrl = "", beforeText = "") {
+  // words already on the page before the button was pressed (a note on what happens once you apply)
+  // are not proof
+  const fresh = (rx) => {
+    for (const m of text.matchAll(rx)) if (!beforeText.toLowerCase().includes(m[0].toLowerCase())) return m[0].slice(0, 200);
+    return null;
+  };
+  const got = fresh(new RegExp(SUCCESS_TEXT.source, "gi")) || (system.successText ? fresh(new RegExp(system.successText, "gi")) : null);
+  if (got) return got;
   if (url !== beforeUrl && (SUCCESS_URL.test(url) || (system.successUrl && new RegExp(system.successUrl, "i").test(url)))) return url.slice(0, 200);
   return null;
 }
