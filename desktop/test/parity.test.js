@@ -24,7 +24,8 @@ const DATES = ["2026-03-05", "05/03/2026", "5-3-2026", "5 March 2026", "March 5,
 const QLABELS = ["Will you now or in the future require visa sponsorship?", "Are you legally authorized to work in the US?",
   "Are you willing to relocate?", "What are your salary expectations?", "How soon can you start?", "Years of experience with SQL",
   "How did you hear about this job opportunity?", "Cover Letter", "Gender", "Race / Ethnicity", "Veteran Status", "Disability Status",
-  "Sexual orientation", "Are you transgender?", "Why do you want to work here?", "Email", ""];
+  "Sexual orientation", "Are you transgender?", "Why do you want to work here?", "Email", "",
+  "Are you a U.S. citizen or permanent resident?", "Do you hold an active security clearance?", "Have you ever been convicted of a felony?"];
 const OPTION_SETS = [["Male", "Female", "Decline to self-identify"], ["Yes", "No", "I do not want to answer"], ["LinkedIn", "Indeed", "Other"],
   ["LinkedIn", "Employee Referral"], ["Job board", "Other"], ["Company website", "Friend"], ["Yes", "No"], ["Prefer not to say", "A"],
   ["I identify as a protected veteran", "I am not a protected veteran", "I decline to self-identify for protected veteran status"]];

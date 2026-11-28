@@ -267,6 +267,26 @@ test("a question nothing on file answers is written by the server, and the form 
   await close();
 });
 
+test("a saved answer worded differently from the form's choices is put into its words, not guessed", { skip: SKIP }, async () => {
+  server.received.length = 0;
+  const { driver, close } = await open("/ashby/modern");
+  const values = { ...ASHBY_VALUES, requires_sponsorship: "Not needed" }; // not "Yes" or "No"
+  const asked = [];
+  const out = await runJob({
+    page: driver,
+    job: { url: server.origin + "/ashby/modern", ats: "ashby", values, documents: { resume: doc("CV.pdf") } },
+    say: async () => null,
+    authorize: async () => ({ ok: true }),
+    intervene: async () => "skip",
+    draft: async (qs) => { asked.push(...qs.map((q) => q.field)); return { requires_sponsorship: "No" }; },
+    limits: { submitMs: 3000 },
+  });
+  assert.equal(out.status, "confirmed", out.message);
+  assert.deepEqual(asked, ["requires_sponsorship"]);
+  assert.equal(server.received.at(-1).visa, "No");
+  await close();
+});
+
 test("an agreement box is ticked without asking", () => {
   const rules = require("../src/auto/rules");
   const c = [{ name: "privacy", label: "I agree to the privacy policy", kind: "declaration", options: [], required: true },

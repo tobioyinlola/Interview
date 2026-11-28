@@ -106,6 +106,9 @@ QUESTIONS = (
         r"(legally|authori[sz]ed|eligible|right) .*work|work authori[sz]ation"
         r"|work (in|within) the (us|u\.s\.|united states|uk|country)",
     ),
+    ("citizenship", r"citizen|nationality|permanent resident|green card"),
+    ("security_clearance", r"clearance"),
+    ("criminal_record", r"criminal|convicted|conviction|felony|misdemeanou?r"),
     ("relocate", r"relocat"),
     (
         "salary_expectation",
@@ -355,8 +358,8 @@ def pick(options: list[str], wanted: str) -> int | None:
             return i
     for i, o in enumerate(options):
         n = norm(o)
-        if n and (w in n or n in w) and min(len(n), len(w)) >= 2:
-            return i
+        if n and min(len(n), len(w)) >= 2 and (f" {w} " in f" {n} " or f" {n} " in f" {w} "):
+            return i  # whole words only: "No" is not found inside "Nigeria"
     return None
 
 

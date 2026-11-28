@@ -73,6 +73,14 @@ async function runJob({ page, job, say, command, authorize, intervene, draft = n
       seen.add(digest);
       if (steps === 1) await checkpoint("form_discovered", { fields: controls.length, steps: 1, provider });
       Object.assign(values, rules.resolve(controls, values)); // what can honestly be answered for them
+      // an answer on file that is not one of the form's choices ("Nigerian citizen" for Yes/No):
+      // put into the form's own words by the server, from that answer only, or asked for
+      const odd = controls.filter((c) => c.kind === "choice" && c.options.length && values[c.name]
+        && rules.pick(c.options, String(values[c.name])) == null);
+      for (const c of odd) delete values[c.name];
+      const optional = odd.filter((c) => !c.required)
+        .map((c) => ({ kind: "answer", field: c.name, question: c.label, options: [...c.options] }));
+      if (optional.length) await written(optional);
       let need = rules.unanswered(controls, values);
       if (need.length) need = await written(need);
       if (need.length) throw out("needs_input", "The form asks something that has not been answered.", { need, provider });

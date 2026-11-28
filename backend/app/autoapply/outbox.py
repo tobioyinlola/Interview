@@ -31,6 +31,7 @@ from app.autoapply.adapters import (
     MailAttachment,
     MailboxAdapter,
 )
+from app.autoapply.browserform import pick
 from app.autoapply.postings import apply_to
 from app.config import Settings
 from app.models import (
@@ -461,7 +462,7 @@ async def execute(
         if claim.channel == "form":
             values = {k: v["value"] for k, v in pkg.get("answers", {}).items()}
             for k, v in extra.items():
-                values.setdefault(k, v["value"])
+                values[k] = v["value"]  # on file now, or put into the form's own words
             values.setdefault("cover_letter", pkg.get("cover_text", ""))
             progress = runlog.progress_for(
                 maker, claim_user, claim.application_id, claim.attempt_id, "cloud"
@@ -499,7 +500,7 @@ def form_problem(
 ) -> list[dict[str, Any]] | None:
     """Questions the live form asks that the package (and what else is on file) cannot answer, or
     None if all is well."""
-    answers = {**(extra or {}), **pkg.get("answers", {})}
+    answers = {**pkg.get("answers", {}), **(extra or {})}  # extra: on file now, or rewritten
     missing: list[dict[str, Any]] = []
     for f in schema.fields:
         if f.kind == "captcha" or (
@@ -513,7 +514,15 @@ def form_problem(
                     "reason": f"This form has a {f.kind} step that cannot be done automatically.",
                 }
             )
-        elif f.kind != "file" and f.required and f.name not in answers and f.name != "cover_letter":
+        elif (
+            f.kind != "file"
+            and f.required
+            and f.name != "cover_letter"
+            and (
+                f.name not in answers
+                or (f.options and pick(list(f.options), str(answers[f.name]["value"])) is None)
+            )
+        ):
             need: dict[str, Any] = {
                 "kind": "declaration" if f.kind == "declaration" else "answer",
                 "field": f.name,

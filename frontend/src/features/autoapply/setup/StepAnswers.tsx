@@ -12,12 +12,27 @@ export const QUICK: { field: string; question: string; placeholder: string }[] =
     },
     {
       field: "work_authorization",
-      question: "Are you authorised to work in this country?",
+      question: "Do you have the right to work where you are applying?",
       placeholder: "e.g. Yes, citizen",
     },
     {
       field: "sponsorship",
-      question: "Do you need visa sponsorship?",
+      question: "Will you now or in the future need visa sponsorship?",
+      placeholder: "e.g. No",
+    },
+    {
+      field: "citizenship",
+      question: "What is your citizenship (and any permanent residency)?",
+      placeholder: "e.g. Nigerian citizen, no US permanent residency",
+    },
+    {
+      field: "security_clearance",
+      question: "Do you hold a security clearance?",
+      placeholder: "e.g. No",
+    },
+    {
+      field: "criminal_record",
+      question: "Have you ever been convicted of a crime?",
       placeholder: "e.g. No",
     },
     {
@@ -81,9 +96,10 @@ export function StepAnswers({
   return (
     <div className="space-y-4">
       <p className="rounded-2xl bg-accent-soft p-4 text-sm">
-        Answer once and we reuse it. Anything you leave blank is simply asked
-        when a job needs it. Declarations, such as a right-to-work statement,
-        are always yours to make on each application.
+        Answer once and we reuse it on every application form, including right
+        to work, visa sponsorship, citizenship, security clearance and criminal
+        record questions. Anything you leave blank is asked when a job needs it;
+        a question like these is never answered for you.
       </p>
       {QUICK.map((q) => {
         const a = drafts[q.field] ?? { value: "", reusable: true };

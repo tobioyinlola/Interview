@@ -42,6 +42,9 @@ function canonical(label, key) {
 const QUESTIONS = [
   ["requires_sponsorship", /sponsor/],
   ["work_authorization", /(legally|authori[sz]ed|eligible|right) .*work|work authori[sz]ation|work (in|within) the (us|u\.s\.|united states|uk|country)/],
+  ["citizenship", /citizen|nationality|permanent resident|green card/],
+  ["security_clearance", /clearance/],
+  ["criminal_record", /criminal|convicted|conviction|felony|misdemeanou?r/],
   ["relocate", /relocat/],
   ["salary_expectation", /(salary|compensation|pay) (expectation|requirement|range)|expected (salary|compensation)|desired (salary|compensation)/],
   ["notice_period", /notice period|how soon can you start|available to start|earliest .*start|start date/],
@@ -115,7 +118,8 @@ function pick(options, wanted) {
   for (let i = 0; i < options.length; i++) if (norm(options[i]) === w) return i;
   for (let i = 0; i < options.length; i++) {
     const n = norm(options[i]);
-    if (n && (n.includes(w) || w.includes(n)) && Math.min(n.length, w.length) >= 2) return i;
+    // whole words only: "No" is not found inside "Nigeria"
+    if (n && Math.min(n.length, w.length) >= 2 && (` ${n} `.includes(` ${w} `) || ` ${w} `.includes(` ${n} `))) return i;
   }
   return null;
 }

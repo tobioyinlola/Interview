@@ -107,3 +107,48 @@ def test_other_questions_are_written_from_the_cv_and_checked():
     assert got["terms"] == "Yes"
     assert "made_up" not in got and "bad_choice" not in got
     assert "auth" not in got and "auth" not in llm.asked, "a legal statement is never written"
+
+
+def test_a_legal_question_uses_only_the_candidates_own_answer_in_the_forms_words():
+    llm = Llm({"us_citizen": "No"})
+    qs = [
+        {
+            "field": "us_citizen",
+            "question": "Are you a U.S. citizen?",
+            "options": ["Yes", "No"],
+        },
+        {
+            "field": "clearance",
+            "question": "Do you hold a security clearance?",
+            "options": ["Yes", "No"],
+        },
+    ]
+    own = {"us_citizen": {"value": "Nigerian citizen", "source": "saved answer"}}
+    got = asyncio.run(answers.draft(llm, qs, facts=FACTS, cv_text="", saved=own, job={}))
+    assert got == {"us_citizen": "No"}
+    assert llm.asked == ["us_citizen"], "a legal question without a saved answer is never sent"
+
+
+def test_new_legal_questions_have_their_own_names_on_forms():
+    from app.autoapply.browserform import semantic
+
+    assert semantic("Are you a U.S. citizen or permanent resident?") == "citizenship"
+    assert semantic("Do you hold an active security clearance?") == "security_clearance"
+    assert semantic("Have you ever been convicted of a felony?") == "criminal_record"
+    got = answers.known(saved(criminal="No", clearance="None"), None, {}, NOW)
+    assert got["criminal_record"]["value"] == "No"
+    assert got["security_clearance"]["value"] == "None"
+
+
+def test_a_saved_answer_not_in_the_forms_words_is_rewritten_not_sent_as_is():
+    q = [
+        {
+            "field": "citizenship",
+            "label": "Are you a citizen?",
+            "kind": "choice",
+            "options": ["Yes", "No"],
+        }
+    ]
+    extra = answers.known(saved(citizenship="Nigerian citizen"), None, {}, NOW)
+    got, missing = resolve_answers(q, {}, {}, {}, extra)
+    assert "citizenship" not in got and missing[0]["field"] == "citizenship"

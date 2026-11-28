@@ -42,6 +42,11 @@ ALIASES = {
     "availability": "notice_period",
     "work_authorisation": "work_authorization",
     "right_to_work": "work_authorization",
+    "citizen": "citizenship",
+    "nationality": "citizenship",
+    "clearance": "security_clearance",
+    "criminal": "criminal_record",
+    "convictions": "criminal_record",
 }
 
 LEGAL = re.compile(
@@ -157,7 +162,10 @@ DRAFT_PROMPT = (
     "free-text question (why this company, about yourself, a project), write 2 to 4 plain "
     "first-person sentences grounded in the CV and the job, no greetings, no invented numbers, "
     "names or employers. For a short-answer field (a city, a URL, a number of years) give just "
-    "that. If the CV and saved answers do not let you answer honestly, return an empty value. "
+    "that. A question that comes with 'your_saved_answer' (right to work, sponsorship, "
+    "citizenship, clearance, criminal record) is answered only by choosing the option that says "
+    "the same as that saved answer; if none clearly does, return an empty value. "
+    "If the CV and saved answers do not let you answer honestly, return an empty value. "
     + UNTRUSTED_NOTE
 )
 
@@ -190,15 +198,27 @@ async def draft(
     """Answers for required questions nothing else could answer: {field: value}. Legal statements
     are never drafted; a choice is always one of the form's options; anything that fails the
     checks is left out (the question is then asked of the candidate)."""
+
+    def own(q: dict[str, Any]) -> str:
+        # the candidate's own saved answer for a legal question, under any of its names
+        f = str(q.get("field") or "")
+        hit = saved.get(f) or saved.get(canonical(f)) or {}
+        return str(hit.get("value") or "")
+
+    # a legal question goes on only to put the candidate's own saved answer into the form's words
     wanted = [
         q
         for q in questions
-        if q.get("field") and not is_legal(str(q["field"]), str(q.get("question") or ""))
+        if q.get("field")
+        and (
+            not is_legal(str(q["field"]), str(q.get("question") or ""))
+            or (own(q) and q.get("options"))
+        )
     ][:20]
     out: dict[str, str] = {}
     rest = []
     for q in wanted:
-        if consent(str(q.get("question") or "")):
+        if consent(str(q.get("question") or "")) and not own(q):
             opts = [str(o) for o in q.get("options") or []]
             out[str(q["field"])] = (
                 (_option(opts, "Yes") or _option(opts, "I agree")) if opts else "Yes"
@@ -223,6 +243,11 @@ async def draft(
                             "field": str(q["field"]),
                             "question": str(q.get("question") or "")[:300],
                             "options": [str(o)[:120] for o in (q.get("options") or [])][:60],
+                            **(
+                                {"your_saved_answer": own(q)[:300]}
+                                if is_legal(str(q["field"]), str(q.get("question") or ""))
+                                else {}
+                            ),
                         }
                         for q in rest
                     ],

@@ -7,6 +7,7 @@ from typing import Any
 from app.adapters.interfaces import LlmProvider
 from app.autoapply import answers as answers_mod
 from app.autoapply import tailor
+from app.autoapply.browserform import pick
 from app.autoapply.postings import apply_to
 from app.models import Application, CandidateAnswer, CandidateFacts, JobPosting
 
@@ -101,12 +102,24 @@ def resolve_answers(
         if field in per_application:
             answers[field] = {"value": str(per_application[field]), "source": "this application"}
             continue
-        if extra and field in extra:
+        opts = [str(o) for o in q.get("options") or []]
+        if extra and field in extra and (not opts or pick(opts, extra[field]["value"]) is not None):
             # a saved answer (under any of its names), a search preference or a CV fact
             answers[field] = dict(extra[field])
             continue
         if kind == "declaration" and answers_mod.consent(label):
             answers[field] = {"value": "Yes", "source": "you turned on Auto-Apply"}
+            continue
+        if extra and field in extra and kind != "declaration":
+            # on file, but not in the form's own words: put into them below (never guessed)
+            missing.append(
+                {
+                    "kind": "answer",
+                    "field": field,
+                    "question": label,
+                    "reason": "Your saved answer does not match the form's choices.",
+                }
+            )
             continue
         if kind == "declaration" and answers_mod.is_legal(field, label):
             if required:
